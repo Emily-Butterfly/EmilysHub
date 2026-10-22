@@ -15,7 +15,7 @@ object KeystoreKeys {
      * unlocked screen, because reminders read the database while the phone is locked.
      */
     @Synchronized
-    fun aesGcmKey(alias: String): SecretKey {
+    fun getOrCreateAesGcmKey(alias: String): SecretKey {
         val keyStore = KeyStore.getInstance(PROVIDER).apply { load(null) }
         (keyStore.getKey(alias, null) as SecretKey?)?.let { return it }
 

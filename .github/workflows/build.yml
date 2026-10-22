@@ -35,6 +35,12 @@ jobs:
       - name: Lint, Unit-Tests, Debug- und Release-Build
         run: ./gradlew lint testDebugUnitTest assembleDebug assembleRelease
 
+      # The build re-exports the Room schema; a difference means a schema change without its committed export.
+      - name: Datenbank-Schema im Repo prüfen
+        run: |
+          git status --porcelain -- app/schemas
+          test -z "$(git status --porcelain -- app/schemas)"
+
       - name: Debug-APK hochladen
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -89,6 +95,11 @@ jobs:
           target: default
           disable-animations: true
           script: ./gradlew connectedDebugAndroidTest
+
+      # Gradle prints no test count for device tests; this shows how many ran, failed and were skipped.
+      - name: Ergebnis der instrumentierten Tests
+        if: always()
+        run: find app/build/outputs/androidTest-results -name 'TEST-*.xml' -exec grep -oh '<testsuite [^>]*' {} + || true
 
       - name: Berichte bei Fehlern hochladen
         if: failure()

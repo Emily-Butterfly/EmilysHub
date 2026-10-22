@@ -30,7 +30,7 @@ class KeystoreKeysTest {
 
     @Test
     fun `the wrapping key is a 256-bit AES key that never leaves the keystore`() {
-        val key = KeystoreKeys.aesGcmKey(alias)
+        val key = KeystoreKeys.getOrCreateAesGcmKey(alias)
 
         assertNull("key material must not be exportable", key.encoded)
         val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
@@ -40,9 +40,9 @@ class KeystoreKeysTest {
 
     @Test
     fun `a database key wrapped by the keystore can be read again after a restart`() {
-        val created = DatabaseKeyFile(keyFile, KeystoreKeys.aesGcmKey(alias)).readOrCreate()
+        val created = DatabaseKeyFile(keyFile, KeystoreKeys.getOrCreateAesGcmKey(alias)).readOrCreate()
 
-        val afterRestart = DatabaseKeyFile(keyFile, KeystoreKeys.aesGcmKey(alias)).readOrCreate()
+        val afterRestart = DatabaseKeyFile(keyFile, KeystoreKeys.getOrCreateAesGcmKey(alias)).readOrCreate()
 
         assertArrayEquals(created, afterRestart)
     }

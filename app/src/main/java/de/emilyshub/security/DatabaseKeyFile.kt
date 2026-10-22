@@ -1,6 +1,7 @@
 package de.emilyshub.security
 
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.security.GeneralSecurityException
@@ -20,9 +21,13 @@ class DatabaseKeyFile(private val file: File, private val wrappingKey: SecretKey
 
     private fun create(): ByteArray {
         val key = ByteArray(KEY_BYTES).also(SecureRandom()::nextBytes)
-        // Written to a temporary file and moved into place, so a crash never leaves half a key behind.
+        // Synced to disk under a temporary name and only then moved into place, so neither a crash nor
+        // a power cut can leave an empty or half-written key behind; that would lock the database for good.
         val temp = File(file.parentFile, "${file.name}.tmp")
-        temp.writeBytes(wrap(key))
+        FileOutputStream(temp).use { out ->
+            out.write(wrap(key))
+            out.fd.sync()
+        }
         Files.move(temp.toPath(), file.toPath(), ATOMIC_MOVE)
         return key
     }

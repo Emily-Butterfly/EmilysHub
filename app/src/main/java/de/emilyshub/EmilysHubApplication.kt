@@ -11,7 +11,7 @@ class EmilysHubApplication : Application() {
 
     /** Opened on first use, which touches the Keystore and disk: never access it on the main thread. */
     val database: HubDatabase by lazy {
-        val wrappingKey = KeystoreKeys.aesGcmKey("database-key")
+        val wrappingKey = KeystoreKeys.getOrCreateAesGcmKey("database-key")
         val key = DatabaseKeyFile(File(noBackupFilesDir, "database.key"), wrappingKey).readOrCreate()
         HubDatabase.open(this, key)
     }

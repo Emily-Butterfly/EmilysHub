@@ -2,6 +2,7 @@ package de.emilyshub.data
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteDatabaseCorruptException
 import android.database.sqlite.SQLiteException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -52,11 +53,15 @@ class HubDatabaseTest {
     fun `the file cannot be opened without a key`() {
         withDatabase(key) { settings().put(Setting("design", "dunkel")) }
 
-        assertThrows(SQLiteException::class.java) {
-            SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { plain ->
+        // Android's own SQLite sees only noise. Its default reaction to that is to delete the file,
+        // so the handler here keeps it, to check afterwards that the data was really there.
+        assertThrows(SQLiteDatabaseCorruptException::class.java) {
+            SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY) {}.use { plain ->
                 plain.rawQuery("SELECT count(*) FROM sqlite_master", null).use { it.moveToFirst() }
             }
         }
+
+        assertEquals("dunkel", withDatabase(key) { settings().get("design") })
     }
 
     @Test
