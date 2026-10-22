@@ -61,7 +61,7 @@ Fehlt nur ein Teil der Secrets, schlägt der Lauf mit der Liste der fehlenden Na
 ## 4. Signierte APK bauen und installieren
 
 1. Einen neuen Lauf starten: entweder etwas pushen oder unter **Actions → Build → Run workflow**.
-2. Im Lauf den Schritt **Release-APK signieren** öffnen. Dort steht `Signer #1 certificate SHA-256 digest: …`. Der Wert muss dein Fingerabdruck aus Schritt 1 sein, nur kleingeschrieben und ohne Doppelpunkte.
+2. Im Lauf den Schritt **Release-APK signieren** öffnen. Dort steht eine Zeile mit `certificate SHA-256 digest: …`. Der Wert muss dein Fingerabdruck aus Schritt 1 sein, nur kleingeschrieben und ohne Doppelpunkte.
 3. Unten bei **Artifacts** `emilyshub-release` herunterladen. Die ZIP-Datei enthält `app-release.apk`.
 4. Die APK aufs A52 bringen, zum Beispiel per USB-Kabel, und in „Eigene Dateien“ antippen. Samsung fragt beim ersten Mal, ob diese App unbekannte Apps installieren darf: erlauben, dann **Installieren**.
 
