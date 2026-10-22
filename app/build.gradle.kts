@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
     id("emilyshub.manifest-policy")
 }
 
@@ -14,6 +16,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -56,6 +60,11 @@ android {
     }
 }
 
+room {
+    // Every schema version is checked in, so migrations can be written and tested against it.
+    schemaDirectory("$projectDir/schemas")
+}
+
 manifestPolicy {
     launcherActivity = "de.emilyshub.MainActivity"
 }
@@ -66,6 +75,9 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.sqlcipher.android)
+    ksp(libs.androidx.room.compiler)
 
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.junit)
@@ -73,4 +85,9 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
