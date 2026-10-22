@@ -1,8 +1,8 @@
 package de.emilyshub.security
 
 import android.app.Activity
+import android.app.KeyguardManager
 import android.content.Context
-import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import android.hardware.biometrics.BiometricPrompt
@@ -24,8 +24,9 @@ interface DeviceAuthenticator {
  */
 class SystemAuthenticator(private val context: Context) : DeviceAuthenticator {
 
-    override fun canAuthenticate() =
-        context.getSystemService(BiometricManager::class.java).canAuthenticate(ALLOWED) == BiometricManager.BIOMETRIC_SUCCESS
+    // A screen lock is all the prompt needs, and a fingerprint can only be set up on top of one.
+    // Asking for exactly this keeps other states, such as a busy fingerprint sensor, from opening the app.
+    override fun canAuthenticate() = context.getSystemService(KeyguardManager::class.java).isDeviceSecure
 
     override fun authenticate(activity: Activity, onSuccess: () -> Unit) {
         val prompt = BiometricPrompt.Builder(activity)

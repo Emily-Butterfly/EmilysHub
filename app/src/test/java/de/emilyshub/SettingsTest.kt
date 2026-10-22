@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.app.UiModeManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,14 +17,15 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.lifecycle.Lifecycle
-import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.ui.theme.FliederColorScheme
+import de.emilyshub.ui.theme.LilaColorScheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowSystemClock
 import java.time.Duration
@@ -38,21 +40,21 @@ class SettingsTest {
 
     @Test
     fun `the design follows the system until another one is chosen, and the choice is saved`() {
-        launch().use {
+        launchApp().use {
             openSettings()
             design("System").assertIsSelected()
 
             design("Dunkel").performClick()
 
             design("Dunkel").assertIsSelected()
-            assertEquals("dunkel", app.settingsDao.values["design"])
+            assertEquals("dark", app.settingsDao.values["design"])
         }
     }
 
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun `the chosen design switches between Flieder and Lila right away`() {
-        launch().use {
+        launchApp().use {
             openSettings()
 
             design("Dunkel").performClick()
@@ -64,28 +66,41 @@ class SettingsTest {
     }
 
     @Test
+    fun `Android draws its window background and starting window in the chosen design too`() {
+        app.settingsDao.values["design"] = "dark"
+
+        launchApp().use {
+            assertEquals(UiModeManager.MODE_NIGHT_YES, applicationNightMode())
+
+            openSettings()
+            design("Hell").performClick()
+            assertEquals(UiModeManager.MODE_NIGHT_NO, applicationNightMode())
+
+            design("System").performClick()
+            assertEquals(UiModeManager.MODE_NIGHT_AUTO, applicationNightMode())
+        }
+    }
+
+    @Test
     fun `the app lock is on by default, and turning it off is saved and takes effect right away`() {
         app.authenticator.deviceSecure = true
 
-        launch().use { scenario ->
-            compose.waitForIdle()
-            app.authenticator.succeed()
+        launchApp().use { scenario ->
+            compose.unlockWithFingerprint(app.authenticator)
             openSettings()
             appLockSwitch().assertIsOn()
 
             appLockSwitch().performClick()
 
             appLockSwitch().assertIsOff()
-            assertEquals("aus", app.settingsDao.values["app-sperre"])
+            assertEquals("off", app.settingsDao.values["app-lock"])
 
-            scenario.moveToState(Lifecycle.State.CREATED)
-            ShadowSystemClock.advanceBy(Duration.ofMinutes(5))
-            scenario.moveToState(Lifecycle.State.RESUMED)
+            scenario.leaveAndReturn { ShadowSystemClock.advanceBy(Duration.ofMinutes(5)) }
             compose.onNodeWithText("EmilysHub ist gesperrt").assertDoesNotExist()
 
             appLockSwitch().performClick()
             appLockSwitch().assertIsOn()
-            assertEquals("an", app.settingsDao.values["app-sperre"])
+            assertEquals("on", app.settingsDao.values["app-lock"])
         }
     }
 
@@ -93,7 +108,7 @@ class SettingsTest {
     fun `without a screen lock on the phone, the app lock shows a hint instead of turning on`() {
         app.authenticator.deviceSecure = false
 
-        launch().use {
+        launchApp().use {
             openSettings()
 
             appLockSwitch().assertIsOff().assertIsNotEnabled()
@@ -101,13 +116,16 @@ class SettingsTest {
         }
     }
 
-    private fun launch() = ActivityScenario.launch(MainActivity::class.java)
-
     private fun openSettings() {
         compose.onNodeWithContentDescription("Einstellungen").performClick()
     }
 
     private fun design(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    private fun applicationNightMode(): Int {
+        compose.waitForIdle()
+        return shadowOf(app.getSystemService(UiModeManager::class.java)).applicationNightMode
+    }
 
     private fun appLockSwitch() = compose.onNode(isToggleable() and hasText("App-Sperre"))
 
@@ -118,7 +136,7 @@ class SettingsTest {
     private fun backgroundColor(): Color = compose.onRoot().captureToImage().toPixelMap()[0, 0]
 
     private companion object {
-        val FLIEDER_BACKGROUND = Color(0xFFFEF7FF)
-        val LILA_BACKGROUND = Color(0xFF17111F)
+        val FLIEDER_BACKGROUND = FliederColorScheme.background
+        val LILA_BACKGROUND = LilaColorScheme.background
     }
 }

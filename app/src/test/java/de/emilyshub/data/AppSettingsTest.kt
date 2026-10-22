@@ -36,8 +36,8 @@ class AppSettingsTest {
 
     @Test
     fun `unknown stored values fall back to the defaults, keeping the app lock on`() {
-        dao.values["design"] = "Dunkel"
-        dao.values["app-sperre"] = "false"
+        dao.values["design"] = "Dark"
+        dao.values["app-lock"] = "false"
 
         assertEquals(Settings(design = Design.System, appLockEnabled = true), load())
     }

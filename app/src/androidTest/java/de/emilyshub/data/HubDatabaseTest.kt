@@ -32,11 +32,11 @@ class HubDatabaseTest {
 
     @Test
     fun `settings are still there after reopening`() {
-        withDatabase(key) { settings().put(Setting("design", "dunkel")) }
+        withDatabase(key) { settings().put(Setting("design", "dark")) }
 
         val design = withDatabase(key) { settings().get("design") }
 
-        assertEquals("dunkel", design)
+        assertEquals("dark", design)
     }
 
     @Test
@@ -51,7 +51,7 @@ class HubDatabaseTest {
 
     @Test
     fun `the file cannot be opened without a key`() {
-        withDatabase(key) { settings().put(Setting("design", "dunkel")) }
+        withDatabase(key) { settings().put(Setting("design", "dark")) }
 
         // Android's own SQLite sees only noise. Its default reaction to that is to delete the file,
         // so the handler here keeps it, to check afterwards that the data was really there.
@@ -61,23 +61,23 @@ class HubDatabaseTest {
             }
         }
 
-        assertEquals("dunkel", withDatabase(key) { settings().get("design") })
+        assertEquals("dark", withDatabase(key) { settings().get("design") })
     }
 
     @Test
     fun `a wrong key cannot open the file and leaves the data intact`() {
-        withDatabase(key) { settings().put(Setting("design", "dunkel")) }
+        withDatabase(key) { settings().put(Setting("design", "dark")) }
 
         assertThrows(SQLiteException::class.java) {
             withDatabase(randomKey()) { settings().get("design") }
         }
 
-        assertEquals("dunkel", withDatabase(key) { settings().get("design") })
+        assertEquals("dark", withDatabase(key) { settings().get("design") })
     }
 
     @Test
     fun `a schema version without a migration fails instead of wiping the data`() {
-        withDatabase(key) { settings().put(Setting("design", "dunkel")) }
+        withDatabase(key) { settings().put(Setting("design", "dark")) }
         setSchemaVersion(99)
 
         assertThrows(IllegalStateException::class.java) {
@@ -85,7 +85,7 @@ class HubDatabaseTest {
         }
 
         setSchemaVersion(1)
-        assertEquals("dunkel", withDatabase(key) { settings().get("design") })
+        assertEquals("dark", withDatabase(key) { settings().get("design") })
     }
 
     private fun <T> withDatabase(key: ByteArray, block: suspend HubDatabase.() -> T): T {

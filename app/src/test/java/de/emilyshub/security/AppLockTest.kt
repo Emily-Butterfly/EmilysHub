@@ -30,9 +30,7 @@ class AppLockTest {
     fun `a minute in the background locks the app again`() {
         unlocked()
 
-        lock.onBackground()
-        clock += 60_000
-        lock.onForeground()
+        away(60_000)
 
         assertTrue(lock.isLocked)
     }
@@ -41,9 +39,7 @@ class AppLockTest {
     fun `a shorter break keeps the app open`() {
         unlocked()
 
-        lock.onBackground()
-        clock += 59_999
-        lock.onForeground()
+        away(59_999)
 
         assertFalse(lock.isLocked)
     }
@@ -52,11 +48,7 @@ class AppLockTest {
     fun `short breaks do not add up`() {
         unlocked()
 
-        repeat(3) {
-            lock.onBackground()
-            clock += 40_000
-            lock.onForeground()
-        }
+        repeat(3) { away(40_000) }
 
         assertFalse(lock.isLocked)
     }
@@ -68,9 +60,7 @@ class AppLockTest {
         lock.setEnabled(false)
         assertFalse(lock.isLocked)
 
-        lock.onBackground()
-        clock += 10 * 60_000
-        lock.onForeground()
+        away(10 * 60_000)
         assertFalse(lock.isLocked)
     }
 
@@ -82,9 +72,7 @@ class AppLockTest {
         lock.setEnabled(true)
         assertFalse(lock.isLocked)
 
-        lock.onBackground()
-        clock += 60_000
-        lock.onForeground()
+        away(60_000)
         assertTrue(lock.isLocked)
     }
 
@@ -95,9 +83,7 @@ class AppLockTest {
         lock.onForeground()
         assertFalse(lock.isLocked)
 
-        lock.onBackground()
-        clock += 60_000
-        lock.onForeground()
+        away(60_000)
         assertFalse(lock.isLocked)
     }
 
@@ -122,6 +108,25 @@ class AppLockTest {
         lock.onForeground()
 
         assertFalse(lock.isLocked)
+    }
+
+    @Test
+    fun `a minute away after such a late unlock locks the app again`() {
+        lock.onForeground()
+        lock.onBackground()
+
+        lock.unlock()
+        clock += 60_000
+        lock.onForeground()
+
+        assertTrue(lock.isLocked)
+    }
+
+    /** The app leaves the screen for [millis] and comes back. */
+    private fun away(millis: Int) {
+        lock.onBackground()
+        clock += millis
+        lock.onForeground()
     }
 
     private fun unlocked() {

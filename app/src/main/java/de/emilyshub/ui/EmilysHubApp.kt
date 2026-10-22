@@ -1,6 +1,8 @@
 package de.emilyshub.ui
 
+import android.app.UiModeManager
 import android.graphics.Color
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -56,7 +58,7 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
         Design.Light -> false
         Design.Dark -> true
     }
-    SystemBarsFollowTheme(activity, darkTheme)
+    SystemFollowsDesign(activity, current.design, darkTheme)
 
     // Keeps the open area and screen while the content is gone behind the lock screen.
     val lockedAwayState = rememberSaveableStateHolder()
@@ -83,12 +85,27 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
     }
 }
 
-/** Light or dark status and navigation bar icons to match the in-app design, not only the system's. */
+/**
+ * What Android draws around and before the app's own frames follows the in-app design too: the
+ * status and navigation bar icons, and from Android 12 on the window background and the starting
+ * window shown on launch and return. Android keeps the latter choice itself, so it already applies
+ * on the next cold start, before the settings are loaded.
+ */
 @Composable
-private fun SystemBarsFollowTheme(activity: ComponentActivity, darkTheme: Boolean) {
-    DisposableEffect(activity, darkTheme) {
+private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, darkTheme: Boolean) {
+    DisposableEffect(activity, design, darkTheme) {
         val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme }
         activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // A change recreates the activity, like any dark mode switch; its screen state is kept.
+            activity.getSystemService(UiModeManager::class.java).setApplicationNightMode(
+                when (design) {
+                    Design.System -> UiModeManager.MODE_NIGHT_AUTO
+                    Design.Light -> UiModeManager.MODE_NIGHT_NO
+                    Design.Dark -> UiModeManager.MODE_NIGHT_YES
+                },
+            )
+        }
         onDispose {}
     }
 }

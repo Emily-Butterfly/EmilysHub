@@ -8,7 +8,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 /** The in-app design choice (SPEC.md §1): follow the system, or always light (Flieder) or dark (Lila). */
-enum class Design(val stored: String) { System("system"), Light("hell"), Dark("dunkel") }
+enum class Design(val stored: String) { System("system"), Light("light"), Dark("dark") }
 
 data class Settings(val design: Design, val appLockEnabled: Boolean)
 
@@ -44,13 +44,13 @@ class AppSettings(
     private suspend fun save(name: String, value: String, change: (Settings) -> Settings) {
         checkNotNull(current) { "Settings can only change after load()" }
         withContext(io) { dao().put(Setting(name, value)) }
-        current = change(current!!)
+        current = current?.let(change)
     }
 
     private companion object {
         const val DESIGN = "design"
-        const val APP_LOCK = "app-sperre"
-        const val ON = "an"
-        const val OFF = "aus"
+        const val APP_LOCK = "app-lock"
+        const val ON = "on"
+        const val OFF = "off"
     }
 }

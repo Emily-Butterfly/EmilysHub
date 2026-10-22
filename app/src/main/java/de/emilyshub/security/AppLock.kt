@@ -25,8 +25,8 @@ class AppLock(
 
     fun unlock() {
         isLocked = false
-        // A late unlock, completed while the app was already in the background, starts no break.
-        backgroundSince = null
+        // A late unlock, completed after the app has left the screen, starts the break anew from here.
+        if (backgroundSince != null) backgroundSince = now()
     }
 
     /** The "App-Sperre" setting. Turning it on never locks right away: whoever turns it on is already in. */
