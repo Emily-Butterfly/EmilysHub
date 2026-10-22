@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#7E5CB8</color>
+    <color name="ic_launcher_foreground">#F7F0FF</color>
+    <!-- Shown before Compose draws its first frame; matches the theme's background. -->
+    <color name="window_background">#FEF7FF</color>
+</resources>

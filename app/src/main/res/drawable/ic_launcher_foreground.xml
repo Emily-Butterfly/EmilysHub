@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- House with a check mark cut out of it; the cut-out lets the background colour show through.
+     Kept inside the 66dp safe zone of the 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_foreground"
+        android:fillType="evenOdd"
+        android:pathData="M54,29L80,53H73V79H35V53H28Z M40.53,65.48L51,75.95L68.48,58.48L63.53,53.53L51,66.05L45.48,60.53Z" />
+</vector>

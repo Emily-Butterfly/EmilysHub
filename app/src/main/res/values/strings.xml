@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="de">
+    <string name="app_name" translatable="false">EmilysHub</string>
+
+    <string name="destination_today">Heute</string>
+    <string name="destination_routines">Routinen</string>
+    <string name="destination_todos">To-dos</string>
+    <string name="destination_wishlist">Wunschliste</string>
+    <string name="destination_notes">Notizen</string>
+
+    <string name="settings">Einstellungen</string>
+    <string name="navigate_back">Zurück</string>
+
+    <string name="placeholder_today">Hier siehst du bald alles, was heute ansteht.</string>
+    <string name="placeholder_routines">Hier legst du bald deine Routinen an.</string>
+    <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
+    <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
+    <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
+    <string name="placeholder_settings">Orte, Statusseite, Backups und Sicherheit folgen hier.</string>
+</resources>
