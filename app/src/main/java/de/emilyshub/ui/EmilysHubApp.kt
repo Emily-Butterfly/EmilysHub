@@ -75,6 +75,7 @@ private fun TopLevelScaffold(
             }
         },
     ) { contentPadding ->
+        // Each later slice swaps its branch for the real screen.
         val placeholder = when (current) {
             TopLevelDestination.Today -> R.string.placeholder_today
             TopLevelDestination.Routines -> R.string.placeholder_routines

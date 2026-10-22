@@ -56,6 +56,10 @@ android {
     }
 }
 
+manifestPolicy {
+    launcherActivity = "de.emilyshub.MainActivity"
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

@@ -31,48 +31,53 @@ class AppShellTest {
 
     @Test
     fun `app starts on Heute`() {
-        compose.onNode(isSelectable() and hasText("Heute")).assertIsSelected()
-        compose.onNode(isHeading() and hasText("Heute")).assertIsDisplayed()
+        tab("Heute").assertIsSelected()
+        heading("Heute").assertIsDisplayed()
     }
 
     @Test
     fun `tapping a tab opens that area`() {
         for (area in listOf("Routinen", "To-dos", "Wunschliste", "Notizen", "Heute")) {
-            compose.onNode(isSelectable() and hasText(area)).performClick().assertIsSelected()
-            compose.onNode(isHeading() and hasText(area)).assertIsDisplayed()
+            tab(area).performClick().assertIsSelected()
+            heading(area).assertIsDisplayed()
         }
     }
 
     @Test
     fun `back from another area returns to Heute`() {
-        compose.onNode(isSelectable() and hasText("Wunschliste")).performClick()
+        tab("Wunschliste").performClick()
 
         pressBack()
 
-        compose.onNode(isSelectable() and hasText("Heute")).assertIsSelected()
-        compose.onNode(isHeading() and hasText("Heute")).assertIsDisplayed()
+        tab("Heute").assertIsSelected()
+        heading("Heute").assertIsDisplayed()
     }
 
     @Test
     fun `settings open from the top bar and back returns to the area`() {
-        compose.onNode(isSelectable() and hasText("Notizen")).performClick()
+        tab("Notizen").performClick()
 
         compose.onNodeWithContentDescription("Einstellungen").performClick()
-        compose.onNode(isHeading() and hasText("Einstellungen")).assertIsDisplayed()
+        heading("Einstellungen").assertIsDisplayed()
 
         pressBack()
-        compose.onNode(isHeading() and hasText("Notizen")).assertIsDisplayed()
+        heading("Notizen").assertIsDisplayed()
     }
 
     @Test
     fun `the back arrow in settings returns to the area`() {
-        compose.onNode(isSelectable() and hasText("Routinen")).performClick()
+        tab("Routinen").performClick()
         compose.onNodeWithContentDescription("Einstellungen").performClick()
 
         compose.onNodeWithContentDescription("Zurück").performClick()
 
-        compose.onNode(isHeading() and hasText("Routinen")).assertIsDisplayed()
+        heading("Routinen").assertIsDisplayed()
     }
+
+    private fun tab(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    /** The screen's title, marked as a heading for accessibility. */
+    private fun heading(title: String) = compose.onNode(isHeading() and hasText(title))
 
     private fun pressBack() {
         compose.waitForIdle()

@@ -16,11 +16,15 @@ private const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
 
 private val forbiddenPermissions = setOf("android.permission.INTERNET")
 
-fun manifestPolicyViolations(manifestXml: String): List<ManifestViolation> {
+/**
+ * Checks a merged manifest against SPEC.md §9. [launcherActivity] is the fully qualified name of
+ * the app's own launcher, the only component allowed to be exported.
+ */
+fun manifestPolicyViolations(manifestXml: String, launcherActivity: String): List<ManifestViolation> {
     val manifest = parse(manifestXml)
     val application = manifest.children("application").single()
     return forbiddenPermissionsIn(manifest) +
-        exportedNonLauncherComponentsIn(application) +
+        exportedComponentsIn(application, except = launcherActivity) +
         backupViolationsIn(application)
 }
 
@@ -37,17 +41,10 @@ private fun forbiddenPermissionsIn(manifest: Element) =
         .filter { it in forbiddenPermissions }
         .map { ManifestViolation.ForbiddenPermission(it) }
 
-private fun exportedNonLauncherComponentsIn(application: Element) =
+private fun exportedComponentsIn(application: Element, except: String) =
     application.children("activity", "activity-alias", "service", "receiver", "provider")
-        .filter { it.androidAttr("exported") == "true" && !it.isLauncherActivity() }
+        .filter { it.androidAttr("exported") == "true" && it.androidAttr("name") != except }
         .map { ManifestViolation.ExportedComponent(it.tagName, it.androidAttr("name")) }
-
-private fun Element.isLauncherActivity() =
-    tagName in setOf("activity", "activity-alias") &&
-        children("intent-filter").any { filter ->
-            filter.children("action").any { it.androidAttr("name") == "android.intent.action.MAIN" } &&
-                filter.children("category").any { it.androidAttr("name") == "android.intent.category.LAUNCHER" }
-        }
 
 private fun parse(xml: String): Element {
     val factory = DocumentBuilderFactory.newInstance().apply {

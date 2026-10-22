@@ -7,10 +7,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,7 +30,7 @@ jobs:
       - name: Build-Logik testen
         run: ./gradlew :build-logic:test
 
-      # assemble* runs verify*ManifestPolicy first: no INTERNET permission, only the launcher
+      # assemble* runs verify*ManifestPolicy first: no INTERNET permission, only the app's launcher
       # exported, backups off. A dependency that breaks this fails the build.
       - name: Lint, Unit-Tests, Debug- und Release-Build
         run: ./gradlew lint testDebugUnitTest assembleDebug assembleRelease

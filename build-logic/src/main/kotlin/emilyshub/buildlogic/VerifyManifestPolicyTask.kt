@@ -3,7 +3,9 @@ package emilyshub.buildlogic
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -18,12 +20,15 @@ abstract class VerifyManifestPolicyTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val mergedManifest: RegularFileProperty
 
+    @get:Input
+    abstract val launcherActivity: Property<String>
+
     @get:OutputFile
     abstract val report: RegularFileProperty
 
     @TaskAction
     fun verify() {
-        val violations = manifestPolicyViolations(mergedManifest.get().asFile.readText())
+        val violations = manifestPolicyViolations(mergedManifest.get().asFile.readText(), launcherActivity.get())
         val lines = violations.map { " - ${it.message()}" }
         report.get().asFile.writeText(if (lines.isEmpty()) "OK\n" else lines.joinToString("\n", postfix = "\n"))
         if (lines.isNotEmpty()) {
@@ -40,7 +45,7 @@ private fun ManifestViolation.message() = when (this) {
     is ManifestViolation.ForbiddenPermission ->
         "Verbotene Berechtigung $permission – die App darf nicht ins Internet."
     is ManifestViolation.ExportedComponent ->
-        "<$kind> $name ist exportiert – nur die Launcher-Activity darf exportiert sein."
+        "<$kind> $name ist exportiert – nur die eigene Launcher-Activity darf exportiert sein."
     ManifestViolation.BackupAllowed ->
         "android:allowBackup muss \"false\" sein."
     ManifestViolation.MissingDataExtractionRules ->

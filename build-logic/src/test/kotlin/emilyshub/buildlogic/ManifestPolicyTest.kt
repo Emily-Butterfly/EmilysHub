@@ -13,7 +13,7 @@ class ManifestPolicyTest {
 
         assertEquals(
             listOf(ManifestViolation.ForbiddenPermission("android.permission.INTERNET")),
-            manifestPolicyViolations(manifest),
+            violations(manifest),
         )
     }
 
@@ -25,12 +25,12 @@ class ManifestPolicyTest {
 
         assertEquals(
             listOf(ManifestViolation.ForbiddenPermission("android.permission.INTERNET")),
-            manifestPolicyViolations(manifest),
+            violations(manifest),
         )
     }
 
     @Test
-    fun `exported components other than the launcher activity are forbidden`() {
+    fun `exported components other than the app's launcher activity are forbidden`() {
         val manifest = mergedManifest(
             components = """
                 <receiver
@@ -46,7 +46,7 @@ class ManifestPolicyTest {
                 ManifestViolation.ExportedComponent("receiver", "androidx.profileinstaller.ProfileInstallReceiver"),
                 ManifestViolation.ExportedComponent("activity", "de.emilyshub.ShareActivity"),
             ),
-            manifestPolicyViolations(manifest),
+            violations(manifest),
         )
     }
 
@@ -59,7 +59,7 @@ class ManifestPolicyTest {
             """,
         )
 
-        assertEquals(listOf(ManifestViolation.BackupAllowed), manifestPolicyViolations(manifest))
+        assertEquals(listOf(ManifestViolation.BackupAllowed), violations(manifest))
     }
 
     @Test
@@ -68,15 +68,40 @@ class ManifestPolicyTest {
             applicationAttributes = """android:dataExtractionRules="@xml/data_extraction_rules"""",
         )
 
-        assertEquals(listOf(ManifestViolation.BackupAllowed), manifestPolicyViolations(manifest))
+        assertEquals(listOf(ManifestViolation.BackupAllowed), violations(manifest))
     }
 
     @Test
     fun `data extraction rules are required because allowBackup does not stop device transfer`() {
         val manifest = mergedManifest(applicationAttributes = """android:allowBackup="false"""")
 
-        assertEquals(listOf(ManifestViolation.MissingDataExtractionRules), manifestPolicyViolations(manifest))
+        assertEquals(listOf(ManifestViolation.MissingDataExtractionRules), violations(manifest))
     }
+
+    @Test
+    fun `a launcher activity added by a library is forbidden too`() {
+        val manifest = mergedManifest(
+            components = """
+                <activity-alias
+                    android:name="leakcanary.internal.activity.LeakLauncherActivity"
+                    android:exported="true"
+                    android:targetActivity="leakcanary.internal.activity.LeakActivity">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity-alias>
+            """,
+        )
+
+        assertEquals(
+            listOf(ManifestViolation.ExportedComponent("activity-alias", "leakcanary.internal.activity.LeakLauncherActivity")),
+            violations(manifest),
+        )
+    }
+
+    private fun violations(manifest: String) =
+        manifestPolicyViolations(manifest, launcherActivity = "de.emilyshub.MainActivity")
 
     /** A merged manifest that satisfies the policy, plus whatever the test adds. */
     private fun mergedManifest(
