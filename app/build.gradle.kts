@@ -20,8 +20,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // Only CI sets these, from the repository secrets (docs/release-signierung.md).
+        // Everywhere else the release APK stays unsigned.
+        val keystore = providers.environmentVariable("RELEASE_KEYSTORE")
+        if (keystore.isPresent) {
+            create("release") {
+                storeFile = file(keystore.get())
+                storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

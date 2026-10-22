@@ -48,6 +48,48 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+      # The only step that sees the signing secrets (docs/release-signierung.md). Without any of them
+      # it skips signing; with only some of them it fails, since that is a setup mistake.
+      - name: Release-APK signieren
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -eq 4 ]; then
+            echo "::notice::Release-APK nicht signiert: Die Signatur-Secrets fehlen (siehe docs/release-signierung.md)."
+            exit 0
+          fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Diese Signatur-Secrets fehlen: ${missing[*]} (siehe docs/release-signierung.md)."
+            exit 1
+          fi
+
+          export RELEASE_KEYSTORE="$RUNNER_TEMP/release.keystore"
+          trap 'rm -f "$RELEASE_KEYSTORE"' EXIT
+          # --ignore-garbage skips line breaks, e.g. from a secret pasted on Windows.
+          base64 --decode --ignore-garbage <<< "$KEYSTORE_BASE64" > "$RELEASE_KEYSTORE"
+          ./gradlew assembleRelease
+
+          # The certificate fingerprint must be the same in every build, or the APK cannot update the installed app.
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep 'SHA-256'
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Signierte Release-APK hochladen
+        if: steps.sign.outputs.signed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: emilyshub-release
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
       - name: Berichte bei Fehlern hochladen
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
