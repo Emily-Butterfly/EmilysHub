@@ -11,10 +11,24 @@
     <string name="settings">Einstellungen</string>
     <string name="navigate_back">Zurück</string>
 
+    <string name="settings_design">Design</string>
+    <string name="design_system">System</string>
+    <string name="design_light">Hell</string>
+    <string name="design_dark">Dunkel</string>
+
+    <string name="settings_security">Sicherheit</string>
+    <string name="settings_app_lock">App-Sperre</string>
+    <string name="settings_app_lock_summary">Fingerabdruck oder Geräte-PIN beim Öffnen und nach 1 Minute im Hintergrund</string>
+    <string name="settings_app_lock_needs_screen_lock">Richte zuerst in den Android-Einstellungen eine Displaysperre ein (PIN, Muster oder Passwort).</string>
+
+    <string name="app_lock_title">EmilysHub ist gesperrt</string>
+    <string name="app_lock_unlock">Entsperren</string>
+    <string name="app_lock_prompt_title">EmilysHub entsperren</string>
+
     <string name="placeholder_today">Hier siehst du bald alles, was heute ansteht.</string>
     <string name="placeholder_routines">Hier legst du bald deine Routinen an.</string>
     <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
     <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
-    <string name="placeholder_settings">Orte, Statusseite, Backups und Sicherheit folgen hier.</string>
+    <string name="placeholder_settings">Orte, Statusseite und Backups folgen hier.</string>
 </resources>

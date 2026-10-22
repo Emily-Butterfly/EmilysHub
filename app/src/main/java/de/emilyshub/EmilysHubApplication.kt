@@ -1,13 +1,19 @@
 package de.emilyshub
 
 import android.app.Application
+import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.security.AppLock
+import de.emilyshub.security.AppLockLifecycle
 import de.emilyshub.security.DatabaseKeyFile
+import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
+import de.emilyshub.security.SystemAuthenticator
 import java.io.File
 
-class EmilysHubApplication : Application() {
+/** Open so that Robolectric tests can swap the parts that only work on a device. */
+open class EmilysHubApplication : Application() {
 
     /** Opened on first use, which touches the Keystore and disk: never access it on the main thread. */
     val database: HubDatabase by lazy {
@@ -16,8 +22,16 @@ class EmilysHubApplication : Application() {
         HubDatabase.open(this, key)
     }
 
+    open val settings: AppSettings by lazy { AppSettings({ database.settings() }) }
+
+    open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
+
+    /** Lives as long as the process: a new process is a cold start and starts locked. */
+    val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })
+
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(SecureWindows)
+        registerActivityLifecycleCallbacks(AppLockLifecycle(appLock))
     }
 }

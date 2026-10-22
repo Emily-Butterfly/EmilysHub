@@ -5,16 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import de.emilyshub.ui.EmilysHubApp
-import de.emilyshub.ui.theme.EmilysHubTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val app = application as EmilysHubApplication
         setContent {
-            EmilysHubTheme {
-                EmilysHubApp()
-            }
+            EmilysHubApp(app.settings, app.appLock, app.authenticator)
         }
     }
 }
