@@ -5,13 +5,16 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -104,10 +107,59 @@ class ReminderPermissionsTest {
         }
     }
 
-    private fun createRoutine(name: String) {
+    @Test
+    fun `turning on a full-screen alarm without Android's permission explains why and opens Android's setting`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+
+            fullScreenAlarm().performScrollTo().performClick()
+            compose.onNodeWithText("Damit EmilysHub wie ein Wecker", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Zur Einstellung").performClick()
+
+            compose.onNodeWithText("Vollbild-Alarme erlauben?").assertDoesNotExist()
+            fullScreenAlarm().assertIsOn()
+        }
+        val started = checkNotNull(shadowOf(app).nextStartedActivity)
+        assertEquals(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, started.action)
+        assertEquals(Uri.parse("package:de.emilyshub"), started.data)
+    }
+
+    @Test
+    fun `declined, the full-screen alarm stays on for when Android allows it`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+
+            fullScreenAlarm().performScrollTo().performClick()
+            compose.onNodeWithText("Nein, danke").performClick()
+
+            compose.onNodeWithText("Vollbild-Alarme erlauben?").assertDoesNotExist()
+            fullScreenAlarm().assertIsOn()
+        }
+    }
+
+    @Test
+    fun `with full-screen alarms allowed, turning one on asks nothing`() {
+        app.fullScreenAlarmsAllowed = true
+
+        launchApp().use {
+            newRoutine("Arzttermin")
+
+            fullScreenAlarm().performScrollTo().performClick()
+
+            compose.onNodeWithText("Vollbild-Alarme erlauben?").assertDoesNotExist()
+        }
+    }
+
+    private fun newRoutine(name: String) {
         compose.onNode(isSelectable() and hasText("Routinen")).performClick()
         compose.onNodeWithContentDescription("Routine anlegen").performClick()
         compose.onNode(hasSetTextAction() and hasText("Name")).performTextInput(name)
+    }
+
+    private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
+
+    private fun createRoutine(name: String) {
+        newRoutine(name)
         compose.onNodeWithText("Speichern").performClick()
     }
 }

@@ -15,6 +15,10 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- The full-screen alarm (SPEC.md §3, §11). From Android 14 on the user allows it in Android's settings;
+         without it, a reminder comes as a normal notification. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
     <application
@@ -38,6 +42,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The full-screen alarm, in a task of its own that Recents leaves out; it shows over the lock screen.
+             Not exported (SPEC.md §9): only the reminder's full-screen intent opens it. -->
+        <activity
+            android:name=".reminders.AlarmActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="" />
 
         <!-- Not exported (SPEC.md §9): the app's own intents and the system's broadcasts still arrive. -->
         <receiver

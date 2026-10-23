@@ -71,3 +71,10 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE `routines` ADD COLUMN `follow_up_minutes` INTEGER NOT NULL DEFAULT 30")
     }
 }
+
+/** Version 6: whether a routine reminds with a full-screen alarm (#9); none does so far. */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `full_screen` INTEGER NOT NULL DEFAULT 0")
+    }
+}

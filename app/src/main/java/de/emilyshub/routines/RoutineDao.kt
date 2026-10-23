@@ -1,5 +1,6 @@
 package de.emilyshub.routines
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Embedded
 import androidx.room.Insert
@@ -22,11 +23,12 @@ data class OccurrenceRow(
     val status: OccurrenceStatus,
 )
 
-/** An occurrence with its routine's name and follow-ups. */
+/** An occurrence with its routine's name and how it reminds. */
 data class NamedOccurrence(
     @Embedded val occurrence: Occurrence,
     val name: String,
     @Embedded(prefix = "follow_up_") val followUps: FollowUps,
+    @ColumnInfo(name = "full_screen") val fullScreen: Boolean,
 ) {
     /** When it is reminded of while it stays open: first, and at its routine's follow-ups. */
     fun reminderTimes(zone: ZoneId): List<Instant> = occurrence.reminderTimes(followUps, zone)
@@ -78,6 +80,9 @@ interface RoutineDao {
     @Query("SELECT o.*, $ROUTINE_COLUMNS FROM occurrences o JOIN routines r ON r.id = o.routine_id WHERE o.id IN (:ids)")
     suspend fun namedOccurrences(ids: Collection<Long>): List<NamedOccurrence>
 
+    @Query("SELECT o.*, $ROUTINE_COLUMNS FROM occurrences o JOIN routines r ON r.id = o.routine_id WHERE o.id = :id")
+    fun observeNamedOccurrence(id: Long): Flow<NamedOccurrence?>
+
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
     suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
 
@@ -109,5 +114,5 @@ interface RoutineDao {
 }
 
 /** What a [NamedOccurrence] takes from its routine. */
-private const val ROUTINE_COLUMNS =
-    "r.name AS name, r.follow_up_count AS follow_up_count, r.follow_up_minutes AS follow_up_minutes"
+private const val ROUTINE_COLUMNS = "r.name AS name, r.follow_up_count AS follow_up_count, " +
+    "r.follow_up_minutes AS follow_up_minutes, r.full_screen AS full_screen"

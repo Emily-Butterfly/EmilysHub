@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,6 +30,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
@@ -54,6 +56,7 @@ import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.reminders.FullScreenAlarmPermission
 import java.io.Serializable
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -232,6 +235,40 @@ fun FollowUpFields(followUps: FollowUps, onChange: (FollowUps) -> Unit) {
             }
         }
     }
+}
+
+/**
+ * Whether the routine's reminders fill the screen like an alarm clock (SPEC.md §3). Turned on, it asks for
+ * Android's permission where that is missing; declined, it stays on for when Android allows it.
+ */
+@Composable
+fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
+    var asking by rememberSaveable { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = fullScreen,
+                role = Role.Switch,
+                onValueChange = { on ->
+                    onChange(on)
+                    asking = on
+                },
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.routine_full_screen), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.routine_full_screen_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = fullScreen, onCheckedChange = null)
+    }
+    if (asking) FullScreenAlarmPermission(onFinished = { asking = false })
 }
 
 /**

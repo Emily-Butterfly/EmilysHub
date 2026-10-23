@@ -54,6 +54,8 @@
     <string name="routine_follow_ups_how_often">Wie oft, wenn du nicht reagierst</string>
     <string name="routine_follow_ups_never">Nie</string>
     <string name="routine_follow_up_minutes">Abstand in Minuten</string>
+    <string name="routine_full_screen">Vollbild-Alarm</string>
+    <string name="routine_full_screen_summary">Wie ein Wecker, auch auf dem Sperrbildschirm</string>
     <string name="routine_once_gone_by">Schon vorbei: Wähle ein späteres Datum oder eine spätere Uhrzeit.</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
     <string name="routine_schedule_weekdays">%1$s um %2$s</string>
@@ -89,10 +91,15 @@
     <string name="reminder_put_off_hours">%1$d Std.</string>
     <string name="reminder_skip">Überspringen</string>
 
+    <string name="alarm_unlock">Entsperren</string>
+    <string name="alarm_close">Schließen</string>
+
     <string name="reminders_notifications_title">Erinnerungen erlauben?</string>
     <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen.\n\nDamit auf dem Sperrbildschirm nur „Erinnerung fällig“ steht, stelle in den Android-Einstellungen ein, dass er die Inhalte von Benachrichtigungen ausblendet.</string>
     <string name="reminders_exact_title">Pünktlich erinnern?</string>
     <string name="reminders_exact_text">Damit Erinnerungen auf die Minute genau kommen, braucht EmilysHub die Erlaubnis für „Wecker und Erinnerungen“. Android öffnet dazu die passende Einstellung.</string>
+    <string name="reminders_full_screen_title">Vollbild-Alarme erlauben?</string>
+    <string name="reminders_full_screen_text">Damit EmilysHub wie ein Wecker den ganzen Bildschirm füllen kann, auch auf dem Sperrbildschirm, braucht die App die Erlaubnis für Vollbild-Benachrichtigungen. Android öffnet dazu die passende Einstellung.\n\nOhne sie kommt die Erinnerung als normale Benachrichtigung.</string>
     <string name="reminders_continue">Weiter</string>
     <string name="reminders_open_settings">Zur Einstellung</string>
     <string name="reminders_decline">Nein, danke</string>

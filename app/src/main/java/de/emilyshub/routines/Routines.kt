@@ -51,6 +51,7 @@ class Routines(
                 repetition = it.repetition,
                 plannedFrom = now(),
                 followUps = it.followUps,
+                fullScreen = it.fullScreen,
             )
         }
         database().withTransaction {
@@ -80,6 +81,7 @@ class Routines(
                 repetition = changes.repetition,
                 plannedFrom = if (rescheduled) now else routine.plannedFrom,
                 followUps = changes.followUps,
+                fullScreen = changes.fullScreen,
             )
             dao.update(changed)
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -153,15 +155,19 @@ class Routines(
     /** Of [occurrenceIds], the ones still open whose reminder time has come: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        dao.namedOccurrences(occurrenceIds)
-            .filter { (occurrence) ->
-                occurrence.status == OccurrenceStatus.Open && !occurrence.reminderTime(clock.zone).isAfter(now)
-            }
-            .map(::reminderOf)
+        dao.namedOccurrences(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
     }
 
+    /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
+    fun reminder(occurrenceId: Long): Flow<Reminder?> = flow {
+        emitAll(dao.observeNamedOccurrence(occurrenceId).map { named -> named?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
+    }.flowOn(io)
+
+    private fun NamedOccurrence.isDue(now: Instant) =
+        occurrence.status == OccurrenceStatus.Open && !occurrence.reminderTime(clock.zone).isAfter(now)
+
     private fun reminderOf(named: NamedOccurrence) = with(named.occurrence) {
-        Reminder(id, named.name, dueAt(date, time, clock.zone))
+        Reminder(id, named.name, dueAt(date, time, clock.zone), named.fullScreen)
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }

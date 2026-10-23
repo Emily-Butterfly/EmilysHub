@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import de.emilyshub.R
 import de.emilyshub.reminders.exactAlarmsAllowed
+import de.emilyshub.reminders.fullScreenAlarmsAllowed
 
 /** What reminders still need from Android, in the order it is asked for. */
 private enum class Missing { Notifications, ExactAlarms }
@@ -74,6 +75,31 @@ fun ReminderPermissions(onFinished: () -> Unit) {
     }
 }
 
+/**
+ * Asks Android for full-screen alarms (SPEC.md §3, §11) once a routine is to have one: from Android 14 on
+ * the user allows them in Android's settings, explained in German first. Without them the routine's
+ * reminders come as normal notifications. [onFinished] comes once that was asked, or right away if they
+ * are allowed already.
+ */
+@Composable
+fun FullScreenAlarmPermission(onFinished: () -> Unit) {
+    val context = LocalContext.current
+    if (context.fullScreenAlarmsAllowed()) {
+        LaunchedEffect(Unit) { onFinished() }
+        return
+    }
+    Explanation(
+        title = R.string.reminders_full_screen_title,
+        text = R.string.reminders_full_screen_text,
+        confirm = R.string.reminders_open_settings,
+        onConfirm = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) context.openFullScreenAlarmSettings()
+            onFinished()
+        },
+        onLater = onFinished,
+    )
+}
+
 @Composable
 private fun Explanation(
     @StringRes title: Int,
@@ -107,6 +133,10 @@ private fun notificationsAllowed(context: Context): Boolean =
 @RequiresApi(Build.VERSION_CODES.S)
 private fun Context.openExactAlarmSettings() =
     openSettings(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.fromParts("package", packageName, null)))
+
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+private fun Context.openFullScreenAlarmSettings() =
+    openSettings(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.fromParts("package", packageName, null)))
 
 /** A phone without that settings page gets the app's page in Android's settings instead. */
 private fun Context.openSettings(intent: Intent) {

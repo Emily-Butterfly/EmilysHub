@@ -19,8 +19,9 @@ import java.time.Duration
  * "Später" the choice when to come back, "10 Min. · 30 Min. · 1 Std.", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
- * the content of notifications there; an app cannot make that choice for the user. One notification per
- * occurrence, tagged with its id.
+ * the content of notifications there; an app cannot make that choice for the user. A routine with a
+ * full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
+ * One notification per occurrence, tagged with its id.
  */
 class ReminderNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -66,7 +67,9 @@ class ReminderNotifications(private val context: Context) {
         val actions: List<Notification.Action>
         if (offeringPutOff) {
             text = context.getString(R.string.reminder_put_off_when)
-            actions = Reminders.PUT_OFF_CHOICES.map { action(labelOf(it), ReminderReceiver.ACTION_PUT_OFF, id, putOffBy = it) }
+            actions = Reminders.PUT_OFF_CHOICES.map { choice ->
+                action(context.putOffLabel(choice), ReminderReceiver.ACTION_PUT_OFF, id, putOffBy = choice)
+            }
         } else {
             text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
             actions = listOf(
@@ -75,6 +78,8 @@ class ReminderNotifications(private val context: Context) {
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, id),
             )
         }
+        // Only when it pops up: shown again quietly, it does not fill the screen again.
+        val fullScreen = alert && reminder.fullScreen && context.fullScreenAlarmsAllowed()
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.name)
@@ -85,6 +90,7 @@ class ReminderNotifications(private val context: Context) {
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(public)
             .setContentIntent(openApp())
+            .apply { if (fullScreen) setFullScreenIntent(alarm(id), true) }
             .setAutoCancel(true)
             .setOnlyAlertOnce(!alert)
             .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offeringPutOff) })
@@ -106,10 +112,13 @@ class ReminderNotifications(private val context: Context) {
             .build()
     }
 
-    /** "10 Min.", or "1 Std." for whole hours. */
-    private fun labelOf(choice: Duration): String = when (choice.toMinutes() % 60) {
-        0L -> context.getString(R.string.reminder_put_off_hours, choice.toHours())
-        else -> context.getString(R.string.reminder_put_off_minutes, choice.toMinutes())
+    /** The full-screen alarm for the occurrence; it is shown over the lock screen too. */
+    private fun alarm(occurrenceId: Long): PendingIntent {
+        val intent = Intent(context, AlarmActivity::class.java)
+            .setIdentifier(tagOf(occurrenceId))
+            .putExtra(AlarmActivity.EXTRA_OCCURRENCE, occurrenceId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     /** Like a tap on the app's icon: brings the app to the front, behind its lock if that is on. */
@@ -130,3 +139,17 @@ class ReminderNotifications(private val context: Context) {
         const val EXTRA_OFFERING_PUT_OFF = "de.emilyshub.extra.OFFERING_PUT_OFF"
     }
 }
+
+/** One of the choices "Später" offers: "10 Min.", or "1 Std." for whole hours. */
+fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 60) {
+    0L -> getString(R.string.reminder_put_off_hours, choice.toHours())
+    else -> getString(R.string.reminder_put_off_minutes, choice.toMinutes())
+}
+
+/**
+ * Whether a reminder may fill the screen. Before Android 14 that comes with the app; from Android 14 on the
+ * user allows it in Android's settings, which may not allow it to start with.
+ */
+fun Context.fullScreenAlarmsAllowed(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+        getSystemService(NotificationManager::class.java).canUseFullScreenIntent()

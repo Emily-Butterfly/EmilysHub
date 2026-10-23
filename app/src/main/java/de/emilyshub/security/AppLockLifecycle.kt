@@ -6,18 +6,18 @@ import android.os.Bundle
 
 /**
  * Tells [lock] when the app as a whole leaves the screen and comes back, counted across all its
- * activities. A rotation's stop and restart is far too quick to count as a break.
+ * activities but those [OutsideAppLock]. A rotation's stop and restart is far too quick to count as a break.
  */
 class AppLockLifecycle(private val lock: AppLock) : Application.ActivityLifecycleCallbacks {
     private var started = 0
 
     // Runs before the activity's window shows again, so a locked app never shows a frame of content.
     override fun onActivityPreStarted(activity: Activity) {
-        if (started++ == 0) lock.onForeground()
+        if (activity !is OutsideAppLock && started++ == 0) lock.onForeground()
     }
 
     override fun onActivityStopped(activity: Activity) {
-        if (--started == 0) lock.onBackground()
+        if (activity !is OutsideAppLock && --started == 0) lock.onBackground()
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit

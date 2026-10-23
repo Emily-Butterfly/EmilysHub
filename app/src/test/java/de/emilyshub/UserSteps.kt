@@ -21,16 +21,17 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
 }
 
 /**
- * A routine at [times] ("07:30"), daily unless given another [repetition] and with the default follow-ups
- * unless given others, set up before the test opens the app.
+ * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups
+ * unless given others and without a [fullScreen] alarm, set up before the test opens the app.
  */
 fun TestApplication.routine(
     name: String,
     vararg times: String,
     repetition: Repetition = Repetition.Daily,
     followUps: FollowUps = FollowUps(),
+    fullScreen: Boolean = false,
 ): Long = runBlocking {
-    routines.create(RoutineDraft(name, description = "", times.map(LocalTime::parse), repetition, followUps))
+    routines.create(RoutineDraft(name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen))
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */

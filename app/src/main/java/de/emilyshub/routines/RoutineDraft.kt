@@ -26,6 +26,7 @@ data class RoutineDraft(
     val times: List<LocalTime>,
     val repetition: Repetition,
     val followUps: FollowUps = FollowUps(),
+    val fullScreen: Boolean = false,
 ) : Serializable {
 
     val problems: Set<DraftProblem>

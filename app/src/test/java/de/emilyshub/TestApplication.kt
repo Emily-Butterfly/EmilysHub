@@ -27,4 +27,7 @@ class TestApplication : EmilysHubApplication() {
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val reminders: Reminders by lazy { Reminders(this, routines, clock) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
+
+    /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
+    var fullScreenAlarmsAllowed = false
 }

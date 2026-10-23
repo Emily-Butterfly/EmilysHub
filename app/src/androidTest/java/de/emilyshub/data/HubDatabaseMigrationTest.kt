@@ -138,6 +138,21 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 5 moves to version 6 keeping how each routine reminds again and with no full-screen alarm`() {
+        createAtVersion(5) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, " +
+                    "follow_up_count, follow_up_minutes) VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val routine = database.routines().get(3)
+            assertEquals(FollowUps(count = 5, everyMinutes = 10) to false, routine?.let { it.followUps to it.fullScreen })
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

@@ -38,7 +38,7 @@ open class EmilysHubApplication : Application() {
 
     open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) { database.settings() } }
 
-    /** Where receivers finish their work after onReceive has returned, and where the app starts up. */
+    /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> Log.e(TAG, "Background work failed", e) },
     )

@@ -8,7 +8,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +47,7 @@ import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
+import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.TodayScreen
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -62,11 +62,7 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
     val current = settings.current ?: return
 
     val activity = LocalActivity.current as ComponentActivity
-    val darkTheme = when (current.design) {
-        Design.System -> isSystemInDarkTheme()
-        Design.Light -> false
-        Design.Dark -> true
-    }
+    val darkTheme = isDark(current.design)
     SystemFollowsDesign(activity, current.design, darkTheme)
 
     // Keeps the open area and screen while the content is gone behind the lock screen.

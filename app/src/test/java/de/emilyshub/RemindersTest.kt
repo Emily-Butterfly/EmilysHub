@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.reminders.ReminderReceiver
 import de.emilyshub.reminders.RescheduleReceiver
 import de.emilyshub.routines.FollowUps
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -368,6 +370,44 @@ class RemindersTest {
 
         assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
+
+    @Test
+    fun `a routine with a full-screen alarm fills the screen with its reminder, which only the app's alarm can open`() {
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+        app.routine("Vitamine", "07:30")
+
+        goOffAt("2026-10-23T07:30")
+
+        assertSentOnlyTo(AlarmActivity::class.java.name, checkNotNull(reminder("Arzttermin").fullScreenIntent))
+        assertNull(reminder("Vitamine").fullScreenIntent)
+    }
+
+    @Test
+    fun `without Android's permission a full-screen alarm comes as a normal reminder`() {
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+
+        goOffAt("2026-10-23T07:30")
+
+        val reminder = reminder("Arzttermin")
+        assertNull(reminder.fullScreenIntent)
+        assertEquals(listOf("Erledigt", "Später", "Überspringen"), reminder.actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `a full-screen alarm fills the screen again at each follow-up, not when it is only shown again quietly`() {
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+        goOffAt("2026-10-23T07:30")
+
+        app.routine("Tagebuch", "20:00")
+        assertNull(reminder("Arzttermin").fullScreenIntent)
+
+        goOffAt("2026-10-23T08:00")
+        assertNotNull(reminder("Arzttermin").fullScreenIntent)
+    }
+
+    private fun reminder(name: String) = reminders().single { it.extras.getString(Notification.EXTRA_TITLE) == name }
 
     private fun nextAlarm() = checkNotNull(shadowOf(alarmManager).peekNextScheduledAlarm()) { "No alarm set" }
 

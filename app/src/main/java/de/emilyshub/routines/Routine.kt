@@ -31,6 +31,8 @@ data class Routine(
     @ColumnInfo(name = "planned_from") val plannedFrom: Instant,
     /** How often and how far apart it reminds again of an occurrence left open; takes effect at once. */
     @Embedded(prefix = "follow_up_") val followUps: FollowUps = FollowUps(),
+    /** Whether its reminders fill the screen like an alarm clock, also on the lock screen, where Android allows it. */
+    @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
     fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
@@ -75,8 +77,8 @@ data class Occurrence(
     fun reminderTimes(followUps: FollowUps, zone: ZoneId): List<Instant> = followUps.from(reminderTime(zone))
 }
 
-/** An open occurrence to remind of (SPEC.md §3): its routine's [name] and when it is due. */
-data class Reminder(val occurrenceId: Long, val name: String, val dueAt: ZonedDateTime)
+/** An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, and whether with a [fullScreen] alarm. */
+data class Reminder(val occurrenceId: Long, val name: String, val dueAt: ZonedDateTime, val fullScreen: Boolean)
 
 /** An occurrence on the Heute list, with its routine's name and the moment it is due. */
 data class DueRoutine(

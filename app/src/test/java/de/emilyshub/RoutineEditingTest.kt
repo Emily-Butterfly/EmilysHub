@@ -2,6 +2,7 @@ package de.emilyshub
 
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -233,6 +235,22 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine can sound a full-screen alarm instead, which is off by default`() {
+        app.fullScreenAlarmsAllowed = true
+
+        launchApp().use {
+            newRoutine("Arzttermin")
+            fullScreenAlarm().performScrollTo().assertIsOff()
+
+            fullScreenAlarm().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(true, savedRoutines().single().fullScreen)
+    }
+
+    @Test
     fun `the editor shows a routine's times, repetition and follow-ups`() {
         val everyThreeDays = Repetition.EveryNDays(days = 3, from = LocalDate.parse("2026-10-20"))
         val onceAnHourLater = FollowUps(count = 1, everyMinutes = 60)
@@ -303,6 +321,8 @@ class RoutineEditingTest {
     private fun SemanticsNodeInteraction.tap() = performScrollTo().performClick()
 
     private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
 
     private fun weekday(label: String) = compose.onNode(hasText(label) and hasClickAction())
 

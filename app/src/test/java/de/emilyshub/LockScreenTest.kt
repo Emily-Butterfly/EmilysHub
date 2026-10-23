@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
@@ -7,14 +8,19 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.reminders.AlarmActivity
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.shadows.ShadowSystemClock
 import java.time.Duration
+import java.time.Instant
 
 @RunWith(AndroidJUnit4::class)
 class LockScreenTest {
@@ -85,6 +91,26 @@ class LockScreenTest {
             compose.unlockWithFingerprint(authenticator)
 
             scenario.leaveAndReturn { ShadowSystemClock.simulateDeepSleep(Duration.ofMinutes(1)) }
+
+            compose.onNodeWithText("EmilysHub ist gesperrt").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `time with a full-screen alarm up counts as time in the background, since the alarm shows nothing of the app`() {
+        authenticator.deviceSecure = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+        val occurrence = runBlocking { app.routines.dueOn(app.routines.today()).first().single().occurrenceId }
+        app.clock.now = Instant.parse("2026-10-23T05:30:00Z") // 07:30 in Berlin, when it is due
+
+        launchApp().use { scenario ->
+            compose.unlockWithFingerprint(authenticator)
+
+            scenario.leaveAndReturn {
+                ShadowSystemClock.advanceBy(Duration.ofSeconds(30))
+                val alarm = Intent(app, AlarmActivity::class.java).putExtra(AlarmActivity.EXTRA_OCCURRENCE, occurrence)
+                ActivityScenario.launch<AlarmActivity>(alarm).use { ShadowSystemClock.advanceBy(Duration.ofSeconds(30)) }
+            }
 
             compose.onNodeWithText("EmilysHub ist gesperrt").assertIsDisplayed()
         }

@@ -464,13 +464,15 @@ class RoutinesTest {
     }
 
     @Test
-    fun `a routine is saved with its follow-ups, and they change with it`() = runBlocking {
-        val pills = routines.create(draft("Tabletten", "08:00", followUps = FollowUps(count = 5, everyMinutes = 10)))
-        assertEquals(FollowUps(count = 5, everyMinutes = 10), routines.get(pills)?.followUps)
+    fun `a routine is saved with how it reminds, and that changes with it`() = runBlocking {
+        val fiveTimes = FollowUps(count = 5, everyMinutes = 10)
+        val pills = routines.create(draft("Tabletten", "08:00", followUps = fiveTimes, fullScreen = true))
+        assertEquals(fiveTimes to true, routines.get(pills)?.let { it.followUps to it.fullScreen })
 
-        routines.update(pills, draft("Tabletten", "08:00", followUps = FollowUps(count = 1, everyMinutes = 60)))
+        val once = FollowUps(count = 1, everyMinutes = 60)
+        routines.update(pills, draft("Tabletten", "08:00", followUps = once, fullScreen = false))
 
-        assertEquals(FollowUps(count = 1, everyMinutes = 60), routines.get(pills)?.followUps)
+        assertEquals(once to false, routines.get(pills)?.let { it.followUps to it.fullScreen })
     }
 
     @Test
@@ -515,7 +517,8 @@ class RoutinesTest {
         description: String = "",
         repetition: Repetition = Repetition.Daily,
         followUps: FollowUps = FollowUps(),
-    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps)
+        fullScreen: Boolean = false,
+    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen)
 
     /** The id of today's occurrence at [time]. */
     private suspend fun occurrenceAt(time: String, which: (DueRoutine) -> Boolean = { true }) =
