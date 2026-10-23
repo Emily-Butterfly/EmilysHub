@@ -10,10 +10,8 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -182,13 +180,6 @@ private fun TopLevelScaffold(
                 },
             )
         },
-        floatingActionButton = {
-            if (current == TopLevelDestination.Routines) {
-                FloatingActionButton(onClick = { onOpenRoutine(RoutineEditorTarget.New) }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.routine_create))
-                }
-            }
-        },
         bottomBar = {
             NavigationBar {
                 TopLevelDestination.entries.forEach { destination ->
@@ -205,8 +196,12 @@ private fun TopLevelScaffold(
         // Each later slice swaps its placeholder for the real screen.
         when (current) {
             TopLevelDestination.Today -> TodayScreen(routines, contentPadding)
-            TopLevelDestination.Routines ->
-                RoutinesScreen(routines, contentPadding, onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) })
+            TopLevelDestination.Routines -> RoutinesScreen(
+                routines = routines,
+                contentPadding = contentPadding,
+                onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
+                onCreate = { onOpenRoutine(RoutineEditorTarget.New) },
+            )
             TopLevelDestination.Todos -> PlaceholderScreen(stringResource(R.string.placeholder_todos), contentPadding)
             TopLevelDestination.Wishlist -> PlaceholderScreen(stringResource(R.string.placeholder_wishlist), contentPadding)
             TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)

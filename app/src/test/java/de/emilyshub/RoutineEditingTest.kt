@@ -16,14 +16,12 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import de.emilyshub.routines.RoutineDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
 class RoutineEditingTest {
@@ -72,7 +70,7 @@ class RoutineEditingTest {
 
     @Test
     fun `tapping a routine opens it for editing`() {
-        routine("Vitamine", "08:00")
+        app.routine("Vitamine", "08:00")
 
         launchApp().use {
             tab("Routinen").performClick()
@@ -90,7 +88,7 @@ class RoutineEditingTest {
 
     @Test
     fun `deleting a routine asks first`() {
-        routine("Vitamine", "08:00")
+        app.routine("Vitamine", "08:00")
 
         launchApp().use {
             tab("Routinen").performClick()
@@ -139,10 +137,6 @@ class RoutineEditingTest {
         fields[0].performTextReplacement(hour)
         fields[1].performTextReplacement(minute)
         compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
-    }
-
-    private fun routine(name: String, time: String) = runBlocking {
-        app.routines.create(RoutineDraft(name = name, description = "", time = LocalTime.parse(time)))
     }
 
     private fun savedRoutines() = runBlocking { app.routines.all().first() }

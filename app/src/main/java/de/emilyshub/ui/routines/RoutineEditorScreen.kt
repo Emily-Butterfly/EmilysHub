@@ -46,7 +46,7 @@ import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.Routines
 import de.emilyshub.ui.clockTime
-import kotlinx.coroutines.launch
+import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalTime
 
@@ -62,15 +62,14 @@ sealed interface RoutineEditorTarget : Serializable {
 @Composable
 fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose: () -> Unit) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
-    var name by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var time by rememberSaveable { mutableStateOf(DEFAULT_TIME) }
+    var draft by rememberSaveable { mutableStateOf(RoutineDraft(name = "", description = "", time = DEFAULT_TIME)) }
     var loaded by rememberSaveable { mutableStateOf(routineId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var choosingTime by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
+    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
+    var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     if (!loaded && routineId != null) {
@@ -79,26 +78,23 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                name = routine.name
-                description = routine.description
-                time = routine.time
+                draft = RoutineDraft(name = routine.name, description = routine.description, time = routine.time)
                 loaded = true
             }
         }
         return
     }
 
-    val draft = RoutineDraft(name = name, description = description, time = time)
     val problems = draft.problems
+    val cleaned = draft.cleaned()
     val save = {
         if (problems.isNotEmpty()) {
             showMissingName = true
-        } else if (!busy) {
-            busy = true
-            scope.launch {
-                if (routineId == null) routines.create(draft) else routines.update(routineId, draft)
-                onClose()
-            }
+        } else if (!closing) {
+            closing = true
+            val saved = draft
+            scope.launchNow { if (routineId == null) routines.create(saved) else routines.update(routineId, saved) }
+            onClose()
         }
     }
 
@@ -136,8 +132,8 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = draft.name,
+                onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.routine_name)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -145,24 +141,24 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 supportingText = {
                     when {
                         showMissingName && DraftProblem.NameMissing in problems -> Text(stringResource(R.string.routine_name_missing))
-                        else -> LengthHint(name.trim().length, RoutineDraft.NAME_MAX)
+                        else -> LengthHint(RoutineDraft.lengthOf(cleaned.name), RoutineDraft.NAME_MAX)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
+                value = draft.description,
+                onValueChange = { draft = draft.copy(description = it) },
                 label = { Text(stringResource(R.string.routine_description)) },
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 isError = DraftProblem.DescriptionTooLong in problems,
-                supportingText = { LengthHint(description.trim().length, RoutineDraft.DESCRIPTION_MAX) },
+                supportingText = { LengthHint(RoutineDraft.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
                 modifier = Modifier.fillMaxWidth(),
             )
             LabelledValue(
                 label = stringResource(R.string.routine_time),
-                value = time.clockTime(),
+                value = draft.time.clockTime(),
                 modifier = Modifier.clickable(
                     onClickLabel = stringResource(R.string.routine_time_change),
                     role = Role.Button,
@@ -175,9 +171,9 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
 
     if (choosingTime) {
         TimeDialog(
-            initial = time,
+            initial = draft.time,
             onConfirm = {
-                time = it
+                draft = draft.copy(time = it)
                 choosingTime = false
             },
             onDismiss = { choosingTime = false },
@@ -187,14 +183,13 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
             title = { Text(stringResource(R.string.routine_delete_title)) },
-            text = { Text(stringResource(R.string.routine_delete_text, name.trim())) },
+            text = { Text(stringResource(R.string.routine_delete_text, cleaned.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        confirmingDelete = false
-                        busy = true
-                        scope.launch {
-                            routines.delete(routineId)
+                        if (!closing) {
+                            closing = true
+                            scope.launchNow { routines.delete(routineId) }
                             onClose()
                         }
                     },

@@ -4,7 +4,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 // Hand-written on purpose: each one runs the SQL Room exports to app/schemas for its target version,
-// and HubDatabaseMigrationTest checks the result against that export.
+// and HubDatabaseMigrationTest has Room check the result against the app's entities.
 
 /** Version 2: routines and their occurrences (#5). */
 val MIGRATION_1_2 = object : Migration(1, 2) {

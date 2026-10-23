@@ -12,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -37,6 +38,16 @@ class RoutinesTest {
         routines.create(draft("Zähne putzen", "08:00"))
 
         assertEquals(listOf("08:00 Zähne putzen: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a routine created after its time today is first due tomorrow`() = runBlocking {
+        clock.now = Instant.parse("2026-10-23T20:00:00Z") // 22:00 in Berlin
+
+        routines.create(draft("Vitamine", "08:00"))
+
+        assertEquals(emptyList<String>(), dueOn(today))
+        assertEquals(listOf("08:00 Vitamine: Open"), dueOn(today.plusDays(1)))
     }
 
     @Test
@@ -128,6 +139,18 @@ class RoutinesTest {
     }
 
     @Test
+    fun `undoing a done occurrence after the time was changed reopens it at the new time`() = runBlocking {
+        val walk = routines.create(draft("Spaziergang", "09:00"))
+        val occurrence = routines.dueOn(today).first().single().occurrenceId
+        routines.markDone(occurrence)
+        routines.update(walk, draft("Spaziergang", "18:00"))
+
+        routines.reopen(occurrence)
+
+        assertEquals(listOf("18:00 Spaziergang: Open"), dueOn(today))
+    }
+
+    @Test
     fun `a deleted routine is gone from the list and from today`() = runBlocking {
         val walk = routines.create(draft("Spaziergang", "09:00"))
         routines.create(draft("Lesen", "21:00"))
@@ -158,6 +181,15 @@ class RoutinesTest {
         val due = routines.dueOn(today).first().single().dueAt
         assertEquals(LocalTime.of(8, 0), due.toLocalTime())
         assertEquals(Instant.parse("2026-10-23T12:00:00Z"), due.toInstant())
+    }
+
+    @Test
+    fun `the day the clocks spring forward lasts 23 hours, the day they fall back 25`() {
+        clock.now = Instant.parse("2027-03-27T23:00:00Z") // midnight starting Sunday, 28 March, in Berlin
+        assertEquals(Duration.ofHours(23), routines.timeUntilTomorrow())
+
+        clock.now = Instant.parse("2026-10-24T22:00:00Z") // midnight starting Sunday, 25 October, in Berlin
+        assertEquals(Duration.ofHours(25), routines.timeUntilTomorrow())
     }
 
     @Test

@@ -26,6 +26,17 @@ class RoutineDraftTest {
     }
 
     @Test
+    fun `a name of only invisible characters counts as missing`() {
+        assertEquals(setOf(DraftProblem.NameMissing), draft(name = "​⁠‍").problems)
+    }
+
+    @Test
+    fun `an emoji counts as one character`() {
+        assertEquals(emptySet<DraftProblem>(), draft(name = "🌱".repeat(80)).problems)
+        assertEquals(80, RoutineDraft.lengthOf("🌱".repeat(80)))
+    }
+
+    @Test
     fun `the description is optional and fits up to 1000 characters`() {
         assertEquals(emptySet<DraftProblem>(), draft(description = "").problems)
         assertEquals(emptySet<DraftProblem>(), draft(description = "a".repeat(1000)).problems)

@@ -39,7 +39,7 @@ abstract class HubDatabase : RoomDatabase() {
         }
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */
-        fun rawKey(key: ByteArray): ByteArray =
+        internal fun rawKey(key: ByteArray): ByteArray =
             "x'${key.toHexString()}'".toByteArray()
     }
 }

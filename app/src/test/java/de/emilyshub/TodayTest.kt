@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -12,7 +13,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.OccurrenceStatus
-import de.emilyshub.routines.RoutineDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -20,7 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.Instant
-import java.time.LocalTime
+import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class TodayTest {
@@ -32,8 +32,8 @@ class TodayTest {
 
     @Test
     fun `Heute lists today's routines in the order they are due`() {
-        routine("Tagebuch", "20:00")
-        routine("Vitamine", "07:30")
+        app.routine("Tagebuch", "20:00")
+        app.routine("Vitamine", "07:30")
 
         launchApp().use {
             assertEquals(listOf("07:30 Vitamine", "20:00 Tagebuch"), rows())
@@ -42,7 +42,7 @@ class TodayTest {
 
     @Test
     fun `ticking a routine off marks it done, and unticking it undoes that`() {
-        routine("Vitamine", "07:30")
+        app.routine("Vitamine", "07:30")
 
         launchApp().use {
             row("Vitamine").performClick().assertIsOn()
@@ -55,7 +55,7 @@ class TodayTest {
 
     @Test
     fun `a skipped routine says so and can be undone`() {
-        routine("Joggen", "18:00")
+        app.routine("Joggen", "18:00")
 
         launchApp().use {
             compose.onNodeWithText("Überspringen").performClick()
@@ -76,7 +76,7 @@ class TodayTest {
 
     @Test
     fun `at midnight the list moves on to the new day`() {
-        routine("Vitamine", "07:30")
+        app.routine("Vitamine", "07:30")
         app.clock.now = Instant.parse("2026-10-23T21:59:00Z") // 23:59 in Berlin
 
         launchApp().use {
@@ -89,13 +89,24 @@ class TodayTest {
         }
     }
 
+    @Test
+    fun `when the phone changes time zone, the list shows the day it is there`() {
+        app.routine("Vitamine", "07:30")
+        app.clock.now = Instant.parse("2026-10-23T20:00:00Z") // Friday 22:00 in Berlin
+
+        launchApp().use {
+            row("Vitamine").performClick().assertIsOn()
+
+            app.clock.timeZone = ZoneId.of("Asia/Tokyo") // Saturday 05:00 there
+            app.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
+
+            row("Vitamine").assertIsOff()
+        }
+    }
+
     private fun row(name: String) = compose.onNode(isToggleable() and hasText(name))
 
     private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
-
-    private fun routine(name: String, time: String) = runBlocking {
-        app.routines.create(RoutineDraft(name = name, description = "", time = LocalTime.parse(time)))
-    }
 
     /** Each row of the Heute list, as its texts read out together. */
     private fun rows() = compose.onAllNodes(isToggleable()).fetchSemanticsNodes()

@@ -53,6 +53,15 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET status = :status WHERE id = :id")
     suspend fun setStatus(id: Long, status: OccurrenceStatus)
 
+    /** Sets the occurrence back to [open], at its routine's current time like every open occurrence. */
+    @Query(
+        """
+        UPDATE occurrences SET status = :open, time = (SELECT time FROM routines WHERE routines.id = occurrences.routine_id)
+        WHERE id = :id
+        """,
+    )
+    suspend fun reopen(id: Long, open: OccurrenceStatus)
+
     @Query(
         """
         SELECT o.id AS id, o.routine_id AS routineId, r.name AS name, o.date AS date, o.time AS time, o.status AS status
