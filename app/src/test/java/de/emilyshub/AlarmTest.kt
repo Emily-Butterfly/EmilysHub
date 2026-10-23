@@ -6,10 +6,12 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
 import android.os.Looper
+import android.view.WindowManager
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,6 +29,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -180,6 +183,82 @@ class AlarmTest {
         }
         assertEquals(listOf("07:30" to OccurrenceStatus.Open, "07:45" to OccurrenceStatus.Done), timesAndStatuses())
     }
+
+    @Test
+    fun `the alarm rings and vibrates like an alarm clock, and keeps the screen on, while it is up`() {
+        openAlarm().use { scenario ->
+            assertTrue("ringing", app.ringer.ringing)
+            scenario.onActivity { assertTrue("screen kept on", it.keepsScreenOn()) }
+        }
+    }
+
+    @Test
+    fun `answering the alarm silences it`() {
+        openAlarm().use {
+            compose.onNodeWithText("Erledigt").performClick()
+            idle()
+
+            assertFalse(app.ringer.ringing)
+        }
+    }
+
+    @Test
+    fun `closing the alarm on the lock screen silences it`() {
+        keyguard.setKeyguardLocked(true)
+
+        openAlarm().use {
+            compose.onNodeWithText("Schließen").performClick()
+            idle()
+
+            assertFalse(app.ringer.ringing)
+        }
+    }
+
+    @Test
+    fun `leaving the alarm, say with the power button, silences it for good`() {
+        openAlarm().use { scenario ->
+            scenario.moveToState(Lifecycle.State.CREATED)
+            assertFalse("silenced", app.ringer.ringing)
+
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            assertFalse("still silent", app.ringer.ringing)
+            scenario.onActivity { assertFalse("screen may turn off", it.keepsScreenOn()) }
+        }
+    }
+
+    @Test
+    fun `after ten minutes the alarm stops ringing and lets the screen turn off, but stays up`() {
+        openAlarm().use { scenario ->
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMinutes(10).minusSeconds(1))
+            assertTrue("still ringing", app.ringer.ringing)
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
+
+            assertFalse("silenced", app.ringer.ringing)
+            scenario.onActivity {
+                assertFalse("screen may turn off", it.keepsScreenOn())
+                assertFalse("still up", it.isFinishing)
+            }
+        }
+    }
+
+    @Test
+    fun `a newer alarm rings again, and turning the phone keeps it ringing`() {
+        openAlarm(of = "Arzttermin").use { scenario ->
+            scenario.moveToState(Lifecycle.State.CREATED)
+            app.routine("Tabletten", "07:45", fullScreen = true)
+            goOffAt("2026-10-23T07:45")
+
+            scenario.onActivity { getInstrumentation().callActivityOnNewIntent(it, alarmIntent(of = "Tabletten")) }
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            assertTrue("ringing again", app.ringer.ringing)
+
+            scenario.recreate()
+            assertTrue("ringing after turning", app.ringer.ringing)
+        }
+    }
+
+    private fun AlarmActivity.keepsScreenOn() = window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0
 
     /** Robolectric leaves a finished activity as it is, so it only shows that it is finishing. */
     private fun assertClosed(scenario: ActivityScenario<AlarmActivity>) {

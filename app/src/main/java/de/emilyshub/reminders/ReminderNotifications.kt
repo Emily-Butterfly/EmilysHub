@@ -78,15 +78,17 @@ class ReminderNotifications(private val context: Context) {
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, id),
             )
         }
+        // An alarm, which "Nicht stören" lets through where it lets alarms through, as it does the ringing.
+        val alarm = reminder.fullScreen && context.fullScreenAlarmsAllowed()
         // Only when it pops up: shown again quietly, it does not fill the screen again.
-        val fullScreen = alert && reminder.fullScreen && context.fullScreenAlarmsAllowed()
+        val fullScreen = alert && alarm
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.name)
             .setContentText(text)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
-            .setCategory(Notification.CATEGORY_REMINDER)
+            .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(public)
             .setContentIntent(openApp())

@@ -14,12 +14,13 @@ import java.time.ZoneId
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
- * background done on the spot too, and a fake unlock prompt.
+ * background done on the spot too, a fake unlock prompt and a full-screen alarm that rings without a sound.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
     override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined)
     override val authenticator = FakeAuthenticator()
+    override val ringer = FakeRinger()
 
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))

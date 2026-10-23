@@ -384,6 +384,18 @@ class RemindersTest {
     }
 
     @Test
+    fun `a full-screen alarm counts as an alarm, which do not disturb lets through where it lets alarms through`() {
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+        app.routine("Vitamine", "07:30")
+
+        goOffAt("2026-10-23T07:30")
+
+        assertEquals(Notification.CATEGORY_ALARM, reminder("Arzttermin").category)
+        assertEquals(Notification.CATEGORY_REMINDER, reminder("Vitamine").category)
+    }
+
+    @Test
     fun `without Android's permission a full-screen alarm comes as a normal reminder`() {
         app.routine("Arzttermin", "07:30", fullScreen = true)
 
@@ -391,6 +403,7 @@ class RemindersTest {
 
         val reminder = reminder("Arzttermin")
         assertNull(reminder.fullScreenIntent)
+        assertEquals(Notification.CATEGORY_REMINDER, reminder.category)
         assertEquals(listOf("Erledigt", "Später", "Überspringen"), reminder.actions.map { it.title.toString() })
     }
 

@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.reminders.AlarmRinger
+import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
@@ -33,6 +35,9 @@ open class EmilysHubApplication : Application() {
     open val settings: AppSettings by lazy { AppSettings({ database.settings() }) }
 
     open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
+
+    /** What rings while a full-screen alarm is up. */
+    open val ringer: AlarmRinger by lazy { AlarmSound(this) }
 
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 

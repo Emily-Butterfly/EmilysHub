@@ -16,8 +16,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- The full-screen alarm (SPEC.md §3, §11). From Android 14 on the user allows it in Android's settings;
-         without it, a reminder comes as a normal notification. -->
+         without it, a reminder comes as a normal notification. It vibrates like an alarm clock while it rings. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
