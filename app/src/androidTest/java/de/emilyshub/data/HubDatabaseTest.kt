@@ -84,7 +84,7 @@ class HubDatabaseTest {
             withDatabase(key) { settings().get("design") }
         }
 
-        setSchemaVersion(1)
+        setSchemaVersion(HubDatabase.VERSION)
         assertEquals("dark", withDatabase(key) { settings().get("design") })
     }
 
@@ -97,10 +97,9 @@ class HubDatabaseTest {
         }
     }
 
-    /** Changes the stored schema version behind Room's back, using the raw-key form SQLCipher expects. */
+    /** Changes the stored schema version behind Room's back. */
     private fun setSchemaVersion(version: Int) {
-        val rawKey = "x'${key.toHexString()}'".toByteArray()
-        SQLCipherDatabase.openDatabase(file.path, rawKey, null, SQLCipherDatabase.OPEN_READWRITE, null, null)
+        SQLCipherDatabase.openDatabase(file.path, HubDatabase.rawKey(key), null, SQLCipherDatabase.OPEN_READWRITE, null, null)
             .use { it.version = version }
     }
 

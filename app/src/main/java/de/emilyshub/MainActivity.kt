@@ -12,7 +12,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as EmilysHubApplication
         setContent {
-            EmilysHubApp(app.settings, app.appLock, app.authenticator)
+            EmilysHubApp(app.settings, app.appLock, app.authenticator, app.routines)
         }
     }
 }

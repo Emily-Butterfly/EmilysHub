@@ -3,6 +3,7 @@ package de.emilyshub
 import android.app.Application
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.AppLockLifecycle
 import de.emilyshub.security.DatabaseKeyFile
@@ -25,6 +26,8 @@ open class EmilysHubApplication : Application() {
     open val settings: AppSettings by lazy { AppSettings({ database.settings() }) }
 
     open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
+
+    open val routines: Routines by lazy { Routines({ database }, DeviceClock) }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

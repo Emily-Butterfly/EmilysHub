@@ -21,12 +21,38 @@
     <string name="settings_app_lock_summary">Fingerabdruck oder Geräte-PIN beim Öffnen und nach 1 Minute im Hintergrund</string>
     <string name="settings_app_lock_needs_screen_lock">Richte zuerst in den Android-Einstellungen eine Displaysperre ein (PIN, Muster oder Passwort).</string>
 
+    <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was täglich ansteht.</string>
+    <string name="today_skip">Überspringen</string>
+    <string name="today_undo">Rückgängig</string>
+    <string name="status_skipped">Übersprungen</string>
+    <string name="status_missed">Verpasst</string>
+
+    <string name="routines_empty">Noch keine Routinen. Tippe auf +, um deine erste anzulegen.</string>
+    <string name="routine_create">Routine anlegen</string>
+    <string name="routine_new">Neue Routine</string>
+    <string name="routine_edit">Routine bearbeiten</string>
+    <string name="routine_name">Name</string>
+    <string name="routine_name_missing">Bitte gib einen Namen ein.</string>
+    <string name="routine_description">Beschreibung (optional)</string>
+    <string name="routine_time">Uhrzeit</string>
+    <string name="routine_time_change">Uhrzeit ändern</string>
+    <string name="routine_time_title">Uhrzeit wählen</string>
+    <string name="routine_repeat">Wiederholung</string>
+    <string name="routine_repeat_daily">Täglich</string>
+    <string name="routine_schedule_daily">Täglich um %1$s</string>
+    <string name="routine_delete_title">Routine löschen?</string>
+    <string name="routine_delete_text">„%1$s“ wird mit allem gelöscht, was du dazu abgehakt hast.</string>
+    <string name="text_length">%1$d/%2$d</string>
+    <string name="text_too_long">Höchstens %1$d Zeichen</string>
+    <string name="save">Speichern</string>
+    <string name="delete">Löschen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
+
     <string name="app_lock_title">EmilysHub ist gesperrt</string>
     <string name="app_lock_unlock">Entsperren</string>
     <string name="app_lock_prompt_title">EmilysHub entsperren</string>
 
-    <string name="placeholder_today">Hier siehst du bald alles, was heute ansteht.</string>
-    <string name="placeholder_routines">Hier legst du bald deine Routinen an.</string>
     <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
     <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>

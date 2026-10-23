@@ -10,8 +10,10 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -36,11 +38,16 @@ import de.emilyshub.R
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.ui.lock.LockScreen
+import de.emilyshub.ui.routines.RoutineEditorScreen
+import de.emilyshub.ui.routines.RoutineEditorTarget
+import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
+import de.emilyshub.ui.today.TodayScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +55,7 @@ import kotlinx.coroutines.launch
  * the lock screen while the app is locked (SPEC.md §9).
  */
 @Composable
-fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuthenticator) {
+fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuthenticator, routines: Routines) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
 
@@ -70,6 +77,7 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
         } else {
             lockedAwayState.SaveableStateProvider("content") {
                 AppShell(
+                    routines = routines,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
                     onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
@@ -112,6 +120,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 
 @Composable
 private fun AppShell(
+    routines: Routines,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
@@ -119,33 +128,46 @@ private fun AppShell(
 ) {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
 
-    if (settingsOpen) {
-        BackHandler { settingsOpen = false }
-        SettingsScreen(
-            settings = settings,
-            canAuthenticate = canAuthenticate,
-            onDesignChange = onDesignChange,
-            onAppLockChange = onAppLockChange,
-            onBack = { settingsOpen = false },
-        )
-    } else {
-        // Heute is the start screen: back from any other area returns there before leaving the app.
-        BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
-        TopLevelScaffold(
-            current = current,
-            onSelect = { current = it },
-            onOpenSettings = { settingsOpen = true },
-        )
+    val editor = routineEditor
+    when {
+        settingsOpen -> {
+            BackHandler { settingsOpen = false }
+            SettingsScreen(
+                settings = settings,
+                canAuthenticate = canAuthenticate,
+                onDesignChange = onDesignChange,
+                onAppLockChange = onAppLockChange,
+                onBack = { settingsOpen = false },
+            )
+        }
+        editor != null -> {
+            BackHandler { routineEditor = null }
+            RoutineEditorScreen(routines, editor, onClose = { routineEditor = null })
+        }
+        else -> {
+            // Heute is the start screen: back from any other area returns there before leaving the app.
+            BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
+            TopLevelScaffold(
+                routines = routines,
+                current = current,
+                onSelect = { current = it },
+                onOpenSettings = { settingsOpen = true },
+                onOpenRoutine = { routineEditor = it },
+            )
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopLevelScaffold(
+    routines: Routines,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenRoutine: (RoutineEditorTarget) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -160,6 +182,13 @@ private fun TopLevelScaffold(
                 },
             )
         },
+        floatingActionButton = {
+            if (current == TopLevelDestination.Routines) {
+                FloatingActionButton(onClick = { onOpenRoutine(RoutineEditorTarget.New) }) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.routine_create))
+                }
+            }
+        },
         bottomBar = {
             NavigationBar {
                 TopLevelDestination.entries.forEach { destination ->
@@ -173,14 +202,14 @@ private fun TopLevelScaffold(
             }
         },
     ) { contentPadding ->
-        // Each later slice swaps its branch for the real screen.
-        val placeholder = when (current) {
-            TopLevelDestination.Today -> R.string.placeholder_today
-            TopLevelDestination.Routines -> R.string.placeholder_routines
-            TopLevelDestination.Todos -> R.string.placeholder_todos
-            TopLevelDestination.Wishlist -> R.string.placeholder_wishlist
-            TopLevelDestination.Notes -> R.string.placeholder_notes
+        // Each later slice swaps its placeholder for the real screen.
+        when (current) {
+            TopLevelDestination.Today -> TodayScreen(routines, contentPadding)
+            TopLevelDestination.Routines ->
+                RoutinesScreen(routines, contentPadding, onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) })
+            TopLevelDestination.Todos -> PlaceholderScreen(stringResource(R.string.placeholder_todos), contentPadding)
+            TopLevelDestination.Wishlist -> PlaceholderScreen(stringResource(R.string.placeholder_wishlist), contentPadding)
+            TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)
         }
-        PlaceholderScreen(stringResource(placeholder), contentPadding)
     }
 }
