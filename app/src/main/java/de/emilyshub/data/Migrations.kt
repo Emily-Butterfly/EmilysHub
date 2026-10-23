@@ -25,3 +25,24 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_occurrences_date` ON `occurrences` (`date`)")
     }
 }
+
+/**
+ * Version 3: routines with several times and a repetition (#6). Every routine so far is daily at its one
+ * time, planned from the start of its first day. SQLite cannot change columns in place, so the table is
+ * built anew; foreign keys are off during migrations, so dropping the old table keeps the occurrences.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routines_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, `description` TEXT NOT NULL, `times` TEXT NOT NULL, `repetition` TEXT NOT NULL, " +
+                "`planned_from` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO `routines_new` (`id`, `name`, `description`, `times`, `repetition`, `planned_from`) " +
+                "SELECT `id`, `name`, `description`, `time`, 'daily', `start_date` || 'T00:00' FROM `routines`",
+        )
+        db.execSQL("DROP TABLE `routines`")
+        db.execSQL("ALTER TABLE `routines_new` RENAME TO `routines`")
+    }
+}

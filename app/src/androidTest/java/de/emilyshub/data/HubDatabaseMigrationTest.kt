@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -15,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.UUID
 import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
@@ -39,19 +42,64 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 1 moves to version 2 keeping its settings and gaining routines`() {
+    fun `version 1 moves to the current version keeping its settings and gaining routines`() {
         createAtVersion(1) { it.execSQL("INSERT INTO settings (name, value) VALUES ('design', 'dark')") }
 
+        withMigratedDatabase { database ->
+            assertEquals("dark", database.settings().get("design"))
+
+            val day = LocalDate.parse("2026-10-23")
+            val routine = Routine(
+                name = "Lesen",
+                description = "",
+                times = listOf(LocalTime.of(21, 0)),
+                repetition = Repetition.Daily,
+                plannedFrom = day.atStartOfDay(),
+            )
+            val id = database.routines().insert(routine)
+            val occurrence = Occurrence(routineId = id, date = day, time = LocalTime.of(21, 0), status = OccurrenceStatus.Open)
+            database.routines().insertOccurrences(listOf(occurrence))
+            assertEquals(listOf("Lesen"), database.routines().observeOccurrences(day).first().map { it.name })
+        }
+    }
+
+    @Test
+    fun `version 2 moves to version 3 keeping each routine daily at its time, with its occurrences`() {
+        createAtVersion(2) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, time, start_date) " +
+                    "VALUES (7, 'Lesen', 'Vor dem Schlafen', '21:00', '2026-10-23')",
+            )
+            it.execSQL("INSERT INTO occurrences (routine_id, date, time, status) VALUES (7, '2026-10-23', '21:00', 'done')")
+        }
+
+        withMigratedDatabase { database ->
+            val routine = database.routines().get(7)
+            assertEquals(
+                Routine(
+                    id = 7,
+                    name = "Lesen",
+                    description = "Vor dem Schlafen",
+                    times = listOf(LocalTime.of(21, 0)),
+                    repetition = Repetition.Daily,
+                    plannedFrom = LocalDateTime.parse("2026-10-23T00:00"),
+                ),
+                routine,
+            )
+            val day = LocalDate.parse("2026-10-23")
+            val occurrences = database.routines().observeOccurrences(day).first()
+            assertEquals(listOf("Lesen" to OccurrenceStatus.Done), occurrences.map { it.name to it.status })
+
+            // The occurrences belong to the new table: deleting the routine still takes them along.
+            database.routines().delete(7)
+            assertEquals(emptyList<Any>(), database.routines().observeOccurrences(day).first())
+        }
+    }
+
+    private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {
         val database = HubDatabase.open(context, key, name)
         try {
-            runBlocking {
-                assertEquals("dark", database.settings().get("design"))
-
-                val day = LocalDate.parse("2026-10-23")
-                database.routines().insert(Routine(name = "Lesen", description = "", time = LocalTime.of(21, 0), startDate = day))
-                database.routines().addOccurrences(day, OccurrenceStatus.Open)
-                assertEquals(listOf("Lesen"), database.routines().observeOccurrences(day).first().map { it.name })
-            }
+            runBlocking { block(database) }
         } finally {
             database.close()
         }

@@ -30,9 +30,8 @@ import de.emilyshub.R
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.Routines
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.clockTime
 
-/** All routines, by time; tapping one opens it in the editor, "+" starts a new one. */
+/** All routines, by their first time; tapping one opens it in the editor, "+" starts a new one. */
 @Composable
 fun RoutinesScreen(routines: Routines, contentPadding: PaddingValues, onOpen: (Long) -> Unit, onCreate: () -> Unit) {
     val all by remember(routines) { routines.all() }.collectAsState(initial = null)
@@ -65,7 +64,7 @@ private fun RoutineRow(routine: Routine, onClick: () -> Unit) {
         headlineContent = { Text(routine.name) },
         supportingContent = {
             Column {
-                Text(stringResource(R.string.routine_schedule_daily, routine.time.clockTime()))
+                Text(scheduleText(routine))
                 if (routine.description.isNotEmpty()) {
                     Text(routine.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

@@ -2,6 +2,7 @@ package de.emilyshub.routines
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -18,3 +19,10 @@ fun today(now: Instant, zone: ZoneId): LocalDate = now.atZone(zone).toLocalDate(
  * the first time round.
  */
 fun dueAt(date: LocalDate, time: LocalTime, zone: ZoneId): ZonedDateTime = ZonedDateTime.of(date, time, zone)
+
+/**
+ * Whether [time] on [date] comes at or after [moment] on the local clock. A time skipped when the
+ * clocks spring forward counts from right after the jump, as in [dueAt].
+ */
+fun isDueAtOrAfter(moment: LocalDateTime, date: LocalDate, time: LocalTime, zone: ZoneId): Boolean =
+    !dueAt(date, time, zone).toLocalDateTime().isBefore(moment)

@@ -1,0 +1,316 @@
+package de.emilyshub.ui.routines
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import de.emilyshub.R
+import de.emilyshub.routines.Repetition
+import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.numericDate
+import java.io.Serializable
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalTime
+import java.util.concurrent.TimeUnit
+
+/** Which time the time dialog sets. Serializable, so that an open dialog survives rotation and the lock. */
+private sealed interface TimeChoice : Serializable {
+    data object New : TimeChoice
+
+    data class Change(val time: LocalTime) : TimeChoice
+}
+
+/** The times of day: tapping one changes it; times can be added and taken away, but one always stays. */
+@Composable
+fun TimesFields(times: List<LocalTime>, onChange: (List<LocalTime>) -> Unit) {
+    var choice by rememberSaveable { mutableStateOf<TimeChoice?>(null) }
+    Column {
+        SectionTitle(stringResource(R.string.routine_times))
+        times.forEach { time ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClickLabel = stringResource(R.string.routine_time_change),
+                        role = Role.Button,
+                        onClick = { choice = TimeChoice.Change(time) },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = time.clockTime(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 12.dp),
+                )
+                if (times.size > 1) {
+                    IconButton(onClick = { onChange(times - time) }) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.routine_time_remove, time.clockTime()),
+                        )
+                    }
+                }
+            }
+        }
+        if (times.size < RoutineDraft.TIMES_MAX) {
+            TextButton(onClick = { choice = TimeChoice.New }) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.routine_time_add))
+            }
+        }
+    }
+
+    val current = choice ?: return
+    TimeDialog(
+        initial = when (current) {
+            TimeChoice.New -> times.last().plusHours(1)
+            is TimeChoice.Change -> current.time
+        },
+        onConfirm = { picked ->
+            val others = if (current is TimeChoice.Change) times - current.time else times
+            onChange((others + picked).distinct().sorted())
+            choice = null
+        },
+        onDismiss = { choice = null },
+    )
+}
+
+/** Daily, on certain weekdays, every X days from a date, or once on a date. Switching to one starts it from [today]. */
+@Composable
+fun RepetitionFields(repetition: Repetition, today: LocalDate, onChange: (Repetition) -> Unit) {
+    // As typed, so that the field can be empty for a moment while the number is retyped.
+    var intervalText by rememberSaveable {
+        mutableStateOf(((repetition as? Repetition.EveryNDays)?.days ?: DEFAULT_INTERVAL).toString())
+    }
+    var choosingDate by rememberSaveable { mutableStateOf(false) }
+
+    Column(Modifier.selectableGroup()) {
+        SectionTitle(stringResource(R.string.routine_repeat))
+        RepetitionOption(stringResource(R.string.routine_repeat_daily), selected = repetition == Repetition.Daily) {
+            onChange(Repetition.Daily)
+        }
+        RepetitionOption(stringResource(R.string.routine_repeat_weekdays), selected = repetition is Repetition.Weekdays) {
+            if (repetition !is Repetition.Weekdays) onChange(Repetition.Weekdays(WORKDAYS))
+        }
+        if (repetition is Repetition.Weekdays) {
+            WeekdayChips(repetition.days, onChange = { onChange(Repetition.Weekdays(it)) })
+        }
+        RepetitionOption(stringResource(R.string.routine_repeat_every_n_days), selected = repetition is Repetition.EveryNDays) {
+            if (repetition !is Repetition.EveryNDays) {
+                onChange(Repetition.EveryNDays(days = intervalText.toIntOrNull() ?: 0, from = today))
+            }
+        }
+        if (repetition is Repetition.EveryNDays) {
+            OutlinedTextField(
+                value = intervalText,
+                onValueChange = { text ->
+                    intervalText = text.filter(Char::isDigit).take(INTERVAL_DIGITS)
+                    onChange(repetition.copy(days = intervalText.toIntOrNull() ?: 0))
+                },
+                label = { Text(stringResource(R.string.routine_interval)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = repetition.days !in RoutineDraft.INTERVAL_DAYS,
+                supportingText = {
+                    val range = RoutineDraft.INTERVAL_DAYS
+                    Text(stringResource(R.string.routine_interval_range, range.first, range.last))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
+            DateValue(stringResource(R.string.routine_starting), repetition.from, onClick = { choosingDate = true })
+        }
+        RepetitionOption(stringResource(R.string.routine_repeat_once), selected = repetition is Repetition.Once) {
+            if (repetition !is Repetition.Once) onChange(Repetition.Once(today))
+        }
+        if (repetition is Repetition.Once) {
+            DateValue(stringResource(R.string.routine_on), repetition.date, onClick = { choosingDate = true })
+        }
+    }
+
+    if (choosingDate) {
+        val close = { choosingDate = false }
+        when (repetition) {
+            is Repetition.EveryNDays -> DateDialog(
+                initial = repetition.from,
+                earliest = null,
+                onConfirm = {
+                    onChange(repetition.copy(from = it))
+                    close()
+                },
+                onDismiss = close,
+            )
+            // A date gone by would never come due.
+            is Repetition.Once -> DateDialog(
+                initial = repetition.date,
+                earliest = today,
+                onConfirm = {
+                    onChange(Repetition.Once(it))
+                    close()
+                },
+                onDismiss = close,
+            )
+            Repetition.Daily, is Repetition.Weekdays -> close()
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier
+            .padding(top = 8.dp, bottom = 4.dp)
+            .semantics { heading() },
+    )
+}
+
+@Composable
+private fun RepetitionOption(label: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 16.dp))
+    }
+}
+
+/** One chip per weekday, Monday first; a hint while none is chosen. */
+@Composable
+private fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
+    val names = stringArrayResource(R.array.weekdays_short)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DayOfWeek.entries.forEach { day ->
+            FilterChip(
+                selected = day in days,
+                onClick = { onChange(if (day in days) days - day else days + day) },
+                label = { Text(names[day.ordinal]) },
+            )
+        }
+    }
+    if (days.isEmpty()) {
+        Text(
+            text = stringResource(R.string.routine_weekdays_missing),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
+@Composable
+private fun DateValue(label: String, date: LocalDate, onClick: () -> Unit) {
+    LabelledValue(
+        label = label,
+        value = date.numericDate(),
+        modifier = Modifier.clickable(
+            onClickLabel = stringResource(R.string.routine_date_change),
+            role = Role.Button,
+            onClick = onClick,
+        ),
+    )
+}
+
+/** Typing the time is quicker than a clock dial: four digits, always on the 24-hour clock. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDismiss: () -> Unit) {
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.routine_time_title)) },
+        text = { TimeInput(state) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** A calendar to pick a day from, none before [earliest]. The picker counts days in UTC milliseconds. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateDialog(initial: LocalDate, earliest: LocalDate?, onConfirm: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.utcMillis(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = earliest == null || !dateOf(utcTimeMillis).isBefore(earliest)
+        },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = { state.selectedDateMillis?.let { onConfirm(dateOf(it)) } },
+            ) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    ) {
+        DatePicker(state)
+    }
+}
+
+private fun LocalDate.utcMillis() = toEpochDay() * DAY_MILLIS
+
+private fun dateOf(utcMillis: Long) = LocalDate.ofEpochDay(Math.floorDiv(utcMillis, DAY_MILLIS))
+
+private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
+private val WORKDAYS: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet()
+private const val DEFAULT_INTERVAL = 2
+private const val INTERVAL_DIGITS = 3

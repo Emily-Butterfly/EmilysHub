@@ -12,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -26,6 +27,7 @@ class RoutinesTest {
     // Friday, 23 October 2026, 07:00 in Berlin.
     private val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val today = LocalDate.parse("2026-10-23")
+    private val noon = Instant.parse("2026-10-23T10:00:00Z") // 12:00 in Berlin
     private val routines = Routines({ database }, clock, Dispatchers.Unconfined)
 
     @After
@@ -38,6 +40,139 @@ class RoutinesTest {
         routines.create(draft("Zähne putzen", "08:00"))
 
         assertEquals(listOf("08:00 Zähne putzen: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a routine with several times is due at each of them, each as its own occurrence`() = runBlocking {
+        routines.create(draft("Wasser trinken", "20:00", "08:00", "12:00"))
+
+        assertEquals(
+            listOf("08:00 Wasser trinken: Open", "12:00 Wasser trinken: Open", "20:00 Wasser trinken: Open"),
+            dueOn(today),
+        )
+    }
+
+    @Test
+    fun `a routine created during the day is due today only at its times still ahead`() = runBlocking {
+        clock.now = noon
+
+        routines.create(draft("Wasser trinken", "08:00", "20:00"))
+
+        assertEquals(listOf("20:00 Wasser trinken: Open"), dueOn(today))
+        assertEquals(listOf("08:00 Wasser trinken: Open", "20:00 Wasser trinken: Open"), dueOn(today.plusDays(1)))
+    }
+
+    @Test
+    fun `a routine on certain weekdays is due on those days only`() = runBlocking {
+        routines.create(draft("Gießen", "18:00", repetition = Repetition.Weekdays(setOf(DayOfWeek.MONDAY, DayOfWeek.THURSDAY))))
+
+        val dueDays = (0L..6L).map(today::plusDays).filter { dueOn(it).isNotEmpty() }
+        assertEquals(listOf(DayOfWeek.MONDAY, DayOfWeek.THURSDAY), dueDays.map { it.dayOfWeek })
+    }
+
+    @Test
+    fun `a routine every X days is due on its start date and every X days after`() = runBlocking {
+        routines.create(draft("Bettwäsche", "10:00", repetition = Repetition.EveryNDays(days = 3, from = today.plusDays(1))))
+
+        assertEquals(listOf(1L, 4L), (0L..6L).filter { dueOn(today.plusDays(it)).isNotEmpty() })
+    }
+
+    @Test
+    fun `a one-time routine is due on its date only`() = runBlocking {
+        routines.create(draft("Arzttermin", "09:30", repetition = Repetition.Once(today.plusDays(2))))
+
+        assertEquals(listOf(2L), (0L..6L).filter { dueOn(today.plusDays(it)).isNotEmpty() })
+        assertEquals(Repetition.Once(today.plusDays(2)), routines.all().first().single().repetition)
+    }
+
+    @Test
+    fun `a time added during the day is due today if it is still ahead, otherwise from tomorrow`() = runBlocking {
+        val water = routines.create(draft("Wasser trinken", "08:00"))
+        dueOn(today)
+        clock.now = noon
+
+        routines.update(water, draft("Wasser trinken", "08:00", "10:00", "15:00"))
+
+        assertEquals(listOf("08:00 Wasser trinken: Open", "15:00 Wasser trinken: Open"), dueOn(today))
+        assertEquals(listOf("08:00", "10:00", "15:00"), dueOn(today.plusDays(1)).map { it.substringBefore(" ") })
+    }
+
+    @Test
+    fun `a time taken away no longer comes today, while what was ticked off there stays`() = runBlocking {
+        val water = routines.create(draft("Wasser trinken", "08:00", "12:00", "20:00"))
+        routines.markDone(occurrenceAt("08:00"))
+
+        routines.update(water, draft("Wasser trinken", "12:00"))
+
+        assertEquals(listOf("08:00 Wasser trinken: Done", "12:00 Wasser trinken: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a time moved to one already past today stays where it was today and moves from tomorrow`() = runBlocking {
+        val walk = routines.create(draft("Spaziergang", "18:00"))
+        dueOn(today)
+        clock.now = noon
+
+        routines.update(walk, draft("Spaziergang", "09:00"))
+
+        assertEquals(listOf("18:00 Spaziergang: Open"), dueOn(today))
+        assertEquals(listOf("09:00 Spaziergang: Open"), dueOn(today.plusDays(1)))
+    }
+
+    @Test
+    fun `when all times move, ticked off ones stand in for the earlier new ones and open ones move on`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        routines.markDone(occurrenceAt("08:00"))
+        clock.now = noon
+
+        routines.update(pills, draft("Tabletten", "09:00", "21:00"))
+
+        assertEquals(listOf("08:00 Tabletten: Done", "21:00 Tabletten: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a change of weekdays that leaves out today takes away its open occurrences, not what was ticked off`() = runBlocking {
+        val stretch = routines.create(draft("Dehnen", "08:00", "18:00"))
+        routines.skip(occurrenceAt("08:00"))
+
+        routines.update(stretch, draft("Dehnen", "08:00", "18:00", repetition = Repetition.Weekdays(setOf(DayOfWeek.SATURDAY))))
+
+        assertEquals(listOf("08:00 Dehnen: Skipped"), dueOn(today))
+        assertEquals(listOf("08:00 Dehnen: Open", "18:00 Dehnen: Open"), dueOn(today.plusDays(1)))
+    }
+
+    @Test
+    fun `a change that makes a routine due today adds only the times still ahead`() = runBlocking {
+        val saturdays = Repetition.Weekdays(setOf(DayOfWeek.SATURDAY))
+        val laundry = routines.create(draft("Wäsche", "08:00", "18:00", repetition = saturdays))
+        clock.now = noon
+
+        routines.update(laundry, draft("Wäsche", "08:00", "18:00"))
+
+        assertEquals(listOf("18:00 Wäsche: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a change that makes a routine due today at a time already past first comes tomorrow`() = runBlocking {
+        val laundry = routines.create(draft("Wäsche", "08:00", repetition = Repetition.Weekdays(setOf(DayOfWeek.SATURDAY))))
+        clock.now = noon
+
+        routines.update(laundry, draft("Wäsche", "08:00"))
+
+        assertEquals(emptyList<String>(), dueOn(today))
+        assertEquals(listOf("08:00 Wäsche: Open"), dueOn(today.plusDays(1)))
+    }
+
+    @Test
+    fun `undoing a tick on a time that was taken away meanwhile keeps the occurrence open where it is`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        routines.markDone(occurrenceAt("08:00"))
+        routines.markDone(occurrenceAt("20:00"))
+        routines.update(pills, draft("Tabletten", "08:00"))
+
+        routines.reopen(occurrenceAt("20:00"))
+
+        assertEquals(listOf("08:00 Tabletten: Done", "20:00 Tabletten: Open"), dueOn(today))
     }
 
     @Test
@@ -202,8 +337,12 @@ class RoutinesTest {
         assertEquals(listOf("03:00 Fenster schließen: Open", "03:30 Tabletten: Open"), dueOn(springForward))
     }
 
-    private fun draft(name: String, time: String, description: String = "") =
-        RoutineDraft(name = name, description = description, time = LocalTime.parse(time))
+    private fun draft(name: String, vararg times: String, description: String = "", repetition: Repetition = Repetition.Daily) =
+        RoutineDraft(name = name, description = description, times = times.map(LocalTime::parse), repetition = repetition)
+
+    /** The id of today's occurrence at [time]. */
+    private suspend fun occurrenceAt(time: String) =
+        routines.dueOn(today).first().single { it.dueAt.toLocalTime() == LocalTime.parse(time) }.occurrenceId
 
     /** What the Heute list shows on [date], in its order. */
     private suspend fun dueOn(date: LocalDate) =

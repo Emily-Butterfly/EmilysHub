@@ -1,6 +1,9 @@
 package de.emilyshub
 
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -12,16 +15,22 @@ import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.routines.Repetition
+import de.emilyshub.routines.Routine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
 class RoutineEditingTest {
@@ -40,7 +49,7 @@ class RoutineEditingTest {
 
             field("Name").performTextInput("Zähne putzen")
             field("Beschreibung (optional)").performTextInput("Zwei Minuten")
-            chooseTime(hour = "07", minute = "30")
+            changeTime(from = "08:00", hour = "07", minute = "30")
             compose.onNodeWithText("Speichern").performClick()
 
             heading("Routinen").assertIsDisplayed()
@@ -78,11 +87,113 @@ class RoutineEditingTest {
             heading("Routine bearbeiten").assertIsDisplayed()
 
             field("Name").performTextReplacement("Vitamin D")
-            chooseTime(hour = "09", minute = "15")
+            changeTime(from = "08:00", hour = "09", minute = "15")
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Vitamin D").assertIsDisplayed()
             compose.onNodeWithText("Täglich um 09:15").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a routine can have several times on certain weekdays`() {
+        launchApp().use {
+            newRoutine("Tabletten")
+            changeTime(from = "08:00", hour = "07", minute = "30")
+            addTime(hour = "20", minute = "00")
+            option("An bestimmten Wochentagen").tap()
+            // Monday to Friday to start with.
+            weekday("Di").tap()
+            weekday("Do").tap()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Mo, Mi, Fr um 07:30 und 20:00").assertIsDisplayed()
+        }
+        val saved = savedRoutines().single()
+        assertEquals(listOf(LocalTime.of(7, 30), LocalTime.of(20, 0)), saved.times)
+        assertEquals(Repetition.Weekdays(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)), saved.repetition)
+    }
+
+    @Test
+    fun `a time can be taken away again, but not the last one`() {
+        launchApp().use {
+            newRoutine("Wasser trinken")
+            addTime(hour = "12", minute = "00")
+
+            compose.onNodeWithContentDescription("08:00 entfernen").tap()
+
+            compose.onNodeWithContentDescription("12:00 entfernen").assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Täglich um 12:00").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `certain weekdays need at least one day`() {
+        launchApp().use {
+            newRoutine("Gießen")
+            option("An bestimmten Wochentagen").tap()
+            listOf("Mo", "Di", "Mi", "Do", "Fr").forEach { weekday(it).tap() }
+
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Wähle mindestens einen Tag.").performScrollTo().assertIsDisplayed()
+            heading("Neue Routine").assertIsDisplayed()
+        }
+        assertEquals(emptyList<Routine>(), savedRoutines())
+    }
+
+    @Test
+    fun `a routine every X days takes 2 to 365 days, counted from today`() {
+        launchApp().use {
+            newRoutine("Bettwäsche")
+            option("Alle X Tage").tap()
+
+            field("Abstand in Tagen").performScrollTo().performTextReplacement("1")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Neue Routine").assertIsDisplayed()
+
+            field("Abstand in Tagen").performTextReplacement("14")
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Alle 14 Tage um 08:00").assertIsDisplayed()
+        }
+        assertEquals(Repetition.EveryNDays(days = 14, from = LocalDate.parse("2026-10-23")), savedRoutines().single().repetition)
+    }
+
+    @Test
+    fun `a one-time routine is due on the day chosen in the calendar`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+            option("Einmalig").tap()
+
+            compose.onNode(hasText("Am") and hasClickAction()).tap()
+            // Each day in the calendar reads as a whole date, such as "Freitag, 30. Oktober 2026".
+            compose.onNode(hasText("30", substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Einmalig am 30.10.2026 um 08:00").assertIsDisplayed()
+        }
+        assertEquals(Repetition.Once(LocalDate.parse("2026-10-30")), savedRoutines().single().repetition)
+    }
+
+    @Test
+    fun `the editor shows a routine's times and repetition`() {
+        val everyThreeDays = Repetition.EveryNDays(days = 3, from = LocalDate.parse("2026-10-20"))
+        app.routine("Tabletten", "08:00", "20:00", repetition = everyThreeDays)
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Tabletten").performClick()
+
+            option("Alle X Tage").assertIsSelected()
+            field("Abstand in Tagen").assertTextContains("3")
+            compose.onNode(hasText("Ab") and hasClickAction()).assertTextContains("20.10.2026")
+            compose.onNodeWithContentDescription("20:00 entfernen").assertExists()
+            changeTime(from = "20:00", hour = "21", minute = "00")
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Alle 3 Tage um 08:00 und 21:00").assertIsDisplayed()
         }
     }
 
@@ -130,9 +241,33 @@ class RoutineEditingTest {
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 
-    /** Opens the time dialog, types the time and confirms it. */
-    private fun chooseTime(hour: String, minute: String) {
-        compose.onNode(hasText("Uhrzeit") and hasClickAction()).performClick()
+    /** Scrolls the editor to the node first: its form is longer than the test screen. */
+    private fun SemanticsNodeInteraction.tap() = performScrollTo().performClick()
+
+    private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    private fun weekday(label: String) = compose.onNode(hasText(label) and hasClickAction())
+
+    /** Opens the editor for a new routine from the Routinen tab and names it. */
+    private fun newRoutine(name: String) {
+        tab("Routinen").performClick()
+        compose.onNodeWithContentDescription("Routine anlegen").performClick()
+        field("Name").performTextInput(name)
+    }
+
+    /** Changes the time [from] ("08:00") to another one. */
+    private fun changeTime(from: String, hour: String, minute: String) {
+        compose.onNode(hasText(from) and hasClickAction()).tap()
+        typeTime(hour, minute)
+    }
+
+    private fun addTime(hour: String, minute: String) {
+        compose.onNodeWithText("Uhrzeit hinzufügen").tap()
+        typeTime(hour, minute)
+    }
+
+    /** Types the time into the open time dialog and confirms it. */
+    private fun typeTime(hour: String, minute: String) {
         val fields = compose.onAllNodes(hasSetTextAction() and hasAnyAncestor(isDialog()))
         fields[0].performTextReplacement(hour)
         fields[1].performTextReplacement(minute)

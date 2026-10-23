@@ -2,6 +2,7 @@ package de.emilyshub.routines
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -35,32 +36,31 @@ interface RoutineDao {
     @Query("DELETE FROM routines WHERE id = :id")
     suspend fun delete(id: Long)
 
-    /** Adds an occurrence with [status] on [date] for every routine due then that has none on that day yet. */
-    @Query(
-        """
-        INSERT OR IGNORE INTO occurrences (routine_id, date, time, status)
-        SELECT id, :date, time, :status FROM routines
-        WHERE start_date <= :date
-          AND NOT EXISTS (SELECT 1 FROM occurrences WHERE routine_id = routines.id AND date = :date)
-        """,
-    )
-    suspend fun addOccurrences(date: LocalDate, status: OccurrenceStatus)
+    /** The routines that have no occurrence on [date] yet. */
+    @Query("SELECT * FROM routines WHERE NOT EXISTS (SELECT 1 FROM occurrences WHERE routine_id = routines.id AND date = :date)")
+    suspend fun unplannedOn(date: LocalDate): List<Routine>
 
-    /** Moves the routine's occurrences with [status] from [from] on to [time]. */
-    @Query("UPDATE occurrences SET time = :time WHERE routine_id = :routineId AND date >= :from AND status = :status")
-    suspend fun moveOccurrences(routineId: Long, from: LocalDate, status: OccurrenceStatus, time: LocalTime)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertOccurrences(occurrences: List<Occurrence>)
+
+    @Query("SELECT * FROM occurrences WHERE id = :id")
+    suspend fun occurrence(id: Long): Occurrence?
+
+    @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
+    suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
+
+    /** The routine's occurrences on [date] and after. */
+    @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date >= :date")
+    suspend fun occurrencesFrom(routineId: Long, date: LocalDate): List<Occurrence>
+
+    @Query("UPDATE occurrences SET time = :time WHERE id = :id")
+    suspend fun moveOccurrence(id: Long, time: LocalTime)
+
+    @Query("DELETE FROM occurrences WHERE id IN (:ids)")
+    suspend fun deleteOccurrences(ids: Collection<Long>)
 
     @Query("UPDATE occurrences SET status = :status WHERE id = :id")
     suspend fun setStatus(id: Long, status: OccurrenceStatus)
-
-    /** Sets the occurrence back to [open], at its routine's current time like every open occurrence. */
-    @Query(
-        """
-        UPDATE occurrences SET status = :open, time = (SELECT time FROM routines WHERE routines.id = occurrences.routine_id)
-        WHERE id = :id
-        """,
-    )
-    suspend fun reopen(id: Long, open: OccurrenceStatus)
 
     @Query(
         """

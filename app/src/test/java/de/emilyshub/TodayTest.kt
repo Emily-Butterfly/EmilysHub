@@ -54,6 +54,18 @@ class TodayTest {
     }
 
     @Test
+    fun `each time of a routine is a row of its own, ticked off on its own`() {
+        app.routine("Tabletten", "20:00", "08:00")
+
+        launchApp().use {
+            assertEquals(listOf("08:00 Tabletten", "20:00 Tabletten"), rows())
+
+            compose.onNode(isToggleable() and hasText("08:00")).performClick().assertIsOn()
+            compose.onNode(isToggleable() and hasText("20:00")).assertIsOff()
+        }
+    }
+
+    @Test
     fun `a skipped routine says so and can be undone`() {
         app.routine("Joggen", "18:00")
 

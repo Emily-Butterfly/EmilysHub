@@ -21,7 +21,7 @@
     <string name="settings_app_lock_summary">Fingerabdruck oder Geräte-PIN beim Öffnen und nach 1 Minute im Hintergrund</string>
     <string name="settings_app_lock_needs_screen_lock">Richte zuerst in den Android-Einstellungen eine Displaysperre ein (PIN, Muster oder Passwort).</string>
 
-    <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was täglich ansteht.</string>
+    <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht.</string>
     <string name="today_skip">Überspringen</string>
     <string name="today_undo">Rückgängig</string>
     <string name="status_skipped">Übersprungen</string>
@@ -34,12 +34,36 @@
     <string name="routine_name">Name</string>
     <string name="routine_name_missing">Bitte gib einen Namen ein.</string>
     <string name="routine_description">Beschreibung (optional)</string>
-    <string name="routine_time">Uhrzeit</string>
+    <string name="routine_times">Uhrzeiten</string>
     <string name="routine_time_change">Uhrzeit ändern</string>
+    <string name="routine_time_add">Uhrzeit hinzufügen</string>
+    <string name="routine_time_remove">%1$s entfernen</string>
     <string name="routine_time_title">Uhrzeit wählen</string>
     <string name="routine_repeat">Wiederholung</string>
     <string name="routine_repeat_daily">Täglich</string>
+    <string name="routine_repeat_weekdays">An bestimmten Wochentagen</string>
+    <string name="routine_repeat_every_n_days">Alle X Tage</string>
+    <string name="routine_repeat_once">Einmalig</string>
+    <string name="routine_weekdays_missing">Wähle mindestens einen Tag.</string>
+    <string name="routine_interval">Abstand in Tagen</string>
+    <string name="routine_interval_range">Von %1$d bis %2$d</string>
+    <string name="routine_starting">Ab</string>
+    <string name="routine_on">Am</string>
+    <string name="routine_date_change">Datum ändern</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
+    <string name="routine_schedule_weekdays">%1$s um %2$s</string>
+    <string name="routine_schedule_every_n_days">Alle %1$d Tage um %2$s</string>
+    <string name="routine_schedule_once">Einmalig am %1$s um %2$s</string>
+    <string name="enumeration">%1$s und %2$s</string>
+    <string-array name="weekdays_short">
+        <item>Mo</item>
+        <item>Di</item>
+        <item>Mi</item>
+        <item>Do</item>
+        <item>Fr</item>
+        <item>Sa</item>
+        <item>So</item>
+    </string-array>
     <string name="routine_delete_title">Routine löschen?</string>
     <string name="routine_delete_text">„%1$s“ wird mit allem gelöscht, was du dazu abgehakt hast.</string>
     <string name="text_length">%1$d/%2$d</string>

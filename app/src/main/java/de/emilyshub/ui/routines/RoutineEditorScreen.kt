@@ -1,6 +1,5 @@
 package de.emilyshub.ui.routines
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,9 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,16 +33,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.routines.DraftProblem
+import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.Routines
-import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalTime
@@ -57,20 +53,22 @@ sealed interface RoutineEditorTarget : Serializable {
     data class Edit(val routineId: Long) : RoutineEditorTarget
 }
 
-/** Creates or changes a routine; for now one that is due daily at one time. Leaving without saving drops the changes. */
+/** Creates or changes a routine with its times and repetition. Leaving without saving drops the changes. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose: () -> Unit) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
-    var draft by rememberSaveable { mutableStateOf(RoutineDraft(name = "", description = "", time = DEFAULT_TIME)) }
+    var draft by rememberSaveable {
+        mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
+    }
     var loaded by rememberSaveable { mutableStateOf(routineId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
-    var choosingTime by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val today = remember(routines) { routines.today() }
 
     if (!loaded && routineId != null) {
         LaunchedEffect(routineId) {
@@ -78,7 +76,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                draft = RoutineDraft(name = routine.name, description = routine.description, time = routine.time)
+                draft = RoutineDraft(routine.name, routine.description, routine.times, routine.repetition)
                 loaded = true
             }
         }
@@ -156,29 +154,11 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 supportingText = { LengthHint(RoutineDraft.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            LabelledValue(
-                label = stringResource(R.string.routine_time),
-                value = draft.time.clockTime(),
-                modifier = Modifier.clickable(
-                    onClickLabel = stringResource(R.string.routine_time_change),
-                    role = Role.Button,
-                    onClick = { choosingTime = true },
-                ),
-            )
-            LabelledValue(label = stringResource(R.string.routine_repeat), value = stringResource(R.string.routine_repeat_daily))
+            TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
+            RepetitionFields(draft.repetition, today, onChange = { draft = draft.copy(repetition = it) })
         }
     }
 
-    if (choosingTime) {
-        TimeDialog(
-            initial = draft.time,
-            onConfirm = {
-                draft = draft.copy(time = it)
-                choosingTime = false
-            },
-            onDismiss = { choosingTime = false },
-        )
-    }
     if (confirmingDelete && routineId != null) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
@@ -211,7 +191,7 @@ private fun LengthHint(length: Int, max: Int) {
 }
 
 @Composable
-private fun LabelledValue(label: String, value: String, modifier: Modifier = Modifier) {
+internal fun LabelledValue(label: String, value: String, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -221,24 +201,6 @@ private fun LabelledValue(label: String, value: String, modifier: Modifier = Mod
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
     }
-}
-
-/** Typing the time is quicker than a clock dial: four digits, always on the 24-hour clock. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDismiss: () -> Unit) {
-    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.routine_time_title)) },
-        text = { TimeInput(state) },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
 }
 
 private val DEFAULT_TIME: LocalTime = LocalTime.of(8, 0)

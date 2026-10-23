@@ -6,19 +6,28 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZonedDateTime
 
-/** A routine (SPEC.md §2). For now due daily at one [time]; later slices add more rules and times. */
+/** A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says. */
 @Entity(tableName = "routines")
 data class Routine(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val description: String,
-    val time: LocalTime,
-    /** The first day it is due: the day it was created. */
-    @ColumnInfo(name = "start_date") val startDate: LocalDate,
-)
+    /** One or more, in the order of the day. */
+    val times: List<LocalTime>,
+    val repetition: Repetition,
+    /**
+     * When its times and repetition took effect, on the local clock: on creation or their last change.
+     * Occurrences are only planned from then on, so neither a new routine nor a change makes anything overdue.
+     */
+    @ColumnInfo(name = "planned_from") val plannedFrom: LocalDateTime,
+) {
+    /** The times it is due on [date]; none if its repetition skips that day. */
+    fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
+}
 
 /** How an occurrence ended (SPEC.md §2, Tracking); open until then. */
 enum class OccurrenceStatus(val stored: String) {

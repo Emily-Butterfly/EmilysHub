@@ -3,6 +3,7 @@ package de.emilyshub
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
+import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.security.FakeAuthenticator
 import kotlinx.coroutines.runBlocking
@@ -18,9 +19,9 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
     moveToState(Lifecycle.State.RESUMED)
 }
 
-/** A daily routine at [time] ("07:30"), set up before the test opens the app. */
-fun TestApplication.routine(name: String, time: String): Long = runBlocking {
-    routines.create(RoutineDraft(name = name, description = "", time = LocalTime.parse(time)))
+/** A routine at [times] ("07:30"), daily unless given another [repetition], set up before the test opens the app. */
+fun TestApplication.routine(name: String, vararg times: String, repetition: Repetition = Repetition.Daily): Long = runBlocking {
+    routines.create(RoutineDraft(name = name, description = "", times = times.map(LocalTime::parse), repetition = repetition))
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */
