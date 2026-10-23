@@ -100,6 +100,22 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 3 moves to version 4 keeping the occurrences with none put off`() {
+        createAtVersion(3) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (3, 'Tabletten', '', '08:00,20:00', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL("INSERT INTO occurrences (routine_id, date, time, status) VALUES (3, '2026-10-23', '08:00', 'done')")
+        }
+
+        withMigratedDatabase { database ->
+            val occurrences = database.routines().occurrencesOn(3, LocalDate.parse("2026-10-23"))
+            assertEquals(listOf(OccurrenceStatus.Done to null), occurrences.map { it.status to it.remindAt })
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

@@ -16,6 +16,7 @@ import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -28,7 +29,8 @@ class RoutinesTest {
     private val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val today = LocalDate.parse("2026-10-23")
     private val noon = Instant.parse("2026-10-23T10:00:00Z") // 12:00 in Berlin
-    private val routines = Routines({ database }, clock, Dispatchers.Unconfined)
+    private var changes = 0
+    private val routines = Routines({ database }, clock, Dispatchers.Unconfined, onChange = { changes++ })
 
     @After
     fun closeDatabase() {
@@ -408,12 +410,87 @@ class RoutinesTest {
         assertEquals(true, routines.comesDue(listOf(LocalTime.of(8, 0)), Repetition.Daily))
     }
 
+    @Test
+    fun `the next reminder is the earliest of all routines`() = runBlocking {
+        assertEquals(null, routines.nextReminder())
+
+        routines.create(draft("Tagebuch", "20:00"))
+        routines.create(draft("Vitamine", "07:30"))
+
+        assertEquals(berlin("2026-10-23T07:30"), routines.nextReminder())
+    }
+
+    @Test
+    fun `an occurrence put off is reminded of again then, and not at its time any more`() = runBlocking {
+        routines.create(draft("Vitamine", "07:30"))
+        clock.now = berlin("2026-10-23T07:31")
+
+        routines.putOff(occurrenceAt("07:30"), until = berlin("2026-10-23T07:41"))
+
+        assertEquals(berlin("2026-10-23T07:41"), routines.nextReminder())
+        val atItsTime = routines.remindersDue(berlin("2026-10-23T07:30"), berlin("2026-10-23T07:31"))
+        val putOffTo = routines.remindersDue(berlin("2026-10-23T07:41"), berlin("2026-10-23T07:42"))
+        assertEquals(emptyList<String>(), atItsTime.map { it.name })
+        assertEquals(listOf("Vitamine"), putOffTo.map { it.name })
+    }
+
+    @Test
+    fun `the reminders due are the open occurrences come due in that time, on a day not planned yet too`() = runBlocking {
+        routines.create(draft("Vitamine", "07:30"))
+        routines.create(draft("Lüften", "07:30", "12:00"))
+        routines.create(draft("Blumen", "07:00"))
+        routines.markDone(occurrenceAt("07:30") { it.name == "Lüften" })
+        val tomorrow = berlin("2026-10-24T07:30")
+
+        val due = routines.remindersDue(berlin("2026-10-23T07:30"), berlin("2026-10-23T07:31"))
+        val dueTomorrow = routines.remindersDue(tomorrow, tomorrow)
+
+        assertEquals(listOf("Vitamine" to "07:30"), due.map { it.name to it.dueAt.toLocalTime().toString() })
+        assertEquals(listOf("Lüften", "Vitamine"), dueTomorrow.map { it.name })
+    }
+
+    @Test
+    fun `of the occurrences given, those still open and come due are the ones to remind of`() = runBlocking {
+        routines.create(draft("Tabletten", "07:00", "07:30", "20:00"))
+        val (early, done, later) = routines.dueOn(today).first().map { it.occurrenceId }
+        routines.markDone(done)
+        clock.now = berlin("2026-10-23T08:00")
+
+        assertEquals(setOf(early), routines.stillDue(listOf(early, done, later, 999)))
+    }
+
+    @Test
+    fun `an occurrence moved to another time is reminded of at that time, even if it was put off`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "07:30"))
+        routines.putOff(occurrenceAt("07:30"), until = berlin("2026-10-23T07:40"))
+
+        routines.update(pills, draft("Tabletten", "09:00"))
+
+        assertEquals(berlin("2026-10-23T09:00"), routines.nextReminder())
+    }
+
+    @Test
+    fun `every change to routines and occurrences is reported`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00"))
+        val occurrence = occurrenceAt("08:00")
+        routines.update(pills, draft("Tabletten", "08:30"))
+        routines.markDone(occurrence)
+        routines.reopen(occurrence)
+        routines.skip(occurrence)
+        routines.putOff(occurrence, until = berlin("2026-10-23T09:00"))
+        routines.delete(pills)
+
+        assertEquals(7, changes)
+    }
+
+    private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.zone).toInstant()
+
     private fun draft(name: String, vararg times: String, description: String = "", repetition: Repetition = Repetition.Daily) =
         RoutineDraft(name = name, description = description, times = times.map(LocalTime::parse), repetition = repetition)
 
     /** The id of today's occurrence at [time]. */
-    private suspend fun occurrenceAt(time: String) =
-        routines.dueOn(today).first().single { it.dueAt.toLocalTime() == LocalTime.parse(time) }.occurrenceId
+    private suspend fun occurrenceAt(time: String, which: (DueRoutine) -> Boolean = { true }) =
+        routines.dueOn(today).first().single { it.dueAt.toLocalTime() == LocalTime.parse(time) && which(it) }.occurrenceId
 
     /** What the Heute list shows on [date], in its order. */
     private suspend fun dueOn(date: LocalDate) =

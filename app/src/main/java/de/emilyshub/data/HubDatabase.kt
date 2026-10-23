@@ -24,7 +24,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun routines(): RoutineDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -34,7 +34,7 @@ abstract class HubDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, HubDatabase::class.java, name)
                 .openHelperFactory(SupportOpenHelperFactory(rawKey(key)))
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
         }
 

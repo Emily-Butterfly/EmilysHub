@@ -103,6 +103,34 @@ class RepetitionTest {
         assertEquals(listOf("2026-12-31", "2027-01-01"), dueDays(Repetition.Daily, from = "2026-12-31", to = "2027-01-01"))
     }
 
+    @Test
+    fun `the first day due from a date is that date or the next one the repetition has`() {
+        val saturday = LocalDate.parse("2026-10-31")
+
+        assertEquals(saturday, Repetition.Daily.firstDueFrom(saturday))
+        assertEquals(LocalDate.parse("2026-11-02"), Repetition.Weekdays(setOf(MONDAY, FRIDAY)).firstDueFrom(saturday))
+        assertEquals(LocalDate.parse("2026-11-06"), Repetition.Weekdays(setOf(FRIDAY)).firstDueFrom(LocalDate.parse("2026-10-31")))
+        assertEquals(null, Repetition.Weekdays(emptySet()).firstDueFrom(saturday))
+    }
+
+    @Test
+    fun `every X days, the first day due from a date keeps the rhythm, across the year change too`() {
+        val everyThreeDays = Repetition.EveryNDays(days = 3, from = LocalDate.parse("2026-12-29"))
+
+        assertEquals(LocalDate.parse("2026-12-29"), everyThreeDays.firstDueFrom(LocalDate.parse("2026-12-01")))
+        assertEquals(LocalDate.parse("2027-01-01"), everyThreeDays.firstDueFrom(LocalDate.parse("2027-01-01")))
+        assertEquals(LocalDate.parse("2027-01-04"), everyThreeDays.firstDueFrom(LocalDate.parse("2027-01-02")))
+    }
+
+    @Test
+    fun `once, the first day due is its date until that has gone by`() {
+        val once = Repetition.Once(LocalDate.parse("2026-11-05"))
+
+        assertEquals(LocalDate.parse("2026-11-05"), once.firstDueFrom(LocalDate.parse("2026-10-23")))
+        assertEquals(LocalDate.parse("2026-11-05"), once.firstDueFrom(LocalDate.parse("2026-11-05")))
+        assertEquals(null, once.firstDueFrom(LocalDate.parse("2026-11-06")))
+    }
+
     /** The days from [from] to [to] on which [repetition] is due. */
     private fun dueDays(repetition: Repetition, from: String, to: String): List<String> =
         generateSequence(LocalDate.parse(from)) { it.plusDays(1) }

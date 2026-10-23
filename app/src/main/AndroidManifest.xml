@@ -5,6 +5,16 @@
     <!-- App lock with fingerprint or the screen lock's PIN (SPEC.md §9, §11). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- Reminders on the minute (SPEC.md §3, §11). Exact alarms need SCHEDULE_EXACT_ALARM up to Android 12
+         and USE_EXACT_ALARM from Android 13 on, which is granted with the app. The alarm is set again after
+         a restart. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
     <application
@@ -28,6 +38,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Not exported (SPEC.md §9): the app's own intents and the system's broadcasts still arrive. -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".reminders.RescheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Exported by androidx.profileinstaller for adb/Play-triggered profile installs.
              Only the launcher may be exported (SPEC.md §9), and a sideloaded app does not need it. -->

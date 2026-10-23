@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon's house with its check mark, as a small white shape for the status bar. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+    <group
+        android:translateX="-26"
+        android:translateY="-26">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M54,29L80,53H73V79H35V53H28Z M40.53,65.48L51,75.95L68.48,58.48L63.53,53.53L51,66.05L45.48,60.53Z" />
+    </group>
+</vector>

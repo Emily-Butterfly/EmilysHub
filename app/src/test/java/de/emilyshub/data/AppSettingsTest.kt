@@ -13,7 +13,7 @@ class AppSettingsTest {
     fun `a new installation follows the system design and has the app lock on`() {
         val settings = load()
 
-        assertEquals(Settings(design = Design.System, appLockEnabled = true), settings)
+        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), settings)
     }
 
     @Test
@@ -23,6 +23,15 @@ class AppSettingsTest {
 
             assertEquals(design, load().design)
         }
+    }
+
+    @Test
+    fun `that the permissions for reminders were asked for is still known after a restart`() {
+        assertEquals(false, load().remindersAsked)
+
+        runBlocking { AppSettings({ dao }).apply { load() }.setRemindersAsked() }
+
+        assertEquals(true, load().remindersAsked)
     }
 
     @Test
@@ -39,7 +48,7 @@ class AppSettingsTest {
         dao.values["design"] = "Dark"
         dao.values["app-lock"] = "false"
 
-        assertEquals(Settings(design = Design.System, appLockEnabled = true), load())
+        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), load())
     }
 
     @Test
@@ -48,11 +57,11 @@ class AppSettingsTest {
         assertNull(settings.current)
 
         runBlocking { settings.load() }
-        assertEquals(Settings(design = Design.System, appLockEnabled = true), settings.current)
+        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), settings.current)
 
         runBlocking { settings.setDesign(Design.Dark) }
         runBlocking { settings.setAppLockEnabled(false) }
-        assertEquals(Settings(design = Design.Dark, appLockEnabled = false), settings.current)
+        assertEquals(Settings(design = Design.Dark, appLockEnabled = false, remindersAsked = false), settings.current)
     }
 
     private fun load() = runBlocking { AppSettings({ dao }).load() }

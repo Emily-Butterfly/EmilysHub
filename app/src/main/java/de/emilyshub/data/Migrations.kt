@@ -56,3 +56,10 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE `routines_new` RENAME TO `routines`")
     }
 }
+
+/** Version 4: when an occurrence was put off to with "Später" (#7); none so far. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `remind_at` TEXT")
+    }
+}

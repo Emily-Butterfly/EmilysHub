@@ -1,11 +1,13 @@
 package de.emilyshub.routines
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -19,10 +21,16 @@ data class OccurrenceRow(
     val status: OccurrenceStatus,
 )
 
+/** An occurrence with its routine's name. */
+data class NamedOccurrence(@Embedded val occurrence: Occurrence, val name: String)
+
 @Dao
 interface RoutineDao {
     @Query("SELECT * FROM routines")
     fun observeAll(): Flow<List<Routine>>
+
+    @Query("SELECT * FROM routines")
+    suspend fun getAll(): List<Routine>
 
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun get(id: Long): Routine?
@@ -46,6 +54,21 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE id = :id")
     suspend fun occurrence(id: Long): Occurrence?
 
+    @Query("SELECT * FROM occurrences WHERE id IN (:ids)")
+    suspend fun occurrences(ids: Collection<Long>): List<Occurrence>
+
+    /** Every routine's occurrences on [date] and after. */
+    @Query("SELECT * FROM occurrences WHERE date >= :date")
+    suspend fun allOccurrencesFrom(date: LocalDate): List<Occurrence>
+
+    @Query(
+        """
+        SELECT o.*, r.name AS name FROM occurrences o JOIN routines r ON r.id = o.routine_id
+        WHERE o.date BETWEEN :from AND :to AND o.status = :status
+        """,
+    )
+    suspend fun namedOccurrences(from: LocalDate, to: LocalDate, status: OccurrenceStatus): List<NamedOccurrence>
+
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
     suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
 
@@ -53,8 +76,12 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date >= :date")
     suspend fun occurrencesFrom(routineId: Long, date: LocalDate): List<Occurrence>
 
-    @Query("UPDATE occurrences SET time = :time WHERE id = :id")
+    /** Moves it to [time], where it is reminded of at that time again. */
+    @Query("UPDATE occurrences SET time = :time, remind_at = NULL WHERE id = :id")
     suspend fun moveOccurrence(id: Long, time: LocalTime)
+
+    @Query("UPDATE occurrences SET remind_at = :at WHERE id = :id")
+    suspend fun putOff(id: Long, at: Instant)
 
     @Query("DELETE FROM occurrences WHERE id IN (:ids)")
     suspend fun deleteOccurrences(ids: Collection<Long>)

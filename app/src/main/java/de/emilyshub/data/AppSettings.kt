@@ -10,7 +10,8 @@ import kotlin.coroutines.CoroutineContext
 /** The in-app design choice (SPEC.md §1): follow the system, or always light (Flieder) or dark (Lila). */
 enum class Design(val stored: String) { System("system"), Light("light"), Dark("dark") }
 
-data class Settings(val design: Design, val appLockEnabled: Boolean)
+/** [remindersAsked]: whether the permissions reminders need were asked for already, which happens once. */
+data class Settings(val design: Design, val appLockEnabled: Boolean, val remindersAsked: Boolean)
 
 /**
  * The settings every screen depends on, read from the encrypted database and then kept in memory.
@@ -27,10 +28,11 @@ class AppSettings(
         private set
 
     suspend fun load(): Settings {
-        val (design, appLock) = withContext(io) { dao().get(DESIGN) to dao().get(APP_LOCK) }
+        val (design, appLock, remindersAsked) = withContext(io) { listOf(DESIGN, APP_LOCK, REMINDERS_ASKED).map { dao().get(it) } }
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
             appLockEnabled = appLock != OFF,
+            remindersAsked = remindersAsked == YES,
         ).also { current = it }
     }
 
@@ -39,6 +41,9 @@ class AppSettings(
 
     suspend fun setAppLockEnabled(enabled: Boolean) =
         save(APP_LOCK, if (enabled) ON else OFF) { it.copy(appLockEnabled = enabled) }
+
+    suspend fun setRemindersAsked() =
+        save(REMINDERS_ASKED, YES) { it.copy(remindersAsked = true) }
 
     /** Writes first and only then shows the change, applied to whatever is current by then. */
     private suspend fun save(name: String, value: String, change: (Settings) -> Settings) {
@@ -52,5 +57,7 @@ class AppSettings(
         const val APP_LOCK = "app-lock"
         const val ON = "on"
         const val OFF = "off"
+        const val REMINDERS_ASKED = "reminders-asked"
+        const val YES = "yes"
     }
 }

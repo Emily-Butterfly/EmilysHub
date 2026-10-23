@@ -23,12 +23,13 @@ import kotlin.coroutines.CoroutineContext
  * The routines and their occurrences (SPEC.md §2). [database] is only called on [io], since the first
  * call opens it. Writes run to the end once started, even if the screen that started them goes away:
  * otherwise a save cut short by the app lock or a rotation could leave the editor open over a routine
- * that was already saved.
+ * that was already saved. After each write, [onChange] runs, for the reminders to follow.
  */
 class Routines(
     private val database: () -> HubDatabase,
     private val clock: Clock,
     private val io: CoroutineContext = Dispatchers.IO,
+    private val onChange: suspend () -> Unit = {},
 ) {
     private val dao get() = database().routines()
 
@@ -122,9 +123,40 @@ class Routines(
         }
     }
 
+    /** Puts the occurrence off ("Später"): it is reminded of again at [until]. */
+    suspend fun putOff(occurrenceId: Long, until: Instant) = write { dao.putOff(occurrenceId, until) }
+
+    /** When to remind of any routine next, after now; none if nothing is ever due again. */
+    suspend fun nextReminder(): Instant? = withContext(io) {
+        val now = now()
+        val planned = dao.allOccurrencesFrom(today().minusDays(1)).groupBy { it.routineId }
+        dao.getAll().mapNotNull { it.nextReminder(planned[it.id].orEmpty(), now, clock.zone) }.minOrNull()
+    }
+
+    /** The open occurrences to remind of from [from] to [until]; the days in between are planned first. */
+    suspend fun remindersDue(from: Instant, until: Instant): List<Reminder> = withContext(io) {
+        val first = today(from, clock.zone)
+        val last = today(until, clock.zone)
+        generateSequence(first) { it.plusDays(1) }.takeWhile { !it.isAfter(last) }.forEach { plan(it) }
+        // One put off before midnight can come due the day after.
+        dao.namedOccurrences(first.minusDays(1), last, OccurrenceStatus.Open)
+            .filter { (occurrence) -> occurrence.reminderAt(clock.zone).let { !it.isBefore(from) && !it.isAfter(until) } }
+            .sortedWith(compareBy<NamedOccurrence> { it.occurrence.reminderAt(clock.zone) }.thenBy(byName) { it.name })
+            .map { (occurrence, name) -> Reminder(occurrence.id, name, dueAt(occurrence.date, occurrence.time, clock.zone)) }
+    }
+
+    /** Of [occurrenceIds], the ones still open whose reminder time has come: their reminders may stay. */
+    suspend fun stillDue(occurrenceIds: Collection<Long>): Set<Long> = withContext(io) {
+        val now = now()
+        dao.occurrences(occurrenceIds)
+            .filter { it.status == OccurrenceStatus.Open && !it.reminderAt(clock.zone).isAfter(now) }
+            .map { it.id }
+            .toSet()
+    }
+
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }
 
-    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
+    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block().also { onChange() } }
 
     /** The local date now; it changes at midnight in the phone's current time zone. */
     fun today(): LocalDate = today(clock.instant(), clock.zone)

@@ -22,8 +22,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -40,12 +42,14 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.ui.lock.LockScreen
+import de.emilyshub.ui.reminders.ReminderPermissions
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.today.TodayScreen
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -85,6 +89,7 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
                             lock.setEnabled(enabled)
                         }
                     },
+                    onRemindersAsked = { scope.launch { settings.setRemindersAsked() } },
                 )
             }
         }
@@ -123,6 +128,7 @@ private fun AppShell(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onRemindersAsked: () -> Unit,
 ) {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -154,8 +160,16 @@ private fun AppShell(
                 onOpenSettings = { settingsOpen = true },
                 onOpenRoutine = { routineEditor = it },
             )
+            if (!settings.remindersAsked) AskOnceThereIsARoutine(routines, onRemindersAsked)
         }
     }
+}
+
+/** Asks for what reminders need (SPEC.md §11) once the first routine is there, not before. */
+@Composable
+private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
+    val anyRoutine by remember(routines) { routines.all().map { it.isNotEmpty() } }.collectAsState(initial = false)
+    if (anyRoutine) ReminderPermissions(onFinished = onAsked)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
