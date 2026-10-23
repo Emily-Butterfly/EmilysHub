@@ -50,6 +50,7 @@
     <string name="routine_starting">Ab</string>
     <string name="routine_on">Am</string>
     <string name="routine_date_change">Datum ändern</string>
+    <string name="routine_once_gone_by">Schon vorbei: Wähle ein späteres Datum oder eine spätere Uhrzeit.</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
     <string name="routine_schedule_weekdays">%1$s um %2$s</string>
     <string name="routine_schedule_every_n_days">Alle %1$d Tage um %2$s</string>

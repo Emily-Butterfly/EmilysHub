@@ -13,8 +13,8 @@ import kotlinx.coroutines.withContext
 import java.text.Collator
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.Locale
 import kotlin.coroutines.CoroutineContext
@@ -38,7 +38,7 @@ class Routines(
     }.flowOn(io)
 
     /**
-     * Due from now on: a time already past today first comes tomorrow, so a routine never starts out
+     * Due from now on: a time already past today does not count today, so a routine never starts out
      * overdue. Refuses a draft with problems; the editor shows them before it gets here.
      */
     suspend fun create(draft: RoutineDraft): Long = write {
@@ -79,11 +79,17 @@ class Routines(
                 plannedFrom = if (rescheduled) now else routine.plannedFrom,
             )
             dao.update(changed)
-            dao.occurrencesFrom(id, today).groupBy { it.date }.forEach { (date, occurrences) ->
-                replan(changed, date, occurrences, now)
-            }
+            val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
+            (planned.keys + today).forEach { date -> replan(changed, date, planned[date].orEmpty(), now) }
         }
     }
+
+    /**
+     * Whether a routine with [times] and [repetition], planned from now on, would ever come due: one
+     * on a single date would not once all its times there have gone by.
+     */
+    fun comesDue(times: List<LocalTime>, repetition: Repetition): Boolean =
+        repetition !is Repetition.Once || times.any { isDueAtOrAfter(now(), repetition.date, it, clock.zone) }
 
     /** Deletes the routine with all its occurrences. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
@@ -103,15 +109,16 @@ class Routines(
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 
     /**
-     * Undoes "done" or "skipped". If the routine's times changed meanwhile, it moves to the new time it
-     * stood in for, as long as that is still ahead; otherwise it stays where it is.
+     * Undoes "done" or "skipped". If the routine's times changed meanwhile, the occurrence is planned anew
+     * like an open one when they changed ([replanDay]): it moves to the new time it stood in for while
+     * that is ahead, and goes if the routine no longer has a time for it and it is still to come.
      */
     suspend fun reopen(occurrenceId: Long) = write {
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
             val routine = dao.get(occurrence.routineId) ?: return@withTransaction
             dao.setStatus(occurrenceId, OccurrenceStatus.Open)
-            replan(routine, occurrence.date, dao.occurrencesOn(routine.id, occurrence.date), now(), keep = occurrenceId)
+            replan(routine, occurrence.date, dao.occurrencesOn(routine.id, occurrence.date), now())
         }
     }
 
@@ -125,33 +132,25 @@ class Routines(
     /** How long until the next local day begins. */
     fun timeUntilTomorrow(): Duration = Duration.between(clock.instant(), today().plusDays(1).atStartOfDay(clock.zone))
 
-    private fun now(): LocalDateTime = LocalDateTime.now(clock)
+    private fun now(): Instant = clock.instant()
 
     /** Plans the occurrences on [date] of the routines that have none then yet, at their times from when they were planned. */
     private suspend fun plan(date: LocalDate) = database().withTransaction {
         val occurrences = dao.unplannedOn(date).flatMap { routine ->
-            routine.timesOn(date)
-                .filter { isDueAtOrAfter(routine.plannedFrom, date, it, clock.zone) }
-                .map { open(routine, date, it) }
+            routine.plannedTimesOn(date, clock.zone).map { openOccurrence(routine, date, it) }
         }
         dao.insertOccurrences(occurrences)
     }
 
-    /** Brings the routine's [occurrences] on [date] in line with its times from [now] on; [keep] is never removed. */
-    private suspend fun replan(
-        routine: Routine,
-        date: LocalDate,
-        occurrences: List<Occurrence>,
-        now: LocalDateTime,
-        keep: Long? = null,
-    ) {
+    /** Brings the routine's [occurrences] on [date] in line with its times from [now] on. */
+    private suspend fun replan(routine: Routine, date: LocalDate, occurrences: List<Occurrence>, now: Instant) {
         val changes = replanDay(occurrences, routine.timesOn(date)) { isDueAtOrAfter(now, date, it, clock.zone) }
         changes.moved.forEach { (id, time) -> dao.moveOccurrence(id, time) }
-        dao.deleteOccurrences(changes.removed - setOfNotNull(keep))
-        dao.insertOccurrences(changes.added.map { open(routine, date, it) })
+        dao.deleteOccurrences(changes.removed)
+        dao.insertOccurrences(changes.added.map { openOccurrence(routine, date, it) })
     }
 
-    private fun open(routine: Routine, date: LocalDate, time: LocalTime) =
+    private fun openOccurrence(routine: Routine, date: LocalDate, time: LocalTime) =
         Occurrence(routineId = routine.id, date = date, time = time, status = OccurrenceStatus.Open)
 
     private fun checked(draft: RoutineDraft): RoutineDraft {

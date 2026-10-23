@@ -17,8 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.UUID
 import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
 
@@ -54,7 +54,7 @@ class HubDatabaseMigrationTest {
                 description = "",
                 times = listOf(LocalTime.of(21, 0)),
                 repetition = Repetition.Daily,
-                plannedFrom = day.atStartOfDay(),
+                plannedFrom = day.atStartOfDay(ZoneId.systemDefault()).toInstant(),
             )
             val id = database.routines().insert(routine)
             val occurrence = Occurrence(routineId = id, date = day, time = LocalTime.of(21, 0), status = OccurrenceStatus.Open)
@@ -70,6 +70,9 @@ class HubDatabaseMigrationTest {
                 "INSERT INTO routines (id, name, description, time, start_date) " +
                     "VALUES (7, 'Lesen', 'Vor dem Schlafen', '21:00', '2026-10-23')",
             )
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, time, start_date) VALUES (8, 'Joggen', '', '07:00', '2026-10-24')",
+            )
             it.execSQL("INSERT INTO occurrences (routine_id, date, time, status) VALUES (7, '2026-10-23', '21:00', 'done')")
         }
 
@@ -82,10 +85,11 @@ class HubDatabaseMigrationTest {
                     description = "Vor dem Schlafen",
                     times = listOf(LocalTime.of(21, 0)),
                     repetition = Repetition.Daily,
-                    plannedFrom = LocalDateTime.parse("2026-10-23T00:00"),
+                    plannedFrom = startOf("2026-10-23"),
                 ),
                 routine,
             )
+            assertEquals(startOf("2026-10-24"), database.routines().get(8)?.plannedFrom)
             val day = LocalDate.parse("2026-10-23")
             val occurrences = database.routines().observeOccurrences(day).first()
             assertEquals(listOf("Lesen" to OccurrenceStatus.Done), occurrences.map { it.name to it.status })
@@ -95,6 +99,8 @@ class HubDatabaseMigrationTest {
             assertEquals(emptyList<Any>(), database.routines().observeOccurrences(day).first())
         }
     }
+
+    private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {
         val database = HubDatabase.open(context, key, name)

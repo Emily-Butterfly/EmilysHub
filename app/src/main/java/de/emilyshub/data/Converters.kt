@@ -4,11 +4,14 @@ import androidx.room.TypeConverter
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 
-/** Dates and times are stored as ISO text ("2026-10-23", "08:00"), which sorts and compares like the values. */
+/**
+ * Dates and times are stored as ISO text ("2026-10-23", "08:00", "2026-10-23T06:00:00Z"); dates and times
+ * of day sort and compare like the values.
+ */
 class Converters {
     @TypeConverter
     fun fromDate(date: LocalDate): String = date.toString()
@@ -23,10 +26,10 @@ class Converters {
     fun toTime(text: String): LocalTime = LocalTime.parse(text)
 
     @TypeConverter
-    fun fromDateTime(dateTime: LocalDateTime): String = dateTime.toString()
+    fun fromInstant(instant: Instant): String = instant.toString()
 
     @TypeConverter
-    fun toDateTime(text: String): LocalDateTime = LocalDateTime.parse(text)
+    fun toInstant(text: String): Instant = Instant.parse(text)
 
     /** "08:00,20:00" */
     @TypeConverter

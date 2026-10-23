@@ -61,6 +61,8 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
     }
+    // The routine as it was before editing; none for a new one.
+    var original by rememberSaveable { mutableStateOf<RoutineDraft?>(null) }
     var loaded by rememberSaveable { mutableStateOf(routineId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
@@ -77,6 +79,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 onClose()
             } else {
                 draft = RoutineDraft(routine.name, routine.description, routine.times, routine.repetition)
+                original = draft
                 loaded = true
             }
         }
@@ -85,8 +88,12 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
 
     val problems = draft.problems
     val cleaned = draft.cleaned()
+    // Only for new times or a new date: a routine kept as it was after its date may still be renamed.
+    // Saving does not check this again, since the moment can pass in between.
+    val rescheduled = original.let { it == null || it.times != cleaned.times || it.repetition != cleaned.repetition }
+    val goneBy = rescheduled && !routines.comesDue(cleaned.times, cleaned.repetition)
     val save = {
-        if (problems.isNotEmpty()) {
+        if (problems.isNotEmpty() || goneBy) {
             showMissingName = true
         } else if (!closing) {
             closing = true
@@ -155,7 +162,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 modifier = Modifier.fillMaxWidth(),
             )
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
-            RepetitionFields(draft.repetition, today, onChange = { draft = draft.copy(repetition = it) })
+            RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
         }
     }
 

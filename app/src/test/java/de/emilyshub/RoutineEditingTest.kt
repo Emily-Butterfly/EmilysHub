@@ -29,6 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -175,6 +176,25 @@ class RoutineEditingTest {
             compose.onNodeWithText("Einmalig am 30.10.2026 um 08:00").assertIsDisplayed()
         }
         assertEquals(Repetition.Once(LocalDate.parse("2026-10-30")), savedRoutines().single().repetition)
+    }
+
+    @Test
+    fun `a one-time routine is only saved while one of its times is still ahead`() {
+        app.clock.now = Instant.parse("2026-10-23T10:00:00Z") // 12:00 in Berlin
+
+        launchApp().use {
+            newRoutine("Paket abholen")
+            option("Einmalig").tap()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Schon vorbei", substring = true).performScrollTo().assertIsDisplayed()
+            heading("Neue Routine").assertIsDisplayed()
+
+            changeTime(from = "08:00", hour = "18", minute = "00")
+            compose.onNodeWithText("Schon vorbei", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Einmalig am 23.10.2026 um 18:00").assertIsDisplayed()
+        }
     }
 
     @Test

@@ -2,6 +2,8 @@ package de.emilyshub.data
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.time.LocalDate
+import java.time.ZoneId
 
 // Hand-written on purpose: each one runs the SQL Room exports to app/schemas for its target version,
 // and HubDatabaseMigrationTest has Room check the result against the app's entities.
@@ -28,8 +30,9 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 
 /**
  * Version 3: routines with several times and a repetition (#6). Every routine so far is daily at its one
- * time, planned from the start of its first day. SQLite cannot change columns in place, so the table is
- * built anew; foreign keys are off during migrations, so dropping the old table keeps the occurrences.
+ * time, planned from the start of its first day in the phone's time zone. SQLite cannot change columns in
+ * place, so the table is built anew; foreign keys are off during migrations, so dropping the old table
+ * keeps the occurrences.
  */
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -40,8 +43,15 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
         db.execSQL(
             "INSERT INTO `routines_new` (`id`, `name`, `description`, `times`, `repetition`, `planned_from`) " +
-                "SELECT `id`, `name`, `description`, `time`, 'daily', `start_date` || 'T00:00' FROM `routines`",
+                "SELECT `id`, `name`, `description`, `time`, 'daily', `start_date` FROM `routines`",
         )
+        val startDates = db.query("SELECT DISTINCT `planned_from` FROM `routines_new`").use { rows ->
+            buildList { while (rows.moveToNext()) add(rows.getString(0)) }
+        }
+        for (date in startDates) {
+            val start = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            db.execSQL("UPDATE `routines_new` SET `planned_from` = ? WHERE `planned_from` = ?", arrayOf(start.toString(), date))
+        }
         db.execSQL("DROP TABLE `routines`")
         db.execSQL("ALTER TABLE `routines_new` RENAME TO `routines`")
     }

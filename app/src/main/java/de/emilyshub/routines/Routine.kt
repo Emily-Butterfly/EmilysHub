@@ -5,9 +5,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 /** A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says. */
@@ -20,13 +21,17 @@ data class Routine(
     val times: List<LocalTime>,
     val repetition: Repetition,
     /**
-     * When its times and repetition took effect, on the local clock: on creation or their last change.
-     * Occurrences are only planned from then on, so neither a new routine nor a change makes anything overdue.
+     * When its times and repetition took effect: on creation or their last change. Occurrences are only
+     * planned from then on, so neither a new routine nor a change makes anything overdue.
      */
-    @ColumnInfo(name = "planned_from") val plannedFrom: LocalDateTime,
+    @ColumnInfo(name = "planned_from") val plannedFrom: Instant,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
     fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
+
+    /** The times on [date] that are due from [plannedFrom] on, the routine's day as it is first planned. */
+    fun plannedTimesOn(date: LocalDate, zone: ZoneId): List<LocalTime> =
+        timesOn(date).filter { isDueAtOrAfter(plannedFrom, date, it, zone) }
 }
 
 /** How an occurrence ended (SPEC.md §2, Tracking); open until then. */
