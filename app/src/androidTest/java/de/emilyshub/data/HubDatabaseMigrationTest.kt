@@ -64,7 +64,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 2 moves to version 3 keeping each routine daily at its time, with its occurrences`() {
+    fun `version 2 moves to version 3 keeping each routine daily at its time and its occurrences`() {
         createAtVersion(2) {
             it.execSQL(
                 "INSERT INTO routines (id, name, description, time, start_date) " +
