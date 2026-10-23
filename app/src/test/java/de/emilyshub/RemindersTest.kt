@@ -11,6 +11,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.ReminderReceiver
 import de.emilyshub.reminders.RescheduleReceiver
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.Repetition
+import de.emilyshub.routines.RoutineDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -23,7 +25,9 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
@@ -203,6 +207,58 @@ class RemindersTest {
         assertEquals(listOf(OccurrenceStatus.Open), statuses())
     }
 
+    @Test
+    fun `a reminder that came due just as the alarm was set anew still comes`() {
+        app.routine("Vitamine", "07:30")
+        app.clock.now = berlin("2026-10-23T07:30:20")
+
+        app.routine("Tagebuch", "20:00") // a change before the alarm for 07:30 could go off
+
+        assertEquals(berlin("2026-10-23T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-23T07:30:30")
+        assertEquals(listOf("Vitamine"), titles())
+    }
+
+    @Test
+    fun `after a restart, a reminder put off to a time while the phone was off still comes`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:30")
+        app.clock.now = berlin("2026-10-23T07:32")
+        tap("Später")
+
+        // The phone restarts at 07:40 and is unlocked at 07:50; the restart took the alarm with it.
+        alarmManager.cancel(checkNotNull(nextAlarm().operation))
+        app.clock.now = berlin("2026-10-23T07:50")
+        app.sendBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+        idle()
+
+        goOffAt("2026-10-23T07:50")
+        assertEquals(listOf("Vitamine"), titles())
+    }
+
+    @Test
+    fun `a reminder on the screen follows a new name of its routine`() = runBlocking {
+        val pills = app.routine("Tabletten", "07:30")
+        goOffAt("2026-10-23T07:30")
+
+        app.routines.update(pills, RoutineDraft("Vitamin D", "", listOf(LocalTime.of(7, 30)), Repetition.Daily))
+
+        assertEquals(listOf("Vitamin D"), titles())
+    }
+
+    @Test
+    fun `a reminder put off days after it came due comes back`() {
+        app.routine("Arzttermin", "07:30", repetition = Repetition.Once(LocalDate.parse("2026-10-23")))
+        goOffAt("2026-10-23T07:30")
+        app.clock.now = berlin("2026-10-25T08:00")
+
+        tap("Später")
+
+        assertEquals(berlin("2026-10-25T08:10"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-25T08:10")
+        assertEquals(listOf("Arzttermin"), titles())
+    }
+
     private fun nextAlarm() = checkNotNull(shadowOf(alarmManager).peekNextScheduledAlarm()) { "No alarm set" }
 
     /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
@@ -219,6 +275,8 @@ class RemindersTest {
     }
 
     private fun reminders(): List<Notification> = notificationManager.activeNotifications.map { it.notification }
+
+    private fun titles() = reminders().map { it.extras.getString(Notification.EXTRA_TITLE) }
 
     private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
 

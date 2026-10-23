@@ -59,11 +59,11 @@ data class Occurrence(
     val date: LocalDate,
     val time: LocalTime,
     val status: OccurrenceStatus,
-    /** When it was put off to ("Später"); none means it is reminded of at its due time. */
+    /** When to remind of it instead of its due time, once it was put off ("Später"). */
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
 ) {
-    /** When to remind of it: when it is due, or when it was put off to. */
-    fun reminderAt(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
+    /** When it is reminded of: at its due time, or when it was put off to. */
+    fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
 }
 
 /** An open occurrence to remind of (SPEC.md §3): its routine's [name] and when it is due. */

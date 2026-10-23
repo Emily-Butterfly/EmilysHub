@@ -1,7 +1,6 @@
 package de.emilyshub.ui.reminders
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -26,20 +25,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import de.emilyshub.R
+import de.emilyshub.reminders.exactAlarmsAllowed
 
 /** What reminders still need from Android, in the order it is asked for. */
 private enum class Missing { Notifications, ExactAlarms }
 
 /**
  * Asks for what reminders need (SPEC.md §3, §11), explaining each in German before Android asks:
- * showing notifications, then exact alarms if Android does not allow those yet. Either can wait.
- * [onFinished] comes once everything was asked for, whatever the answers.
+ * showing notifications, then exact alarms if Android does not allow those yet. Either can be declined;
+ * Android's settings can allow them later. [onFinished] comes once everything was asked, whatever the answers.
  */
 @Composable
 fun ReminderPermissions(onFinished: () -> Unit) {
     val context = LocalContext.current
     var missing by rememberSaveable { mutableStateOf(firstMissing(context)) }
-    val afterNotifications = { missing = if (exactAlarmsAllowed(context)) null else Missing.ExactAlarms }
+    val afterNotifications = { missing = if (context.exactAlarmsAllowed()) null else Missing.ExactAlarms }
     val requestNotifications =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { afterNotifications() }
 
@@ -87,13 +87,13 @@ private fun Explanation(
         title = { Text(stringResource(title)) },
         text = { Text(stringResource(text)) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(confirm)) } },
-        dismissButton = { TextButton(onClick = onLater) { Text(stringResource(R.string.reminders_later)) } },
+        dismissButton = { TextButton(onClick = onLater) { Text(stringResource(R.string.reminders_decline)) } },
     )
 }
 
 private fun firstMissing(context: Context): Missing? = when {
     !notificationsAllowed(context) -> Missing.Notifications
-    !exactAlarmsAllowed(context) -> Missing.ExactAlarms
+    !context.exactAlarmsAllowed() -> Missing.ExactAlarms
     else -> null
 }
 
@@ -103,10 +103,6 @@ private fun notificationsAllowed(context: Context): Boolean =
     } else {
         context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
     }
-
-// Granted with the app from Android 13 on (USE_EXACT_ALARM); before that, Android 12 lets the user take it back.
-private fun exactAlarmsAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.S || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
 @RequiresApi(Build.VERSION_CODES.S)
 private fun Context.openExactAlarmSettings() =

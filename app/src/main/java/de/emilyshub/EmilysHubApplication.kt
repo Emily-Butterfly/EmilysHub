@@ -1,7 +1,7 @@
 package de.emilyshub
 
 import android.app.Application
-import android.content.BroadcastReceiver
+import android.util.Log
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.reminders.Reminders
@@ -13,6 +13,7 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,12 +34,14 @@ open class EmilysHubApplication : Application() {
 
     open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
 
-    open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = { reminders.update() }) }
+    open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 
-    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) }
+    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) { database.settings() } }
 
     /** Where receivers finish their work after onReceive has returned, and where the app starts up. */
-    open val background: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    open val background: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> Log.e(TAG, "Background work failed", e) },
+    )
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })
@@ -51,14 +54,16 @@ open class EmilysHubApplication : Application() {
         background.launch { reminders.update() }
     }
 
-    /** Runs [work] for a broadcast receiver in [background] and tells Android once it is [pending]'s turn to finish. */
-    fun finishInBackground(pending: BroadcastReceiver.PendingResult, work: suspend () -> Unit) {
-        background.launch {
-            try {
-                work()
-            } finally {
-                pending.finish()
-            }
+    /** After every change to the routines. The change stands even if this fails; the next one tries again. */
+    protected suspend fun updateReminders() {
+        try {
+            reminders.update()
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not update the reminders", e)
         }
+    }
+
+    private companion object {
+        const val TAG = "EmilysHub"
     }
 }

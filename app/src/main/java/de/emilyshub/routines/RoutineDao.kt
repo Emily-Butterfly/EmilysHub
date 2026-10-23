@@ -54,20 +54,21 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE id = :id")
     suspend fun occurrence(id: Long): Occurrence?
 
-    @Query("SELECT * FROM occurrences WHERE id IN (:ids)")
-    suspend fun occurrences(ids: Collection<Long>): List<Occurrence>
+    /** Every routine's occurrences on [date] and after, and those put off, whenever they were due. */
+    @Query("SELECT * FROM occurrences WHERE date >= :date OR remind_at IS NOT NULL")
+    suspend fun occurrencesToRemindFrom(date: LocalDate): List<Occurrence>
 
-    /** Every routine's occurrences on [date] and after. */
-    @Query("SELECT * FROM occurrences WHERE date >= :date")
-    suspend fun allOccurrencesFrom(date: LocalDate): List<Occurrence>
-
+    /** The open occurrences from [from] to [to], and those put off, whenever they were due. */
     @Query(
         """
         SELECT o.*, r.name AS name FROM occurrences o JOIN routines r ON r.id = o.routine_id
-        WHERE o.date BETWEEN :from AND :to AND o.status = :status
+        WHERE o.status = :open AND (o.date BETWEEN :from AND :to OR o.remind_at IS NOT NULL)
         """,
     )
-    suspend fun namedOccurrences(from: LocalDate, to: LocalDate, status: OccurrenceStatus): List<NamedOccurrence>
+    suspend fun openToRemind(from: LocalDate, to: LocalDate, open: OccurrenceStatus): List<NamedOccurrence>
+
+    @Query("SELECT o.*, r.name AS name FROM occurrences o JOIN routines r ON r.id = o.routine_id WHERE o.id IN (:ids)")
+    suspend fun namedOccurrences(ids: Collection<Long>): List<NamedOccurrence>
 
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
     suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
@@ -80,8 +81,8 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET time = :time, remind_at = NULL WHERE id = :id")
     suspend fun moveOccurrence(id: Long, time: LocalTime)
 
-    @Query("UPDATE occurrences SET remind_at = :at WHERE id = :id")
-    suspend fun putOff(id: Long, at: Instant)
+    @Query("UPDATE occurrences SET remind_at = :until WHERE id = :id")
+    suspend fun putOff(id: Long, until: Instant)
 
     @Query("DELETE FROM occurrences WHERE id IN (:ids)")
     suspend fun deleteOccurrences(ids: Collection<Long>)

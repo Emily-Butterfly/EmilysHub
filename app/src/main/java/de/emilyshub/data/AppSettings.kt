@@ -28,7 +28,9 @@ class AppSettings(
         private set
 
     suspend fun load(): Settings {
-        val (design, appLock, remindersAsked) = withContext(io) { listOf(DESIGN, APP_LOCK, REMINDERS_ASKED).map { dao().get(it) } }
+        val (design, appLock, remindersAsked) = withContext(io) {
+            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED).map { dao().get(it) }
+        }
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
             appLockEnabled = appLock != OFF,

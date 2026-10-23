@@ -14,9 +14,11 @@ import de.emilyshub.routines.Reminder
 import de.emilyshub.ui.clockTime
 
 /**
- * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen". A locked
- * phone shows only the public version, "Erinnerung fällig" without the name or actions, and the actions
- * only work once the phone is unlocked. One notification per occurrence, tagged with its id.
+ * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen". On a
+ * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
+ * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
+ * the content of notifications there; an app cannot make that choice for the user. One notification per
+ * occurrence, tagged with its id; showing it again while it is up changes it without a sound.
  */
 class ReminderNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -35,7 +37,6 @@ class ReminderNotifications(private val context: Context) {
         val name = context.getString(R.string.reminder_channel)
         return NotificationChannel(CHANNEL, name, NotificationManager.IMPORTANCE_HIGH).apply {
             description = context.getString(R.string.reminder_channel_description)
-            lockscreenVisibility = Notification.VISIBILITY_PRIVATE
         }
     }
 
@@ -56,6 +57,7 @@ class ReminderNotifications(private val context: Context) {
             .setPublicVersion(public)
             .setContentIntent(openApp())
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
             .addAction(action(R.string.reminder_done, ReminderReceiver.ACTION_DONE, reminder.occurrenceId))
             .addAction(action(R.string.reminder_put_off, ReminderReceiver.ACTION_PUT_OFF, reminder.occurrenceId))
             .addAction(action(R.string.reminder_skip, ReminderReceiver.ACTION_SKIP, reminder.occurrenceId))

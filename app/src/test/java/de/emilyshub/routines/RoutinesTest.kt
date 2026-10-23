@@ -412,12 +412,13 @@ class RoutinesTest {
 
     @Test
     fun `the next reminder is the earliest of all routines`() = runBlocking {
-        assertEquals(null, routines.nextReminder())
+        assertEquals(null, routines.nextReminder(after = clock.now))
 
         routines.create(draft("Tagebuch", "20:00"))
         routines.create(draft("Vitamine", "07:30"))
 
-        assertEquals(berlin("2026-10-23T07:30"), routines.nextReminder())
+        assertEquals(berlin("2026-10-23T07:30"), routines.nextReminder(after = clock.now))
+        assertEquals(berlin("2026-10-23T20:00"), routines.nextReminder(after = berlin("2026-10-23T07:30")))
     }
 
     @Test
@@ -427,9 +428,9 @@ class RoutinesTest {
 
         routines.putOff(occurrenceAt("07:30"), until = berlin("2026-10-23T07:41"))
 
-        assertEquals(berlin("2026-10-23T07:41"), routines.nextReminder())
-        val atItsTime = routines.remindersDue(berlin("2026-10-23T07:30"), berlin("2026-10-23T07:31"))
-        val putOffTo = routines.remindersDue(berlin("2026-10-23T07:41"), berlin("2026-10-23T07:42"))
+        assertEquals(berlin("2026-10-23T07:41"), routines.nextReminder(after = clock.now))
+        val atItsTime = routines.remindersDue(after = berlin("2026-10-23T07:29"), until = berlin("2026-10-23T07:31"))
+        val putOffTo = routines.remindersDue(after = berlin("2026-10-23T07:40"), until = berlin("2026-10-23T07:42"))
         assertEquals(emptyList<String>(), atItsTime.map { it.name })
         assertEquals(listOf("Vitamine"), putOffTo.map { it.name })
     }
@@ -442,8 +443,8 @@ class RoutinesTest {
         routines.markDone(occurrenceAt("07:30") { it.name == "Lüften" })
         val tomorrow = berlin("2026-10-24T07:30")
 
-        val due = routines.remindersDue(berlin("2026-10-23T07:30"), berlin("2026-10-23T07:31"))
-        val dueTomorrow = routines.remindersDue(tomorrow, tomorrow)
+        val due = routines.remindersDue(after = berlin("2026-10-23T07:00"), until = berlin("2026-10-23T07:31"))
+        val dueTomorrow = routines.remindersDue(after = tomorrow.minusSeconds(1), until = tomorrow)
 
         assertEquals(listOf("Vitamine" to "07:30"), due.map { it.name to it.dueAt.toLocalTime().toString() })
         assertEquals(listOf("Lüften", "Vitamine"), dueTomorrow.map { it.name })
@@ -456,7 +457,7 @@ class RoutinesTest {
         routines.markDone(done)
         clock.now = berlin("2026-10-23T08:00")
 
-        assertEquals(setOf(early), routines.stillDue(listOf(early, done, later, 999)))
+        assertEquals(listOf(early), routines.stillDue(listOf(early, done, later, 999)).map { it.occurrenceId })
     }
 
     @Test
@@ -466,7 +467,7 @@ class RoutinesTest {
 
         routines.update(pills, draft("Tabletten", "09:00"))
 
-        assertEquals(berlin("2026-10-23T09:00"), routines.nextReminder())
+        assertEquals(berlin("2026-10-23T09:00"), routines.nextReminder(after = clock.now))
     }
 
     @Test

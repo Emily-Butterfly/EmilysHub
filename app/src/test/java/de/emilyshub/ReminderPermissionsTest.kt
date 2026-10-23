@@ -62,11 +62,11 @@ class ReminderPermissionsTest {
     }
 
     @Test
-    fun `asking can wait, and is not repeated`() {
+    fun `asking can be declined, and is not repeated`() {
         app.routine("Vitamine", "07:30")
 
         launchApp().use {
-            compose.onNodeWithText("Nicht jetzt").performClick()
+            compose.onNodeWithText("Nein, danke").performClick()
             compose.onNodeWithText("Erinnerungen erlauben?").assertDoesNotExist()
         }
         launchApp().use {
@@ -110,5 +110,4 @@ class ReminderPermissionsTest {
         compose.onNode(hasSetTextAction() and hasText("Name")).performTextInput(name)
         compose.onNodeWithText("Speichern").performClick()
     }
-
 }

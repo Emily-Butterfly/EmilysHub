@@ -5,8 +5,8 @@ import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
-import kotlinx.coroutines.CoroutineScope
 import de.emilyshub.security.FakeAuthenticator
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
 import java.time.ZoneId
@@ -24,7 +24,7 @@ class TestApplication : EmilysHubApplication() {
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val testDatabase by lazy { inMemoryDatabase() }
-    override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = { reminders.update() })
-    override val reminders: Reminders by lazy { Reminders(this, routines, clock) }
+    override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
+    override val reminders: Reminders by lazy { Reminders(this, routines, clock) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 }

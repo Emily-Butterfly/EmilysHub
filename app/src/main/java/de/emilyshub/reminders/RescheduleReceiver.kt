@@ -14,7 +14,7 @@ class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in ACTIONS) return
         val app = context.applicationContext as EmilysHubApplication
-        app.finishInBackground(goAsync()) { app.reminders.update() }
+        finishInBackground(app) { app.reminders.update() }
     }
 
     private companion object {

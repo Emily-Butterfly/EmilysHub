@@ -83,12 +83,12 @@
     <string name="reminder_skip">Überspringen</string>
 
     <string name="reminders_notifications_title">Erinnerungen erlauben?</string>
-    <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen. Auf dem Sperrbildschirm steht dabei nur „Erinnerung fällig“.</string>
+    <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen.\n\nDamit auf dem Sperrbildschirm nur „Erinnerung fällig“ steht, stelle in den Android-Einstellungen ein, dass er die Inhalte von Benachrichtigungen ausblendet.</string>
     <string name="reminders_exact_title">Pünktlich erinnern?</string>
     <string name="reminders_exact_text">Damit Erinnerungen auf die Minute genau kommen, braucht EmilysHub die Erlaubnis für „Wecker und Erinnerungen“. Android öffnet dazu die passende Einstellung.</string>
     <string name="reminders_continue">Weiter</string>
     <string name="reminders_open_settings">Zur Einstellung</string>
-    <string name="reminders_later">Nicht jetzt</string>
+    <string name="reminders_decline">Nein, danke</string>
 
     <string name="app_lock_title">EmilysHub ist gesperrt</string>
     <string name="app_lock_unlock">Entsperren</string>
