@@ -155,16 +155,16 @@ class Routines(
     /** Of [occurrenceIds], the ones still open whose reminder time has come: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        dao.namedOccurrences(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
+        dao.namedOccurrences(occurrenceIds).filter { it.occurrence.isDue(now, clock.zone) }.map(::reminderOf)
     }
 
     /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
     fun reminder(occurrenceId: Long): Flow<Reminder?> = flow {
-        emitAll(dao.observeNamedOccurrence(occurrenceId).map { named -> named?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
+        val reminders = dao.observeNamedOccurrence(occurrenceId).map { named ->
+            named?.takeIf { it.occurrence.isDue(now(), clock.zone) }?.let(::reminderOf)
+        }
+        emitAll(reminders)
     }.flowOn(io)
-
-    private fun NamedOccurrence.isDue(now: Instant) =
-        occurrence.status == OccurrenceStatus.Open && !occurrence.reminderTime(clock.zone).isAfter(now)
 
     private fun reminderOf(named: NamedOccurrence) = with(named.occurrence) {
         Reminder(id, named.name, dueAt(date, time, clock.zone), named.fullScreen)

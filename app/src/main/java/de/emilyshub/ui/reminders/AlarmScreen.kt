@@ -47,7 +47,8 @@ fun AlarmScreen(
     onSkip: () -> Unit,
     onClose: () -> Unit,
 ) {
-    var choosingPutOff by rememberSaveable { mutableStateOf(false) }
+    // For the reminder shown: another one coming first starts with its actions again.
+    var choosingPutOff by rememberSaveable(reminder?.occurrenceId) { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier

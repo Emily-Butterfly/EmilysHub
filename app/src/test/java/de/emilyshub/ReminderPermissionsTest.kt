@@ -150,6 +150,39 @@ class ReminderPermissionsTest {
         }
     }
 
+    @Test
+    fun `while Android does not allow full-screen alarms, a routine with one says so and offers the setting`() {
+        app.settingsDao.values["reminders-asked"] = "yes"
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+
+        launchApp().use {
+            openRoutine("Arzttermin")
+
+            compose.onNodeWithText("Android erlaubt gerade keine Vollbild-Alarme", substring = true).assertExists()
+            compose.onNodeWithText("Erlauben").performScrollTo().performClick()
+        }
+        assertEquals(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, checkNotNull(shadowOf(app).nextStartedActivity).action)
+    }
+
+    @Test
+    fun `with full-screen alarms allowed, a routine with one has nothing to say about it`() {
+        app.settingsDao.values["reminders-asked"] = "yes"
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+
+        launchApp().use {
+            openRoutine("Arzttermin")
+
+            fullScreenAlarm().performScrollTo().assertIsOn()
+            compose.onNodeWithText("Android erlaubt gerade keine Vollbild-Alarme", substring = true).assertDoesNotExist()
+        }
+    }
+
+    private fun openRoutine(name: String) {
+        compose.onNode(isSelectable() and hasText("Routinen")).performClick()
+        compose.onNodeWithText(name).performClick()
+    }
+
     private fun newRoutine(name: String) {
         compose.onNode(isSelectable() and hasText("Routinen")).performClick()
         compose.onNodeWithContentDescription("Routine anlegen").performClick()

@@ -56,6 +56,8 @@
     <string name="routine_follow_up_minutes">Abstand in Minuten</string>
     <string name="routine_full_screen">Vollbild-Alarm</string>
     <string name="routine_full_screen_summary">Wie ein Wecker, auch auf dem Sperrbildschirm</string>
+    <string name="routine_full_screen_not_allowed">Android erlaubt gerade keine Vollbild-Alarme, daher kommt die Erinnerung als normale Benachrichtigung.</string>
+    <string name="routine_full_screen_allow">Erlauben</string>
     <string name="routine_once_gone_by">Schon vorbei: Wähle ein späteres Datum oder eine spätere Uhrzeit.</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
     <string name="routine_schedule_weekdays">%1$s um %2$s</string>

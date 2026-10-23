@@ -12,6 +12,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.AlarmActivity
+import de.emilyshub.reminders.EXTRA_OCCURRENCE
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -108,7 +109,7 @@ class LockScreenTest {
 
             scenario.leaveAndReturn {
                 ShadowSystemClock.advanceBy(Duration.ofSeconds(30))
-                val alarm = Intent(app, AlarmActivity::class.java).putExtra(AlarmActivity.EXTRA_OCCURRENCE, occurrence)
+                val alarm = Intent(app, AlarmActivity::class.java).putExtra(EXTRA_OCCURRENCE, occurrence)
                 ActivityScenario.launch<AlarmActivity>(alarm).use { ShadowSystemClock.advanceBy(Duration.ofSeconds(30)) }
             }
 

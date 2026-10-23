@@ -17,7 +17,9 @@ import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.routines.OccurrenceStatus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -43,10 +45,7 @@ class AlarmTest {
         ShadowAlarmManager.setCanScheduleExactAlarms(true)
         app.fullScreenAlarmsAllowed = true
         app.routine("Arzttermin", "07:30", fullScreen = true)
-        val alarmManager = shadowOf(app.getSystemService(AlarmManager::class.java))
-        app.clock.now = berlin("2026-10-23T07:30")
-        alarmManager.fireAlarm(checkNotNull(alarmManager.peekNextScheduledAlarm()))
-        idle()
+        goOffAt("2026-10-23T07:30")
     }
 
     @Test
@@ -164,21 +163,52 @@ class AlarmTest {
         assertEquals(listOf(OccurrenceStatus.Open), statuses())
     }
 
+    @Test
+    fun `with two full-screen alarms at once, the alarm shows the newer one and then the other`() {
+        openAlarm(of = "Arzttermin").use { scenario ->
+            compose.onNodeWithText("Später").performClick() // about to put off Arzttermin
+            app.routine("Tabletten", "07:45", fullScreen = true)
+            goOffAt("2026-10-23T07:45")
+            scenario.onActivity { getInstrumentation().callActivityOnNewIntent(it, alarmIntent(of = "Tabletten")) }
+
+            compose.onNodeWithText("Tabletten").assertIsDisplayed()
+            compose.onNodeWithText("Erledigt").performClick()
+            idle()
+
+            compose.onNodeWithText("Arzttermin").assertIsDisplayed()
+            scenario.onActivity { assertFalse("still open", it.isFinishing) }
+        }
+        assertEquals(listOf("07:30" to OccurrenceStatus.Open, "07:45" to OccurrenceStatus.Done), timesAndStatuses())
+    }
+
     /** Robolectric leaves a finished activity as it is, so it only shows that it is finishing. */
     private fun assertClosed(scenario: ActivityScenario<AlarmActivity>) {
         scenario.onActivity { assertTrue("closed", it.isFinishing) }
     }
 
     /** Opens the alarm the way Android does, with the reminder's own full-screen intent. */
-    private fun openAlarm(): ActivityScenario<AlarmActivity> {
-        val fullScreen = checkNotNull(reminders().single().fullScreenIntent) { "No full-screen alarm" }
-        return ActivityScenario.launch(shadowOf(fullScreen).savedIntent)
+    private fun openAlarm(of: String = "Arzttermin"): ActivityScenario<AlarmActivity> = ActivityScenario.launch(alarmIntent(of))
+
+    private fun alarmIntent(of: String): Intent {
+        val reminder = reminders().single { it.extras.getString(Notification.EXTRA_TITLE) == of }
+        return shadowOf(checkNotNull(reminder.fullScreenIntent) { "No full-screen alarm" }).savedIntent
+    }
+
+    /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
+    private fun goOffAt(localDateTime: String) {
+        val alarmManager = shadowOf(app.getSystemService(AlarmManager::class.java))
+        app.clock.now = berlin(localDateTime)
+        alarmManager.fireAlarm(checkNotNull(alarmManager.peekNextScheduledAlarm()))
+        idle()
     }
 
     private fun reminders(): List<Notification> =
         app.getSystemService(NotificationManager::class.java).activeNotifications.map { it.notification }
 
-    private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
+    private fun statuses() = timesAndStatuses().map { (_, status) -> status }
+
+    private fun timesAndStatuses() =
+        runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.dueAt.toLocalTime().toString() to it.status } }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 

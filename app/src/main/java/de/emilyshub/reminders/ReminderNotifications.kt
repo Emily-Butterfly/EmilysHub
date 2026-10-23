@@ -103,7 +103,7 @@ class ReminderNotifications(private val context: Context) {
             .setAction(action)
             // Tells the intents of different occurrences and choices apart, so that each keeps its own extras.
             .setIdentifier(listOfNotNull(tagOf(occurrenceId), putOffBy?.toMinutes()).joinToString(":"))
-            .putExtra(ReminderReceiver.EXTRA_OCCURRENCE, occurrenceId)
+            .putExtra(EXTRA_OCCURRENCE, occurrenceId)
         putOffBy?.let { intent.putExtra(ReminderReceiver.EXTRA_MINUTES, it.toMinutes()) }
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val operation = PendingIntent.getBroadcast(context, 0, intent, flags)
@@ -116,7 +116,7 @@ class ReminderNotifications(private val context: Context) {
     private fun alarm(occurrenceId: Long): PendingIntent {
         val intent = Intent(context, AlarmActivity::class.java)
             .setIdentifier(tagOf(occurrenceId))
-            .putExtra(AlarmActivity.EXTRA_OCCURRENCE, occurrenceId)
+            .putExtra(EXTRA_OCCURRENCE, occurrenceId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }

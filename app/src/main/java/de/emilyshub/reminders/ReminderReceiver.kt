@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
-        val occurrence = intent.getLongExtra(EXTRA_OCCURRENCE, 0).takeIf { it > 0 }
+        val occurrence = intent.occurrenceId()
         val minutes = intent.getLongExtra(EXTRA_MINUTES, 0)
         val putOffBy = Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }
         val work: (suspend () -> Unit)? = when (intent.action) {
@@ -38,10 +38,15 @@ class ReminderReceiver : BroadcastReceiver() {
         /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"
         const val ACTION_SKIP = "de.emilyshub.action.SKIP"
-        const val EXTRA_OCCURRENCE = "occurrence"
         const val EXTRA_MINUTES = "minutes"
     }
 }
+
+/** The occurrence that the intents of a reminder, its actions and its alarm, are about. */
+const val EXTRA_OCCURRENCE = "occurrence"
+
+/** The occurrence an intent is about; none without a valid one. */
+internal fun Intent.occurrenceId(): Long? = getLongExtra(EXTRA_OCCURRENCE, 0).takeIf { it > 0 }
 
 /** Does [work] after onReceive has returned, in the app's background scope, and tells Android once it is done. */
 internal fun BroadcastReceiver.finishInBackground(app: EmilysHubApplication, work: suspend () -> Unit) {

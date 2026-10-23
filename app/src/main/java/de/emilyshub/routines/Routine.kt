@@ -75,6 +75,9 @@ data class Occurrence(
 
     /** When it is reminded of while it stays open: at its [reminderTime] and at the [followUps] after it. */
     fun reminderTimes(followUps: FollowUps, zone: ZoneId): List<Instant> = followUps.from(reminderTime(zone))
+
+    /** Whether it is to be reminded of at [now]: still open, and its [reminderTime] has come. */
+    fun isDue(now: Instant, zone: ZoneId): Boolean = status == OccurrenceStatus.Open && !reminderTime(zone).isAfter(now)
 }
 
 /** An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, and whether with a [fullScreen] alarm. */

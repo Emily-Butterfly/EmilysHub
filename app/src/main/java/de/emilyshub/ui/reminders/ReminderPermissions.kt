@@ -135,7 +135,7 @@ private fun Context.openExactAlarmSettings() =
     openSettings(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.fromParts("package", packageName, null)))
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-private fun Context.openFullScreenAlarmSettings() =
+internal fun Context.openFullScreenAlarmSettings() =
     openSettings(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.fromParts("package", packageName, null)))
 
 /** A phone without that settings page gets the app's page in Android's settings instead. */

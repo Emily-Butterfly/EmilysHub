@@ -1,5 +1,6 @@
 package de.emilyshub.ui.routines
 
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,11 +39,13 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -50,13 +53,16 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.numericDate
+import de.emilyshub.reminders.fullScreenAlarmsAllowed
 import de.emilyshub.ui.reminders.FullScreenAlarmPermission
+import de.emilyshub.ui.reminders.openFullScreenAlarmSettings
 import java.io.Serializable
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -239,11 +245,19 @@ fun FollowUpFields(followUps: FollowUps, onChange: (FollowUps) -> Unit) {
 
 /**
  * Whether the routine's reminders fill the screen like an alarm clock (SPEC.md §3). Turned on, it asks for
- * Android's permission where that is missing; declined, it stays on for when Android allows it.
+ * Android's permission where that is missing; declined, it stays on for when Android allows it, and says
+ * that it does not work until then.
  */
 @Composable
 fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
     var asking by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    // Again on every return, from Android's settings for one.
+    var allowed by remember { mutableStateOf(context.fullScreenAlarmsAllowed()) }
+    LifecycleResumeEffect(context) {
+        allowed = context.fullScreenAlarmsAllowed()
+        onPauseOrDispose {}
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -268,7 +282,20 @@ fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
         }
         Switch(checked = fullScreen, onCheckedChange = null)
     }
-    if (asking) FullScreenAlarmPermission(onFinished = { asking = false })
+    if (fullScreen && !allowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        Problem(stringResource(R.string.routine_full_screen_not_allowed))
+        TextButton(onClick = { context.openFullScreenAlarmSettings() }) {
+            Text(stringResource(R.string.routine_full_screen_allow))
+        }
+    }
+    if (asking) {
+        FullScreenAlarmPermission(
+            onFinished = {
+                asking = false
+                allowed = context.fullScreenAlarmsAllowed()
+            },
+        )
+    }
 }
 
 /**
