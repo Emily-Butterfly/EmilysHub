@@ -71,7 +71,7 @@ class ReminderNotifications(private val context: Context) {
             text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
             actions = listOf(
                 action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, id),
-                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_LATER, id),
+                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, id),
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, id),
             )
         }

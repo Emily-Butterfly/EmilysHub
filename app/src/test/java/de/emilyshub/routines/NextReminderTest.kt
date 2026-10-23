@@ -121,7 +121,8 @@ class NextReminderTest {
 
         val reminders = generateSequence(now) { routine.nextReminder(planned, it, BERLIN) }.drop(1).take(7).toList()
 
-        assertEquals(listOf("08:00", "08:10", "08:20", "08:30", "08:40", "08:50").map(::todayAt) + berlin("2026-10-24T08:00"), reminders)
+        val then = listOf("08:00", "08:10", "08:20", "08:30", "08:40", "08:50").map(::todayAt)
+        assertEquals(then + berlin("2026-10-24T08:00"), reminders)
     }
 
     @Test
@@ -157,8 +158,9 @@ class NextReminderTest {
     @Test
     fun `a routine with no follow-ups reminds once`() {
         val routine = routine("08:00", followUps = FollowUps(count = 0))
+        val planned = listOf(occurrence(today, "08:00"))
 
-        assertEquals(berlin("2026-10-24T08:00"), routine.nextReminder(listOf(occurrence(today, "08:00")), todayAt("08:00"), BERLIN))
+        assertEquals(berlin("2026-10-24T08:00"), routine.nextReminder(planned, todayAt("08:00"), BERLIN))
     }
 
     /** [time] ("08:30") today in Berlin. */

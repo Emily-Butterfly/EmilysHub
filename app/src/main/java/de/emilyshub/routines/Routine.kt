@@ -12,7 +12,10 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-/** A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says. */
+/**
+ * A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says, and reminding again
+ * of what is left open as its [followUps] say.
+ */
 @Entity(tableName = "routines")
 data class Routine(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -26,6 +29,7 @@ data class Routine(
      * planned from then on, so neither a new routine nor a change makes anything overdue.
      */
     @ColumnInfo(name = "planned_from") val plannedFrom: Instant,
+    /** How often and how far apart it reminds again of an occurrence left open; takes effect at once. */
     @Embedded(prefix = "follow_up_") val followUps: FollowUps = FollowUps(),
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */

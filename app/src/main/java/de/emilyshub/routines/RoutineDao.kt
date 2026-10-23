@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 /** An occurrence row joined with its routine's name. */
 data class OccurrenceRow(
@@ -26,7 +27,10 @@ data class NamedOccurrence(
     @Embedded val occurrence: Occurrence,
     val name: String,
     @Embedded(prefix = "follow_up_") val followUps: FollowUps,
-)
+) {
+    /** When it is reminded of while it stays open: first, and at its routine's follow-ups. */
+    fun reminderTimes(zone: ZoneId): List<Instant> = occurrence.reminderTimes(followUps, zone)
+}
 
 @Dao
 interface RoutineDao {
@@ -105,4 +109,5 @@ interface RoutineDao {
 }
 
 /** What a [NamedOccurrence] takes from its routine. */
-private const val ROUTINE_COLUMNS = "r.name AS name, r.follow_up_count AS follow_up_count, r.follow_up_minutes AS follow_up_minutes"
+private const val ROUTINE_COLUMNS =
+    "r.name AS name, r.follow_up_count AS follow_up_count, r.follow_up_minutes AS follow_up_minutes"

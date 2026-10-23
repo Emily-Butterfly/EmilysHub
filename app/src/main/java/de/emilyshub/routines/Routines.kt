@@ -144,8 +144,7 @@ class Routines(
         generateSequence(first) { it.plusDays(1) }.takeWhile { !it.isAfter(last) }.forEach { plan(it) }
         dao.openToRemind(firstDayWithFollowUps(after), last, OccurrenceStatus.Open)
             .mapNotNull { named ->
-                val times = named.occurrence.reminderTimes(named.followUps, clock.zone)
-                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { named to it }
+                named.reminderTimes(clock.zone).firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { named to it }
             }
             .sortedWith(compareBy<Pair<NamedOccurrence, Instant>> { (_, time) -> time }.thenBy(byName) { (named) -> named.name })
             .map { (named) -> reminderOf(named) }

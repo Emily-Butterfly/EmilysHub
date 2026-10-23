@@ -155,24 +155,11 @@ fun RepetitionFields(repetition: Repetition, today: LocalDate, goneBy: Boolean, 
             }
         }
         if (repetition is Repetition.EveryNDays) {
-            OutlinedTextField(
-                value = intervalText,
-                onValueChange = { text ->
-                    intervalText = text.filter(Char::isDigit).take(INTERVAL_DIGITS)
-                    onChange(repetition.copy(days = intervalText.toIntOrNull() ?: 0))
-                },
-                label = { Text(stringResource(R.string.routine_interval)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = repetition.days !in RoutineDraft.INTERVAL_DAYS,
-                supportingText = {
-                    val range = RoutineDraft.INTERVAL_DAYS
-                    Text(stringResource(R.string.routine_interval_range, range.first, range.last))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-            )
+            val label = stringResource(R.string.routine_interval)
+            NumberField(intervalText, repetition.days, RoutineDraft.INTERVAL_DAYS, label) { text, days ->
+                intervalText = text
+                onChange(repetition.copy(days = days))
+            }
             DateValue(stringResource(R.string.routine_starting), repetition.from, onClick = { choosingDate = true })
         }
         RepetitionOption(stringResource(R.string.routine_repeat_once), selected = repetition is Repetition.Once) {
@@ -238,26 +225,36 @@ fun FollowUpFields(followUps: FollowUps, onChange: (FollowUps) -> Unit) {
             }
         }
         if (followUps.count > 0) {
-            OutlinedTextField(
-                value = minutesText,
-                onValueChange = { text ->
-                    minutesText = text.filter(Char::isDigit).take(MINUTES_DIGITS)
-                    onChange(followUps.copy(everyMinutes = minutesText.toIntOrNull() ?: 0))
-                },
-                label = { Text(stringResource(R.string.routine_follow_up_minutes)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = followUps.everyMinutes !in FollowUps.MINUTES,
-                supportingText = {
-                    val range = FollowUps.MINUTES
-                    Text(stringResource(R.string.routine_interval_range, range.first, range.last))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-            )
+            val label = stringResource(R.string.routine_follow_up_minutes)
+            NumberField(minutesText, followUps.everyMinutes, FollowUps.MINUTES, label) { text, minutes ->
+                minutesText = text
+                onChange(followUps.copy(everyMinutes = minutes))
+            }
         }
     }
+}
+
+/**
+ * A whole number from [range]: [text] is kept as typed, so that the field can be empty for a moment while
+ * the [number] is retyped; empty counts as 0. Red while [number] is out of [range].
+ */
+@Composable
+private fun NumberField(text: String, number: Int, range: IntRange, label: String, onChange: (String, Int) -> Unit) {
+    OutlinedTextField(
+        value = text,
+        onValueChange = { typed ->
+            val digits = typed.filter(Char::isDigit).take(NUMBER_DIGITS)
+            onChange(digits, digits.toIntOrNull() ?: 0)
+        },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        isError = number !in range,
+        supportingText = { Text(stringResource(R.string.routine_interval_range, range.first, range.last)) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+    )
 }
 
 @Composable
@@ -370,5 +367,4 @@ private fun dateOf(utcMillis: Long) = LocalDate.ofEpochDay(Math.floorDiv(utcMill
 private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
 private val WORKDAYS: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet()
 private const val DEFAULT_INTERVAL = 2
-private const val INTERVAL_DIGITS = 3
-private const val MINUTES_DIGITS = 3
+private const val NUMBER_DIGITS = 3

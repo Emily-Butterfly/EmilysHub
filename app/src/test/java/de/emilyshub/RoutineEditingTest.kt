@@ -235,7 +235,8 @@ class RoutineEditingTest {
     @Test
     fun `the editor shows a routine's times, repetition and follow-ups`() {
         val everyThreeDays = Repetition.EveryNDays(days = 3, from = LocalDate.parse("2026-10-20"))
-        app.routine("Tabletten", "08:00", "20:00", repetition = everyThreeDays, followUps = FollowUps(count = 1, everyMinutes = 60))
+        val onceAnHourLater = FollowUps(count = 1, everyMinutes = 60)
+        app.routine("Tabletten", "08:00", "20:00", repetition = everyThreeDays, followUps = onceAnHourLater)
 
         launchApp().use {
             tab("Routinen").performClick()

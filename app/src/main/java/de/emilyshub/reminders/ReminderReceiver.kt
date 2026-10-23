@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import de.emilyshub.EmilysHubApplication
 import kotlinx.coroutines.launch
-import java.time.Duration
 
 /**
  * The reminder alarm and the actions on a reminder. Not exported, so only the app and the system can
@@ -16,12 +15,13 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
         val occurrence = intent.getLongExtra(EXTRA_OCCURRENCE, 0).takeIf { it > 0 }
-        val putOffBy = Duration.ofMinutes(intent.getLongExtra(EXTRA_MINUTES, 0)).takeIf { it in Reminders.PUT_OFF_CHOICES }
+        val minutes = intent.getLongExtra(EXTRA_MINUTES, 0)
+        val putOffBy = Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }
         val work: (suspend () -> Unit)? = when (intent.action) {
             ACTION_REMIND -> suspend { app.reminders.remind() }
             ACTION_DONE -> occurrence?.let { suspend { app.routines.markDone(it) } }
-            ACTION_LATER -> occurrence?.let { suspend { app.reminders.offerPutOff(it) } }
-            ACTION_PUT_OFF -> if (occurrence != null && putOffBy != null) suspend { app.reminders.putOff(occurrence, putOffBy) } else null
+            ACTION_OFFER_PUT_OFF -> occurrence?.let { suspend { app.reminders.offerPutOff(it) } }
+            ACTION_PUT_OFF -> putOffBy?.let { by -> occurrence?.let { suspend { app.reminders.putOff(it, by) } } }
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
             else -> null
         }
@@ -33,7 +33,7 @@ class ReminderReceiver : BroadcastReceiver() {
         const val ACTION_DONE = "de.emilyshub.action.DONE"
 
         /** "Später": asks when to come back. */
-        const val ACTION_LATER = "de.emilyshub.action.LATER"
+        const val ACTION_OFFER_PUT_OFF = "de.emilyshub.action.OFFER_PUT_OFF"
 
         /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"

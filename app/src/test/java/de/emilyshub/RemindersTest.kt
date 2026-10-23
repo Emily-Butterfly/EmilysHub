@@ -182,6 +182,22 @@ class RemindersTest {
 
         app.routines.delete(walk)
         assertEquals(emptyList<Notification>(), reminders())
+        assertEquals("no follow-ups", berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
+    fun `only a reminder that has come due can be put off`() = runBlocking {
+        app.routine("Tagebuch", "20:00")
+        val evening = app.routines.dueOn(app.routines.today()).first().single().occurrenceId
+
+        app.sendBroadcast(
+            Intent(app, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_PUT_OFF)
+                .putExtra("occurrence", evening)
+                .putExtra("minutes", 10L),
+        )
+        idle()
+
+        assertEquals(berlin("2026-10-23T20:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
 
     @Test

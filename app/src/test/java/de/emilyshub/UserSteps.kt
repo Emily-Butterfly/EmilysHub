@@ -30,9 +30,7 @@ fun TestApplication.routine(
     repetition: Repetition = Repetition.Daily,
     followUps: FollowUps = FollowUps(),
 ): Long = runBlocking {
-    routines.create(
-        RoutineDraft(name = name, description = "", times = times.map(LocalTime::parse), repetition = repetition, followUps = followUps),
-    )
+    routines.create(RoutineDraft(name, description = "", times.map(LocalTime::parse), repetition, followUps))
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */

@@ -55,8 +55,16 @@ class Reminders(
         }
     }
 
-    /** Puts the reminder off [by] one of [PUT_OFF_CHOICES]: it comes back then, and its follow-ups after that. */
-    suspend fun putOff(occurrenceId: Long, by: Duration) = routines.putOff(occurrenceId, until = clock.instant() + by)
+    /**
+     * Puts the reminder off [by] one of [PUT_OFF_CHOICES]: it comes back then, and its follow-ups after that.
+     * Only one that has come due and is still open; one answered meanwhile goes away.
+     */
+    suspend fun putOff(occurrenceId: Long, by: Duration) {
+        when (routines.stillDue(listOf(occurrenceId)).isEmpty()) {
+            true -> update()
+            false -> routines.putOff(occurrenceId, until = clock.instant() + by)
+        }
+    }
 
     private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet()) {
         val shown = notifications.shown()
