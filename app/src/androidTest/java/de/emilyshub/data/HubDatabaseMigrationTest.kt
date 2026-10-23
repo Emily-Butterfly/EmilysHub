@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
@@ -16,6 +17,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -113,6 +115,26 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val occurrences = database.routines().occurrencesOn(3, LocalDate.parse("2026-10-23"))
             assertEquals(listOf(OccurrenceStatus.Done to null), occurrences.map { it.status to it.remindAt })
+        }
+    }
+
+    @Test
+    fun `version 4 moves to version 5 giving each routine three follow-ups 30 minutes apart`() {
+        createAtVersion(4) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (3, 'Tabletten', '', '08:00,20:00', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL(
+                "INSERT INTO occurrences (routine_id, date, time, status, remind_at) " +
+                    "VALUES (3, '2026-10-23', '08:00', 'open', '2026-10-23T06:10:00Z')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(FollowUps(count = 3, everyMinutes = 30), database.routines().get(3)?.followUps)
+            val occurrences = database.routines().occurrencesOn(3, LocalDate.parse("2026-10-23"))
+            assertEquals(listOf(Instant.parse("2026-10-23T06:10:00Z")), occurrences.map { it.remindAt })
         }
     }
 

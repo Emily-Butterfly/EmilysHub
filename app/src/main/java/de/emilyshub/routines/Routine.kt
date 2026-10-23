@@ -1,6 +1,7 @@
 package de.emilyshub.routines
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -25,6 +26,7 @@ data class Routine(
      * planned from then on, so neither a new routine nor a change makes anything overdue.
      */
     @ColumnInfo(name = "planned_from") val plannedFrom: Instant,
+    @Embedded(prefix = "follow_up_") val followUps: FollowUps = FollowUps(),
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
     fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
@@ -64,6 +66,9 @@ data class Occurrence(
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
+
+    /** When it is reminded of while it stays open: at its [reminderTime] and at the [followUps] after it. */
+    fun reminderTimes(followUps: FollowUps, zone: ZoneId): List<Instant> = followUps.from(reminderTime(zone))
 }
 
 /** An open occurrence to remind of (SPEC.md §3): its routine's [name] and when it is due. */

@@ -7,31 +7,46 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.annotation.StringRes
+import android.os.Bundle
 import de.emilyshub.MainActivity
 import de.emilyshub.R
 import de.emilyshub.routines.Reminder
 import de.emilyshub.ui.clockTime
+import java.time.Duration
 
 /**
- * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen". On a
+ * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen", and after
+ * "Später" the choice when to come back, "10 Min. · 30 Min. · 1 Std.", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
  * the content of notifications there; an app cannot make that choice for the user. One notification per
- * occurrence, tagged with its id; showing it again while it is up changes it without a sound.
+ * occurrence, tagged with its id.
  */
 class ReminderNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
-    fun show(reminder: Reminder) {
-        manager.createNotificationChannel(channel())
-        manager.notify(tagOf(reminder.occurrenceId), ID, notification(reminder))
-    }
+    /** Pops the reminder up, with a sound even if it is up already: at its time and at each follow-up. */
+    fun show(reminder: Reminder) = post(reminder, alert = true, offeringPutOff = false)
+
+    /** Shows the reminder as it is now, without a sound if it is up already; a choice for "Später" stays up. */
+    fun refresh(reminder: Reminder) = post(reminder, alert = false, offeringPutOff = isOfferingPutOff(reminder.occurrenceId))
+
+    /** "Später": the reminder offers when to come back instead of its actions, without a sound. */
+    fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, offeringPutOff = true)
 
     fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
 
     /** The occurrences whose reminders are on the screen. */
     fun shown(): List<Long> = manager.activeNotifications.mapNotNull { it.tag?.removePrefix(TAG_PREFIX)?.toLongOrNull() }
+
+    private fun post(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean) {
+        manager.createNotificationChannel(channel())
+        manager.notify(tagOf(reminder.occurrenceId), ID, notification(reminder, alert, offeringPutOff))
+    }
+
+    private fun isOfferingPutOff(occurrenceId: Long) = manager.activeNotifications.any {
+        it.tag == tagOf(occurrenceId) && it.notification.extras.getBoolean(EXTRA_OFFERING_PUT_OFF)
+    }
 
     private fun channel(): NotificationChannel {
         val name = context.getString(R.string.reminder_channel)
@@ -40,16 +55,30 @@ class ReminderNotifications(private val context: Context) {
         }
     }
 
-    private fun notification(reminder: Reminder): Notification {
+    private fun notification(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean): Notification {
         val public = Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.reminder_public))
             .setCategory(Notification.CATEGORY_REMINDER)
             .build()
+        val id = reminder.occurrenceId
+        val text: String
+        val actions: List<Notification.Action>
+        if (offeringPutOff) {
+            text = context.getString(R.string.reminder_put_off_when)
+            actions = Reminders.PUT_OFF_CHOICES.map { action(labelOf(it), ReminderReceiver.ACTION_PUT_OFF, id, putOffBy = it) }
+        } else {
+            text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
+            actions = listOf(
+                action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, id),
+                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_LATER, id),
+                action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, id),
+            )
+        }
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.name)
-            .setContentText(context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime()))
+            .setContentText(text)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
             .setCategory(Notification.CATEGORY_REMINDER)
@@ -57,24 +86,30 @@ class ReminderNotifications(private val context: Context) {
             .setPublicVersion(public)
             .setContentIntent(openApp())
             .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
-            .addAction(action(R.string.reminder_done, ReminderReceiver.ACTION_DONE, reminder.occurrenceId))
-            .addAction(action(R.string.reminder_put_off, ReminderReceiver.ACTION_PUT_OFF, reminder.occurrenceId))
-            .addAction(action(R.string.reminder_skip, ReminderReceiver.ACTION_SKIP, reminder.occurrenceId))
+            .setOnlyAlertOnce(!alert)
+            .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offeringPutOff) })
+            .apply { actions.forEach(::addAction) }
             .build()
     }
 
-    private fun action(@StringRes title: Int, action: String, occurrenceId: Long): Notification.Action {
+    private fun action(title: String, action: String, occurrenceId: Long, putOffBy: Duration? = null): Notification.Action {
         val intent = Intent(context, ReminderReceiver::class.java)
             .setAction(action)
-            // Tells the intents of different occurrences apart, so that each keeps its own extras.
-            .setIdentifier(tagOf(occurrenceId))
+            // Tells the intents of different occurrences and choices apart, so that each keeps its own extras.
+            .setIdentifier(listOfNotNull(tagOf(occurrenceId), putOffBy?.toMinutes()).joinToString(":"))
             .putExtra(ReminderReceiver.EXTRA_OCCURRENCE, occurrenceId)
+        putOffBy?.let { intent.putExtra(ReminderReceiver.EXTRA_MINUTES, it.toMinutes()) }
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val operation = PendingIntent.getBroadcast(context, 0, intent, flags)
-        return Notification.Action.Builder(null, context.getString(title), operation)
+        return Notification.Action.Builder(null, title, operation)
             .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true) }
             .build()
+    }
+
+    /** "10 Min.", or "1 Std." for whole hours. */
+    private fun labelOf(choice: Duration): String = when (choice.toMinutes() % 60) {
+        0L -> context.getString(R.string.reminder_put_off_hours, choice.toHours())
+        else -> context.getString(R.string.reminder_put_off_minutes, choice.toMinutes())
     }
 
     /** Like a tap on the app's icon: brings the app to the front, behind its lock if that is on. */
@@ -92,5 +127,6 @@ class ReminderNotifications(private val context: Context) {
         const val CHANNEL = "reminders"
         const val TAG_PREFIX = "occurrence:"
         const val ID = 1
+        const val EXTRA_OFFERING_PUT_OFF = "de.emilyshub.extra.OFFERING_PUT_OFF"
     }
 }

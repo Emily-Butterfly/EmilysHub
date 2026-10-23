@@ -50,6 +50,10 @@
     <string name="routine_starting">Ab</string>
     <string name="routine_on">Am</string>
     <string name="routine_date_change">Datum ändern</string>
+    <string name="routine_follow_ups">Erneut erinnern</string>
+    <string name="routine_follow_ups_how_often">Wie oft, wenn du nicht reagierst</string>
+    <string name="routine_follow_ups_never">Nie</string>
+    <string name="routine_follow_up_minutes">Abstand in Minuten</string>
     <string name="routine_once_gone_by">Schon vorbei: Wähle ein späteres Datum oder eine spätere Uhrzeit.</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
     <string name="routine_schedule_weekdays">%1$s um %2$s</string>
@@ -80,6 +84,9 @@
     <string name="reminder_due_at">Fällig um %1$s</string>
     <string name="reminder_done">Erledigt</string>
     <string name="reminder_put_off">Später</string>
+    <string name="reminder_put_off_when">Erneut erinnern in …</string>
+    <string name="reminder_put_off_minutes">%1$d Min.</string>
+    <string name="reminder_put_off_hours">%1$d Std.</string>
     <string name="reminder_skip">Überspringen</string>
 
     <string name="reminders_notifications_title">Erinnerungen erlauben?</string>

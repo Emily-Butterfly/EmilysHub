@@ -11,9 +11,9 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Reminds of routines on time (SPEC.md §3): one alarm for the next moment a reminder is due, and a
- * notification for each open occurrence whose time has come. [update] brings both in line with the
- * routines after every change.
+ * Reminds of routines on time (SPEC.md §3), and again at their follow-ups while they stay open: one alarm
+ * for the next moment a reminder is due, and a notification for each open occurrence whose time has come.
+ * [update] brings both in line with the routines after every change.
  *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
@@ -41,19 +41,28 @@ class Reminders(
         // What came due more than an hour ago, say while the phone was off or before the clock was put
         // forward, stays on Heute instead of popping up all at once (#10 brings a time window per routine).
         val since = maxOf(remindedUntil(), now - LATE_LIMIT)
-        routines.remindersDue(after = since, until = now).forEach(notifications::show)
+        val due = routines.remindersDue(after = since, until = now)
+        due.forEach(notifications::show)
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
-        tidyAndSetAlarm()
+        tidyAndSetAlarm(justShown = due.map { it.occurrenceId }.toSet())
     }
 
-    /** "Später": the reminder comes back in ten minutes (for now always ten; #8 offers a choice). */
-    suspend fun putOff(occurrenceId: Long) = routines.putOff(occurrenceId, until = clock.instant() + PUT_OFF)
+    /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
+    suspend fun offerPutOff(occurrenceId: Long) = lock.withLock {
+        when (val reminder = routines.stillDue(listOf(occurrenceId)).singleOrNull()) {
+            null -> notifications.cancel(occurrenceId)
+            else -> notifications.offerPutOff(reminder)
+        }
+    }
 
-    private suspend fun tidyAndSetAlarm() {
+    /** Puts the reminder off [by] one of [PUT_OFF_CHOICES]: it comes back then, and its follow-ups after that. */
+    suspend fun putOff(occurrenceId: Long, by: Duration) = routines.putOff(occurrenceId, until = clock.instant() + by)
+
+    private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet()) {
         val shown = notifications.shown()
         val stillDue = routines.stillDue(shown)
-        // Shown again quietly, as the routine may have been renamed meanwhile.
-        stillDue.forEach(notifications::show)
+        // Shown again quietly, as the routine may have been renamed meanwhile; what just popped up is as it is now.
+        stillDue.filter { it.occurrenceId !in justShown }.forEach(notifications::refresh)
         (shown - stillDue.map { it.occurrenceId }.toSet()).forEach(notifications::cancel)
         when (val next = routines.nextReminder(after = remindedUntil())) {
             null -> alarm.cancel()
@@ -67,9 +76,11 @@ class Reminders(
         settings().get(REMINDED_UNTIL)?.let { runCatching { Instant.parse(it) }.getOrNull() }
             ?: clock.instant().also { settings().put(Setting(REMINDED_UNTIL, it.toString())) }
 
-    private companion object {
-        const val REMINDED_UNTIL = "reminded-until"
-        val PUT_OFF: Duration = Duration.ofMinutes(10)
-        val LATE_LIMIT: Duration = Duration.ofHours(1)
+    companion object {
+        /** What "Später" offers (SPEC.md §3). */
+        val PUT_OFF_CHOICES: List<Duration> = listOf(10L, 30L, 60L).map(Duration::ofMinutes)
+
+        private const val REMINDED_UNTIL = "reminded-until"
+        private val LATE_LIMIT: Duration = Duration.ofHours(1)
     }
 }

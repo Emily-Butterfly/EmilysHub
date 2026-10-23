@@ -63,3 +63,11 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `remind_at` TEXT")
     }
 }
+
+/** Version 5: how often and how far apart a routine reminds again (#8); every routine so far gets the defaults. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `follow_up_count` INTEGER NOT NULL DEFAULT 3")
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `follow_up_minutes` INTEGER NOT NULL DEFAULT 30")
+    }
+}

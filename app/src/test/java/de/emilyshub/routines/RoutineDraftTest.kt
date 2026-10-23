@@ -81,10 +81,39 @@ class RoutineDraftTest {
         assertEquals(setOf(DraftProblem.IntervalOutOfRange), every(366))
     }
 
+    @Test
+    fun `a routine reminds again up to five times, or not at all`() {
+        fun times(count: Int) = draft(followUps = FollowUps(count = count)).problems
+
+        assertEquals(setOf(DraftProblem.FollowUpCountOutOfRange), times(-1))
+        assertEquals(emptySet<DraftProblem>(), times(0))
+        assertEquals(emptySet<DraftProblem>(), times(5))
+        assertEquals(setOf(DraftProblem.FollowUpCountOutOfRange), times(6))
+    }
+
+    @Test
+    fun `follow-ups come from 5 to 120 minutes apart`() {
+        fun every(minutes: Int) = draft(followUps = FollowUps(count = 3, everyMinutes = minutes)).problems
+
+        assertEquals(setOf(DraftProblem.FollowUpIntervalOutOfRange), every(4))
+        assertEquals(emptySet<DraftProblem>(), every(5))
+        assertEquals(emptySet<DraftProblem>(), every(120))
+        assertEquals(setOf(DraftProblem.FollowUpIntervalOutOfRange), every(121))
+    }
+
+    @Test
+    fun `without follow-ups, how far apart they would come does not matter and goes back to the default`() {
+        val none = draft(followUps = FollowUps(count = 0, everyMinutes = 0))
+
+        assertEquals(emptySet<DraftProblem>(), none.problems)
+        assertEquals(FollowUps(count = 0, everyMinutes = 30), none.cleaned().followUps)
+    }
+
     private fun draft(
         name: String = "Zähne putzen",
         description: String = "",
         times: List<LocalTime> = listOf(LocalTime.of(8, 0)),
         repetition: Repetition = Repetition.Daily,
-    ) = RoutineDraft(name = name, description = description, times = times, repetition = repetition)
+        followUps: FollowUps = FollowUps(),
+    ) = RoutineDraft(name = name, description = description, times = times, repetition = repetition, followUps = followUps)
 }

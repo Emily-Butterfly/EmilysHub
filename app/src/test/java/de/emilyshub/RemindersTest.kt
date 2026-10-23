@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.ReminderReceiver
 import de.emilyshub.reminders.RescheduleReceiver
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -68,7 +69,7 @@ class RemindersTest {
         assertEquals(listOf("Erledigt", "Später", "Überspringen"), reminder.actions.map { it.title.toString() })
         reminder.actions.forEach { assertSentOnlyTo(ReminderReceiver::class.java.name, it.actionIntent) }
         assertSentOnlyTo(MainActivity::class.java.name, reminder.contentIntent)
-        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        assertEquals("the first follow-up", berlin("2026-10-23T08:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
 
     @Test
@@ -118,7 +119,7 @@ class RemindersTest {
     }
 
     @Test
-    fun `putting the reminder off brings it back in ten minutes`() {
+    fun `later offers 10 min, 30 min and 1 h, and the reminder comes back after the time chosen`() {
         app.routine("Vitamine", "07:30")
         app.routine("Tagebuch", "20:00")
         goOffAt("2026-10-23T07:30")
@@ -126,12 +127,48 @@ class RemindersTest {
 
         tap("Später")
 
+        val choice = reminders().single()
+        assertEquals("Vitamine", choice.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Erneut erinnern in …", choice.extras.getString(Notification.EXTRA_TEXT))
+        assertEquals(listOf("10 Min.", "30 Min.", "1 Std."), choice.actions.map { it.title.toString() })
+        choice.actions.forEach { assertSentOnlyTo(ReminderReceiver::class.java.name, it.actionIntent) }
+        assertTrue(choice.actions.all { it.isAuthenticationRequired })
+        assertTrue("without a sound", alertsOnlyOnce(choice))
+        assertEquals("Erinnerung fällig", choice.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+
+        tap("30 Min.")
+
         assertEquals(emptyList<Notification>(), reminders())
         assertEquals(listOf(OccurrenceStatus.Open, OccurrenceStatus.Open), statuses())
-        assertEquals(berlin("2026-10-23T07:42"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        assertEquals(berlin("2026-10-23T08:02"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-23T08:02")
+        assertEquals(listOf("Vitamine"), titles())
+    }
 
-        goOffAt("2026-10-23T07:42")
-        assertEquals(listOf("Vitamine"), reminders().map { it.extras.getString(Notification.EXTRA_TITLE) })
+    @Test
+    fun `each choice puts the reminder off by its time, and its follow-ups count from then`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:32")
+
+        for ((choice, back) in listOf("1 Std." to "08:32", "30 Min." to "09:02", "10 Min." to "09:12")) {
+            putOff(choice)
+            assertEquals(choice, berlin("2026-10-23T$back"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+            goOffAt("2026-10-23T$back")
+            assertEquals(choice, listOf("Vitamine"), titles())
+        }
+
+        assertEquals(berlin("2026-10-23T09:42"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
+    fun `the choice for later stays while the reminder is shown again quietly`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:30")
+        tap("Später")
+
+        app.routine("Tagebuch", "20:00")
+
+        assertEquals(listOf("10 Min.", "30 Min.", "1 Std."), reminders().single().actions.map { it.title.toString() })
     }
 
     @Test
@@ -179,6 +216,10 @@ class RemindersTest {
 
         app.sendBroadcast(Intent(app, ReminderReceiver::class.java).setAction(OTHER_ACTION).putExtra("occurrence", occurrence))
         app.sendBroadcast(Intent(app, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_DONE))
+        val putOffByFive = Intent(app, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_PUT_OFF)
+            .putExtra("occurrence", occurrence)
+            .putExtra("minutes", 5L)
+        app.sendBroadcast(putOffByFive) // none of the choices
         app.sendBroadcast(Intent(app, RescheduleReceiver::class.java).setAction(OTHER_ACTION))
         idle()
 
@@ -198,10 +239,10 @@ class RemindersTest {
     }
 
     @Test
-    fun `an alarm that only goes off long after its time leaves what was due then on Heute`() {
-        app.routine("Vitamine", "07:30")
+    fun `an alarm that only goes off long after a reminder's time and follow-ups leaves what was due then on Heute`() {
+        app.routine("Vitamine", "07:30") // follow-ups up to 09:00
 
-        goOffAt("2026-10-23T09:00") // after the clock was put forward, say
+        goOffAt("2026-10-23T10:30") // after the clock was put forward, say
 
         assertEquals(emptyList<Notification>(), reminders())
         assertEquals(listOf(OccurrenceStatus.Open), statuses())
@@ -224,7 +265,7 @@ class RemindersTest {
         app.routine("Vitamine", "07:30")
         goOffAt("2026-10-23T07:30")
         app.clock.now = berlin("2026-10-23T07:32")
-        tap("Später")
+        putOff("10 Min.")
 
         // The phone restarts at 07:40 and is unlocked at 07:50; the restart took the alarm with it.
         alarmManager.cancel(checkNotNull(nextAlarm().operation))
@@ -252,11 +293,64 @@ class RemindersTest {
         goOffAt("2026-10-23T07:30")
         app.clock.now = berlin("2026-10-25T08:00")
 
-        tap("Später")
+        putOff("10 Min.")
 
         assertEquals(berlin("2026-10-25T08:10"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
         goOffAt("2026-10-25T08:10")
         assertEquals(listOf("Arzttermin"), titles())
+    }
+
+    @Test
+    fun `an ignored reminder comes again every 30 minutes, three times, and then stays up without a sound`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:30")
+
+        for (followUp in listOf("08:00", "08:30", "09:00")) {
+            notificationManager.cancelAll() // swiped away, which ignores it too
+            assertEquals(berlin("2026-10-23T$followUp"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+            goOffAt("2026-10-23T$followUp")
+            assertEquals(followUp, listOf("Vitamine"), titles())
+        }
+
+        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        app.routine("Tagebuch", "20:00") // any change shows it again, quietly
+        assertEquals(listOf("Vitamine"), titles())
+        assertTrue(alertsOnlyOnce(reminders().single()))
+    }
+
+    @Test
+    fun `a follow-up pops up a reminder still up with a sound again, while other changes only update it quietly`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:30")
+        app.clock.now = berlin("2026-10-23T07:45")
+
+        app.routine("Tagebuch", "20:00")
+        assertTrue(alertsOnlyOnce(reminders().single()))
+
+        goOffAt("2026-10-23T08:00")
+        assertEquals(false, alertsOnlyOnce(reminders().single()))
+    }
+
+    @Test
+    fun `a routine's own follow-ups come as often and as far apart as it says`() {
+        app.routine("Wasser", "07:30", followUps = FollowUps(count = 1, everyMinutes = 5))
+        goOffAt("2026-10-23T07:30")
+
+        assertEquals(berlin("2026-10-23T07:35"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-23T07:35")
+        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
+    fun `done or skipped in the reminder takes its follow-ups away`() {
+        app.routine("Vitamine", "07:30")
+        app.routine("Lüften", "07:30")
+        goOffAt("2026-10-23T07:30")
+
+        tap("Erledigt", on = "Vitamine")
+        tap("Überspringen", on = "Lüften")
+
+        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
 
     private fun nextAlarm() = checkNotNull(shadowOf(alarmManager).peekNextScheduledAlarm()) { "No alarm set" }
@@ -269,10 +363,21 @@ class RemindersTest {
         idle()
     }
 
-    private fun tap(action: String) {
-        reminders().single().actions.single { it.title == action }.actionIntent.send()
+    /** Taps [action] on the reminder on the screen, or on the one of the routine named [on]. */
+    private fun tap(action: String, on: String? = null) {
+        val reminder = reminders().single { on == null || it.extras.getString(Notification.EXTRA_TITLE) == on }
+        reminder.actions.single { it.title == action }.actionIntent.send()
         idle()
     }
+
+    /** Taps "Später" on the reminder on the screen and then [choice]. */
+    private fun putOff(choice: String) {
+        tap("Später")
+        tap(choice)
+    }
+
+    /** Whether showing it again, while it is up, makes no sound. */
+    private fun alertsOnlyOnce(reminder: Notification) = reminder.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0
 
     private fun reminders(): List<Notification> = notificationManager.activeNotifications.map { it.notification }
 

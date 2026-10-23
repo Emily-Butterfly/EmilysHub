@@ -103,10 +103,72 @@ class NextReminderTest {
         assertEquals(Instant.parse("2026-10-25T07:00:00Z"), vitamins.nextReminder(emptyList(), berlin("2026-10-24T09:00"), BERLIN))
     }
 
+    /** Without follow-ups unless given [followUps], so that the tests above are about the schedule alone. */
+    @Test
+    fun `an occurrence left open is reminded of again every 30 minutes, three times, and then not any more`() {
+        val routine = routine("08:00", "20:00", followUps = FollowUps())
+        val planned = listOf(occurrence(today, "08:00"), occurrence(today, "20:00"))
+
+        val reminders = generateSequence(now) { routine.nextReminder(planned, it, BERLIN) }.drop(1).take(6).toList()
+
+        assertEquals(listOf("08:00", "08:30", "09:00", "09:30", "20:00", "20:30").map(::todayAt), reminders)
+    }
+
+    @Test
+    fun `a routine's own follow-ups come as often and as far apart as it says`() {
+        val routine = routine("08:00", followUps = FollowUps(count = 5, everyMinutes = 10))
+        val planned = listOf(occurrence(today, "08:00"))
+
+        val reminders = generateSequence(now) { routine.nextReminder(planned, it, BERLIN) }.drop(1).take(7).toList()
+
+        assertEquals(listOf("08:00", "08:10", "08:20", "08:30", "08:40", "08:50").map(::todayAt) + berlin("2026-10-24T08:00"), reminders)
+    }
+
+    @Test
+    fun `an occurrence done or skipped after its time is not reminded of again`() {
+        val routine = routine("08:00", "12:00", "20:00", followUps = FollowUps())
+        val planned = listOf(
+            occurrence(today, "08:00", OccurrenceStatus.Done),
+            occurrence(today, "12:00", OccurrenceStatus.Skipped),
+            occurrence(today, "20:00"),
+        )
+
+        assertEquals(todayAt("20:00"), routine.nextReminder(planned, todayAt("08:05"), BERLIN))
+        assertEquals(todayAt("20:00"), routine.nextReminder(planned, todayAt("12:05"), BERLIN))
+    }
+
+    @Test
+    fun `the follow-ups of an occurrence put off count from when it was put off to`() {
+        val routine = routine("08:00", followUps = FollowUps())
+        val planned = listOf(occurrence(today, "08:00", remindAt = todayAt("08:40")))
+
+        assertEquals(todayAt("08:40"), routine.nextReminder(planned, todayAt("08:05"), BERLIN))
+        assertEquals(todayAt("09:10"), routine.nextReminder(planned, todayAt("08:40"), BERLIN))
+    }
+
+    @Test
+    fun `follow-ups go on past midnight`() {
+        val routine = routine("23:50", followUps = FollowUps())
+        val planned = listOf(occurrence(today.minusDays(1), "23:50"), occurrence(today, "23:50"))
+
+        assertEquals(todayAt("00:20"), routine.nextReminder(planned, todayAt("00:00"), BERLIN))
+    }
+
+    @Test
+    fun `a routine with no follow-ups reminds once`() {
+        val routine = routine("08:00", followUps = FollowUps(count = 0))
+
+        assertEquals(berlin("2026-10-24T08:00"), routine.nextReminder(listOf(occurrence(today, "08:00")), todayAt("08:00"), BERLIN))
+    }
+
+    /** [time] ("08:30") today in Berlin. */
+    private fun todayAt(time: String) = berlin("${today}T$time")
+
     private fun routine(
         vararg times: String,
         repetition: Repetition = Repetition.Daily,
         plannedFrom: Instant = berlin("2026-10-01T00:00"),
+        followUps: FollowUps = FollowUps(count = 0),
     ) = Routine(
         id = ROUTINE,
         name = "Tabletten",
@@ -114,6 +176,7 @@ class NextReminderTest {
         times = times.map(LocalTime::parse),
         repetition = repetition,
         plannedFrom = plannedFrom,
+        followUps = followUps,
     )
 
     private fun occurrence(

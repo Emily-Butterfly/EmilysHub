@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
 import kotlinx.coroutines.flow.first
@@ -198,9 +199,43 @@ class RoutineEditingTest {
     }
 
     @Test
-    fun `the editor shows a routine's times and repetition`() {
+    fun `a routine reminds again as often and as far apart as chosen, by default three times every 30 minutes`() {
+        launchApp().use {
+            newRoutine("Tabletten")
+            option("3").performScrollTo().assertIsSelected()
+            field("Abstand in Minuten").performScrollTo().assertTextContains("30")
+
+            option("5").tap()
+            field("Abstand in Minuten").performTextReplacement("10")
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(FollowUps(count = 5, everyMinutes = 10), savedRoutines().single().followUps)
+    }
+
+    @Test
+    fun `follow-ups come from 5 to 120 minutes apart, and with none there is no distance to choose`() {
+        launchApp().use {
+            newRoutine("Lüften")
+            field("Abstand in Minuten").performScrollTo().performTextReplacement("2")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Neue Routine").assertIsDisplayed()
+            compose.onNodeWithText("Von 5 bis 120").assertIsDisplayed()
+
+            option("Nie").tap()
+            field("Abstand in Minuten").assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(FollowUps(count = 0), savedRoutines().single().followUps)
+    }
+
+    @Test
+    fun `the editor shows a routine's times, repetition and follow-ups`() {
         val everyThreeDays = Repetition.EveryNDays(days = 3, from = LocalDate.parse("2026-10-20"))
-        app.routine("Tabletten", "08:00", "20:00", repetition = everyThreeDays)
+        app.routine("Tabletten", "08:00", "20:00", repetition = everyThreeDays, followUps = FollowUps(count = 1, everyMinutes = 60))
 
         launchApp().use {
             tab("Routinen").performClick()
@@ -209,6 +244,8 @@ class RoutineEditingTest {
             option("Alle X Tage").assertIsSelected()
             field("Abstand in Tagen").assertTextContains("3")
             compose.onNode(hasText("Ab") and hasClickAction()).assertTextContains("20.10.2026")
+            option("1").performScrollTo().assertIsSelected()
+            field("Abstand in Minuten").performScrollTo().assertTextContains("60")
             compose.onNodeWithContentDescription("20:00 entfernen").assertExists()
             changeTime(from = "20:00", hour = "21", minute = "00")
             compose.onNodeWithText("Speichern").performClick()

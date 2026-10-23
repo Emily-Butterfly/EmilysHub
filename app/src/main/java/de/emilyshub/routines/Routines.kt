@@ -50,6 +50,7 @@ class Routines(
                 times = it.times,
                 repetition = it.repetition,
                 plannedFrom = now(),
+                followUps = it.followUps,
             )
         }
         database().withTransaction {
@@ -78,6 +79,7 @@ class Routines(
                 times = changes.times,
                 repetition = changes.repetition,
                 plannedFrom = if (rescheduled) now else routine.plannedFrom,
+                followUps = changes.followUps,
             )
             dao.update(changed)
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -126,21 +128,27 @@ class Routines(
     /** Puts the occurrence off ("Später"): it is reminded of again at [until]. */
     suspend fun putOff(occurrenceId: Long, until: Instant) = write { dao.putOff(occurrenceId, until) }
 
-    /** When to remind of any routine next after [after]; none if nothing is ever due again. */
+    /** When to remind of any routine next after [after], at its time or a follow-up; none if nothing is ever due again. */
     suspend fun nextReminder(after: Instant): Instant? = withContext(io) {
-        val planned = dao.occurrencesToRemindFrom(today(after, clock.zone)).groupBy { it.routineId }
+        val planned = dao.occurrencesToRemindFrom(firstDayWithFollowUps(after)).groupBy { it.routineId }
         dao.getAll().mapNotNull { it.nextReminder(planned[it.id].orEmpty(), after, clock.zone) }.minOrNull()
     }
 
-    /** The open occurrences to remind of after [after] and up to [until]; the days in between are planned first. */
+    /**
+     * The open occurrences to remind of after [after] and up to [until], at their time or a follow-up; the
+     * days in between are planned first.
+     */
     suspend fun remindersDue(after: Instant, until: Instant): List<Reminder> = withContext(io) {
         val first = today(after, clock.zone)
         val last = today(until, clock.zone)
         generateSequence(first) { it.plusDays(1) }.takeWhile { !it.isAfter(last) }.forEach { plan(it) }
-        dao.openToRemind(first, last, OccurrenceStatus.Open)
-            .filter { (occurrence) -> occurrence.reminderTime(clock.zone).let { it.isAfter(after) && !it.isAfter(until) } }
-            .sortedWith(compareBy<NamedOccurrence> { it.occurrence.reminderTime(clock.zone) }.thenBy(byName) { it.name })
-            .map(::reminderOf)
+        dao.openToRemind(firstDayWithFollowUps(after), last, OccurrenceStatus.Open)
+            .mapNotNull { named ->
+                val times = named.occurrence.reminderTimes(named.followUps, clock.zone)
+                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { named to it }
+            }
+            .sortedWith(compareBy<Pair<NamedOccurrence, Instant>> { (_, time) -> time }.thenBy(byName) { (named) -> named.name })
+            .map { (named) -> reminderOf(named) }
     }
 
     /** Of [occurrenceIds], the ones still open whose reminder time has come: their reminders may stay, as they are now. */
@@ -168,6 +176,9 @@ class Routines(
     fun timeUntilTomorrow(): Duration = Duration.between(clock.instant(), today().plusDays(1).atStartOfDay(clock.zone))
 
     private fun now(): Instant = clock.instant()
+
+    /** The first day with an occurrence that may still be reminded of after [after]: a follow-up can come the next day. */
+    private fun firstDayWithFollowUps(after: Instant): LocalDate = today(after - FollowUps.LONGEST, clock.zone)
 
     /** Plans the occurrences on [date] of the routines that have none then yet, at their times from when they were planned. */
     private suspend fun plan(date: LocalDate) = database().withTransaction {

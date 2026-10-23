@@ -25,7 +25,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
@@ -46,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.ui.clockTime
@@ -207,6 +211,55 @@ fun RepetitionFields(repetition: Repetition, today: LocalDate, goneBy: Boolean, 
     }
 }
 
+/** How often a reminder left unanswered comes again, never or up to five times, and while it does, how many minutes apart. */
+@Composable
+fun FollowUpFields(followUps: FollowUps, onChange: (FollowUps) -> Unit) {
+    // As typed, so that the field can be empty for a moment while the number is retyped.
+    var minutesText by rememberSaveable { mutableStateOf(followUps.everyMinutes.toString()) }
+    val counts = FollowUps.COUNTS.toList()
+
+    Column {
+        SectionTitle(stringResource(R.string.routine_follow_ups))
+        Text(stringResource(R.string.routine_follow_ups_how_often), style = MaterialTheme.typography.bodyMedium)
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            counts.forEachIndexed { index, count ->
+                SegmentedButton(
+                    selected = followUps.count == count,
+                    onClick = { onChange(followUps.copy(count = count)) },
+                    shape = SegmentedButtonDefaults.itemShape(index, counts.size),
+                    // Without the check mark, so that six fit side by side.
+                    icon = {},
+                    label = { Text(if (count == 0) stringResource(R.string.routine_follow_ups_never) else count.toString()) },
+                )
+            }
+        }
+        if (followUps.count > 0) {
+            OutlinedTextField(
+                value = minutesText,
+                onValueChange = { text ->
+                    minutesText = text.filter(Char::isDigit).take(MINUTES_DIGITS)
+                    onChange(followUps.copy(everyMinutes = minutesText.toIntOrNull() ?: 0))
+                },
+                label = { Text(stringResource(R.string.routine_follow_up_minutes)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = followUps.everyMinutes !in FollowUps.MINUTES,
+                supportingText = {
+                    val range = FollowUps.MINUTES
+                    Text(stringResource(R.string.routine_interval_range, range.first, range.last))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SectionTitle(text: String) {
     Text(
@@ -318,3 +371,4 @@ private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
 private val WORKDAYS: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet()
 private const val DEFAULT_INTERVAL = 2
 private const val INTERVAL_DIGITS = 3
+private const val MINUTES_DIGITS = 3

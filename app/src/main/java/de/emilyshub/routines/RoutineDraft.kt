@@ -11,6 +11,8 @@ enum class DraftProblem {
     TooManyTimes,
     WeekdaysMissing,
     IntervalOutOfRange,
+    FollowUpCountOutOfRange,
+    FollowUpIntervalOutOfRange,
 }
 
 /**
@@ -23,6 +25,7 @@ data class RoutineDraft(
     val description: String,
     val times: List<LocalTime>,
     val repetition: Repetition,
+    val followUps: FollowUps = FollowUps(),
 ) : Serializable {
 
     val problems: Set<DraftProblem>
@@ -38,14 +41,20 @@ data class RoutineDraft(
                     is Repetition.EveryNDays -> if (repetition.days !in INTERVAL_DAYS) add(DraftProblem.IntervalOutOfRange)
                     Repetition.Daily, is Repetition.Once -> Unit
                 }
+                if (followUps.count !in FollowUps.COUNTS) add(DraftProblem.FollowUpCountOutOfRange)
+                if (followUps.everyMinutes !in FollowUps.MINUTES) add(DraftProblem.FollowUpIntervalOutOfRange)
             }
         }
 
-    /** Without surrounding spaces; the name on a single line; the times in the order of the day, each once. */
+    /**
+     * Without surrounding spaces; the name on a single line; the times in the order of the day, each once;
+     * without follow-ups, the default distance between them, which is not shown then.
+     */
     fun cleaned() = copy(
         name = name.trim().replace(WHITESPACE, " "),
         description = description.trim(),
         times = times.distinct().sorted(),
+        followUps = if (followUps.count == 0) FollowUps(count = 0) else followUps,
     )
 
     companion object {

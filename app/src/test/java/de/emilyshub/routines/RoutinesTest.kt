@@ -418,7 +418,8 @@ class RoutinesTest {
         routines.create(draft("Vitamine", "07:30"))
 
         assertEquals(berlin("2026-10-23T07:30"), routines.nextReminder(after = clock.now))
-        assertEquals(berlin("2026-10-23T20:00"), routines.nextReminder(after = berlin("2026-10-23T07:30")))
+        // After the three follow-ups of 07:30.
+        assertEquals(berlin("2026-10-23T20:00"), routines.nextReminder(after = berlin("2026-10-23T09:00")))
     }
 
     @Test
@@ -439,7 +440,7 @@ class RoutinesTest {
     fun `the reminders due are the open occurrences come due in that time, on a day not planned yet too`() = runBlocking {
         routines.create(draft("Vitamine", "07:30"))
         routines.create(draft("Lüften", "07:30", "12:00"))
-        routines.create(draft("Blumen", "07:00"))
+        routines.create(draft("Blumen", "07:00", followUps = FollowUps(count = 0)))
         routines.markDone(occurrenceAt("07:30") { it.name == "Lüften" })
         val tomorrow = berlin("2026-10-24T07:30")
 
@@ -448,6 +449,28 @@ class RoutinesTest {
 
         assertEquals(listOf("Vitamine" to "07:30"), due.map { it.name to it.dueAt.toLocalTime().toString() })
         assertEquals(listOf("Lüften", "Vitamine"), dueTomorrow.map { it.name })
+    }
+
+    @Test
+    fun `a follow-up is due like the first reminder, also one on the day after`() = runBlocking {
+        routines.create(draft("Lesen", "23:50"))
+
+        val first = routines.remindersDue(after = berlin("2026-10-23T23:49"), until = berlin("2026-10-23T23:50"))
+        val followUp = routines.remindersDue(after = berlin("2026-10-24T00:19"), until = berlin("2026-10-24T00:20"))
+
+        assertEquals(listOf("Lesen"), first.map { it.name })
+        assertEquals(listOf(LocalDate.parse("2026-10-23")), followUp.map { it.dueAt.toLocalDate() })
+        assertEquals(berlin("2026-10-24T00:50"), routines.nextReminder(after = berlin("2026-10-24T00:20")))
+    }
+
+    @Test
+    fun `a routine is saved with its follow-ups, and they change with it`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", followUps = FollowUps(count = 5, everyMinutes = 10)))
+        assertEquals(FollowUps(count = 5, everyMinutes = 10), routines.get(pills)?.followUps)
+
+        routines.update(pills, draft("Tabletten", "08:00", followUps = FollowUps(count = 1, everyMinutes = 60)))
+
+        assertEquals(FollowUps(count = 1, everyMinutes = 60), routines.get(pills)?.followUps)
     }
 
     @Test
@@ -486,8 +509,13 @@ class RoutinesTest {
 
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.zone).toInstant()
 
-    private fun draft(name: String, vararg times: String, description: String = "", repetition: Repetition = Repetition.Daily) =
-        RoutineDraft(name = name, description = description, times = times.map(LocalTime::parse), repetition = repetition)
+    private fun draft(
+        name: String,
+        vararg times: String,
+        description: String = "",
+        repetition: Repetition = Repetition.Daily,
+        followUps: FollowUps = FollowUps(),
+    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps)
 
     /** The id of today's occurrence at [time]. */
     private suspend fun occurrenceAt(time: String, which: (DueRoutine) -> Boolean = { true }) =
