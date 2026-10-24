@@ -41,6 +41,18 @@ class TodayTest {
     }
 
     @Test
+    fun `a routine left open until its time window ended shows as missed`() {
+        app.routine("Vitamine", "07:30") // open until 11:30
+        app.clock.now = Instant.parse("2026-10-23T10:00:00Z") // 12:00 in Berlin
+        runBlocking { app.reminders.update() } // as the app does when it starts
+
+        launchApp().use {
+            compose.onNodeWithText("Verpasst").assertIsDisplayed()
+            assertEquals(listOf(OccurrenceStatus.Missed), statuses())
+        }
+    }
+
+    @Test
     fun `ticking a routine off marks it done, and unticking it undoes that`() {
         app.routine("Vitamine", "07:30")
 

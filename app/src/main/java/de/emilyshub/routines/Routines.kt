@@ -52,6 +52,7 @@ class Routines(
                 plannedFrom = now(),
                 followUps = it.followUps,
                 fullScreen = it.fullScreen,
+                window = it.window,
             )
         }
         database().withTransaction {
@@ -82,6 +83,7 @@ class Routines(
                 plannedFrom = if (rescheduled) now else routine.plannedFrom,
                 followUps = changes.followUps,
                 fullScreen = changes.fullScreen,
+                window = changes.window,
             )
             dao.update(changed)
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -130,44 +132,69 @@ class Routines(
     /** Puts the occurrence off ("Später"): it is reminded of again at [until]. */
     suspend fun putOff(occurrenceId: Long, until: Instant) = write { dao.putOff(occurrenceId, until) }
 
-    /** When to remind of any routine next after [after], at its time or a follow-up; none if nothing is ever due again. */
-    suspend fun nextReminder(after: Instant): Instant? = withContext(io) {
-        val planned = dao.occurrencesToRemindFrom(firstDayWithFollowUps(after)).groupBy { it.routineId }
-        dao.getAll().mapNotNull { it.nextReminder(planned[it.id].orEmpty(), after, clock.zone) }.minOrNull()
+    /**
+     * When the reminders have something to do next after [after]: remind of a routine, at its time or a
+     * follow-up, or mark an occurrence missed, once its time window ends. None if nothing is ever due again.
+     */
+    suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
+        val planned = dao.occurrencesToRemindFrom(firstDayStillOpen(after)).groupBy { it.routineId }
+        dao.getAll().mapNotNull { routine ->
+            val occurrences = planned[routine.id].orEmpty()
+            val windowEnds = occurrences
+                .filter { it.status == OccurrenceStatus.Open }
+                .map { routine.windowEnd(it, clock.zone) }
+                .filter { it.isAfter(after) }
+            (windowEnds + listOfNotNull(routine.nextReminder(occurrences, after, clock.zone))).minOrNull()
+        }.minOrNull()
     }
 
     /**
-     * The open occurrences to remind of after [after] and up to [until], at their time or a follow-up; the
-     * days in between are planned first.
+     * Marks the open occurrences whose time window has ended by now missed (SPEC.md §2, Tracking), after
+     * planning the days since [since], so that the days the phone was off count too. Not reported as a
+     * change: the reminders do this themselves, and take their own down then.
      */
-    suspend fun remindersDue(after: Instant, until: Instant): List<Reminder> = withContext(io) {
-        val first = today(after, clock.zone)
-        val last = today(until, clock.zone)
-        generateSequence(first) { it.plusDays(1) }.takeWhile { !it.isAfter(last) }.forEach { plan(it) }
-        dao.openToRemind(firstDayWithFollowUps(after), last, OccurrenceStatus.Open)
-            .mapNotNull { named ->
-                named.reminderTimes(clock.zone).firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { named to it }
-            }
-            .sortedWith(compareBy<Pair<NamedOccurrence, Instant>> { (_, time) -> time }.thenBy(byName) { (named) -> named.name })
-            .map { (named) -> reminderOf(named) }
+    suspend fun markMissed(since: Instant) = withContext(io + NonCancellable) {
+        val now = now()
+        planDays(from = today(since, clock.zone), to = today(now, clock.zone))
+        val missed = dao.allOpen(OccurrenceStatus.Open).filter { (occurrence, routine) ->
+            !routine.windowEnd(occurrence, clock.zone).isAfter(now)
+        }
+        dao.setStatuses(missed.map { it.occurrence.id }, OccurrenceStatus.Missed)
     }
 
-    /** Of [occurrenceIds], the ones still open whose reminder time has come: their reminders may stay, as they are now. */
+    /**
+     * The open occurrences to remind of after [after] and up to [until], at their time or a follow-up before
+     * their time window ends; the days in between are planned first.
+     */
+    suspend fun remindersDue(after: Instant, until: Instant): List<Reminder> = withContext(io) {
+        val last = today(until, clock.zone)
+        planDays(from = today(after, clock.zone), to = last)
+        dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
+            .mapNotNull { due ->
+                val times = due.routine.reminderTimes(due.occurrence, clock.zone)
+                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { due to it }
+            }
+            .sortedWith(
+                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }.thenBy(byName) { (due) -> due.routine.name },
+            )
+            .map { (due) -> reminderOf(due) }
+    }
+
+    /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        dao.namedOccurrences(occurrenceIds).filter { it.occurrence.isDue(now, clock.zone) }.map(::reminderOf)
+        dao.withRoutines(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
     }
 
     /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
     fun reminder(occurrenceId: Long): Flow<Reminder?> = flow {
-        val reminders = dao.observeNamedOccurrence(occurrenceId).map { named ->
-            named?.takeIf { it.occurrence.isDue(now(), clock.zone) }?.let(::reminderOf)
-        }
-        emitAll(reminders)
+        emitAll(dao.observeWithRoutine(occurrenceId).map { due -> due?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
     }.flowOn(io)
 
-    private fun reminderOf(named: NamedOccurrence) = with(named.occurrence) {
-        Reminder(id, named.name, dueAt(date, time, clock.zone), named.fullScreen)
+    private fun OccurrenceOfRoutine.isDue(now: Instant) = routine.isDue(occurrence, now, clock.zone)
+
+    private fun reminderOf(due: OccurrenceOfRoutine) = with(due.occurrence) {
+        Reminder(id, due.routine.name, dueAt(date, time, clock.zone), due.routine.fullScreen)
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }
@@ -182,13 +209,16 @@ class Routines(
 
     private fun now(): Instant = clock.instant()
 
-    /** The first day with an occurrence that may still be reminded of after [after]: a follow-up can come the next day. */
-    private fun firstDayWithFollowUps(after: Instant): LocalDate = today(after - FollowUps.LONGEST, clock.zone)
+    /** The first day with an occurrence whose time window may still be open after [after]: it can run into the next day. */
+    private fun firstDayStillOpen(after: Instant): LocalDate = today(after - TimeWindow.LONGEST, clock.zone)
+
+    private suspend fun planDays(from: LocalDate, to: LocalDate) =
+        generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }.forEach { plan(it) }
 
     /** Plans the occurrences on [date] of the routines that have none then yet, at their times from when they were planned. */
     private suspend fun plan(date: LocalDate) = database().withTransaction {
         val occurrences = dao.unplannedOn(date).flatMap { routine ->
-            routine.plannedTimesOn(date, clock.zone).map { openOccurrence(routine, date, it) }
+            routine.plannedTimesOn(date, clock.zone).map { routine.occurrenceAt(date, it) }
         }
         dao.insertOccurrences(occurrences)
     }
@@ -198,11 +228,8 @@ class Routines(
         val changes = replanDay(occurrences, routine.timesOn(date)) { isDueAtOrAfter(now, date, it, clock.zone) }
         changes.moved.forEach { (id, time) -> dao.moveOccurrence(id, time) }
         dao.deleteOccurrences(changes.removed)
-        dao.insertOccurrences(changes.added.map { openOccurrence(routine, date, it) })
+        dao.insertOccurrences(changes.added.map { routine.occurrenceAt(date, it) })
     }
-
-    private fun openOccurrence(routine: Routine, date: LocalDate, time: LocalTime) =
-        Occurrence(routineId = routine.id, date = date, time = time, status = OccurrenceStatus.Open)
 
     private fun checked(draft: RoutineDraft): RoutineDraft {
         require(draft.problems.isEmpty()) { "Invalid routine: ${draft.problems}" }

@@ -257,13 +257,59 @@ class RemindersTest {
     }
 
     @Test
-    fun `an alarm that only goes off long after a reminder's time and follow-ups leaves what was due then on Heute`() {
-        app.routine("Vitamine", "07:30") // follow-ups up to 09:00
+    fun `an alarm going off late, while the time window is still open, still brings the reminder`() {
+        app.routine("Vitamine", "07:30") // open until 11:30
 
-        goOffAt("2026-10-23T10:30") // after the clock was put forward, say
+        goOffAt("2026-10-23T10:30") // after the phone was off, say
+
+        assertEquals(listOf("Vitamine"), titles())
+        assertEquals(listOf(OccurrenceStatus.Open), statuses())
+    }
+
+    @Test
+    fun `an alarm going off after the time window has ended marks the routine missed instead of reminding`() {
+        app.routine("Vitamine", "07:30") // open until 11:30
+
+        goOffAt("2026-10-23T12:00") // after the clock was put forward, say
 
         assertEquals(emptyList<Notification>(), reminders())
-        assertEquals(listOf(OccurrenceStatus.Open), statuses())
+        assertEquals(listOf(OccurrenceStatus.Missed), statuses())
+    }
+
+    @Test
+    fun `once its time window ends, an occurrence left open is missed and its reminder taken away`() {
+        app.routine("Vitamine", "07:30", followUps = FollowUps(count = 0))
+        goOffAt("2026-10-23T07:30")
+
+        assertEquals(berlin("2026-10-23T11:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-23T11:30")
+
+        assertEquals(emptyList<Notification>(), reminders())
+        assertEquals(listOf(OccurrenceStatus.Missed), statuses())
+        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
+    fun `after a restart, what ran out while the phone was off is missed`() {
+        app.routine("Vitamine", "07:30")
+        app.clock.now = berlin("2026-10-25T09:00") // off since Friday 07:00
+
+        app.sendBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+        idle()
+
+        val days = listOf("2026-10-23", "2026-10-24", "2026-10-25").map(LocalDate::parse)
+        val (missed, open) = OccurrenceStatus.Missed to OccurrenceStatus.Open
+        assertEquals(listOf(missed, missed, open), days.map { statuses(it).single() })
+    }
+
+    @Test
+    fun `when the app starts, what ran out meanwhile is missed`() = runBlocking {
+        app.routine("Vitamine", "07:30")
+        app.clock.now = berlin("2026-10-23T12:00")
+
+        app.reminders.update() // as the app does when it starts
+
+        assertEquals(listOf(OccurrenceStatus.Missed), statuses())
     }
 
     @Test
@@ -306,20 +352,20 @@ class RemindersTest {
     }
 
     @Test
-    fun `a reminder put off days after it came due comes back`() {
-        app.routine("Arzttermin", "07:30", repetition = Repetition.Once(LocalDate.parse("2026-10-23")))
-        goOffAt("2026-10-23T07:30")
-        app.clock.now = berlin("2026-10-25T08:00")
+    fun `a reminder put off past midnight comes back while its time window is open`() {
+        app.routine("Lesen", "23:30", repetition = Repetition.Once(LocalDate.parse("2026-10-23")))
+        goOffAt("2026-10-23T23:30")
+        app.clock.now = berlin("2026-10-24T00:20")
 
         putOff("10 Min.")
 
-        assertEquals(berlin("2026-10-25T08:10"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
-        goOffAt("2026-10-25T08:10")
-        assertEquals(listOf("Arzttermin"), titles())
+        assertEquals(berlin("2026-10-24T00:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-24T00:30")
+        assertEquals(listOf("Lesen"), titles())
     }
 
     @Test
-    fun `an ignored reminder comes again every 30 minutes, three times, and then stays up without a sound`() {
+    fun `an ignored reminder comes again every 30 minutes, three times, and then stays up without a sound till its window ends`() {
         app.routine("Vitamine", "07:30")
         goOffAt("2026-10-23T07:30")
 
@@ -330,7 +376,7 @@ class RemindersTest {
             assertEquals(followUp, listOf("Vitamine"), titles())
         }
 
-        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        assertEquals("the end of its window", berlin("2026-10-23T11:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
         app.routine("Tagebuch", "20:00") // any change shows it again, quietly
         assertEquals(listOf("Vitamine"), titles())
         assertTrue(alertsOnlyOnce(reminders().single()))
@@ -356,7 +402,7 @@ class RemindersTest {
 
         assertEquals(berlin("2026-10-23T07:35"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
         goOffAt("2026-10-23T07:35")
-        assertEquals(berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        assertEquals("the end of its window", berlin("2026-10-23T11:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
 
     @Test
@@ -452,7 +498,7 @@ class RemindersTest {
 
     private fun titles() = reminders().map { it.extras.getString(Notification.EXTRA_TITLE) }
 
-    private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
+    private fun statuses(on: LocalDate = app.routines.today()) = runBlocking { app.routines.dueOn(on).first().map { it.status } }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 

@@ -6,6 +6,7 @@ import androidx.test.core.app.ActivityScenario
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
 import kotlinx.coroutines.runBlocking
 import java.time.LocalTime
@@ -21,8 +22,8 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
 }
 
 /**
- * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups
- * unless given others and without a [fullScreen] alarm, set up before the test opens the app.
+ * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups and
+ * time window unless given others and without a [fullScreen] alarm, set up before the test opens the app.
  */
 fun TestApplication.routine(
     name: String,
@@ -30,8 +31,9 @@ fun TestApplication.routine(
     repetition: Repetition = Repetition.Daily,
     followUps: FollowUps = FollowUps(),
     fullScreen: Boolean = false,
+    window: TimeWindow = TimeWindow(),
 ): Long = runBlocking {
-    routines.create(RoutineDraft(name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen))
+    routines.create(RoutineDraft(name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window))
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */

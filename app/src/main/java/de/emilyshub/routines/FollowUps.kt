@@ -25,8 +25,5 @@ data class FollowUps(
 
         /** From every 5 minutes to every 2 hours. */
         val MINUTES = 5..120
-
-        /** The longest a reminder can keep coming back after its first time. */
-        val LONGEST: Duration = Duration.ofMinutes(COUNTS.last.toLong() * MINUTES.last)
     }
 }

@@ -412,14 +412,14 @@ class RoutinesTest {
 
     @Test
     fun `the next reminder is the earliest of all routines`() = runBlocking {
-        assertEquals(null, routines.nextReminder(after = clock.now))
+        assertEquals(null, routines.nextAlarm(after = clock.now))
 
         routines.create(draft("Tagebuch", "20:00"))
         routines.create(draft("Vitamine", "07:30"))
 
-        assertEquals(berlin("2026-10-23T07:30"), routines.nextReminder(after = clock.now))
-        // After the three follow-ups of 07:30.
-        assertEquals(berlin("2026-10-23T20:00"), routines.nextReminder(after = berlin("2026-10-23T09:00")))
+        assertEquals(berlin("2026-10-23T07:30"), routines.nextAlarm(after = clock.now))
+        // After the three follow-ups of 07:30 and the end of its time window.
+        assertEquals(berlin("2026-10-23T20:00"), routines.nextAlarm(after = berlin("2026-10-23T11:30")))
     }
 
     @Test
@@ -429,7 +429,7 @@ class RoutinesTest {
 
         routines.putOff(occurrenceAt("07:30"), until = berlin("2026-10-23T07:41"))
 
-        assertEquals(berlin("2026-10-23T07:41"), routines.nextReminder(after = clock.now))
+        assertEquals(berlin("2026-10-23T07:41"), routines.nextAlarm(after = clock.now))
         val atItsTime = routines.remindersDue(after = berlin("2026-10-23T07:29"), until = berlin("2026-10-23T07:31"))
         val putOffTo = routines.remindersDue(after = berlin("2026-10-23T07:40"), until = berlin("2026-10-23T07:42"))
         assertEquals(emptyList<String>(), atItsTime.map { it.name })
@@ -460,19 +460,94 @@ class RoutinesTest {
 
         assertEquals(listOf("Lesen"), first.map { it.name })
         assertEquals(listOf(LocalDate.parse("2026-10-23")), followUp.map { it.dueAt.toLocalDate() })
-        assertEquals(berlin("2026-10-24T00:50"), routines.nextReminder(after = berlin("2026-10-24T00:20")))
+        assertEquals(berlin("2026-10-24T00:50"), routines.nextAlarm(after = berlin("2026-10-24T00:20")))
     }
 
     @Test
-    fun `a routine is saved with how it reminds, and that changes with it`() = runBlocking {
+    fun `a routine is saved with how it reminds and how long it stays open, and that changes with it`() = runBlocking {
         val fiveTimes = FollowUps(count = 5, everyMinutes = 10)
-        val pills = routines.create(draft("Tabletten", "08:00", followUps = fiveTimes, fullScreen = true))
-        assertEquals(fiveTimes to true, routines.get(pills)?.let { it.followUps to it.fullScreen })
+        val untilMidnight = TimeWindow(untilMidnight = true)
+        val pills = routines.create(draft("Tabletten", "08:00", followUps = fiveTimes, fullScreen = true, window = untilMidnight))
+        assertEquals(Triple(fiveTimes, true, untilMidnight), howItReminds(pills))
 
         val once = FollowUps(count = 1, everyMinutes = 60)
-        routines.update(pills, draft("Tabletten", "08:00", followUps = once, fullScreen = false))
+        val twoHours = TimeWindow(hours = 2)
+        routines.update(pills, draft("Tabletten", "08:00", followUps = once, fullScreen = false, window = twoHours))
 
-        assertEquals(once to false, routines.get(pills)?.let { it.followUps to it.fullScreen })
+        assertEquals(Triple(once, false, twoHours), howItReminds(pills))
+    }
+
+    @Test
+    fun `an occurrence left open until its time window ends is missed, while those ticked off or skipped stay`() = runBlocking {
+        routines.create(draft("Tabletten", "08:00", "09:00", "10:00", window = TimeWindow(hours = 2)))
+        routines.markDone(occurrenceAt("08:00"))
+        routines.skip(occurrenceAt("09:00"))
+
+        clock.now = berlin("2026-10-23T11:59")
+        routines.markMissed(since = clock.now)
+        assertEquals(listOf("08:00 Tabletten: Done", "09:00 Tabletten: Skipped", "10:00 Tabletten: Open"), dueOn(today))
+
+        clock.now = berlin("2026-10-23T12:00")
+        routines.markMissed(since = clock.now)
+        assertEquals(listOf("08:00 Tabletten: Done", "09:00 Tabletten: Skipped", "10:00 Tabletten: Missed"), dueOn(today))
+    }
+
+    @Test
+    fun `until midnight, an occurrence is missed once its day is over`() = runBlocking {
+        routines.create(draft("Lesen", "21:00", window = TimeWindow(untilMidnight = true)))
+
+        clock.now = berlin("2026-10-23T23:59")
+        routines.markMissed(since = clock.now)
+        assertEquals(listOf("21:00 Lesen: Open"), dueOn(today))
+
+        clock.now = berlin("2026-10-24T00:00")
+        routines.markMissed(since = clock.now)
+        assertEquals(listOf("21:00 Lesen: Missed"), dueOn(today))
+    }
+
+    @Test
+    fun `the days since the time given count too, say while the phone was off, with what is still open left open`() = runBlocking {
+        routines.create(draft("Vitamine", "08:00"))
+        clock.now = berlin("2026-10-26T10:00") // Monday; off since Friday 07:00
+
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+
+        val statuses = (0L..3L).map { dueOn(today.plusDays(it)).single().substringAfter(": ") }
+        assertEquals(listOf("Missed", "Missed", "Missed", "Open"), statuses)
+    }
+
+    @Test
+    fun `marking occurrences missed is not reported as a change, since the reminders do it themselves`() = runBlocking {
+        routines.create(draft("Vitamine", "08:00"))
+        val before = changes
+        clock.now = berlin("2026-10-23T12:00")
+
+        routines.markMissed(since = clock.now)
+
+        assertEquals(before, changes)
+    }
+
+    @Test
+    fun `the next alarm is also when the time window of an open occurrence ends`() = runBlocking {
+        routines.create(draft("Vitamine", "08:00", followUps = FollowUps(count = 0), window = TimeWindow(hours = 3)))
+
+        assertEquals(berlin("2026-10-23T08:00"), routines.nextAlarm(after = clock.now))
+        assertEquals(berlin("2026-10-23T11:00"), routines.nextAlarm(after = berlin("2026-10-23T08:00")))
+
+        routines.markDone(occurrenceAt("08:00"))
+        assertEquals(berlin("2026-10-24T08:00"), routines.nextAlarm(after = berlin("2026-10-23T08:00")))
+    }
+
+    @Test
+    fun `no reminder is due once the time window has ended`() = runBlocking {
+        val hourly = FollowUps(count = 5, everyMinutes = 60)
+        routines.create(draft("Vitamine", "08:00", followUps = hourly, window = TimeWindow(hours = 2)))
+
+        val followUps = routines.remindersDue(after = berlin("2026-10-23T08:00"), until = berlin("2026-10-23T09:00"))
+        val pastTheWindow = routines.remindersDue(after = berlin("2026-10-23T09:00"), until = berlin("2026-10-23T13:00"))
+
+        assertEquals(listOf("Vitamine"), followUps.map { it.name })
+        assertEquals(emptyList<Reminder>(), pastTheWindow)
     }
 
     @Test
@@ -492,7 +567,7 @@ class RoutinesTest {
 
         routines.update(pills, draft("Tabletten", "09:00"))
 
-        assertEquals(berlin("2026-10-23T09:00"), routines.nextReminder(after = clock.now))
+        assertEquals(berlin("2026-10-23T09:00"), routines.nextAlarm(after = clock.now))
     }
 
     @Test
@@ -518,7 +593,11 @@ class RoutinesTest {
         repetition: Repetition = Repetition.Daily,
         followUps: FollowUps = FollowUps(),
         fullScreen: Boolean = false,
-    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen)
+        window: TimeWindow = TimeWindow(),
+    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window)
+
+    /** The routine's follow-ups, full-screen alarm and time window, as saved. */
+    private suspend fun howItReminds(id: Long) = routines.get(id)?.let { Triple(it.followUps, it.fullScreen, it.window) }
 
     /** The id of today's occurrence at [time]. */
     private suspend fun occurrenceAt(time: String, which: (DueRoutine) -> Boolean = { true }) =

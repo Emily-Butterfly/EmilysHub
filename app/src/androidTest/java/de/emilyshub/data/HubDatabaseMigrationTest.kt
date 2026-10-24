@@ -9,6 +9,7 @@ import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
+import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -142,14 +143,30 @@ class HubDatabaseMigrationTest {
     fun `version 5 moves to version 6 keeping how each routine reminds again and with no full-screen alarm`() {
         createAtVersion(5) {
             it.execSQL(
-                "INSERT INTO routines (id, name, description, times, repetition, planned_from, " +
-                    "follow_up_count, follow_up_minutes) VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10)",
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, follow_up_count, " +
+                    "follow_up_minutes) VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10)",
             )
         }
 
         withMigratedDatabase { database ->
             val routine = database.routines().get(3)
             assertEquals(FollowUps(count = 5, everyMinutes = 10) to false, routine?.let { it.followUps to it.fullScreen })
+        }
+    }
+
+    @Test
+    fun `version 6 moves to version 7 giving each routine four hours to catch up on`() {
+        createAtVersion(6) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, " +
+                    "follow_up_count, follow_up_minutes, full_screen) " +
+                    "VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10, 1)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val routine = database.routines().get(3)
+            assertEquals(TimeWindow(hours = 4) to true, routine?.let { it.window to it.fullScreen })
         }
     }
 

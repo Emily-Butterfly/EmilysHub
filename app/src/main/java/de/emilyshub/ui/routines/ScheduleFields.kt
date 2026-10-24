@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +59,7 @@ import de.emilyshub.R
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.TimeWindow
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.numericDate
 import de.emilyshub.reminders.fullScreenAlarmsAllowed
@@ -295,6 +297,45 @@ fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
                 allowed = context.fullScreenAlarmsAllowed()
             },
         )
+    }
+}
+
+/**
+ * How long an occurrence can be caught up on before it is missed (SPEC.md §2): a number of hours, or until
+ * midnight, when there are no hours to choose.
+ */
+@Composable
+fun TimeWindowFields(window: TimeWindow, onChange: (TimeWindow) -> Unit) {
+    // As typed, so that the field can be empty for a moment while the number is retyped.
+    var hoursText by rememberSaveable { mutableStateOf(window.hours.toString()) }
+
+    Column {
+        SectionTitle(stringResource(R.string.routine_window))
+        Text(stringResource(R.string.routine_window_summary), style = MaterialTheme.typography.bodyMedium)
+        if (!window.untilMidnight) {
+            NumberField(hoursText, window.hours, TimeWindow.HOURS, stringResource(R.string.routine_window_hours)) { text, hours ->
+                hoursText = text
+                onChange(window.copy(hours = hours))
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = window.untilMidnight,
+                    role = Role.Checkbox,
+                    onValueChange = { onChange(window.copy(untilMidnight = it)) },
+                )
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = window.untilMidnight, onCheckedChange = null)
+            Text(
+                stringResource(R.string.routine_window_until_midnight),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
     }
 }
 

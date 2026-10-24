@@ -53,7 +53,10 @@ sealed interface RoutineEditorTarget : Serializable {
     data class Edit(val routineId: Long) : RoutineEditorTarget
 }
 
-/** Creates or changes a routine with its times, repetition and how it reminds. Leaving without saving drops the changes. */
+/**
+ * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on.
+ * Leaving without saving drops the changes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose: () -> Unit) {
@@ -78,7 +81,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                draft = with(routine) { RoutineDraft(name, description, times, repetition, followUps, fullScreen) }
+                draft = with(routine) { RoutineDraft(name, description, times, repetition, followUps, fullScreen, window) }
                 original = draft
                 loaded = true
             }
@@ -165,6 +168,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
+            TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
         }
     }
 

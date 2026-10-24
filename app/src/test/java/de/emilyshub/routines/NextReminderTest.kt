@@ -163,6 +163,26 @@ class NextReminderTest {
         assertEquals(berlin("2026-10-24T08:00"), routine.nextReminder(planned, todayAt("08:00"), BERLIN))
     }
 
+    @Test
+    fun `no reminder comes once the occurrence's time window has ended, no follow-up and nothing put off`() {
+        val routine = routine("08:00", followUps = FollowUps(count = 5, everyMinutes = 30), window = TimeWindow(hours = 2))
+        val planned = listOf(occurrence(today, "08:00"))
+
+        val reminders = generateSequence(now) { routine.nextReminder(planned, it, BERLIN) }.drop(1).take(5).toList()
+
+        assertEquals(listOf("08:00", "08:30", "09:00", "09:30").map(::todayAt) + berlin("2026-10-24T08:00"), reminders)
+        val putOffTooLate = listOf(occurrence(today, "08:00", remindAt = todayAt("10:10")))
+        assertEquals(berlin("2026-10-24T08:00"), routine.nextReminder(putOffTooLate, todayAt("09:00"), BERLIN))
+    }
+
+    @Test
+    fun `on a day not planned yet, reminders end with the window too`() {
+        val routine = routine("23:00", followUps = FollowUps(count = 3, everyMinutes = 30), window = TimeWindow(untilMidnight = true))
+
+        assertEquals(todayAt("23:30"), routine.nextReminder(emptyList(), todayAt("23:00"), BERLIN))
+        assertEquals(berlin("2026-10-24T23:00"), routine.nextReminder(emptyList(), todayAt("23:30"), BERLIN))
+    }
+
     /** [time] ("08:30") today in Berlin. */
     private fun todayAt(time: String) = berlin("${today}T$time")
 
@@ -171,6 +191,7 @@ class NextReminderTest {
         repetition: Repetition = Repetition.Daily,
         plannedFrom: Instant = berlin("2026-10-01T00:00"),
         followUps: FollowUps = FollowUps(count = 0),
+        window: TimeWindow = TimeWindow(),
     ) = Routine(
         id = ROUTINE,
         name = "Tabletten",
@@ -179,6 +200,7 @@ class NextReminderTest {
         repetition = repetition,
         plannedFrom = plannedFrom,
         followUps = followUps,
+        window = window,
     )
 
     private fun occurrence(

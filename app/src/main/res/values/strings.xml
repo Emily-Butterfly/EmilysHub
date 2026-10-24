@@ -54,6 +54,10 @@
     <string name="routine_follow_ups_how_often">Wie oft, wenn du nicht reagierst</string>
     <string name="routine_follow_ups_never">Nie</string>
     <string name="routine_follow_up_minutes">Abstand in Minuten</string>
+    <string name="routine_window">Zeitfenster</string>
+    <string name="routine_window_summary">So lange lässt sich eine Fälligkeit nachholen, danach gilt sie als verpasst.</string>
+    <string name="routine_window_hours">Zeitfenster in Stunden</string>
+    <string name="routine_window_until_midnight">Bis Mitternacht</string>
     <string name="routine_full_screen">Vollbild-Alarm</string>
     <string name="routine_full_screen_summary">Wie ein Wecker, auch auf dem Sperrbildschirm</string>
     <string name="routine_full_screen_not_allowed">Android erlaubt gerade keine Vollbild-Alarme, daher kommt die Erinnerung als normale Benachrichtigung.</string>

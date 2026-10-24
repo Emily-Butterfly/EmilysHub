@@ -3,6 +3,7 @@ package de.emilyshub
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -25,6 +26,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
+import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -201,6 +203,49 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine can be caught up on for as many hours as chosen, by default four`() {
+        launchApp().use {
+            newRoutine("Tabletten")
+            field("Zeitfenster in Stunden").performScrollTo().assertTextContains("4")
+
+            field("Zeitfenster in Stunden").performTextReplacement("25")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Neue Routine").assertIsDisplayed()
+
+            field("Zeitfenster in Stunden").performTextReplacement("6")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(TimeWindow(hours = 6), savedRoutines().single().window)
+    }
+
+    @Test
+    fun `a routine can be caught up on until midnight instead, with no hours to choose`() {
+        launchApp().use {
+            newRoutine("Lesen")
+
+            untilMidnight().performScrollTo().assertIsOff().performClick()
+
+            field("Zeitfenster in Stunden").assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(TimeWindow(untilMidnight = true), savedRoutines().single().window)
+    }
+
+    @Test
+    fun `the editor shows a routine's time window`() {
+        app.routine("Lesen", "21:00", window = TimeWindow(untilMidnight = true))
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Lesen").performClick()
+
+            untilMidnight().performScrollTo().assertIsOn()
+        }
+    }
+
+    @Test
     fun `a routine reminds again as often and as far apart as chosen, by default three times every 30 minutes`() {
         launchApp().use {
             newRoutine("Tabletten")
@@ -321,6 +366,8 @@ class RoutineEditingTest {
     private fun SemanticsNodeInteraction.tap() = performScrollTo().performClick()
 
     private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
 
     private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
 

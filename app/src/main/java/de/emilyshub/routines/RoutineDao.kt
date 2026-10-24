@@ -1,17 +1,17 @@
 package de.emilyshub.routines
 
-import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Relation
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneId
 
 /** An occurrence row joined with its routine's name. */
 data class OccurrenceRow(
@@ -23,16 +23,11 @@ data class OccurrenceRow(
     val status: OccurrenceStatus,
 )
 
-/** An occurrence with its routine's name and how it reminds. */
-data class NamedOccurrence(
+/** An occurrence with its routine, which says how it is reminded of and how long it stays open. */
+data class OccurrenceOfRoutine(
     @Embedded val occurrence: Occurrence,
-    val name: String,
-    @Embedded(prefix = "follow_up_") val followUps: FollowUps,
-    @ColumnInfo(name = "full_screen") val fullScreen: Boolean,
-) {
-    /** When it is reminded of while it stays open: first, and at its routine's follow-ups. */
-    fun reminderTimes(zone: ZoneId): List<Instant> = occurrence.reminderTimes(followUps, zone)
-}
+    @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
+)
 
 @Dao
 interface RoutineDao {
@@ -69,19 +64,22 @@ interface RoutineDao {
     suspend fun occurrencesToRemindFrom(date: LocalDate): List<Occurrence>
 
     /** The open occurrences from [from] to [to], and those put off, whenever they were due. */
-    @Query(
-        """
-        SELECT o.*, $ROUTINE_COLUMNS FROM occurrences o JOIN routines r ON r.id = o.routine_id
-        WHERE o.status = :open AND (o.date BETWEEN :from AND :to OR o.remind_at IS NOT NULL)
-        """,
-    )
-    suspend fun openToRemind(from: LocalDate, to: LocalDate, open: OccurrenceStatus): List<NamedOccurrence>
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE status = :open AND (date BETWEEN :from AND :to OR remind_at IS NOT NULL)")
+    suspend fun openToRemind(from: LocalDate, to: LocalDate, open: OccurrenceStatus): List<OccurrenceOfRoutine>
 
-    @Query("SELECT o.*, $ROUTINE_COLUMNS FROM occurrences o JOIN routines r ON r.id = o.routine_id WHERE o.id IN (:ids)")
-    suspend fun namedOccurrences(ids: Collection<Long>): List<NamedOccurrence>
+    /** Every open occurrence, whenever it was due. */
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE status = :open")
+    suspend fun allOpen(open: OccurrenceStatus): List<OccurrenceOfRoutine>
 
-    @Query("SELECT o.*, $ROUTINE_COLUMNS FROM occurrences o JOIN routines r ON r.id = o.routine_id WHERE o.id = :id")
-    fun observeNamedOccurrence(id: Long): Flow<NamedOccurrence?>
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE id IN (:ids)")
+    suspend fun withRoutines(ids: Collection<Long>): List<OccurrenceOfRoutine>
+
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE id = :id")
+    fun observeWithRoutine(id: Long): Flow<OccurrenceOfRoutine?>
 
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
     suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
@@ -103,6 +101,9 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET status = :status WHERE id = :id")
     suspend fun setStatus(id: Long, status: OccurrenceStatus)
 
+    @Query("UPDATE occurrences SET status = :status WHERE id IN (:ids)")
+    suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus)
+
     @Query(
         """
         SELECT o.id AS id, o.routine_id AS routineId, r.name AS name, o.date AS date, o.time AS time, o.status AS status
@@ -112,7 +113,3 @@ interface RoutineDao {
     )
     fun observeOccurrences(date: LocalDate): Flow<List<OccurrenceRow>>
 }
-
-/** What a [NamedOccurrence] takes from its routine. */
-private const val ROUTINE_COLUMNS = "r.name AS name, r.follow_up_count AS follow_up_count, " +
-    "r.follow_up_minutes AS follow_up_minutes, r.full_screen AS full_screen"

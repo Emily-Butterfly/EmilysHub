@@ -109,11 +109,30 @@ class RoutineDraftTest {
         assertEquals(FollowUps(count = 0, everyMinutes = 30), none.cleaned().followUps)
     }
 
+    @Test
+    fun `a time window lasts from 1 to 24 hours`() {
+        fun hours(hours: Int) = draft(window = TimeWindow(hours = hours)).problems
+
+        assertEquals(setOf(DraftProblem.WindowOutOfRange), hours(0))
+        assertEquals(emptySet<DraftProblem>(), hours(1))
+        assertEquals(emptySet<DraftProblem>(), hours(24))
+        assertEquals(setOf(DraftProblem.WindowOutOfRange), hours(25))
+    }
+
+    @Test
+    fun `until midnight, how many hours does not matter and goes back to the default`() {
+        val untilMidnight = draft(window = TimeWindow(hours = 0, untilMidnight = true))
+
+        assertEquals(emptySet<DraftProblem>(), untilMidnight.problems)
+        assertEquals(TimeWindow(hours = 4, untilMidnight = true), untilMidnight.cleaned().window)
+    }
+
     private fun draft(
         name: String = "Zähne putzen",
         description: String = "",
         times: List<LocalTime> = listOf(LocalTime.of(8, 0)),
         repetition: Repetition = Repetition.Daily,
         followUps: FollowUps = FollowUps(),
-    ) = RoutineDraft(name = name, description = description, times = times, repetition = repetition, followUps = followUps)
+        window: TimeWindow = TimeWindow(),
+    ) = RoutineDraft(name, description, times, repetition, followUps, window = window)
 }

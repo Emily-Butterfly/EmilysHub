@@ -13,7 +13,9 @@ import java.time.Instant
 /**
  * Reminds of routines on time (SPEC.md §3), and again at their follow-ups while they stay open: one alarm
  * for the next moment a reminder is due, and a notification for each open occurrence whose time has come.
- * [update] brings both in line with the routines after every change.
+ * [update] brings both in line with the routines after every change. Once an occurrence's time window
+ * ends, it is missed and its reminder goes (SPEC.md §2): the alarm goes off for that too, and every update
+ * and alarm first marks what ran out meanwhile, also while the phone was off.
  *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
@@ -32,15 +34,23 @@ class Reminders(
     // may write to the routines, since every write updates the reminders.
     private val lock = Mutex()
 
-    /** Takes down the reminders of occurrences ticked off, skipped, put off or gone, and sets the alarm anew. */
-    suspend fun update() = lock.withLock { tidyAndSetAlarm() }
+    /**
+     * Marks what ran out missed, takes down the reminders of occurrences ticked off, skipped, put off,
+     * missed or gone, and sets the alarm anew.
+     */
+    suspend fun update() = lock.withLock {
+        routines.markMissed(since = remindedUntil())
+        tidyAndSetAlarm()
+    }
 
-    /** The alarm went off: shows what has come due since the last time, then sets the next alarm. */
+    /**
+     * The alarm went off: marks what ran out missed, shows what has come due since the last time, then sets the
+     * next alarm. What came due long ago, say while the phone was off, still pops up while its window is open.
+     */
     suspend fun remind() = lock.withLock {
         val now = clock.instant()
-        // What came due more than an hour ago, say while the phone was off or before the clock was put
-        // forward, stays on Heute instead of popping up all at once (#10 brings a time window per routine).
-        val since = maxOf(remindedUntil(), now - LATE_LIMIT)
+        val since = remindedUntil()
+        routines.markMissed(since)
         val due = routines.remindersDue(after = since, until = now)
         due.forEach(notifications::show)
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
@@ -72,7 +82,7 @@ class Reminders(
         // Shown again quietly, as the routine may have been renamed meanwhile; what just popped up is as it is now.
         stillDue.filter { it.occurrenceId !in justShown }.forEach(notifications::refresh)
         (shown - stillDue.map { it.occurrenceId }.toSet()).forEach(notifications::cancel)
-        when (val next = routines.nextReminder(after = remindedUntil())) {
+        when (val next = routines.nextAlarm(after = remindedUntil())) {
             null -> alarm.cancel()
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
@@ -89,6 +99,5 @@ class Reminders(
         val PUT_OFF_CHOICES: List<Duration> = listOf(10L, 30L, 60L).map(Duration::ofMinutes)
 
         private const val REMINDED_UNTIL = "reminded-until"
-        private val LATE_LIMIT: Duration = Duration.ofHours(1)
     }
 }

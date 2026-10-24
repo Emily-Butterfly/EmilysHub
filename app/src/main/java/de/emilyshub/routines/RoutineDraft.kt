@@ -13,6 +13,7 @@ enum class DraftProblem {
     IntervalOutOfRange,
     FollowUpCountOutOfRange,
     FollowUpIntervalOutOfRange,
+    WindowOutOfRange,
 }
 
 /**
@@ -27,6 +28,7 @@ data class RoutineDraft(
     val repetition: Repetition,
     val followUps: FollowUps = FollowUps(),
     val fullScreen: Boolean = false,
+    val window: TimeWindow = TimeWindow(),
 ) : Serializable {
 
     val problems: Set<DraftProblem>
@@ -44,18 +46,21 @@ data class RoutineDraft(
                 }
                 if (followUps.count !in FollowUps.COUNTS) add(DraftProblem.FollowUpCountOutOfRange)
                 if (followUps.everyMinutes !in FollowUps.MINUTES) add(DraftProblem.FollowUpIntervalOutOfRange)
+                if (window.hours !in TimeWindow.HOURS) add(DraftProblem.WindowOutOfRange)
             }
         }
 
     /**
      * Without surrounding spaces; the name on a single line; the times in the order of the day, each once;
-     * without follow-ups, the default distance between them, which is not shown then.
+     * without follow-ups, the default distance between them, and until midnight, the default hours: neither
+     * is shown then.
      */
     fun cleaned() = copy(
         name = name.trim().replace(WHITESPACE, " "),
         description = description.trim(),
         times = times.distinct().sorted(),
         followUps = if (followUps.count == 0) FollowUps(count = 0) else followUps,
+        window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,
     )
 
     companion object {
