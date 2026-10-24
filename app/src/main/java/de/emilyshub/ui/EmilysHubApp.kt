@@ -171,7 +171,7 @@ private fun AppShell(
 /** Asks for what reminders need (SPEC.md §11) once the first routine is there, not before. */
 @Composable
 private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
-    val anyRoutine by remember(routines) { routines.all().map { it.isNotEmpty() } }.collectAsState(initial = false)
+    val anyRoutine by remember(routines) { routines.inUse().map { it.isNotEmpty() } }.collectAsState(initial = false)
     if (anyRoutine) ReminderPermissions(onFinished = onAsked)
 }
 

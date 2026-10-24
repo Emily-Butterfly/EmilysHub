@@ -84,7 +84,7 @@ class RoutinesTest {
         routines.create(draft("Arzttermin", "09:30", repetition = Repetition.Once(today.plusDays(2))))
 
         assertEquals(listOf(2L), (0L..6L).filter { dueOn(today.plusDays(it)).isNotEmpty() })
-        assertEquals(Repetition.Once(today.plusDays(2)), routines.all().first().single().repetition)
+        assertEquals(Repetition.Once(today.plusDays(2)), routines.inUse().first().single().repetition)
     }
 
     @Test
@@ -294,7 +294,7 @@ class RoutinesTest {
         routines.create(draft("Übungen", "07:30"))
         routines.create(draft("Atmen", "07:30"))
 
-        val listed = routines.all().first()
+        val listed = routines.inUse().first()
 
         assertEquals(listOf("Atmen", "Übungen", "Tagebuch"), listed.map { it.name })
         assertEquals("Drei gute Dinge", listed.last().description)
@@ -307,7 +307,7 @@ class RoutinesTest {
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { routines.create(draft("   ", "09:00")) }
         }
-        assertEquals(listOf("Zähne putzen" to "Gründlich"), routines.all().first().map { it.name to it.description })
+        assertEquals(listOf("Zähne putzen" to "Gründlich"), routines.inUse().first().map { it.name to it.description })
     }
 
     @Test
@@ -344,7 +344,7 @@ class RoutinesTest {
 
         routines.delete(walk)
 
-        assertEquals(listOf("Lesen"), routines.all().first().map { it.name })
+        assertEquals(listOf("Lesen"), routines.inUse().first().map { it.name })
         assertEquals(listOf("21:00 Lesen: Open"), dueOn(today))
     }
 
@@ -478,7 +478,7 @@ class RoutinesTest {
     }
 
     @Test
-    fun `a paused routine has no occurrences to come, its open ones go, while what was ticked off stays`() =
+    fun `a paused routine leaves Heute with nothing to come, its open occurrences go, while what was ticked off stays`() =
         runBlocking {
             val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
             routines.markDone(occurrenceAt("08:00"))
@@ -487,8 +487,36 @@ class RoutinesTest {
             routines.pause(pills)
 
             assertEquals(RoutineStatus.Paused, routines.get(pills)?.status)
-            assertEquals(listOf("08:00 Tabletten: Done"), dueOn(today))
+            assertEquals(emptyList<String>(), dueOn(today))
             assertEquals(emptyList<String>(), dueOn(today.plusDays(1)))
+            assertEquals(listOf(OccurrenceStatus.Done), database.routines().occurrencesOn(pills, today).map { it.status })
+        }
+
+    @Test
+    fun `pausing marks missed what ran out of its time window before, instead of taking it away`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        // The alarm at the end of the 08:00 window has not gone off yet.
+        clock.now = berlin("2026-10-23T12:30")
+
+        routines.pause(pills)
+
+        assertEquals(listOf(OccurrenceStatus.Missed), database.routines().occurrencesOn(pills, today).map { it.status })
+    }
+
+    @Test
+    fun `what a paused routine did cannot be undone or unticked until it is resumed, so nothing comes due while it is paused`() =
+        runBlocking {
+            val pills = routines.create(draft("Tabletten", "08:00", "20:00", checklist = listOf("Wasser")))
+            val morning = occurrenceAt("08:00")
+            routines.markDone(morning)
+            clock.now = noon
+            routines.pause(pills)
+
+            routines.reopen(morning)
+            routines.tick(morning, routines.checklist(pills).single().id, ticked = false)
+
+            assertEquals(listOf(OccurrenceStatus.Done), database.routines().occurrencesOn(pills, today).map { it.status })
+            assertEquals(null, routines.nextAlarm(after = clock.now))
         }
 
     @Test
@@ -537,14 +565,14 @@ class RoutinesTest {
 
         routines.archive(pills)
 
-        assertEquals(listOf("Lesen"), routines.all().first().map { it.name })
+        assertEquals(listOf("Lesen"), routines.inUse().first().map { it.name })
         assertEquals(listOf("Tabletten"), routines.archived().first().map { it.name })
         assertEquals(listOf("21:00 Lesen: Open"), dueOn(today))
         assertEquals(listOf("21:00 Lesen: Open"), dueOn(today.plusDays(1)))
 
         routines.restore(pills)
 
-        assertEquals(listOf("Tabletten", "Lesen"), routines.all().first().map { it.name })
+        assertEquals(listOf("Tabletten", "Lesen"), routines.inUse().first().map { it.name })
         assertEquals(emptyList<Routine>(), routines.archived().first())
         assertEquals(listOf("08:00 Tabletten: Done", "20:00 Tabletten: Open", "21:00 Lesen: Open"), dueOn(today))
     }
@@ -603,6 +631,17 @@ class RoutinesTest {
 
         assertEquals(listOf("08:00 Zähne: Open"), dueOn(today))
         assertEquals(listOf("Putzen" to false, "Zahnseide" to false), checklistOn(today))
+    }
+
+    @Test
+    fun `taking away the only item left unticked ticks the routine off`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide")))
+        val (brush, _) = routines.checklist(teeth)
+        routines.tick(occurrenceAt("08:00"), brush.id, ticked = true)
+
+        routines.update(teeth, draft("Zähne", "08:00").copy(checklist = listOf(ChecklistDraftItem(brush.id, "Putzen"))))
+
+        assertEquals(listOf("08:00 Zähne: Done"), dueOn(today))
     }
 
     @Test

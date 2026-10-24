@@ -66,7 +66,7 @@ class HubDatabaseMigrationTest {
             val id = database.routines().insert(routine)
             val occurrence = Occurrence(routineId = id, date = day, time = LocalTime.of(21, 0), status = OccurrenceStatus.Open)
             database.routines().insertOccurrences(listOf(occurrence))
-            val occurrences = database.routines().observeOccurrencesWithRoutines(day, day).first()
+            val occurrences = database.routines().observeOccurrencesWithChecklists(day, day).first()
             assertEquals(listOf("Lesen"), occurrences.map { it.routine.name })
         }
     }
@@ -99,12 +99,12 @@ class HubDatabaseMigrationTest {
             )
             assertEquals(startOf("2026-10-24"), database.routines().get(8)?.plannedFrom)
             val day = LocalDate.parse("2026-10-23")
-            val occurrences = database.routines().observeOccurrencesWithRoutines(day, day).first()
+            val occurrences = database.routines().observeOccurrencesWithChecklists(day, day).first()
             assertEquals(listOf("Lesen" to OccurrenceStatus.Done), occurrences.map { it.routine.name to it.occurrence.status })
 
             // The occurrences belong to the new table: deleting the routine still takes them along.
             database.routines().delete(7)
-            assertEquals(emptyList<Any>(), database.routines().observeOccurrencesWithRoutines(day, day).first())
+            assertEquals(emptyList<Any>(), database.routines().observeOccurrencesWithChecklists(day, day).first())
         }
     }
 

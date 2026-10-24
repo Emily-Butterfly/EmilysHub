@@ -69,7 +69,7 @@ data class RoutineDraft(
         times = times.distinct().sorted(),
         followUps = if (followUps.count == 0) FollowUps(count = 0) else followUps,
         window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,
-        checklist = checklist.map { it.copy(text = it.text.trim().replace(WHITESPACE, " ")) }.filter { it.text.any(::isVisible) },
+        checklist = checklist.map(ChecklistDraftItem::cleaned).filter { it.text.any(::isVisible) },
     )
 
     /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
@@ -89,8 +89,6 @@ data class RoutineDraft(
         const val CHECKLIST_MAX = 20
         const val CHECKLIST_ITEM_MAX = 80
 
-        private val WHITESPACE = Regex("\\s+")
-
         /** Characters as people count them: an emoji is one, not the two UTF-16 units it takes. */
         fun lengthOf(text: String): Int = text.codePointCount(0, text.length)
 
@@ -100,7 +98,12 @@ data class RoutineDraft(
 }
 
 /** An item of a routine's checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. */
-data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
+data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable {
+    /** On a single line, without surrounding spaces. */
+    fun cleaned() = copy(text = text.trim().replace(WHITESPACE, " "))
+}
+
+private val WHITESPACE = Regex("\\s+")
 
 /** The routine with its [checklist] as the editor starts out with it. */
 fun Routine.toDraft(checklist: List<ChecklistItem>) = RoutineDraft(

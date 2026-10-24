@@ -46,21 +46,21 @@ fun RoutinesScreen(
     onCreate: () -> Unit,
     onOpenArchive: () -> Unit,
 ) {
-    val all by remember(routines) { routines.all() }.collectAsState(initial = null)
-    val archived by remember(routines) { routines.archived().map { it.size } }.collectAsState(initial = 0)
-    val list = all
+    val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
+    val archivedCount by remember(routines) { routines.archived().map { it.size } }.collectAsState(initial = 0)
+    val list = inUse
     Box(Modifier.fillMaxSize()) {
         when {
             list == null -> Unit
-            list.isEmpty() && archived == 0 -> PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
+            list.isEmpty() && archivedCount == 0 -> PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
             else -> LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
                 items(list, key = { it.id }) { routine ->
                     RoutineRow(routine, onClick = { onOpen(routine.id) })
                 }
-                if (archived > 0) {
+                if (archivedCount > 0) {
                     item {
                         TextButton(onClick = onOpenArchive, modifier = Modifier.padding(horizontal = 8.dp)) {
-                            Text(stringResource(R.string.archive_open, archived))
+                            Text(stringResource(R.string.archive_open, archivedCount))
                         }
                     }
                 }

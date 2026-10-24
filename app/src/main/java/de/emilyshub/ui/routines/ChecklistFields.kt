@@ -31,7 +31,8 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.routine_checklist))
         items.forEachIndexed { index, item ->
-            val tooLong = RoutineDraft.lengthOf(item.text.trim()) > RoutineDraft.CHECKLIST_ITEM_MAX
+            val text = item.cleaned().text
+            val tooLong = RoutineDraft.lengthOf(text) > RoutineDraft.CHECKLIST_ITEM_MAX
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = item.text,
@@ -52,7 +53,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
                         Icons.Filled.Close,
                         contentDescription = stringResource(
                             R.string.checklist_item_remove,
-                            item.text.trim().ifEmpty { stringResource(R.string.checklist_item) },
+                            text.ifEmpty { stringResource(R.string.checklist_item) },
                         ),
                     )
                 }

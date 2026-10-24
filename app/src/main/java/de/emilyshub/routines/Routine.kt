@@ -14,7 +14,8 @@ import java.time.ZonedDateTime
 
 /**
  * A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says, reminding again of what
- * is left open as its [followUps] say, and missing what is still open once its time [window] ends.
+ * is left open as its [followUps] say, and missing what is still open once its time [window] ends; all that
+ * while its [status] is active. Its checklist is kept apart, as [ChecklistItem]s.
  */
 @Entity(tableName = "routines")
 data class Routine(
@@ -35,6 +36,7 @@ data class Routine(
     @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
     /** How long each occurrence can be caught up on before it is missed. */
     @Embedded(prefix = "window_") val window: TimeWindow = TimeWindow(),
+    /** Shown with it in the list and on Heute; it changes nothing else. */
     @ColumnInfo(defaultValue = "'normal'") val priority: Priority = Priority.Normal,
     /** Only an active routine is planned and reminded of; what it has done, skipped or missed stays all the same. */
     @ColumnInfo(defaultValue = "'active'") val status: RoutineStatus = RoutineStatus.Active,
@@ -85,6 +87,10 @@ enum class OccurrenceStatus(val stored: String) {
     Done("done"),
     Skipped("skipped"),
     Missed("missed"),
+    ;
+
+    /** Whether its occurrence's checklist can be ticked: not once it was skipped or missed. */
+    val checklistTickable: Boolean get() = this == Open || this == Done
 }
 
 /**

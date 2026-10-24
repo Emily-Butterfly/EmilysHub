@@ -25,7 +25,15 @@ data class OccurrenceWithChecklist(
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
     @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val checklist: List<ChecklistItem>,
     @Relation(parentColumn = "id", entityColumn = "occurrence_id") val ticks: List<ChecklistTick>,
-)
+) {
+    /** The checklist in its order, each item ticked off on this occurrence or with all of it ticked off at once. */
+    fun entries(): List<ChecklistEntry> {
+        val ticked = ticks.map { it.itemId }.toSet()
+        return checklist.sortedBy { it.position }.map {
+            ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked)
+        }
+    }
+}
 
 @Dao
 interface RoutineDao {
@@ -63,8 +71,8 @@ interface RoutineDao {
     @Query("UPDATE routines SET status = :active, planned_from = :from WHERE id = :id")
     suspend fun reactivate(id: Long, from: Instant, active: RoutineStatus = RoutineStatus.Active)
 
-    @Query("DELETE FROM occurrences WHERE routine_id = :routineId AND status = :open")
-    suspend fun deleteOpenOccurrences(routineId: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
+    @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND status = :open")
+    suspend fun openOccurrences(routineId: Long, open: OccurrenceStatus = OccurrenceStatus.Open): List<Occurrence>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertOccurrences(occurrences: List<Occurrence>)
@@ -121,7 +129,7 @@ interface RoutineDao {
     /** The occurrences from [from] to [to], each with its routine and checklist. */
     @Transaction
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
-    fun observeOccurrencesWithRoutines(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
+    fun observeOccurrencesWithChecklists(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
 
     @Query("SELECT * FROM checklist_items WHERE routine_id = :routineId ORDER BY position")
     suspend fun checklist(routineId: Long): List<ChecklistItem>

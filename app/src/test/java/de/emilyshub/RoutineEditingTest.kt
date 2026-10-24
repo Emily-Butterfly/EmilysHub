@@ -400,8 +400,8 @@ class RoutineEditingTest {
             compose.onNodeWithText("Speichern").performClick()
             heading("Routinen").assertIsDisplayed()
         }
-        val zahne = savedRoutines().single()
-        assertEquals(listOf("Zahnseide"), runBlocking { app.routines.checklist(zahne.id) }.map { it.text })
+        val teeth = savedRoutines().single()
+        assertEquals(listOf("Zahnseide"), runBlocking { app.routines.checklist(teeth.id) }.map { it.text })
     }
 
     @Test
@@ -485,5 +485,5 @@ class RoutineEditingTest {
         compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
     }
 
-    private fun savedRoutines() = runBlocking { app.routines.all().first() }
+    private fun savedRoutines() = runBlocking { app.routines.inUse().first() }
 }

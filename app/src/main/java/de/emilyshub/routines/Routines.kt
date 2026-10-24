@@ -34,20 +34,14 @@ class Routines(
     private val dao get() = database().routines()
 
     /** Those in use, active or paused, by their first time, then by name; the archived ones are [archived]. */
-    fun all(): Flow<List<Routine>> = flow {
-        val inUse = dao.observeAll().map { all ->
-            all.filter { it.status != RoutineStatus.Archived }
-                .sortedWith(compareBy<Routine> { it.times.first() }.thenBy(byName, Routine::name))
-        }
-        emitAll(inUse)
-    }.flowOn(io)
+    fun inUse(): Flow<List<Routine>> =
+        observe(compareBy<Routine> { it.times.first() }.thenBy(byName, Routine::name)) { it.status != RoutineStatus.Archived }
 
     /** The archived routines (SPEC.md §2), by name. */
-    fun archived(): Flow<List<Routine>> = flow {
-        val archived = dao.observeAll().map { all ->
-            all.filter { it.status == RoutineStatus.Archived }.sortedWith(compareBy(byName, Routine::name))
-        }
-        emitAll(archived)
+    fun archived(): Flow<List<Routine>> = observe(compareBy(byName, Routine::name)) { it.status == RoutineStatus.Archived }
+
+    private fun observe(order: Comparator<Routine>, which: (Routine) -> Boolean): Flow<List<Routine>> = flow {
+        emitAll(dao.observeAll().map { all -> all.filter(which).sortedWith(order) })
     }.flowOn(io)
 
     /**
@@ -101,8 +95,9 @@ class Routines(
         repetition !is Repetition.Once || times.any { isDueAtOrAfter(now(), repetition.date, it, clock.zone) }
 
     /**
-     * Pauses the routine (SPEC.md §2): its open occurrences go, so that the paused days are not missed, and no
-     * new ones come until it is [resume]d. What it has done, skipped or missed stays.
+     * Pauses the routine (SPEC.md §2): it leaves Heute, its open occurrences go, so that the paused days are not
+     * missed, and no new ones come until it is [resume]d. What it has done, skipped or missed stays as it is,
+     * and one whose time window ended before is missed first.
      */
     suspend fun pause(id: Long) = setAside(id, RoutineStatus.Paused)
 
@@ -117,8 +112,12 @@ class Routines(
 
     private suspend fun setAside(id: Long, status: RoutineStatus) = write {
         database().withTransaction {
+            val routine = dao.get(id) ?: return@withTransaction
+            val now = now()
+            val (ended, open) = dao.openOccurrences(id).partition { routine.windowEnded(it, now, clock.zone) }
+            dao.setStatuses(ended.map { it.id }, OccurrenceStatus.Missed)
+            dao.deleteOccurrences(open.map { it.id })
             dao.setRoutineStatus(id, status)
-            dao.deleteOpenOccurrences(id)
         }
     }
 
@@ -137,26 +136,22 @@ class Routines(
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
     /**
-     * The Heute list of [date] in the order it is due: its occurrences, and while [date] is today, those of the
-     * day before whose time window is still open, as they can still be caught up on.
+     * The Heute list of [date] in the order it is due: the occurrences of the active routines, and while [date] is
+     * today, those of the day before whose time window is still open, as they can still be caught up on.
      */
     fun dueOn(date: LocalDate): Flow<List<DueRoutine>> = flow {
         plan(date)
-        val list = dao.observeOccurrencesWithRoutines(from = date.minusDays(1), to = date).map { all ->
+        val list = dao.observeOccurrencesWithChecklists(from = date.minusDays(1), to = date).map { all ->
             val now = now()
             val catchingUp = today(now, clock.zone) == date
             all.filter { (occurrence, routine) ->
-                routine.status != RoutineStatus.Archived &&
+                routine.status == RoutineStatus.Active &&
                     (occurrence.date == date || catchingUp && !routine.windowEnded(occurrence, now, clock.zone))
             }
-                .map { (occurrence, routine, checklist, ticks) ->
+                .map { due ->
+                    val (occurrence, routine) = due
                     val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
-                    val ticked = ticks.map { it.itemId }.toSet()
-                    // Ticked off as a whole, all of it is.
-                    val entries = checklist.sortedBy { it.position }.map {
-                        ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked)
-                    }
-                    DueRoutine(occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority, entries)
+                    DueRoutine(occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority, due.entries())
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(byName) { it.name })
         }
@@ -168,43 +163,44 @@ class Routines(
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 
     /**
-     * Undoes "done" or "skipped"; undoing "done" unticks the checklist too. If the routine's times changed
-     * meanwhile, the occurrence is planned anew like an open one when they changed ([replanDay]): it moves to
-     * the new time it stood in for while that is ahead, and goes if the routine no longer has a time for it
-     * and it is still to come.
+     * Undoes "done" or "skipped" of an active routine; undoing "done" unticks the checklist too. If the routine's
+     * times changed meanwhile, the occurrence is planned anew like an open one when they changed ([replanDay]): it
+     * moves to the new time it stood in for while that is ahead, and goes if the routine no longer has a time for
+     * it and it is still to come.
      */
     suspend fun reopen(occurrenceId: Long) = write {
         database().withTransaction {
-            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
+            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status != OccurrenceStatus.Missed } ?: return@withTransaction
+            val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
             if (occurrence.status == OccurrenceStatus.Done) dao.deleteTicks(occurrenceId)
-            reopen(occurrence)
+            reopen(occurrence, routine)
         }
     }
 
     /**
      * Ticks an item of the occurrence's checklist off, or unticks it (SPEC.md §2, Checkliste). With all its items
      * ticked off, the routine is done; unticking one of a routine done opens it again, the others still ticked off.
-     * The checklist of one skipped or missed stays as it is.
+     * The checklist stays as it is once the occurrence was skipped or missed, or while its routine is set aside.
      */
     suspend fun tick(occurrenceId: Long, itemId: Long, ticked: Boolean) = write {
         database().withTransaction {
-            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
-            val items = dao.checklist(occurrence.routineId).map { it.id }
+            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status.checklistTickable } ?: return@withTransaction
+            val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
+            val items = dao.checklist(routine.id).map { it.id }
             if (itemId !in items) return@withTransaction
-            when (occurrence.status) {
-                OccurrenceStatus.Open -> if (ticked) {
+            val done = occurrence.status == OccurrenceStatus.Done
+            when {
+                ticked && !done -> {
                     dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
-                    if (dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
-                } else {
-                    dao.deleteTick(occurrenceId, itemId)
+                    tickOffIfAllTicked(occurrenceId, items)
                 }
                 // Done as a whole, every item counts as ticked off until one is unticked.
-                OccurrenceStatus.Done -> if (!ticked) {
+                !ticked && done -> {
                     dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
                     dao.deleteTick(occurrenceId, itemId)
-                    reopen(occurrence)
+                    reopen(occurrence, routine)
                 }
-                OccurrenceStatus.Skipped, OccurrenceStatus.Missed -> Unit
+                !ticked -> dao.deleteTick(occurrenceId, itemId)
             }
         }
     }
@@ -277,17 +273,21 @@ class Routines(
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }
 
-    /** Opens the occurrence again, as [reopen] describes; one missed stays missed. */
-    private suspend fun reopen(occurrence: Occurrence) {
-        if (occurrence.status == OccurrenceStatus.Missed) return
-        val routine = dao.get(occurrence.routineId) ?: return
+    /** Opens the [routine]'s occurrence again, as [reopen] describes. */
+    private suspend fun reopen(occurrence: Occurrence, routine: Routine) {
         dao.setStatus(occurrence.id, OccurrenceStatus.Open)
         replan(routine, occurrence.date, dao.occurrencesOn(routine.id, occurrence.date), now())
     }
 
+    /** Ticks the open occurrence off once every one of the checklist's [items] is ticked off on it. */
+    private suspend fun tickOffIfAllTicked(occurrenceId: Long, items: List<Long>) {
+        if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
+    }
+
     /**
      * Saves the routine's checklist as [items] has it, in that order: an item with the id of one saved changes
-     * it and keeps its ticks; the others are new, and the saved ones not among them go.
+     * it and keeps its ticks; the others are new, and the saved ones not among them go. An open occurrence with
+     * all that is left ticked off is done then.
      */
     private suspend fun saveChecklist(routineId: Long, items: List<ChecklistDraftItem>) {
         val unclaimed = dao.checklist(routineId).map { it.id }.toMutableSet()
@@ -298,6 +298,8 @@ class Routines(
         dao.deleteChecklistItemsBut(routineId, kept = saved.map { it.id })
         dao.updateChecklistItems(saved)
         dao.insertChecklistItems(new)
+        val ids = dao.checklist(routineId).map { it.id }
+        dao.openOccurrences(routineId).forEach { tickOffIfAllTicked(it.id, ids) }
     }
 
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block().also { onChange() } }

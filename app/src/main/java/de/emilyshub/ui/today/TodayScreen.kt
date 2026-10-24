@@ -73,10 +73,8 @@ fun TodayScreen(routines: Routines, contentPadding: PaddingValues) {
                         onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
                         onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
                     )
-                    // Skipped or missed, its checklist stays as it is.
-                    val tickable = routine.status == OccurrenceStatus.Open || routine.status == OccurrenceStatus.Done
                     routine.checklist.forEach { entry ->
-                        ChecklistRow(entry, tickable) { ticked ->
+                        ChecklistRow(entry, tickable = routine.status.checklistTickable) { ticked ->
                             scope.launchNow { routines.tick(routine.occurrenceId, entry.itemId, ticked) }
                         }
                     }
