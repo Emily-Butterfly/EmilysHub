@@ -35,7 +35,8 @@ import java.time.Duration
  * the screen is not time in the app. Not exported: only the reminder's full-screen intent opens it.
  *
  * Like an alarm clock, it rings and keeps the screen on when an alarm comes, for at most [RING_LIMIT].
- * Answering, closing or leaving it, say with the power button, silences it until the next alarm.
+ * Answering the reminder, here or anywhere else, closing the alarm or leaving it for longer than
+ * [LEAVE_GRACE], say with the power button or for a call, silences it until the next alarm.
  */
 class AlarmActivity : ComponentActivity(), OutsideAppLock {
     private val app get() = application as EmilysHubApplication
@@ -47,11 +48,14 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     private var locked by mutableStateOf(true)
     private var watching: Job? = null
 
-    /** Ends the ringing at [RING_LIMIT]; none while it is silent. */
-    private var ringing: Job? = null
+    /** Silences the alarm at [ringUntil]; none while it is silent. */
+    private var ringLimit: Job? = null
 
-    /** When the ringing ends, on [SystemClock.elapsedRealtime]: kept across a rotation. */
+    /** When the ringing ends, on [SystemClock.elapsedRealtime]; 0 while it is silent. Kept across a rotation. */
     private var ringUntil = 0L
+
+    /** Silences the alarm once it has been off the screen for [LEAVE_GRACE]. */
+    private var leaving: Job? = null
 
     /** Unlocking on the lock screen itself, say with a fingerprint, rather than from the alarm. */
     private val userPresent = object : BroadcastReceiver() {
@@ -70,7 +74,9 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ContextCompat.registerReceiver(this, userPresent, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         queue = savedInstanceState?.getLongArray(QUEUE)?.toList() ?: listOfNotNull(intent.occurrenceId())
         showFirst()
-        if (queue.isNotEmpty()) ring(until = savedInstanceState?.getLong(RING_UNTIL) ?: (now() + RING_LIMIT.toMillis()))
+        if (queue.isNotEmpty()) {
+            if (savedInstanceState == null) ring() else ring(until = savedInstanceState.getLong(RING_UNTIL))
+        }
 
         setContent {
             LaunchedEffect(Unit) { if (app.settings.current == null) app.settings.load() }
@@ -97,7 +103,12 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         val occurrenceId = intent.occurrenceId() ?: return
         queue = listOf(occurrenceId) + (queue - occurrenceId)
         showFirst()
-        ring(until = now() + RING_LIMIT.toMillis())
+        ring()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        leaving?.cancel()
     }
 
     override fun onResume() {
@@ -107,8 +118,17 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
     override fun onStop() {
         super.onStop()
-        // Turning the phone only recreates the alarm, which rings on.
-        if (!isChangingConfigurations) silence()
+        when {
+            // Turning the phone only recreates the alarm, which rings on.
+            isChangingConfigurations -> Unit
+            // Gone back from, or gone because its reminders are.
+            isFinishing -> silence()
+            // Some phones stop it for a moment while the screen turns on, which must not silence it.
+            else -> leaving = lifecycleScope.launch {
+                delay(LEAVE_GRACE.toMillis())
+                silence()
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -122,22 +142,22 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         super.onDestroy()
     }
 
-    /** Rings and keeps the screen on [until] then; not at all once that is past. */
-    private fun ring(until: Long) {
-        ringing?.cancel()
+    /** Rings and keeps the screen on [until] then, a time on [now]; not at all once that is past. */
+    private fun ring(until: Long = now() + RING_LIMIT.toMillis()) {
+        ringLimit?.cancel()
         if (until <= now()) return silence()
         ringUntil = until
         app.ringer.start()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        ringing = lifecycleScope.launch {
+        ringLimit = lifecycleScope.launch {
             delay(until - now())
             silence()
         }
     }
 
     private fun silence() {
-        ringing?.cancel()
-        ringing = null
+        ringLimit?.cancel()
+        ringLimit = null
         ringUntil = 0
         app.ringer.stop()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -151,7 +171,15 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         reminder = null
         val occurrenceId = queue.firstOrNull() ?: return finish()
         watching = lifecycleScope.launch {
-            app.routines.reminder(occurrenceId).collect { due -> if (due == null) drop(occurrenceId) else reminder = due }
+            app.routines.reminder(occurrenceId).collect { due ->
+                if (due != null) {
+                    reminder = due
+                } else {
+                    // Answered elsewhere, or gone: the alarm has been heard.
+                    silence()
+                    drop(occurrenceId)
+                }
+            }
         }
     }
 
@@ -189,5 +217,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
         /** As long as an alarm clock rings before it goes quiet by itself. */
         val RING_LIMIT: Duration = Duration.ofMinutes(10)
+
+        /** Long enough for a phone to turn its screen on, short enough to silence the alarm with the power button. */
+        val LEAVE_GRACE: Duration = Duration.ofSeconds(3)
     }
 }

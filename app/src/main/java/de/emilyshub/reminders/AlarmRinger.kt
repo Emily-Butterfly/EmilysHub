@@ -10,17 +10,18 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 
-/** What rings while a full-screen alarm is up. Starting it again while it rings changes nothing. */
+/** What rings while a full-screen alarm is up. */
 interface AlarmRinger {
+    /** Rings until [stop]; while it rings already, it rings on. */
     fun start()
 
+    /** Stops the ringing; while it is silent, it stays so. */
     fun stop()
 }
 
 /**
- * Rings like an alarm clock (SPEC.md §3): the phone's alarm sound over and over at the alarm volume, and
- * vibrating on and off. "Nicht stören" lets it through where it lets alarms through. Without an alarm
- * sound chosen, Android plays its own.
+ * Rings like an alarm clock (SPEC.md §3): the alarm sound chosen in Android's settings over and over at the
+ * alarm volume, and vibrating on and off. "Nicht stören" lets it through where it lets alarms through.
  */
 class AlarmSound(private val context: Context) : AlarmRinger {
     private val vibrator: Vibrator =

@@ -1,6 +1,4 @@
-package de.emilyshub
-
-import de.emilyshub.reminders.AlarmRinger
+package de.emilyshub.reminders
 
 /** Rings only in the test's mind: whether the alarm rings right now. */
 class FakeRinger : AlarmRinger {

@@ -3,6 +3,7 @@ package de.emilyshub
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.FakeAuthenticator

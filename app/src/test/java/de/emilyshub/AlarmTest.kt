@@ -185,7 +185,7 @@ class AlarmTest {
     }
 
     @Test
-    fun `the alarm rings and vibrates like an alarm clock, and keeps the screen on, while it is up`() {
+    fun `the alarm rings like an alarm clock, and keeps the screen on, while it is up`() {
         openAlarm().use { scenario ->
             assertTrue("ringing", app.ringer.ringing)
             scenario.onActivity { assertTrue("screen kept on", it.keepsScreenOn()) }
@@ -215,9 +215,39 @@ class AlarmTest {
     }
 
     @Test
-    fun `leaving the alarm, say with the power button, silences it for good`() {
+    fun `going back from the alarm closes and silences it`() {
+        val scenario = openAlarm()
+        scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        scenario.close()
+
+        assertFalse(app.ringer.ringing)
+    }
+
+    @Test
+    fun `answered somewhere else, the alarm goes quiet, also with another one still to show`() = runBlocking {
+        openAlarm(of = "Arzttermin").use { scenario ->
+            app.routine("Tabletten", "07:45", fullScreen = true)
+            goOffAt("2026-10-23T07:45")
+            scenario.onActivity { getInstrumentation().callActivityOnNewIntent(it, alarmIntent(of = "Tabletten")) }
+            idle()
+
+            app.routines.markDone(app.routines.dueOn(app.routines.today()).first().single { it.name == "Tabletten" }.occurrenceId)
+            idle()
+
+            compose.onNodeWithText("Arzttermin").assertIsDisplayed()
+            assertFalse(app.ringer.ringing)
+        }
+    }
+
+    @Test
+    fun `leaving the alarm, say with the power button, silences it after a moment, until the next alarm`() {
         openAlarm().use { scenario ->
             scenario.moveToState(Lifecycle.State.CREATED)
+            wait(Duration.ofSeconds(2))
+            assertTrue("still ringing for a moment", app.ringer.ringing)
+
+            wait(Duration.ofSeconds(1))
             assertFalse("silenced", app.ringer.ringing)
 
             scenario.moveToState(Lifecycle.State.RESUMED)
@@ -227,12 +257,23 @@ class AlarmTest {
     }
 
     @Test
+    fun `off the screen for only a moment, as on some phones while the screen turns on, the alarm rings on`() {
+        openAlarm().use { scenario ->
+            scenario.moveToState(Lifecycle.State.CREATED)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            wait(Duration.ofSeconds(5))
+
+            assertTrue(app.ringer.ringing)
+        }
+    }
+
+    @Test
     fun `after ten minutes the alarm stops ringing and lets the screen turn off, but stays up`() {
         openAlarm().use { scenario ->
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMinutes(10).minusSeconds(1))
+            wait(Duration.ofMinutes(10).minusSeconds(1))
             assertTrue("still ringing", app.ringer.ringing)
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
+            wait(Duration.ofSeconds(1))
 
             assertFalse("silenced", app.ringer.ringing)
             scenario.onActivity {
@@ -246,6 +287,8 @@ class AlarmTest {
     fun `a newer alarm rings again, and turning the phone keeps it ringing`() {
         openAlarm(of = "Arzttermin").use { scenario ->
             scenario.moveToState(Lifecycle.State.CREATED)
+            wait(Duration.ofSeconds(3))
+            assertFalse("silenced", app.ringer.ringing)
             app.routine("Tabletten", "07:45", fullScreen = true)
             goOffAt("2026-10-23T07:45")
 
@@ -290,6 +333,9 @@ class AlarmTest {
         runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.dueAt.toLocalTime().toString() to it.status } }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
+
+    /** Lets [duration] go by on the main thread, where the alarm keeps its time. */
+    private fun wait(duration: Duration) = shadowOf(Looper.getMainLooper()).idleFor(duration)
 
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(BERLIN).toInstant()
 

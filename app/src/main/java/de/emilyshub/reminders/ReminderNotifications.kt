@@ -42,7 +42,11 @@ class ReminderNotifications(private val context: Context) {
 
     private fun post(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean) {
         manager.createNotificationChannel(channel())
-        manager.notify(tagOf(reminder.occurrenceId), ID, notification(reminder, alert, offeringPutOff))
+        val notification = notification(reminder, alert, offeringPutOff)
+        // Android fills the screen for a notification posted, not reliably for one changed: a full-screen alarm
+        // coming again, at a follow-up for one, is posted anew.
+        if (notification.fullScreenIntent != null) manager.cancel(tagOf(reminder.occurrenceId), ID)
+        manager.notify(tagOf(reminder.occurrenceId), ID, notification)
     }
 
     private fun isOfferingPutOff(occurrenceId: Long) = manager.activeNotifications.any {
