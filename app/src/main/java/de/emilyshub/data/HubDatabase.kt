@@ -5,6 +5,9 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import de.emilyshub.places.Place
+import de.emilyshub.places.PlaceDao
+import de.emilyshub.places.PlaceWifi
 import de.emilyshub.routines.ChecklistItem
 import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.Occurrence
@@ -24,6 +27,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 @Database(
     entities = [
         Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class, Tag::class, RoutineTag::class,
+        Place::class, PlaceWifi::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -35,8 +39,10 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun tags(): TagDao
 
+    abstract fun places(): PlaceDao
+
     companion object {
-        const val VERSION = 9
+        const val VERSION = 10
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -48,7 +54,7 @@ abstract class HubDatabase : RoomDatabase() {
                 .openHelperFactory(SupportOpenHelperFactory(rawKey(key)))
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                 )
                 .build()
         }

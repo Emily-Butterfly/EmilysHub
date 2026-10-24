@@ -20,6 +20,9 @@
     <string name="settings_app_lock">App-Sperre</string>
     <string name="settings_app_lock_summary">Fingerabdruck oder Geräte-PIN beim Öffnen und nach 1 Minute im Hintergrund</string>
     <string name="settings_app_lock_needs_screen_lock">Richte zuerst in den Android-Einstellungen eine Displaysperre ein (PIN, Muster oder Passwort).</string>
+    <string name="settings_places">Orte</string>
+    <string name="places_manage">Orte verwalten</string>
+    <string name="places_manage_summary">WLANs, an denen EmilysHub erkennt, wo du bist</string>
     <string name="settings_tags">Tags</string>
 
     <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht.</string>
@@ -141,6 +144,36 @@
     <string name="app_lock_unlock">Entsperren</string>
     <string name="app_lock_prompt_title">EmilysHub entsperren</string>
 
+    <string name="places_title">Orte</string>
+    <string name="places_empty">Noch keine Orte.</string>
+    <string name="places_recognised_title">Aktuell erkannter Ort</string>
+    <string name="places_recognised">%1$s, über das WLAN „%2$s“</string>
+    <string name="places_recognised_unknown">Kein bekannter Ort – WLAN „%1$s“</string>
+    <string name="places_recognised_no_wifi">Kein WLAN verbunden</string>
+    <string name="place_create">Ort anlegen</string>
+    <string name="place_new">Neuer Ort</string>
+    <string name="place_edit">Ort bearbeiten</string>
+    <string name="place_name">Name</string>
+    <string name="place_name_missing">Bitte gib einen Namen ein.</string>
+    <string name="place_name_taken">Diesen Ort gibt es schon.</string>
+    <string name="place_wifis">WLANs</string>
+    <string name="place_wifis_missing">Ein Ort braucht mindestens ein WLAN.</string>
+    <string name="place_too_many_wifis">Höchstens %1$d WLANs pro Ort.</string>
+    <string name="place_wifi_take_current">Aktuelles WLAN übernehmen („%1$s“)</string>
+    <string name="place_wifi_none">Gerade mit keinem WLAN verbunden.</string>
+    <string name="place_wifi_typed">WLAN-Name (SSID)</string>
+    <string name="place_wifi_add">Hinzufügen</string>
+    <string name="place_wifi_remove">%1$s entfernen</string>
+    <string name="place_wifi_taken">Gehört schon zu „%1$s“</string>
+    <string name="place_wifi_too_long">Zu lang: höchstens %1$d Bytes, Umlaute zählen doppelt</string>
+    <string name="place_delete_title">Ort löschen?</string>
+    <string name="place_delete_text">„%1$s“ wird mit seinen WLANs gelöscht.</string>
+    <string name="wifi_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN zu erkennen: Die App merkt sich keinen Standort und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
+    <string name="wifi_access_allow">Erlauben</string>
+    <string name="wifi_access_settings">In den App-Einstellungen erlauben</string>
+    <string name="wifi_location_off_text">Der Standort ist ausgeschaltet. Android verrät den Namen des WLANs nur, wenn er an ist.</string>
+    <string name="wifi_location_off_open">Standort einschalten</string>
+
     <string name="tags_manage">Tags verwalten</string>
     <string name="tags_manage_summary">Anlegen, umbenennen und löschen</string>
     <string name="tags_title">Tags</string>
@@ -159,5 +192,5 @@
     <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
     <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
-    <string name="placeholder_settings">Orte, Statusseite und Backups folgen hier.</string>
+    <string name="placeholder_settings">Statusseite und Backups folgen hier.</string>
 </resources>

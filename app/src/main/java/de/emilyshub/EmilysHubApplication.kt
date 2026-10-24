@@ -4,6 +4,9 @@ import android.app.Application
 import android.util.Log
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.places.CurrentWifi
+import de.emilyshub.places.Places
+import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.Reminders
@@ -43,6 +46,11 @@ open class EmilysHubApplication : Application() {
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 
     open val tags: Tags by lazy { Tags({ database }) }
+
+    open val places: Places by lazy { Places({ database }) }
+
+    /** The WLAN connected to, by which the places are recognised. */
+    open val wifi: CurrentWifi by lazy { SystemWifi(this) }
 
     open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) { database.settings() } }
 

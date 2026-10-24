@@ -37,11 +37,16 @@ import de.emilyshub.R
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.places.CurrentWifi
+import de.emilyshub.places.Places
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.lock.LockScreen
+import de.emilyshub.ui.places.PlaceEditorScreen
+import de.emilyshub.ui.places.PlaceEditorTarget
+import de.emilyshub.ui.places.PlacesScreen
 import de.emilyshub.ui.reminders.ReminderPermissions
 import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
@@ -60,7 +65,15 @@ import kotlinx.coroutines.launch
  * the lock screen while the app is locked (SPEC.md §9).
  */
 @Composable
-fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuthenticator, routines: Routines, tags: Tags) {
+fun EmilysHubApp(
+    settings: AppSettings,
+    lock: AppLock,
+    authenticator: DeviceAuthenticator,
+    routines: Routines,
+    tags: Tags,
+    places: Places,
+    wifi: CurrentWifi,
+) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
 
@@ -80,6 +93,8 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
                 AppShell(
                     routines = routines,
                     tags = tags,
+                    places = places,
+                    wifi = wifi,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
                     onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
@@ -125,6 +140,8 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 private fun AppShell(
     routines: Routines,
     tags: Tags,
+    places: Places,
+    wifi: CurrentWifi,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
@@ -136,12 +153,29 @@ private fun AppShell(
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
+    var placesOpen by rememberSaveable { mutableStateOf(false) }
+    var placeEditor by rememberSaveable { mutableStateOf<PlaceEditorTarget?>(null) }
     // Here, so that it stays while a routine is open and while another tab shows.
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val editor = routineEditor
+    val openPlace = placeEditor
     when {
-        // Opened from the settings, it goes back there.
+        // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
+        openPlace != null -> {
+            BackHandler { placeEditor = null }
+            PlaceEditorScreen(places, wifi, openPlace, onClose = { placeEditor = null })
+        }
+        placesOpen -> {
+            BackHandler { placesOpen = false }
+            PlacesScreen(
+                places = places,
+                wifi = wifi,
+                onOpen = { placeEditor = PlaceEditorTarget.Edit(it) },
+                onCreate = { placeEditor = PlaceEditorTarget.New },
+                onBack = { placesOpen = false },
+            )
+        }
         tagsOpen -> {
             BackHandler { tagsOpen = false }
             TagsScreen(tags, onBack = { tagsOpen = false })
@@ -153,6 +187,7 @@ private fun AppShell(
                 canAuthenticate = canAuthenticate,
                 onDesignChange = onDesignChange,
                 onAppLockChange = onAppLockChange,
+                onOpenPlaces = { placesOpen = true },
                 onOpenTags = { tagsOpen = true },
                 onBack = { settingsOpen = false },
             )

@@ -19,6 +19,12 @@
          without it, a reminder comes as a normal notification. It vibrates like an alarm clock while it rings. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Places are recognised by the WLAN connected to (SPEC.md §4, §11). Android tells its name only with the precise
+         location allowed, which the app asks for only on the places screen. No Google Play Services. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- A full-screen alarm rings on in the background, like an alarm clock (SPEC.md §11). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />

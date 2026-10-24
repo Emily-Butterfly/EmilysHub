@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.places.Place
+import de.emilyshub.places.PlaceWifi
+import de.emilyshub.places.PlaceWithWifis
 import de.emilyshub.routines.ChecklistItem
 import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.FollowUps
@@ -229,6 +232,31 @@ class HubDatabaseMigrationTest {
             assertEquals(listOf(health), database.routines().tagIdsOf(3))
             database.routines().delete(3)
             assertEquals(emptyList<RoutineTag>(), database.routines().observeRoutineTags().first())
+        }
+    }
+
+    @Test
+    fun `version 9 moves to version 10 keeping each routine and its tags and with no places yet`() {
+        createAtVersion(9) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, follow_up_count, " +
+                    "follow_up_minutes, full_screen, window_hours, window_until_midnight, priority, status) " +
+                    "VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10, 1, 6, 0, 'high', 'active')",
+            )
+            it.execSQL("INSERT INTO tags (id, name) VALUES (4, 'Gesundheit')")
+            it.execSQL("INSERT INTO routine_tags (routine_id, tag_id) VALUES (3, 4)")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(listOf(4L), database.routines().tagIdsOf(3))
+            assertEquals(emptyList<PlaceWithWifis>(), database.places().all())
+
+            // A WLAN belongs to one place only, and a place deleted takes its WLANs along.
+            val home = database.places().insert(Place(name = "Zuhause"))
+            database.places().insertWifis(listOf(PlaceWifi(home, "FritzBox")))
+            assertEquals(listOf("FritzBox"), database.places().all().single().ssids)
+            database.places().delete(home)
+            assertEquals(emptyList<PlaceWithWifis>(), database.places().all())
         }
     }
 

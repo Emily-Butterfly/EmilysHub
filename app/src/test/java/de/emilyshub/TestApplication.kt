@@ -3,6 +3,8 @@ package de.emilyshub
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.places.FakeWifi
+import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
@@ -16,7 +18,8 @@ import java.time.ZoneId
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
- * background done on the spot too, a fake unlock prompt and a full-screen alarm that rings without a sound.
+ * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, and a WLAN
+ * the test connects to.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
@@ -29,6 +32,8 @@ class TestApplication : EmilysHubApplication() {
     private val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
+    override val places = Places({ testDatabase }, Dispatchers.Unconfined)
+    override val wifi = FakeWifi()
     override val reminders: Reminders by lazy { Reminders(this, routines, clock) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 

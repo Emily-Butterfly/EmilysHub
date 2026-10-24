@@ -48,6 +48,7 @@ fun SettingsScreen(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -76,6 +77,13 @@ fun SettingsScreen(
 
             SectionHeader(R.string.settings_security)
             AppLockSwitch(on = settings.appLockEnabled, canAuthenticate = canAuthenticate, onChange = onAppLockChange)
+
+            SectionHeader(R.string.settings_places)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.places_manage)) },
+                supportingContent = { Text(stringResource(R.string.places_manage_summary)) },
+                modifier = Modifier.clickable(onClick = onOpenPlaces),
+            )
 
             SectionHeader(R.string.settings_tags)
             ListItem(

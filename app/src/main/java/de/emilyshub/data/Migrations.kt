@@ -128,3 +128,16 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_tags_tag_id` ON `routine_tags` (`tag_id`)")
     }
 }
+
+/** Version 10: named places and the WLANs at which they are recognised (#13); there are none so far. */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `places` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `place_wifis` (`place_id` INTEGER NOT NULL, `ssid` TEXT NOT NULL, " +
+                "PRIMARY KEY(`place_id`, `ssid`), " +
+                "FOREIGN KEY(`place_id`) REFERENCES `places`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_place_wifis_ssid` ON `place_wifis` (`ssid`)")
+    }
+}
