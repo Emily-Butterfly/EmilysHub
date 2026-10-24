@@ -46,6 +46,7 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.routines.PriorityNote
+import de.emilyshub.ui.routines.priorityNameStyle
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -165,7 +166,7 @@ private fun DueRoutineRow(
             )
             Text(
                 text = routine.name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = priorityNameStyle(routine.priority),
                 textDecoration = if (done) TextDecoration.LineThrough else null,
             )
             PriorityNote(routine.priority)

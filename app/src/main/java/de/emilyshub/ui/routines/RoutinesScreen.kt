@@ -81,7 +81,7 @@ fun RoutinesScreen(
 @Composable
 private fun RoutineRow(routine: Routine, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(routine.name) },
+        headlineContent = { Text(routine.name, style = priorityNameStyle(routine.priority)) },
         supportingContent = {
             Column {
                 Text(scheduleText(routine))

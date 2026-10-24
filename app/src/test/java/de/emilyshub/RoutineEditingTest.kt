@@ -219,6 +219,19 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `the higher a routine's priority, the bolder its name in the list, and larger at high`() {
+        app.routine("Arzttermin", "09:00", priority = Priority.High)
+        app.routine("Blumen", "10:00", priority = Priority.Low)
+        app.routine("Vitamine", "07:30")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+
+            compose.assertNamesStandOutByPriority(low = "Blumen", normal = "Vitamine", high = "Arzttermin")
+        }
+    }
+
+    @Test
     fun `a routine can be caught up on for as many hours as chosen, by default four`() {
         launchApp().use {
             newRoutine("Tabletten")

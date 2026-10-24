@@ -94,6 +94,17 @@ class TodayTest {
     }
 
     @Test
+    fun `the higher a routine's priority, the bolder its name on Heute, and larger at high`() {
+        app.routine("Arzttermin", "09:00", priority = Priority.High)
+        app.routine("Blumen", "10:00", priority = Priority.Low)
+        app.routine("Vitamine", "07:30")
+
+        launchApp().use {
+            compose.assertNamesStandOutByPriority(low = "Blumen", normal = "Vitamine", high = "Arzttermin")
+        }
+    }
+
+    @Test
     fun `a routine's checklist shows on Heute, and ticking off all its items ticks the routine off`() {
         app.routine("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide"))
 
