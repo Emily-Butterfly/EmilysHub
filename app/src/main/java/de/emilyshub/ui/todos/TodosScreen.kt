@@ -43,20 +43,22 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.TodoWithDetails
 import de.emilyshub.todos.Todos
+import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.priorityNameStyle
+import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.ui.rememberNow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /**
- * The open to-dos (SPEC.md §5) in the [order] chosen, each with when it is due, its priority and tags; above them, the
- * choice of the order and, once there are tags, of one to show only the to-dos that have it. Ticked off, a to-do goes
- * to the archive, which can be undone right away. Tapping one opens it in the editor, "+" starts a new one. Below
- * them, the way to the archive, if anything is in it.
+ * The open to-dos (SPEC.md §5) in the [order] chosen, each with when it is due, its priority, tags and checklist; above
+ * them, the choice of the order and, once there are tags, of one to show only the to-dos that have it. Ticked off, or
+ * all of its checklist, a to-do goes to the archive, which can be undone right away. Tapping one opens it in the
+ * editor, "+" starts a new one. Below them, the way to the archive, if anything is in it.
  */
 @Composable
 fun TodosScreen(
@@ -78,9 +80,18 @@ fun TodosScreen(
     val filter = allTags.find { it.id == tagFilter }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val today = todos.today()
+    // Looked at anew each minute, so that a to-do turning overdue says so.
+    val now = rememberNow(todos::now)
+    val today = todos.dayOf(now)
     val doneMessage = stringResource(R.string.todo_done)
-    val undo = stringResource(R.string.undo)
+    val undoLabel = stringResource(R.string.undo)
+
+    /** Says that [title] is ticked off and gone to the archive, with the way to [undo] it. */
+    suspend fun offerUndo(title: String, undo: suspend () -> Unit) {
+        val result = snackbar.showSnackbar(doneMessage.format(title), actionLabel = undoLabel, duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) undo()
+    }
+
     val list = open
     Box(Modifier.fillMaxSize()) {
         when {
@@ -103,25 +114,32 @@ fun TodosScreen(
                     }
                 }
                 items(shown, key = { it.todo.id }) { details ->
-                    TodoRow(
-                        details = details,
-                        tagNames = allTags.filter { it.id in details.tagIds }.map(Tag::name),
-                        today = today,
-                        overdue = todos.isOverdue(details.todo),
-                        onTick = {
-                            val id = details.todo.id
-                            scope.launch {
-                                todos.markDone(id)
-                                val result = snackbar.showSnackbar(
-                                    doneMessage.format(details.todo.title),
-                                    actionLabel = undo,
-                                    duration = SnackbarDuration.Short,
-                                )
-                                if (result == SnackbarResult.ActionPerformed) todos.reopen(id)
+                    val todo = details.todo
+                    Column {
+                        TodoRow(
+                            details = details,
+                            tagNames = allTags.filter { it.id in details.tagIds }.map(Tag::name),
+                            today = today,
+                            overdue = todos.isOverdue(todo, now),
+                            onTick = {
+                                scope.launchNow {
+                                    todos.markDone(todo.id)
+                                    offerUndo(todo.title) { todos.reopen(todo.id) }
+                                }
+                            },
+                            onClick = { onOpen(todo.id) },
+                        )
+                        details.checklist().forEach { entry ->
+                            ChecklistRow(entry, tickable = true) { ticked ->
+                                scope.launchNow {
+                                    if (todos.tick(todo.id, entry.itemId, ticked)) {
+                                        // Unticking the item opens the to-do again, the rest of its checklist still ticked off.
+                                        offerUndo(todo.title) { todos.tick(todo.id, entry.itemId, ticked = false) }
+                                    }
+                                }
                             }
-                        },
-                        onClick = { onOpen(details.todo.id) },
-                    )
+                        }
+                    }
                 }
                 if (archivedCount > 0) {
                     item(key = "archive") {
@@ -178,7 +196,7 @@ private fun OrderChoice(order: TodoOrder, onChange: (TodoOrder) -> Unit) {
     }
 }
 
-/** A to-do with a box to tick it off, when it is due, said in red once it is overdue, its priority, tags and more. */
+/** A to-do with a box to tick it off, when it is due, said in red once it is overdue, its priority, tags and description. */
 @Composable
 private fun TodoRow(
     details: TodoWithDetails,
@@ -205,8 +223,6 @@ private fun TodoRow(
                     }
                 }
                 PriorityNote(todo.priority)
-                val items = details.checklistItems
-                if (items.isNotEmpty()) Text(stringResource(R.string.todo_checklist_progress, items.count { it.ticked }, items.size))
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))
                 if (todo.description.isNotEmpty()) Text(todo.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

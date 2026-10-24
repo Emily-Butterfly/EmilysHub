@@ -120,14 +120,14 @@ class TodosTest {
     }
 
     @Test
-    fun `with all its checklist ticked off, a to-do is done, and unticking one opens it again with the others ticked`() =
+    fun `with all its checklist ticked off, a to-do is done, which ticking says, and unticking one opens it again`() =
         runBlocking {
             val id = todos.create(TodoDraft("Umzug", checklist = items("Kartons", "Wagen")))
             val (boxes, van) = todos.checklist(id)
 
-            todos.tick(id, boxes.id, ticked = true)
+            assertEquals(false, todos.tick(id, boxes.id, ticked = true))
             assertEquals(null, todos.get(id)?.doneAt)
-            todos.tick(id, van.id, ticked = true)
+            assertEquals(true, todos.tick(id, van.id, ticked = true))
             assertEquals(clock.now, todos.get(id)?.doneAt)
 
             todos.tick(id, boxes.id, ticked = false)
@@ -150,18 +150,20 @@ class TodosTest {
     }
 
     @Test
-    fun `by due, the overdue and soonest first, a day before its times, those without last, then by priority and title`() =
+    fun `by due, the soonest due first, so the overdue ones at the top, a day after its times, then by priority and title`() =
         runBlocking {
             todos.create(TodoDraft("Ohne", priority = Priority.High))
             todos.create(TodoDraft("Morgen abends", due = Due.At(today.plusDays(1), LocalTime.of(20, 0))))
             todos.create(TodoDraft("Morgen", due = Due.On(today.plusDays(1))))
+            todos.create(TodoDraft("Heute", due = Due.On(today)))
+            todos.create(TodoDraft("Heute früh", due = Due.At(today, LocalTime.of(6, 30))))
             todos.create(TodoDraft("Gestern", due = Due.On(today.minusDays(1))))
             val tomorrowAtEight = Due.At(today.plusDays(1), LocalTime.of(8, 0))
             todos.create(TodoDraft("Morgen früh wichtig", due = tomorrowAtEight, priority = Priority.High))
             todos.create(TodoDraft("Morgen früh", due = tomorrowAtEight))
 
             assertEquals(
-                listOf("Gestern", "Morgen", "Morgen früh wichtig", "Morgen früh", "Morgen abends", "Ohne"),
+                listOf("Gestern", "Heute früh", "Heute", "Morgen früh wichtig", "Morgen früh", "Morgen abends", "Morgen", "Ohne"),
                 todos.open().first().sortedWith(TodoOrder.ByDue.comparator).map { it.todo.title },
             )
         }
@@ -194,7 +196,7 @@ class TodosTest {
         val doneToday = todos.create(TodoDraft("Heute erledigt", due = Due.On(today)))
         todos.markDone(doneToday)
 
-        val due = todos.dueOn(today).first().associate { it.title to (it.overdue to it.done) }
+        val due = todos.dueOn(today, clock.now).first().associate { it.title to (it.overdue to it.done) }
 
         assertEquals(
             mapOf(
@@ -209,16 +211,35 @@ class TodosTest {
     }
 
     @Test
+    fun `a to-do is overdue once the minute of its time is over, or its day, and only while it is open`() = runBlocking {
+        val doctor = todos.create(TodoDraft("Arzt", due = Due.At(today, LocalTime.of(9, 30))))
+        val bins = todos.create(TodoDraft("Müll", due = Due.On(today)))
+        suspend fun overdue(at: String) =
+            todos.open().first().filter { todos.isOverdue(it.todo, berlin(at)) }.map { it.todo.title }.sorted()
+
+        assertEquals(emptyList<String>(), overdue("2026-10-23T09:30:59"))
+        assertEquals(listOf("Arzt"), overdue("2026-10-23T09:31"))
+        assertEquals(listOf("Arzt"), overdue("2026-10-23T23:59:59"))
+        assertEquals(listOf("Arzt", "Müll"), overdue("2026-10-24T00:00"))
+        val onHeute = todos.dueOn(today, berlin("2026-10-23T09:31")).first().map { it.title to it.overdue }
+        assertEquals(setOf("Arzt" to true, "Müll" to false), onHeute.toSet())
+
+        todos.markDone(doctor)
+        todos.markDone(bins)
+        assertEquals(false, todos.dueOn(today, berlin("2026-10-24T00:00")).first().any { it.overdue })
+    }
+
+    @Test
     fun `a to-do on Heute shows its checklist, all ticked once it is done`() = runBlocking {
         val id = todos.create(
             TodoDraft("Umzug", due = Due.On(today), checklist = items("Kartons", "Wagen")),
         )
         val (boxes) = todos.checklist(id)
         todos.tick(id, boxes.id, ticked = true)
-        assertEquals(listOf(true, false), todos.dueOn(today).first().single().checklist.map(ChecklistEntry::ticked))
+        assertEquals(listOf(true, false), todos.dueOn(today, clock.now).first().single().checklist.map(ChecklistEntry::ticked))
 
         todos.markDone(id)
-        assertEquals(listOf(true, true), todos.dueOn(today).first().single().checklist.map(ChecklistEntry::ticked))
+        assertEquals(listOf(true, true), todos.dueOn(today, clock.now).first().single().checklist.map(ChecklistEntry::ticked))
     }
 
     @Test

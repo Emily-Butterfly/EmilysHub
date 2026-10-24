@@ -6,6 +6,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -13,6 +15,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -31,7 +34,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** The To-dos tab (SPEC.md §5): to-dos made and changed in the editor, ordered, filtered, and ticked off into the archive. */
@@ -91,6 +96,42 @@ class TodosScreenTest {
     }
 
     @Test
+    fun `switching how a to-do is due keeps the day and time chosen, and late in the evening the time starts tomorrow`() {
+        app.clock.now = berlin("2026-10-23T23:10")
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Müll")
+            option("Datum").tap()
+            compose.onNodeWithText("23.10.2026").performScrollTo().assertIsDisplayed()
+            option("Datum + Uhrzeit").tap()
+            compose.onNode(hasText("00:00") and hasClickAction()).tap()
+            typeTime(hour = "06", minute = "30")
+
+            option("Ohne").tap()
+            option("Datum + Uhrzeit").tap()
+            compose.onNode(hasText("06:30") and hasClickAction()).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf(Due.At(today, LocalTime.of(6, 30))), runBlocking { app.todos.open().first().map { it.todo.due } })
+    }
+
+    @Test
+    fun `a to-do due at a time starts out at the next full hour, at midnight of the next day late in the evening`() {
+        app.clock.now = berlin("2026-10-23T23:10")
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Müll")
+            option("Datum + Uhrzeit").tap()
+            compose.onNodeWithText("24.10.2026").performScrollTo().assertIsDisplayed()
+            compose.onNode(hasText("00:00") and hasClickAction()).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `a to-do needs a title before it is saved`() {
         launchApp().use {
             openTodos()
@@ -140,6 +181,41 @@ class TodosScreenTest {
             compose.onNodeWithContentDescription("„Steuer“ abhaken").assertIsDisplayed()
         }
         assertEquals(listOf("Steuer"), runBlocking { app.todos.open().first().map { it.todo.title } })
+    }
+
+    @Test
+    fun `a to-do's checklist is ticked off in the list, the last item ticking the to-do off, which can be undone right away`() {
+        app.todo("Umzug", checklist = listOf("Kartons", "Wagen"))
+
+        launchApp().use {
+            openTodos()
+            item("Kartons").performClick().assertIsOn()
+            compose.mainClock.autoAdvance = false
+            item("Wagen").performClick()
+            compose.mainClock.advanceTimeBy(SNACKBAR_SHOWS)
+            compose.onNodeWithText("„Umzug“ erledigt").assertIsDisplayed()
+            compose.onNodeWithText("Rückgängig").performClick()
+            compose.mainClock.autoAdvance = true
+
+            item("Kartons").assertIsOn()
+            item("Wagen").assertIsOff()
+        }
+        assertEquals(listOf("Umzug"), runBlocking { app.todos.open().first().map { it.todo.title } })
+    }
+
+    @Test
+    fun `a to-do turns overdue in the list while it shows`() {
+        app.todo("Arzt", due = Due.At(today, LocalTime.of(7, 30)))
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Fällig: heute, 07:30").assertIsDisplayed()
+
+            app.clock.now = berlin("2026-10-23T07:31")
+            compose.mainClock.advanceTimeBy(A_MINUTE)
+
+            compose.onNodeWithText("Überfällig: heute, 07:30").assertIsDisplayed()
+        }
     }
 
     @Test
@@ -215,6 +291,9 @@ class TodosScreenTest {
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 
+    /** An item of a to-do's checklist in the list. */
+    private fun item(text: String) = compose.onNode(isToggleable() and hasText(text))
+
     /** A chip of the tag filter, not the tags shown with a to-do. */
     private fun chip(label: String) =
         compose.onNode(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
@@ -232,8 +311,13 @@ class TodosScreenTest {
         compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
     }
 
+    private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(app.clock.timeZone).toInstant()
+
     private companion object {
         /** Long enough for the snackbar to come in, short of it going away again. */
         const val SNACKBAR_SHOWS = 1_000L
+
+        /** Long enough for the list to look at the clock again. */
+        const val A_MINUTE = 61_000L
     }
 }

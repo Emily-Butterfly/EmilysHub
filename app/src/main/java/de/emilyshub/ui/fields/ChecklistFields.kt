@@ -33,7 +33,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
         SectionTitle(stringResource(R.string.field_checklist))
         items.forEachIndexed { index, item ->
             val text = item.cleaned().text
-            val tooLong = InputText.lengthOf(text) > Checklists.ITEM_MAX
+            val tooLong = InputText.lengthOf(text) > Checklists.ITEM_LENGTH_MAX
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = item.text,
@@ -43,7 +43,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     isError = tooLong,
                     supportingText = if (tooLong) {
-                        { Text(stringResource(R.string.text_too_long, Checklists.ITEM_MAX)) }
+                        { Text(stringResource(R.string.text_too_long, Checklists.ITEM_LENGTH_MAX)) }
                     } else {
                         null
                     },

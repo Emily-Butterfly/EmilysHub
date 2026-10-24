@@ -8,6 +8,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
+/** The to-dos in the database, with their checklists and tags; [Todos] is the way to them. */
 @Dao
 interface TodoDao {
     @Transaction
@@ -32,6 +33,7 @@ interface TodoDao {
     @Query("SELECT * FROM todo_checklist_items WHERE todo_id = :todoId ORDER BY position")
     suspend fun checklist(todoId: Long): List<TodoChecklistItem>
 
+    /** Deletes the items of the to-do's checklist, but those [kept]. */
     @Query("DELETE FROM todo_checklist_items WHERE todo_id = :todoId AND id NOT IN (:kept)")
     suspend fun deleteChecklistItemsBut(todoId: Long, kept: Collection<Long>)
 

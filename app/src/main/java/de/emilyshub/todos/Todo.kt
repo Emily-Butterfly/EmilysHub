@@ -18,11 +18,16 @@ import java.time.LocalTime
 
 /** When a to-do is due (SPEC.md §5): not at all, on a day, or on a day at a time. */
 sealed interface Due : Serializable {
-    data object None : Due
+    /** The day it is due on, if any. */
+    val date: LocalDate?
 
-    data class On(val date: LocalDate) : Due
+    data object None : Due {
+        override val date: LocalDate? get() = null
+    }
 
-    data class At(val date: LocalDate, val time: LocalTime) : Due
+    data class On(override val date: LocalDate) : Due
+
+    data class At(override val date: LocalDate, val time: LocalTime) : Due
 }
 
 /**
@@ -40,6 +45,7 @@ data class Todo(
     val priority: Priority = Priority.Normal,
     @ColumnInfo(name = "done_at") val doneAt: Instant? = null,
 ) {
+    /** [dueDate] and [dueTime] as one. */
     val due: Due
         get() = when {
             dueDate == null -> Due.None
@@ -85,6 +91,7 @@ data class TodoWithDetails(
     @Relation(parentColumn = "id", entityColumn = "todo_id") val checklistItems: List<TodoChecklistItem>,
     @Relation(parentColumn = "id", entityColumn = "todo_id") val tags: List<TodoTag>,
 ) {
+    /** The ids of its tags, as the editor and the tag filter take them. */
     val tagIds: Set<Long> get() = tags.map { it.tagId }.toSet()
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
@@ -93,7 +100,7 @@ data class TodoWithDetails(
     }
 }
 
-/** A to-do on Heute: due by then, open or ticked off that day, [overdue] while still open past its time. */
+/** A to-do on Heute: due by then, open or ticked off that day, [overdue] while still open after its time. */
 data class DueTodo(
     val todoId: Long,
     val title: String,
@@ -107,8 +114,9 @@ data class DueTodo(
 /** How the To-dos list is ordered (SPEC.md §5): by when they are due, or by priority. */
 enum class TodoOrder(val comparator: Comparator<TodoWithDetails>) {
     /**
-     * The soonest first, overdue ones thus at the top, a day before its times, those due whenever last; at the same
-     * time, the higher priority first, then by title.
+     * The soonest due first, the overdue ones thus at the top: a day's to-dos with a time by it, then those due by the
+     * end of the day, without one; those due whenever last. Due at the same time, the higher priority first, then by
+     * title.
      */
     ByDue(byDue().thenByDescending { it.todo.priority }.thenBy(InputText.byName) { it.todo.title }),
 
@@ -117,4 +125,4 @@ enum class TodoOrder(val comparator: Comparator<TodoWithDetails>) {
 }
 
 private fun byDue(): Comparator<TodoWithDetails> =
-    compareBy<TodoWithDetails, LocalDate?>(nullsLast()) { it.todo.dueDate }.thenBy(nullsFirst()) { it.todo.dueTime }
+    compareBy<TodoWithDetails, LocalDate?>(nullsLast()) { it.todo.dueDate }.thenBy(nullsLast()) { it.todo.dueTime }

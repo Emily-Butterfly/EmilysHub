@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
-import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
@@ -49,12 +48,14 @@ import de.emilyshub.today.todayList
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.DueTodo
 import de.emilyshub.todos.Todos
+import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
 import kotlinx.coroutines.delay
@@ -68,9 +69,11 @@ import java.time.LocalDate
 @Composable
 fun TodayScreen(routines: Routines, todos: Todos, contentPadding: PaddingValues, onOpenStatus: () -> Unit) {
     val today = rememberToday(routines)
+    // Looked at anew each minute, so that a to-do turning overdue moves to the top.
+    val now = rememberNow(todos::now)
     val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
-    val dueTodos by remember(today) { todos.dueOn(today) }.collectAsState(initial = null)
-    val list = dueRoutines?.let { r -> dueTodos?.let { t -> todayList(r, t, today) } }
+    val dueTodos by remember(today, now) { todos.dueOn(today, now) }.collectAsState(initial = null)
+    val list = dueRoutines?.let { routinesDue -> dueTodos?.let { todosDue -> todayList(routinesDue, todosDue, today) } }
     when {
         list == null -> Unit
         list.isEmpty() -> Column(
@@ -274,26 +277,6 @@ private fun DueRoutineRow(
             OccurrenceStatus.Skipped -> TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
             OccurrenceStatus.Done, OccurrenceStatus.Missed -> Unit
         }
-    }
-}
-
-/** An item of the routine's checklist, under it: ticking off the last one ticks the routine off. */
-@Composable
-private fun ChecklistRow(entry: ChecklistEntry, tickable: Boolean, onTickedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .toggleable(value = entry.ticked, enabled = tickable, role = Role.Checkbox, onValueChange = onTickedChange)
-            .padding(start = 56.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = entry.ticked, onCheckedChange = null, enabled = tickable)
-        Text(
-            text = entry.text,
-            style = MaterialTheme.typography.bodyMedium,
-            textDecoration = if (entry.ticked) TextDecoration.LineThrough else null,
-            modifier = Modifier.padding(start = 16.dp),
-        )
     }
 }
 

@@ -1,12 +1,13 @@
 package de.emilyshub.todos
 
 import de.emilyshub.data.InputText
-import de.emilyshub.routines.Checklists
 import de.emilyshub.routines.ChecklistDraftItem
+import de.emilyshub.routines.Checklists
 import de.emilyshub.routines.Priority
 import java.io.Serializable
 import java.time.Instant
 
+/** What keeps a [TodoDraft] from being saved, each shown at its field in the editor. */
 enum class TodoProblem {
     TitleMissing,
     TitleTooLong,
@@ -38,7 +39,7 @@ data class TodoDraft(
                 if (InputText.lengthOf(title) > TITLE_MAX) add(TodoProblem.TitleTooLong)
                 if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(TodoProblem.DescriptionTooLong)
                 if (checklist.size > Checklists.ITEMS_MAX) add(TodoProblem.ChecklistTooLong)
-                if (checklist.any { InputText.lengthOf(it.text) > Checklists.ITEM_MAX }) add(TodoProblem.ChecklistItemTooLong)
+                if (checklist.any { InputText.lengthOf(it.text) > Checklists.ITEM_LENGTH_MAX }) add(TodoProblem.ChecklistItemTooLong)
             }
         }
 
@@ -50,14 +51,8 @@ data class TodoDraft(
     )
 
     /** The to-do this draft makes, [id] if it is saved already, ticked off [doneAt] then if it is. */
-    fun toTodo(id: Long = 0, doneAt: Instant? = null): Todo {
-        val (date, time) = when (val due = due) {
-            Due.None -> null to null
-            is Due.On -> due.date to null
-            is Due.At -> due.date to due.time
-        }
-        return Todo(id, title, description, date, time, priority, doneAt)
-    }
+    fun toTodo(id: Long = 0, doneAt: Instant? = null) =
+        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt)
 
     companion object {
         const val TITLE_MAX = 80

@@ -44,5 +44,5 @@ data class ChecklistEntry(val itemId: Long, val text: String, val ticked: Boolea
 /** How long a checklist of a routine or a to-do can be (SPEC.md §2, §5): how many items, of how many characters. */
 object Checklists {
     const val ITEMS_MAX = 20
-    const val ITEM_MAX = 80
+    const val ITEM_LENGTH_MAX = 80
 }

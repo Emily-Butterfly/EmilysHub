@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** The to-dos on Heute (SPEC.md §1, §5): those due today among the routines by time, the overdue ones at the top. */
@@ -88,6 +89,22 @@ class TodayTodosTest {
         assertEquals(listOf("Umzug"), runBlocking { app.todos.archived().first().map { it.title } })
     }
 
+    @Test
+    fun `a to-do turning overdue while Heute shows moves to the top, in red`() {
+        app.todo("Müll", due = Due.On(today))
+        app.todo("Arzt", due = Due.At(today, LocalTime.of(7, 30)))
+
+        launchApp().use {
+            assertEquals(listOf("Müll", "Arzt"), titles("Müll", "Arzt"))
+
+            app.clock.now = LocalDateTime.parse("2026-10-23T07:31").atZone(app.clock.timeZone).toInstant()
+            compose.mainClock.advanceTimeBy(A_MINUTE)
+
+            compose.onNodeWithText("To-do, überfällig: heute, 07:30").assertIsDisplayed()
+            assertEquals(listOf("Arzt", "Müll"), titles("Müll", "Arzt"))
+        }
+    }
+
     private fun row(name: String) = compose.onNode(isToggleable() and hasText(name))
 
     /** Of [names], those on Heute, in the order shown. */
@@ -95,5 +112,10 @@ class TodayTodosTest {
         val rows = compose.onAllNodes(isToggleable()).fetchSemanticsNodes()
             .map { node -> node.config[SemanticsProperties.Text].map { it.text } }
         return rows.mapNotNull { texts -> names.firstOrNull { it in texts } }
+    }
+
+    private companion object {
+        /** Long enough for Heute to look at the clock again. */
+        const val A_MINUTE = 61_000L
     }
 }

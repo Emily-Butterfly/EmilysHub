@@ -60,7 +60,7 @@ import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalDate
-import java.time.LocalTime
+import java.time.LocalDateTime
 
 /** Which to-do the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface TodoEditorTarget : Serializable {
@@ -179,7 +179,7 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, target: TodoEditorTarget, onClose
             DueFields(
                 due = draft.due,
                 today = todos.today(),
-                startTime = todos.nextFullHour(),
+                start = todos.nextFullHour(),
                 onChange = { draft = draft.copy(due = it) },
             )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
@@ -207,19 +207,22 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, target: TodoEditorTarget, onClose
 private enum class DueKind { None, On, At }
 
 /**
- * Whenever, on a day, or on a day at a time (SPEC.md §5). A day starts out [today], a time at [startTime]; switching
- * keeps the day and time chosen.
+ * Whenever, on a day, or on a day at a time (SPEC.md §5). A day starts out [today], a day with a time at the [start];
+ * switching back and forth keeps the day and time chosen.
  */
 @Composable
-private fun DueFields(due: Due, today: LocalDate, startTime: LocalTime, onChange: (Due) -> Unit) {
+private fun DueFields(due: Due, today: LocalDate, start: LocalDateTime, onChange: (Due) -> Unit) {
     var choosingDate by rememberSaveable { mutableStateOf(false) }
     var choosingTime by rememberSaveable { mutableStateOf(false) }
-    val date = when (due) {
-        Due.None -> today
-        is Due.On -> due.date
-        is Due.At -> due.date
+    // What was chosen last, also while due whenever.
+    var chosenDate by rememberSaveable { mutableStateOf(due.date) }
+    var chosenTime by rememberSaveable { mutableStateOf((due as? Due.At)?.time) }
+    val change = { changed: Due ->
+        changed.date?.let { chosenDate = it }
+        (changed as? Due.At)?.let { chosenTime = it.time }
+        onChange(changed)
     }
-    val time = (due as? Due.At)?.time ?: startTime
+    val date = due.date
     val kind = when (due) {
         Due.None -> DueKind.None
         is Due.On -> DueKind.On
@@ -232,11 +235,11 @@ private fun DueFields(due: Due, today: LocalDate, startTime: LocalTime, onChange
                 SegmentedButton(
                     selected = kind == choice,
                     onClick = {
-                        onChange(
+                        change(
                             when (choice) {
                                 DueKind.None -> Due.None
-                                DueKind.On -> Due.On(date)
-                                DueKind.At -> Due.At(date, time)
+                                DueKind.On -> Due.On(chosenDate ?: today)
+                                DueKind.At -> Due.At(chosenDate ?: start.toLocalDate(), chosenTime ?: start.toLocalTime())
                             },
                         )
                     },
@@ -255,7 +258,7 @@ private fun DueFields(due: Due, today: LocalDate, startTime: LocalTime, onChange
                 )
             }
         }
-        if (due != Due.None) DateValue(stringResource(R.string.todo_due_date), date, onClick = { choosingDate = true })
+        if (date != null) DateValue(stringResource(R.string.todo_due_date), date, onClick = { choosingDate = true })
         if (due is Due.At) {
             LabelledValue(
                 label = stringResource(R.string.todo_due_time),
@@ -269,23 +272,23 @@ private fun DueFields(due: Due, today: LocalDate, startTime: LocalTime, onChange
         }
     }
 
-    if (choosingDate) {
+    if (choosingDate && date != null) {
         DateDialog(
             initial = date,
             earliest = null,
             onConfirm = { picked ->
                 choosingDate = false
-                onChange(if (due is Due.At) due.copy(date = picked) else Due.On(picked))
+                change(if (due is Due.At) due.copy(date = picked) else Due.On(picked))
             },
             onDismiss = { choosingDate = false },
         )
     }
-    if (choosingTime) {
+    if (choosingTime && due is Due.At) {
         TimeDialog(
-            initial = time,
+            initial = due.time,
             onConfirm = { picked ->
                 choosingTime = false
-                onChange(Due.At(date, picked))
+                change(due.copy(time = picked))
             },
             onDismiss = { choosingTime = false },
         )

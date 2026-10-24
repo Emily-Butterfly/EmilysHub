@@ -16,7 +16,8 @@ import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -39,23 +40,22 @@ class Todos(
         observe { all -> all.map { it.todo }.filter { it.doneAt != null }.sortedByDescending { it.doneAt } }
 
     /**
-     * The to-dos on Heute of [date]: those due by then, still open or ticked off that day, each [DueTodo.overdue]
-     * while it is open past its day, or past its time on a day with one.
+     * The to-dos on Heute of [date]: those due by then, still open or ticked off that day, each [DueTodo.overdue] as
+     * [isOverdue] says at [now].
      */
-    fun dueOn(date: LocalDate): Flow<List<DueTodo>> = observe { all ->
-        val now = clock.instant()
+    fun dueOn(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
         all.filter { (todo) ->
             val due = todo.dueDate
             val done = todo.doneAt
             due != null && !due.isAfter(date) && (done == null || today(done, clock.zone) == date)
         }.map { details ->
             val todo = details.todo
-            val open = todo.doneAt == null
-            val overdue = open && isPast(todo.due, now)
-            DueTodo(todo.id, todo.title, todo.due, todo.priority, done = !open, overdue = overdue, details.checklist())
+            val overdue = isOverdue(todo, now)
+            DueTodo(todo.id, todo.title, todo.due, todo.priority, done = todo.doneAt != null, overdue, details.checklist())
         }
     }
 
+    /** The to-do, or null once it is deleted. */
     suspend fun get(id: Long): Todo? = withContext(io) { dao.get(id) }
 
     /** The to-do's checklist, in its order. */
@@ -95,8 +95,7 @@ class Todos(
      */
     suspend fun reopen(id: Long) = write {
         database().withTransaction {
-            val items = dao.checklist(id)
-            if (items.isNotEmpty() && items.all { it.ticked }) dao.setAllTicked(id, ticked = false)
+            if (dao.checklist(id).allTicked()) dao.setAllTicked(id, ticked = false)
             dao.setDoneAt(id, null)
         }
     }
@@ -105,13 +104,13 @@ class Todos(
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
     /**
-     * Ticks an item of the to-do's checklist off, or unticks it. With all of it ticked off, the to-do is done;
-     * unticking one of a to-do done opens it again, the others still ticked off.
+     * Ticks an item of the to-do's checklist off, or unticks it, and tells whether that ticked the to-do off: with all
+     * of it ticked off, the to-do is done. Unticking one of a to-do done opens it again, the others still ticked off.
      */
-    suspend fun tick(todoId: Long, itemId: Long, ticked: Boolean) = write {
+    suspend fun tick(todoId: Long, itemId: Long, ticked: Boolean): Boolean = write {
         database().withTransaction {
-            val todo = dao.get(todoId) ?: return@withTransaction
-            if (dao.checklist(todoId).none { it.id == itemId }) return@withTransaction
+            val todo = dao.get(todoId) ?: return@withTransaction false
+            if (dao.checklist(todoId).none { it.id == itemId }) return@withTransaction false
             val done = todo.doneAt != null
             when {
                 ticked && !done -> {
@@ -123,35 +122,42 @@ class Todos(
                     dao.setAllTicked(todoId, ticked = true)
                     dao.setTicked(itemId, ticked = false)
                     dao.setDoneAt(todoId, null)
+                    false
                 }
-                !ticked -> dao.setTicked(itemId, ticked = false)
+                !ticked -> {
+                    dao.setTicked(itemId, ticked = false)
+                    false
+                }
+                else -> false
             }
         }
     }
 
+    /** The time now, for what changes as time goes by: a to-do turning overdue. */
+    fun now(): Instant = clock.instant()
+
     /** The local date now; it changes at midnight in the phone's current time zone. */
-    fun today(): LocalDate = today(clock.instant(), clock.zone)
+    fun today(): LocalDate = dayOf(now())
 
     /** The local date of [moment], such as the day a to-do was ticked off. */
     fun dayOf(moment: Instant): LocalDate = today(moment, clock.zone)
 
-    /** The next full hour, for a time to start from: 08:00 at 07:10, and 23:00 late in the evening. */
-    fun nextFullHour(): LocalTime = LocalTime.of((clock.instant().atZone(clock.zone).hour + 1).coerceAtMost(LAST_HOUR), 0)
+    /** The next full hour, for a time due to start from: 08:00 at 07:10, and midnight of the next day at 23:10. */
+    fun nextFullHour(): LocalDateTime = LocalDateTime.now(clock).truncatedTo(ChronoUnit.HOURS).plusHours(1)
 
-    /** Whether [todo] is open past its day, or past its time on a day with one. */
-    fun isOverdue(todo: Todo): Boolean = todo.doneAt == null && isPast(todo.due, clock.instant())
-
-    /** Whether [due] has gone by at [now]: its day, or its time on the day. */
-    private fun isPast(due: Due, now: Instant): Boolean = when (due) {
-        Due.None -> false
-        is Due.On -> due.date.isBefore(today(now, clock.zone))
-        is Due.At -> dueAt(due.date, due.time, clock.zone).toInstant().isBefore(now)
+    /** Whether [todo] is open at [now] after it was due: after its day, or after the minute of its time. */
+    fun isOverdue(todo: Todo, now: Instant): Boolean {
+        val due = todo.due
+        return todo.doneAt == null && when (due) {
+            Due.None -> false
+            is Due.On -> due.date.isBefore(dayOf(now))
+            is Due.At -> !now.isBefore(dueAt(due.date, due.time, clock.zone).toInstant().plus(1, ChronoUnit.MINUTES))
+        }
     }
 
-    private suspend fun doneIfAllTicked(todoId: Long) {
-        val items = dao.checklist(todoId)
-        if (items.isNotEmpty() && items.all { it.ticked }) dao.setDoneAt(todoId, clock.instant())
-    }
+    /** Ticks the to-do off if all of its checklist is, and tells whether it did. */
+    private suspend fun doneIfAllTicked(todoId: Long): Boolean =
+        dao.checklist(todoId).allTicked().also { allTicked -> if (allTicked) dao.setDoneAt(todoId, clock.instant()) }
 
     /**
      * Saves the to-do's checklist as [items] has it, in that order: an item with the id of one saved changes it and
@@ -185,7 +191,6 @@ class Todos(
         return draft.cleaned()
     }
 
-    private companion object {
-        const val LAST_HOUR = 23
-    }
+    /** Whether there is a checklist and all of it is ticked off. */
+    private fun List<TodoChecklistItem>.allTicked() = isNotEmpty() && all { it.ticked }
 }

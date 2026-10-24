@@ -92,7 +92,7 @@ data class RoutineDraft(
         val INTERVAL_DAYS = 2..365
 
         const val CHECKLIST_MAX = Checklists.ITEMS_MAX
-        const val CHECKLIST_ITEM_MAX = Checklists.ITEM_MAX
+        const val CHECKLIST_ITEM_MAX = Checklists.ITEM_LENGTH_MAX
     }
 }
 
