@@ -1,6 +1,5 @@
 package de.emilyshub.ui.places
 
-import android.content.Context
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

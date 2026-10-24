@@ -1,4 +1,4 @@
-package de.emilyshub.ui.routines
+package de.emilyshub.ui.fields
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,7 @@ import de.emilyshub.ui.SectionTitle
 @Composable
 fun PriorityField(priority: Priority, onChange: (Priority) -> Unit) {
     Column {
-        SectionTitle(stringResource(R.string.routine_priority))
+        SectionTitle(stringResource(R.string.field_priority))
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Priority.entries.forEachIndexed { index, choice ->
                 SegmentedButton(

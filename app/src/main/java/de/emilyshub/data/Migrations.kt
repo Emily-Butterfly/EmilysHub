@@ -174,3 +174,26 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("ALTER TABLE `places` ADD COLUMN `area_radius` INTEGER")
     }
 }
+
+/** Version 14: the to-dos (#17), with their checklists and tags; none yet. */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `todos` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, " +
+                "`description` TEXT NOT NULL, `due_date` TEXT, `due_time` TEXT, `priority` TEXT NOT NULL, `done_at` TEXT)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `todo_checklist_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`todo_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `text` TEXT NOT NULL, `ticked` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`todo_id`) REFERENCES `todos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_checklist_items_todo_id` ON `todo_checklist_items` (`todo_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `todo_tags` (`todo_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`todo_id`, `tag_id`), " +
+                "FOREIGN KEY(`todo_id`) REFERENCES `todos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`tag_id`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_tags_tag_id` ON `todo_tags` (`tag_id`)")
+    }
+}

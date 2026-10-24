@@ -47,9 +47,9 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.fields.PriorityNote
+import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
-import de.emilyshub.ui.routines.PriorityNote
-import de.emilyshub.ui.routines.priorityNameStyle
 import de.emilyshub.ui.status.SetupWarning
 import kotlinx.coroutines.delay
 import java.time.LocalDate

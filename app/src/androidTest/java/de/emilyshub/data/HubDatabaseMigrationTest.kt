@@ -21,6 +21,9 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
+import de.emilyshub.todos.Todo
+import de.emilyshub.todos.TodoChecklistItem
+import de.emilyshub.todos.TodoWithDetails
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -317,6 +320,28 @@ class HubDatabaseMigrationTest {
             val gym = Area(Coordinates(52.520008, 13.404954), radius = 150)
             database.places().insert(Place(name = "Gym", area = gym))
             assertEquals(listOf(null, gym), database.places().all().map { it.area })
+        }
+    }
+
+    @Test
+    fun `version 13 moves to version 14 with no to-dos, which can then be saved with checklist and tags`() {
+        createAtVersion(13) {
+            it.execSQL("INSERT INTO tags (id, name) VALUES (1, 'Erledigungen')")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(emptyList<TodoWithDetails>(), database.todos().observeAll().first())
+
+            val id = database.todos().insert(Todo(title = "Steuer", description = "", dueDate = LocalDate.parse("2026-10-30")))
+            database.todos().insertChecklistItems(listOf(TodoChecklistItem(todoId = id, position = 0, text = "Belege")))
+            database.todos().tag(id, listOf(1L))
+            val saved = database.todos().observeAll().first().single()
+            assertEquals(listOf("Belege"), saved.checklistItems.map { it.text })
+            assertEquals(setOf(1L), saved.tagIds)
+
+            // A tag deleted is taken off the to-dos.
+            database.tags().delete(1)
+            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single().tagIds)
         }
     }
 

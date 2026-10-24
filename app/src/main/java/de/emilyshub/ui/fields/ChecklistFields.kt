@@ -1,10 +1,9 @@
-package de.emilyshub.ui.routines
+package de.emilyshub.ui.fields
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -24,17 +23,17 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.routines.ChecklistDraftItem
-import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.Checklists
 import de.emilyshub.ui.SectionTitle
 
-/** The checklist's sub-items in their order (SPEC.md §2): each can be changed or taken away, and more added. */
+/** The checklist's sub-items in their order (SPEC.md §2, §5): each can be changed or taken away, and more added. */
 @Composable
 fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDraftItem>) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle(stringResource(R.string.routine_checklist))
+        SectionTitle(stringResource(R.string.field_checklist))
         items.forEachIndexed { index, item ->
             val text = item.cleaned().text
-            val tooLong = InputText.lengthOf(text) > RoutineDraft.CHECKLIST_ITEM_MAX
+            val tooLong = InputText.lengthOf(text) > Checklists.ITEM_MAX
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = item.text,
@@ -44,7 +43,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     isError = tooLong,
                     supportingText = if (tooLong) {
-                        { Text(stringResource(R.string.text_too_long, RoutineDraft.CHECKLIST_ITEM_MAX)) }
+                        { Text(stringResource(R.string.text_too_long, Checklists.ITEM_MAX)) }
                     } else {
                         null
                     },
@@ -61,7 +60,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
                 }
             }
         }
-        if (items.size < RoutineDraft.CHECKLIST_MAX) {
+        if (items.size < Checklists.ITEMS_MAX) {
             TextButton(onClick = { onChange(items + ChecklistDraftItem(text = "")) }) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))

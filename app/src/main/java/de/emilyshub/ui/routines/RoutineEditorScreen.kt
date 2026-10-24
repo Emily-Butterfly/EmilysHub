@@ -3,7 +3,6 @@ package de.emilyshub.ui.routines
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +19,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -51,6 +48,10 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.routines.toDraft
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.fields.ChecklistFields
+import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.PriorityField
+import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalTime
@@ -234,27 +235,6 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: 
                 TextButton(onClick = { confirmingDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
-    }
-}
-
-/** How much of [max] is used up, or that it is exceeded. */
-@Composable
-private fun LengthHint(length: Int, max: Int) {
-    Text(
-        if (length > max) stringResource(R.string.text_too_long, max) else stringResource(R.string.text_length, length, max),
-    )
-}
-
-@Composable
-internal fun LabelledValue(label: String, value: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
     }
 }
 

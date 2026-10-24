@@ -91,12 +91,12 @@ data class RoutineDraft(
         /** Every day is "daily"; a year is the longest gap. */
         val INTERVAL_DAYS = 2..365
 
-        const val CHECKLIST_MAX = 20
-        const val CHECKLIST_ITEM_MAX = 80
+        const val CHECKLIST_MAX = Checklists.ITEMS_MAX
+        const val CHECKLIST_ITEM_MAX = Checklists.ITEM_MAX
     }
 }
 
-/** An item of a routine's checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. */
+/** An item of a checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. */
 data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable {
     /** On a single line, without surrounding spaces. */
     fun cleaned() = copy(text = InputText.singleLine(text))

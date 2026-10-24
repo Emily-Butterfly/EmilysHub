@@ -40,3 +40,9 @@ data class ChecklistTick(
 
 /** An item of the checklist on Heute: [ticked] off on this occurrence, or with all of it ticked off at once. */
 data class ChecklistEntry(val itemId: Long, val text: String, val ticked: Boolean)
+
+/** How long a checklist of a routine or a to-do can be (SPEC.md §2, §5): how many items, of how many characters. */
+object Checklists {
+    const val ITEMS_MAX = 20
+    const val ITEM_MAX = 80
+}

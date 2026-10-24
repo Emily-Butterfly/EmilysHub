@@ -1,4 +1,4 @@
-package de.emilyshub.ui.routines
+package de.emilyshub.ui.fields
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,7 +40,7 @@ fun TagsField(tags: Tags, selected: Set<Long>, onChange: (Set<Long>) -> Unit) {
     val currentOnChange by rememberUpdatedState(onChange)
 
     Column {
-        SectionTitle(stringResource(R.string.routine_tags))
+        SectionTitle(stringResource(R.string.field_tags))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             all.forEach { tag ->
                 val chosen = tag.id in selected

@@ -17,11 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,14 +26,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +42,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -64,14 +54,15 @@ import de.emilyshub.routines.TimeWindow
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.SystemSettings
 import de.emilyshub.ui.clockTime
-import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.fields.DateDialog
+import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.openSettings
 import de.emilyshub.ui.reminders.FullScreenAlarmPermission
 import java.io.Serializable
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.concurrent.TimeUnit
 
 /** Which time the time dialog sets. Serializable, so that an open dialog survives rotation and the lock. */
 private sealed interface TimeChoice : Serializable {
@@ -400,67 +391,6 @@ private fun Problem(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
 }
 
-@Composable
-private fun DateValue(label: String, date: LocalDate, onClick: () -> Unit) {
-    LabelledValue(
-        label = label,
-        value = date.numericDate(),
-        modifier = Modifier.clickable(
-            onClickLabel = stringResource(R.string.routine_date_change),
-            role = Role.Button,
-            onClick = onClick,
-        ),
-    )
-}
-
-/** Typing the time is quicker than a clock dial: four digits, always on the 24-hour clock. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDismiss: () -> Unit) {
-    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.routine_time_title)) },
-        text = { TimeInput(state) },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
-}
-
-/** A calendar to pick a day from, none before [earliest]. The picker counts days in UTC milliseconds. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateDialog(initial: LocalDate, earliest: LocalDate?, onConfirm: (LocalDate) -> Unit, onDismiss: () -> Unit) {
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = initial.utcMillis(),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) = earliest == null || !dateOf(utcTimeMillis).isBefore(earliest)
-        },
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = { state.selectedDateMillis?.let { onConfirm(dateOf(it)) } },
-            ) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    ) {
-        DatePicker(state)
-    }
-}
-
-private fun LocalDate.utcMillis() = toEpochDay() * DAY_MILLIS
-
-private fun dateOf(utcMillis: Long) = LocalDate.ofEpochDay(Math.floorDiv(utcMillis, DAY_MILLIS))
-
-private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
 private val WORKDAYS: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet()
 private const val DEFAULT_INTERVAL = 2
 private const val NUMBER_DIGITS = 3

@@ -1,19 +1,15 @@
 package de.emilyshub.ui.routines
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
@@ -36,10 +32,11 @@ import de.emilyshub.R
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
-import de.emilyshub.tags.Tag
 import de.emilyshub.tags.Tags
-import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.fields.PriorityNote
+import de.emilyshub.ui.fields.TagFilter
+import de.emilyshub.ui.fields.priorityNameStyle
 import kotlinx.coroutines.flow.map
 
 /**
@@ -107,23 +104,6 @@ fun RoutinesScreen(
                 .padding(16.dp),
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.routine_create))
-        }
-    }
-}
-
-/** "Alle", then each tag, by name: the one chosen shows only the routines that have it. */
-@Composable
-private fun TagFilter(tags: List<Tag>, chosen: Tag?, onChoose: (Tag?) -> Unit) {
-    Row(
-        modifier = Modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        ChoiceChip(stringResource(R.string.routines_filter_all), chosen = chosen == null, onClick = { onChoose(null) })
-        tags.forEach { tag ->
-            // Tapped again, it shows all of them again.
-            ChoiceChip(tag.name, chosen = tag == chosen, onClick = { onChoose(if (tag == chosen) null else tag) })
         }
     }
 }
