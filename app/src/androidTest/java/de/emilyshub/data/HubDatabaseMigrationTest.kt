@@ -4,11 +4,15 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.routines.ChecklistItem
+import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -168,6 +172,35 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val routine = database.routines().get(3)
             assertEquals(TimeWindow(hours = 4) to true, routine?.let { it.window to it.fullScreen })
+        }
+    }
+
+    @Test
+    fun `version 7 moves to version 8 keeping each routine active at normal priority and without a checklist`() {
+        createAtVersion(7) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, follow_up_count, " +
+                    "follow_up_minutes, full_screen, window_hours, window_until_midnight) " +
+                    "VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10, 1, 6, 0)",
+            )
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (9, 3, '2026-10-23', '08:00', 'done')")
+        }
+
+        withMigratedDatabase { database ->
+            val routine = database.routines().get(3)
+            assertEquals(
+                listOf(Priority.Normal, RoutineStatus.Active, TimeWindow(hours = 6)),
+                routine?.let { listOf(it.priority, it.status, it.window) },
+            )
+            assertEquals(emptyList<ChecklistItem>(), database.routines().checklist(3))
+
+            // The checklist belongs to the routine and its ticks to the occurrence: deleting the routine takes them along.
+            database.routines().insertChecklistItems(listOf(ChecklistItem(routineId = 3, position = 0, text = "Mit Wasser")))
+            val item = database.routines().checklist(3).single()
+            database.routines().insertTicks(listOf(ChecklistTick(occurrenceId = 9, itemId = item.id)))
+            assertEquals(listOf(item.id), database.routines().ticks(9))
+            database.routines().delete(3)
+            assertEquals(emptyList<Long>(), database.routines().ticks(9))
         }
     }
 

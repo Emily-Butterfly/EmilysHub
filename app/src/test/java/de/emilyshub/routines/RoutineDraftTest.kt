@@ -127,6 +127,28 @@ class RoutineDraftTest {
         assertEquals(TimeWindow(hours = 4, untilMidnight = true), untilMidnight.cleaned().window)
     }
 
+    @Test
+    fun `checklist items lose surrounding spaces and line breaks, and empty ones are left out`() {
+        val typed = listOf(
+            ChecklistDraftItem(text = "  Zahnseide\n "), ChecklistDraftItem(text = " "), ChecklistDraftItem(7, "Spülen"),
+        )
+        val draft = draft(checklist = typed)
+
+        assertEquals(emptySet<DraftProblem>(), draft.problems)
+        assertEquals(listOf(ChecklistDraftItem(text = "Zahnseide"), ChecklistDraftItem(7, "Spülen")), draft.cleaned().checklist)
+    }
+
+    @Test
+    fun `a checklist has up to 20 items of up to 80 characters each`() {
+        val twenty = (1..20).map { ChecklistDraftItem(text = "Punkt $it") }
+
+        assertEquals(emptySet<DraftProblem>(), draft(checklist = twenty).problems)
+        val tooMany = twenty + ChecklistDraftItem(text = "einer zu viel")
+        assertEquals(setOf(DraftProblem.ChecklistTooLong), draft(checklist = tooMany).problems)
+        val tooLong = ChecklistDraftItem(text = "a".repeat(81))
+        assertEquals(setOf(DraftProblem.ChecklistItemTooLong), draft(checklist = listOf(tooLong)).problems)
+    }
+
     private fun draft(
         name: String = "Zähne putzen",
         description: String = "",
@@ -134,5 +156,6 @@ class RoutineDraftTest {
         repetition: Repetition = Repetition.Daily,
         followUps: FollowUps = FollowUps(),
         window: TimeWindow = TimeWindow(),
-    ) = RoutineDraft(name, description, times, repetition, followUps, window = window)
+        checklist: List<ChecklistDraftItem> = emptyList(),
+    ) = RoutineDraft(name, description, times, repetition, followUps, window = window, checklist = checklist)
 }

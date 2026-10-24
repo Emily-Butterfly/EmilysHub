@@ -86,3 +86,27 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("ALTER TABLE `routines` ADD COLUMN `window_until_midnight` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * Version 8: a routine's priority, whether it is in use, and its checklist with what of it is ticked off on each
+ * occurrence (#11); every routine so far is active, of normal priority and without a checklist.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `priority` TEXT NOT NULL DEFAULT 'normal'")
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `status` TEXT NOT NULL DEFAULT 'active'")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `checklist_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`routine_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `text` TEXT NOT NULL, " +
+                "FOREIGN KEY(`routine_id`) REFERENCES `routines`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_checklist_items_routine_id` ON `checklist_items` (`routine_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `checklist_ticks` (`occurrence_id` INTEGER NOT NULL, `item_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`occurrence_id`, `item_id`), " +
+                "FOREIGN KEY(`occurrence_id`) REFERENCES `occurrences`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`item_id`) REFERENCES `checklist_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_checklist_ticks_item_id` ON `checklist_ticks` (`item_id`)")
+    }
+}

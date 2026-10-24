@@ -2,7 +2,9 @@ package de.emilyshub.data
 
 import androidx.room.TypeConverter
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
+import de.emilyshub.routines.RoutineStatus
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -58,6 +60,18 @@ class Converters {
             else -> error("Unknown repetition: $text")
         }
     }
+
+    @TypeConverter
+    fun fromPriority(priority: Priority): String = priority.stored
+
+    @TypeConverter
+    fun toPriority(text: String): Priority = Priority.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromRoutineStatus(status: RoutineStatus): String = status.stored
+
+    @TypeConverter
+    fun toRoutineStatus(text: String): RoutineStatus = RoutineStatus.entries.first { it.stored == text }
 
     @TypeConverter
     fun fromStatus(status: OccurrenceStatus): String = status.stored

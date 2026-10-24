@@ -394,6 +394,17 @@ class RemindersTest {
     }
 
     @Test
+    fun `pausing a routine takes its reminder away, and it is not reminded of while paused`() = runBlocking {
+        val pills = app.routine("Tabletten", "07:30")
+        goOffAt("2026-10-23T07:30")
+
+        app.routines.pause(pills)
+
+        assertEquals(emptyList<Notification>(), reminders())
+        assertEquals(emptyList<ShadowAlarmManager.ScheduledAlarm>(), shadowOf(alarmManager).scheduledAlarms)
+    }
+
+    @Test
     fun `a reminder on the screen follows a new name of its routine`() = runBlocking {
         val pills = app.routine("Tabletten", "07:30")
         goOffAt("2026-10-23T07:30")

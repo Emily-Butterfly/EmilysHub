@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.Priority
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -78,6 +79,32 @@ class TodayTest {
 
         launchApp().use {
             assertEquals(listOf("22:00 Lesen"), rows())
+        }
+    }
+
+    @Test
+    fun `a routine of high or low priority says so on Heute`() {
+        app.routine("Arzttermin", "09:00", priority = Priority.High)
+        app.routine("Blumen", "10:00", priority = Priority.Low)
+        app.routine("Vitamine", "07:30")
+
+        launchApp().use {
+            assertEquals(listOf("07:30 Vitamine", "09:00 Arzttermin Hohe Priorität", "10:00 Blumen Niedrige Priorität"), rows())
+        }
+    }
+
+    @Test
+    fun `a routine's checklist shows on Heute, and ticking off all its items ticks the routine off`() {
+        app.routine("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide"))
+
+        launchApp().use {
+            row("Putzen").performClick().assertIsOn()
+            row("Zähne").assertIsOff()
+
+            row("Zahnseide").performClick()
+
+            row("Zähne").assertIsOn()
+            assertEquals(listOf(OccurrenceStatus.Done), statuses())
         }
     }
 

@@ -24,8 +24,10 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.FollowUps
+import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -203,6 +205,20 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine's priority is normal unless chosen low or high, and shows in the list`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+            option("Normal").performScrollTo().assertIsSelected()
+
+            option("Hoch").tap()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Hohe Priorität").assertIsDisplayed()
+        }
+        assertEquals(Priority.High, savedRoutines().single().priority)
+    }
+
+    @Test
     fun `a routine can be caught up on for as many hours as chosen, by default four`() {
         launchApp().use {
             newRoutine("Tabletten")
@@ -316,6 +332,76 @@ class RoutineEditingTest {
 
             compose.onNodeWithText("Alle 3 Tage um 08:00 und 21:00").assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun `a routine can be paused and resumed from the editor, and the list says it is paused`() {
+        app.routine("Vitamine", "08:00")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Vitamine").performClick()
+            compose.onNodeWithContentDescription("Weitere Aktionen").performClick()
+            compose.onNodeWithText("Pausieren").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+            compose.onNodeWithText("Pausiert").assertIsDisplayed()
+
+            compose.onNodeWithText("Vitamine").performClick()
+            compose.onNodeWithContentDescription("Weitere Aktionen").performClick()
+            compose.onNodeWithText("Fortsetzen").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+            compose.onNodeWithText("Pausiert").assertDoesNotExist()
+        }
+        assertEquals(RoutineStatus.Active, savedRoutines().single().status)
+    }
+
+    @Test
+    fun `a routine archived from the editor leaves the list, and comes back from the archive`() {
+        app.routine("Vitamine", "08:00")
+        app.routine("Lesen", "21:00")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Vitamine").performClick()
+            compose.onNodeWithContentDescription("Weitere Aktionen").performClick()
+            compose.onNodeWithText("Archivieren").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+            compose.onNodeWithText("Vitamine").assertDoesNotExist()
+
+            compose.onNodeWithText("Archiv (1)").performClick()
+            heading("Archiv").assertIsDisplayed()
+            compose.onNodeWithText("Vitamine").assertIsDisplayed()
+            compose.onNodeWithText("Wiederherstellen").performClick()
+
+            compose.onNodeWithText("Nichts archiviert.").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Vitamine").assertIsDisplayed()
+            compose.onNodeWithText("Archiv", substring = true).assertDoesNotExist()
+        }
+        assertEquals(listOf(RoutineStatus.Active, RoutineStatus.Active), savedRoutines().map { it.status })
+    }
+
+    @Test
+    fun `a routine can have a checklist, with items added, changed and taken away`() {
+        launchApp().use {
+            newRoutine("Zähne")
+            compose.onNodeWithText("Unterpunkt hinzufügen").tap()
+            field("Unterpunkt").performTextInput("Putzen")
+            compose.onNodeWithText("Unterpunkt hinzufügen").tap()
+            compose.onAllNodes(hasSetTextAction() and hasText("Unterpunkt"))[1].performTextInput("Zahnseide")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+
+            compose.onNodeWithText("Zähne").performClick()
+            compose.onNodeWithContentDescription("Putzen entfernen").tap()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+        }
+        val zahne = savedRoutines().single()
+        assertEquals(listOf("Zahnseide"), runBlocking { app.routines.checklist(zahne.id) }.map { it.text })
     }
 
     @Test

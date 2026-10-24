@@ -35,6 +35,9 @@ data class Routine(
     @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
     /** How long each occurrence can be caught up on before it is missed. */
     @Embedded(prefix = "window_") val window: TimeWindow = TimeWindow(),
+    @ColumnInfo(defaultValue = "'normal'") val priority: Priority = Priority.Normal,
+    /** Only an active routine is planned and reminded of; what it has done, skipped or missed stays all the same. */
+    @ColumnInfo(defaultValue = "'active'") val status: RoutineStatus = RoutineStatus.Active,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
     fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
@@ -67,6 +70,13 @@ data class Routine(
         occurrence.status == OccurrenceStatus.Open &&
             !occurrence.reminderTime(zone).isAfter(now) &&
             !windowEnded(occurrence, now, zone)
+}
+
+/** Whether a routine is in use (SPEC.md §2, Status): paused for a while, or archived, out of the way. */
+enum class RoutineStatus(val stored: String) {
+    Active("active"),
+    Paused("paused"),
+    Archived("archived"),
 }
 
 /** How an occurrence ended (SPEC.md §2, Tracking); open until then. */
@@ -113,11 +123,13 @@ data class Reminder(
     val windowEnd: Instant,
 )
 
-/** An occurrence on the Heute list, with its routine's name and the moment it is due. */
+/** An occurrence on the Heute list, with its routine's name, the moment it is due, and its routine's checklist. */
 data class DueRoutine(
     val occurrenceId: Long,
     val routineId: Long,
     val name: String,
     val dueAt: ZonedDateTime,
     val status: OccurrenceStatus,
+    val priority: Priority,
+    val checklist: List<ChecklistEntry> = emptyList(),
 )

@@ -42,6 +42,7 @@ import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.reminders.ReminderPermissions
+import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
@@ -129,6 +130,7 @@ private fun AppShell(
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
+    var archiveOpen by rememberSaveable { mutableStateOf(false) }
 
     val editor = routineEditor
     when {
@@ -146,6 +148,10 @@ private fun AppShell(
             BackHandler { routineEditor = null }
             RoutineEditorScreen(routines, editor, onClose = { routineEditor = null })
         }
+        archiveOpen -> {
+            BackHandler { archiveOpen = false }
+            ArchiveScreen(routines, onBack = { archiveOpen = false })
+        }
         else -> {
             // Heute is the start screen: back from any other area returns there before leaving the app.
             BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
@@ -155,6 +161,7 @@ private fun AppShell(
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
                 onOpenRoutine = { routineEditor = it },
+                onOpenArchive = { archiveOpen = true },
             )
             if (!settings.remindersAsked) AskOnceThereIsARoutine(routines, onRemindersAsked)
         }
@@ -176,6 +183,7 @@ private fun TopLevelScaffold(
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenRoutine: (RoutineEditorTarget) -> Unit,
+    onOpenArchive: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -211,6 +219,7 @@ private fun TopLevelScaffold(
                 contentPadding = contentPadding,
                 onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
                 onCreate = { onOpenRoutine(RoutineEditorTarget.New) },
+                onOpenArchive = onOpenArchive,
             )
             TopLevelDestination.Todos -> PlaceholderScreen(stringResource(R.string.placeholder_todos), contentPadding)
             TopLevelDestination.Wishlist -> PlaceholderScreen(stringResource(R.string.placeholder_wishlist), contentPadding)

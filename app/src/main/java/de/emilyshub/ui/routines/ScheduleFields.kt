@@ -363,7 +363,7 @@ private fun NumberField(text: String, number: Int, range: IntRange, label: Strin
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,

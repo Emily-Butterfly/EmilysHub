@@ -1,6 +1,7 @@
 package de.emilyshub.ui.routines
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +13,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +45,7 @@ import de.emilyshub.R
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.routines.toDraft
 import de.emilyshub.ui.launchNow
@@ -71,6 +76,9 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+    // How the routine is in use; none for a new one.
+    var status by rememberSaveable { mutableStateOf<RoutineStatus?>(null) }
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
     // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -82,8 +90,9 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                draft = routine.toDraft()
+                draft = routine.toDraft(routines.checklist(routineId))
                 original = draft
+                status = routine.status
                 loaded = true
             }
         }
@@ -96,14 +105,20 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
     // Saving does not check this again, since the moment can pass in between.
     val rescheduled = original.let { it == null || it.times != cleaned.times || it.repetition != cleaned.repetition }
     val goneBy = rescheduled && !routines.comesDue(cleaned.times, cleaned.repetition)
+    // Does [work] and closes the editor, once: its changes not saved are dropped.
+    val closeWith = { work: suspend () -> Unit ->
+        if (!closing) {
+            closing = true
+            scope.launchNow { work() }
+            onClose()
+        }
+    }
     val save = {
         if (problems.isNotEmpty() || goneBy) {
             showMissingName = true
-        } else if (!closing) {
-            closing = true
+        } else {
             val saved = draft
-            scope.launchNow { if (routineId == null) routines.create(saved) else routines.update(routineId, saved) }
-            onClose()
+            closeWith { if (routineId == null) routines.create(saved) else routines.update(routineId, saved) }
         }
     }
 
@@ -128,6 +143,30 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                         }
                     }
                     TextButton(onClick = save) { Text(stringResource(R.string.save)) }
+                    if (routineId != null) {
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_actions))
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                val paused = status == RoutineStatus.Paused
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(if (paused) R.string.routine_resume else R.string.routine_pause)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        closeWith { if (paused) routines.resume(routineId) else routines.pause(routineId) }
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.routine_archive)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        closeWith { routines.archive(routineId) }
+                                    },
+                                )
+                            }
+                        }
+                    }
                 },
             )
         },
@@ -165,6 +204,8 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 supportingText = { LengthHint(RoutineDraft.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
+            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
@@ -180,13 +221,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             text = { Text(stringResource(R.string.routine_delete_text, cleaned.name)) },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        if (!closing) {
-                            closing = true
-                            scope.launchNow { routines.delete(routineId) }
-                            onClose()
-                        }
-                    },
+                    onClick = { closeWith { routines.delete(routineId) } },
                 ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {

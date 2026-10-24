@@ -478,6 +478,160 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a paused routine has no occurrences to come, its open ones go, while what was ticked off stays`() =
+        runBlocking {
+            val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+            routines.markDone(occurrenceAt("08:00"))
+            clock.now = noon
+
+            routines.pause(pills)
+
+            assertEquals(RoutineStatus.Paused, routines.get(pills)?.status)
+            assertEquals(listOf("08:00 Tabletten: Done"), dueOn(today))
+            assertEquals(emptyList<String>(), dueOn(today.plusDays(1)))
+        }
+
+    @Test
+    fun `a paused routine is not reminded of, and its paused days are not missed`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00"))
+        routines.pause(pills)
+        clock.now = berlin("2026-10-26T12:00")
+
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+
+        assertEquals(null, routines.nextAlarm(after = clock.now))
+        assertEquals(emptyList<String>(), (0L..3L).flatMap { dueOn(today.plusDays(it)) })
+    }
+
+    @Test
+    fun `a routine resumed is due again from then on, with nothing overdue`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        routines.pause(pills)
+        clock.now = berlin("2026-10-24T12:00")
+
+        routines.resume(pills)
+
+        assertEquals(RoutineStatus.Active, routines.get(pills)?.status)
+        assertEquals(listOf("20:00 Tabletten: Open"), dueOn(today.plusDays(1)))
+        assertEquals(berlin("2026-10-24T20:00"), routines.nextAlarm(after = clock.now))
+    }
+
+    @Test
+    fun `a routine resumed the same day is due again at its times still ahead`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        routines.markDone(occurrenceAt("08:00"))
+        clock.now = noon
+        routines.pause(pills)
+
+        routines.resume(pills)
+
+        assertEquals(listOf("08:00 Tabletten: Done", "20:00 Tabletten: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `an archived routine leaves the list and Heute, and once restored, what it had done is still there`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00", "20:00"))
+        routines.create(draft("Lesen", "21:00"))
+        routines.markDone(occurrenceAt("08:00") { it.name == "Tabletten" })
+        clock.now = noon
+
+        routines.archive(pills)
+
+        assertEquals(listOf("Lesen"), routines.all().first().map { it.name })
+        assertEquals(listOf("Tabletten"), routines.archived().first().map { it.name })
+        assertEquals(listOf("21:00 Lesen: Open"), dueOn(today))
+        assertEquals(listOf("21:00 Lesen: Open"), dueOn(today.plusDays(1)))
+
+        routines.restore(pills)
+
+        assertEquals(listOf("Tabletten", "Lesen"), routines.all().first().map { it.name })
+        assertEquals(emptyList<Routine>(), routines.archived().first())
+        assertEquals(listOf("08:00 Tabletten: Done", "20:00 Tabletten: Open", "21:00 Lesen: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a routine is saved with its checklist, whose items keep their ticks while it is changed`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide", "Spülen")))
+        val (brush, floss, rinse) = routines.checklist(teeth)
+        routines.tick(occurrenceAt("08:00"), brush.id, ticked = true)
+
+        val changed = listOf(
+            ChecklistDraftItem(rinse.id, "Mundspülung"), ChecklistDraftItem(brush.id, "Putzen"), ChecklistDraftItem(text = "Zunge"),
+        )
+        routines.update(teeth, draft("Zähne", "08:00").copy(checklist = changed))
+
+        assertEquals(listOf("Mundspülung", "Putzen", "Zunge"), routines.checklist(teeth).map { it.text })
+        assertEquals(listOf("Mundspülung" to false, "Putzen" to true, "Zunge" to false), checklistOn(today))
+        assertEquals(false, floss.id in routines.checklist(teeth).map { it.id })
+    }
+
+    @Test
+    fun `ticking off every item of its checklist ticks the routine off, and unticking one opens it again`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide")))
+        val (brush, floss) = routines.checklist(teeth)
+        val morning = occurrenceAt("08:00")
+
+        routines.tick(morning, brush.id, ticked = true)
+        assertEquals(listOf("08:00 Zähne: Open"), dueOn(today))
+        routines.tick(morning, floss.id, ticked = true)
+        assertEquals(listOf("08:00 Zähne: Done"), dueOn(today))
+
+        routines.tick(morning, brush.id, ticked = false)
+        assertEquals(listOf("08:00 Zähne: Open"), dueOn(today))
+        assertEquals(listOf("Putzen" to false, "Zahnseide" to true), checklistOn(today))
+    }
+
+    @Test
+    fun `a routine ticked off as a whole counts its checklist as ticked off, unticking an item leaves the others`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide")))
+        val (brush, _) = routines.checklist(teeth)
+        routines.markDone(occurrenceAt("08:00"))
+        assertEquals(listOf("Putzen" to true, "Zahnseide" to true), checklistOn(today))
+
+        routines.tick(occurrenceAt("08:00"), brush.id, ticked = false)
+
+        assertEquals(listOf("08:00 Zähne: Open"), dueOn(today))
+        assertEquals(listOf("Putzen" to false, "Zahnseide" to true), checklistOn(today))
+    }
+
+    @Test
+    fun `unticking a routine ticked off through its checklist unticks the checklist too`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide")))
+        routines.checklist(teeth).forEach { routines.tick(occurrenceAt("08:00"), it.id, ticked = true) }
+
+        routines.reopen(occurrenceAt("08:00"))
+
+        assertEquals(listOf("08:00 Zähne: Open"), dueOn(today))
+        assertEquals(listOf("Putzen" to false, "Zahnseide" to false), checklistOn(today))
+    }
+
+    @Test
+    fun `the checklist of a routine skipped or missed cannot be ticked`() = runBlocking {
+        val teeth = routines.create(draft("Zähne", "08:00", "20:00", checklist = listOf("Putzen")))
+        val (brush) = routines.checklist(teeth)
+        routines.skip(occurrenceAt("20:00"))
+        clock.now = berlin("2026-10-23T12:00")
+        routines.markMissed(since = clock.now)
+
+        routines.tick(occurrenceAt("08:00"), brush.id, ticked = true)
+        routines.tick(occurrenceAt("20:00"), brush.id, ticked = true)
+
+        assertEquals(listOf("08:00 Zähne: Missed", "20:00 Zähne: Skipped"), dueOn(today))
+        assertEquals(listOf("Putzen" to false, "Putzen" to false), checklistOn(today))
+    }
+
+    @Test
+    fun `a routine has normal priority unless it is given another, which changes with it`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00"))
+        assertEquals(Priority.Normal, routines.get(pills)?.priority)
+
+        routines.update(pills, draft("Tabletten", "08:00", priority = Priority.High))
+
+        assertEquals(Priority.High, routines.get(pills)?.priority)
+        assertEquals(listOf(Priority.High), routines.dueOn(today).first().map { it.priority })
+    }
+
+    @Test
     fun `an occurrence left open until its time window ends is missed, while those ticked off or skipped stay`() = runBlocking {
         routines.create(draft("Tabletten", "08:00", "09:00", "10:00", window = TimeWindow(hours = 2)))
         routines.markDone(occurrenceAt("08:00"))
@@ -608,7 +762,16 @@ class RoutinesTest {
         followUps: FollowUps = FollowUps(),
         fullScreen: Boolean = false,
         window: TimeWindow = TimeWindow(),
-    ) = RoutineDraft(name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window)
+        priority: Priority = Priority.Normal,
+        checklist: List<String> = emptyList(),
+    ) = RoutineDraft(
+        name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
+        checklist.map { ChecklistDraftItem(text = it) },
+    )
+
+    /** Each checklist item of the occurrences on Heute on [date], and whether it is ticked off there. */
+    private suspend fun checklistOn(date: LocalDate) =
+        routines.dueOn(date).first().flatMap { routine -> routine.checklist.map { it.text to it.ticked } }
 
     /** The routine's follow-ups, full-screen alarm and time window, as saved. */
     private suspend fun howItReminds(id: Long) = routines.get(id)?.let { Triple(it.followUps, it.fullScreen, it.window) }

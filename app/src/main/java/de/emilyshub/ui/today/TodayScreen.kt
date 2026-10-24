@@ -38,12 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
+import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.routines.PriorityNote
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -59,17 +61,26 @@ fun TodayScreen(routines: Routines, contentPadding: PaddingValues) {
         list.isEmpty() -> PlaceholderScreen(stringResource(R.string.today_empty), contentPadding)
         else -> LazyColumn(contentPadding = contentPadding) {
             items(list, key = { it.occurrenceId }) { routine ->
-                DueRoutineRow(
-                    routine = routine,
-                    fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
-                    onDoneChange = { done ->
-                        scope.launchNow {
-                            if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
+                Column {
+                    DueRoutineRow(
+                        routine = routine,
+                        fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
+                        onDoneChange = { done ->
+                            scope.launchNow {
+                                if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
+                            }
+                        },
+                        onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
+                        onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
+                    )
+                    // Skipped or missed, its checklist stays as it is.
+                    val tickable = routine.status == OccurrenceStatus.Open || routine.status == OccurrenceStatus.Done
+                    routine.checklist.forEach { entry ->
+                        ChecklistRow(entry, tickable) { ticked ->
+                            scope.launchNow { routines.tick(routine.occurrenceId, entry.itemId, ticked) }
                         }
-                    },
-                    onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
-                    onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
-                )
+                    }
+                }
             }
         }
     }
@@ -159,6 +170,7 @@ private fun DueRoutineRow(
                 style = MaterialTheme.typography.bodyLarge,
                 textDecoration = if (done) TextDecoration.LineThrough else null,
             )
+            PriorityNote(routine.priority)
             routine.status.label?.let { label ->
                 Text(
                     text = stringResource(label),
@@ -172,6 +184,26 @@ private fun DueRoutineRow(
             OccurrenceStatus.Skipped -> TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
             OccurrenceStatus.Done, OccurrenceStatus.Missed -> Unit
         }
+    }
+}
+
+/** An item of the routine's checklist, under it: ticking off the last one ticks the routine off. */
+@Composable
+private fun ChecklistRow(entry: ChecklistEntry, tickable: Boolean, onTickedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = entry.ticked, enabled = tickable, role = Role.Checkbox, onValueChange = onTickedChange)
+            .padding(start = 56.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = entry.ticked, onCheckedChange = null, enabled = tickable)
+        Text(
+            text = entry.text,
+            style = MaterialTheme.typography.bodyMedium,
+            textDecoration = if (entry.ticked) TextDecoration.LineThrough else null,
+            modifier = Modifier.padding(start = 16.dp),
+        )
     }
 }
 

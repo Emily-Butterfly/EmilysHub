@@ -19,13 +19,21 @@ data class OccurrenceOfRoutine(
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
 )
 
+/** An occurrence on Heute: with its routine, the routine's checklist, and what of it is ticked off on this occurrence. */
+data class OccurrenceWithChecklist(
+    @Embedded val occurrence: Occurrence,
+    @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
+    @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val checklist: List<ChecklistItem>,
+    @Relation(parentColumn = "id", entityColumn = "occurrence_id") val ticks: List<ChecklistTick>,
+)
+
 @Dao
 interface RoutineDao {
     @Query("SELECT * FROM routines")
     fun observeAll(): Flow<List<Routine>>
 
-    @Query("SELECT * FROM routines")
-    suspend fun getAll(): List<Routine>
+    @Query("SELECT * FROM routines WHERE status = :status")
+    suspend fun withStatus(status: RoutineStatus): List<Routine>
 
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun get(id: Long): Routine?
@@ -39,9 +47,24 @@ interface RoutineDao {
     @Query("DELETE FROM routines WHERE id = :id")
     suspend fun delete(id: Long)
 
-    /** The routines that have no occurrence on [date] yet. */
-    @Query("SELECT * FROM routines WHERE NOT EXISTS (SELECT 1 FROM occurrences WHERE routine_id = routines.id AND date = :date)")
-    suspend fun unplannedOn(date: LocalDate): List<Routine>
+    /** The routines [active] that have no occurrence on [date] yet. */
+    @Query(
+        """
+        SELECT * FROM routines
+        WHERE status = :active AND NOT EXISTS (SELECT 1 FROM occurrences WHERE routine_id = routines.id AND date = :date)
+        """,
+    )
+    suspend fun unplannedOn(date: LocalDate, active: RoutineStatus = RoutineStatus.Active): List<Routine>
+
+    @Query("UPDATE routines SET status = :status WHERE id = :id")
+    suspend fun setRoutineStatus(id: Long, status: RoutineStatus)
+
+    /** Makes the routine [active] again, planned from [from] on. */
+    @Query("UPDATE routines SET status = :active, planned_from = :from WHERE id = :id")
+    suspend fun reactivate(id: Long, from: Instant, active: RoutineStatus = RoutineStatus.Active)
+
+    @Query("DELETE FROM occurrences WHERE routine_id = :routineId AND status = :open")
+    suspend fun deleteOpenOccurrences(routineId: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertOccurrences(occurrences: List<Occurrence>)
@@ -95,8 +118,34 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET status = :status WHERE id IN (:ids)")
     suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus)
 
-    /** The occurrences from [from] to [to], each with its routine. */
+    /** The occurrences from [from] to [to], each with its routine and checklist. */
     @Transaction
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
-    fun observeOccurrencesWithRoutines(from: LocalDate, to: LocalDate): Flow<List<OccurrenceOfRoutine>>
+    fun observeOccurrencesWithRoutines(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
+
+    @Query("SELECT * FROM checklist_items WHERE routine_id = :routineId ORDER BY position")
+    suspend fun checklist(routineId: Long): List<ChecklistItem>
+
+    @Insert
+    suspend fun insertChecklistItems(items: List<ChecklistItem>)
+
+    @Update
+    suspend fun updateChecklistItems(items: List<ChecklistItem>)
+
+    /** Takes the routine's checklist items away, but those [kept]; with them go their ticks. */
+    @Query("DELETE FROM checklist_items WHERE routine_id = :routineId AND id NOT IN (:kept)")
+    suspend fun deleteChecklistItemsBut(routineId: Long, kept: Collection<Long>)
+
+    /** The checklist items ticked off on the occurrence. */
+    @Query("SELECT item_id FROM checklist_ticks WHERE occurrence_id = :occurrenceId")
+    suspend fun ticks(occurrenceId: Long): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTicks(ticks: List<ChecklistTick>)
+
+    @Query("DELETE FROM checklist_ticks WHERE occurrence_id = :occurrenceId AND item_id = :itemId")
+    suspend fun deleteTick(occurrenceId: Long, itemId: Long)
+
+    @Query("DELETE FROM checklist_ticks WHERE occurrence_id = :occurrenceId")
+    suspend fun deleteTicks(occurrenceId: Long)
 }
