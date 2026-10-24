@@ -17,6 +17,8 @@ import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
+import de.emilyshub.todos.Due
+import de.emilyshub.todos.TodoDraft
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import java.time.LocalTime
@@ -59,6 +61,18 @@ fun TestApplication.routine(
 fun TestApplication.place(name: String, vararg wifis: String, area: Area? = null): Long = runBlocking {
     val draft = PlaceDraft(name, wifis.toList())
     places.create(area?.let { draft.withCenter(it.center).copy(radius = it.radius) } ?: draft)
+}
+
+/** A to-do, open and [due] whenever unless given, set up before the test opens the app. */
+fun TestApplication.todo(
+    title: String,
+    due: Due = Due.None,
+    priority: Priority = Priority.Normal,
+    checklist: List<String> = emptyList(),
+    tags: Set<Long> = emptySet(),
+): Long = runBlocking {
+    val items = checklist.map { ChecklistDraftItem(text = it) }
+    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags))
 }
 
 /** A tag, set up before the test opens the app. */

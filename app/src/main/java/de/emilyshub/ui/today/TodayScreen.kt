@@ -44,6 +44,11 @@ import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
+import de.emilyshub.today.TodayEntry
+import de.emilyshub.today.todayList
+import de.emilyshub.todos.Due
+import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.Todos
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
@@ -51,19 +56,21 @@ import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.status.SetupWarning
+import de.emilyshub.ui.todos.dueText
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 /**
- * Today's routines in the order they are due, to tick off or skip (SPEC.md §1, Heute-Übersicht); above them, a warning
- * while something they need from Android is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]).
+ * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
+ * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
+ * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]).
  */
 @Composable
-fun TodayScreen(routines: Routines, contentPadding: PaddingValues, onOpenStatus: () -> Unit) {
+fun TodayScreen(routines: Routines, todos: Todos, contentPadding: PaddingValues, onOpenStatus: () -> Unit) {
     val today = rememberToday(routines)
-    val due by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
-    val scope = rememberCoroutineScope()
-    val list = due
+    val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
+    val dueTodos by remember(today) { todos.dueOn(today) }.collectAsState(initial = null)
+    val list = dueRoutines?.let { r -> dueTodos?.let { t -> todayList(r, t, today) } }
     when {
         list == null -> Unit
         list.isEmpty() -> Column(
@@ -76,29 +83,100 @@ fun TodayScreen(routines: Routines, contentPadding: PaddingValues, onOpenStatus:
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, onCheck = onOpenStatus) }
-            items(list, key = { it.occurrenceId }) { routine ->
-                Column {
-                    DueRoutineRow(
-                        routine = routine,
-                        fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
-                        onDoneChange = { done ->
-                            scope.launchNow {
-                                if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
-                            }
-                        },
-                        onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
-                        onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
-                    )
-                    routine.checklist.forEach { entry ->
-                        ChecklistRow(entry, tickable = routine.status.checklistTickable) { ticked ->
-                            scope.launchNow { routines.tick(routine.occurrenceId, entry.itemId, ticked) }
-                        }
-                    }
+            items(list, key = { it.key }) { entry ->
+                when (entry) {
+                    is TodayEntry.OfRoutine -> RoutineEntry(entry.routine, today, routines)
+                    is TodayEntry.OfTodo -> TodoEntry(entry.todo, today, todos)
                 }
             }
         }
     }
 }
+
+/** A routine's occurrence on Heute, with its checklist under it. */
+@Composable
+private fun RoutineEntry(routine: DueRoutine, today: LocalDate, routines: Routines) {
+    val scope = rememberCoroutineScope()
+    Column {
+        DueRoutineRow(
+            routine = routine,
+            fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
+            onDoneChange = { done ->
+                scope.launchNow {
+                    if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
+                }
+            },
+            onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
+            onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
+        )
+        routine.checklist.forEach { entry ->
+            ChecklistRow(entry, tickable = routine.status.checklistTickable) { ticked ->
+                scope.launchNow { routines.tick(routine.occurrenceId, entry.itemId, ticked) }
+            }
+        }
+    }
+}
+
+/** A to-do on Heute, with its checklist under it: ticked off, it is done and stays here, ticked, for the day. */
+@Composable
+private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos) {
+    val scope = rememberCoroutineScope()
+    Column {
+        DueTodoRow(
+            todo = todo,
+            today = today,
+            onDoneChange = { done -> scope.launchNow { if (done) todos.markDone(todo.todoId) else todos.reopen(todo.todoId) } },
+        )
+        todo.checklist.forEach { entry ->
+            ChecklistRow(entry, tickable = true) { ticked -> scope.launchNow { todos.tick(todo.todoId, entry.itemId, ticked) } }
+        }
+    }
+}
+
+/** A to-do's row on Heute: when it is due, in red while it is overdue, and its title, crossed out once done. */
+@Composable
+private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = todo.done, role = Role.Checkbox, onValueChange = onDoneChange)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = todo.done, onCheckedChange = null)
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(start = 16.dp),
+        ) {
+            val due = todo.due
+            val day = dueText(due, today).orEmpty()
+            Text(
+                text = when {
+                    todo.overdue -> stringResource(R.string.today_todo_overdue, day)
+                    due is Due.At && due.date == today -> stringResource(R.string.today_todo_at, due.time.clockTime())
+                    due is Due.On && due.date == today -> stringResource(R.string.today_todo)
+                    else -> stringResource(R.string.today_todo_due, day)
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = if (todo.overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = todo.title,
+                style = priorityNameStyle(todo.priority),
+                textDecoration = if (todo.done) TextDecoration.LineThrough else null,
+            )
+            PriorityNote(todo.priority)
+        }
+    }
+}
+
+/** Tells the entries of Heute apart, routines' occurrences from to-dos. */
+private val TodayEntry.key: String
+    get() = when (this) {
+        is TodayEntry.OfRoutine -> "routine:${routine.occurrenceId}"
+        is TodayEntry.OfTodo -> "todo:${todo.todoId}"
+    }
 
 /**
  * Today's date, kept current while the screen shows: at midnight, on return to the app, and when the

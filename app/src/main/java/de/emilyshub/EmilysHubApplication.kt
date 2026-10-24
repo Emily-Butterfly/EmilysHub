@@ -22,6 +22,7 @@ import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.Todos
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,8 @@ open class EmilysHubApplication : Application() {
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 
     open val tags: Tags by lazy { Tags({ database }) }
+
+    open val todos: Todos by lazy { Todos({ database }, DeviceClock) }
 
     open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 

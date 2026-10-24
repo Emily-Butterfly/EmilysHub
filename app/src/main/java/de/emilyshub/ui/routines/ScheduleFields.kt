@@ -82,7 +82,7 @@ fun TimesFields(times: List<LocalTime>, onChange: (List<LocalTime>) -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(
-                        onClickLabel = stringResource(R.string.routine_time_change),
+                        onClickLabel = stringResource(R.string.field_time_change),
                         role = Role.Button,
                         onClick = { choice = TimeChoice.Change(time) },
                     ),

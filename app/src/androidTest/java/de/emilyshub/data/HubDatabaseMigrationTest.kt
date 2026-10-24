@@ -324,7 +324,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 13 moves to version 14 with no to-dos, which can then be saved with checklist and tags`() {
+    fun `version 13 moves to version 14 with no to-dos that can then be saved with checklist and tags`() {
         createAtVersion(13) {
             it.execSQL("INSERT INTO tags (id, name) VALUES (1, 'Erledigungen')")
         }

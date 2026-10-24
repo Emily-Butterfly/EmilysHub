@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -131,6 +132,15 @@ class Todos(
     /** The local date now; it changes at midnight in the phone's current time zone. */
     fun today(): LocalDate = today(clock.instant(), clock.zone)
 
+    /** The local date of [moment], such as the day a to-do was ticked off. */
+    fun dayOf(moment: Instant): LocalDate = today(moment, clock.zone)
+
+    /** The next full hour, for a time to start from: 08:00 at 07:10, and 23:00 late in the evening. */
+    fun nextFullHour(): LocalTime = LocalTime.of((clock.instant().atZone(clock.zone).hour + 1).coerceAtMost(LAST_HOUR), 0)
+
+    /** Whether [todo] is open past its day, or past its time on a day with one. */
+    fun isOverdue(todo: Todo): Boolean = todo.doneAt == null && isPast(todo.due, clock.instant())
+
     /** Whether [due] has gone by at [now]: its day, or its time on the day. */
     private fun isPast(due: Due, now: Instant): Boolean = when (due) {
         Due.None -> false
@@ -173,5 +183,9 @@ class Todos(
     private fun checked(draft: TodoDraft): TodoDraft {
         require(draft.problems.isEmpty()) { "Invalid to-do: ${draft.problems}" }
         return draft.cleaned()
+    }
+
+    private companion object {
+        const val LAST_HOUR = 23
     }
 }

@@ -12,6 +12,7 @@ import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.Todos
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -34,6 +35,7 @@ class TestApplication : EmilysHubApplication() {
     private val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
+    override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined)
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wifi = FakeWifi()
     override val location = FakeLocation()

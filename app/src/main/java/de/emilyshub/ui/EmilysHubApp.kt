@@ -44,6 +44,8 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.TodoOrder
+import de.emilyshub.todos.Todos
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.places.PlaceEditorScreen
 import de.emilyshub.ui.places.PlaceEditorTarget
@@ -59,6 +61,10 @@ import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.TodayScreen
+import de.emilyshub.ui.todos.TodoArchiveScreen
+import de.emilyshub.ui.todos.TodoEditorScreen
+import de.emilyshub.ui.todos.TodoEditorTarget
+import de.emilyshub.ui.todos.TodosScreen
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -72,6 +78,7 @@ fun EmilysHubApp(
     lock: AppLock,
     authenticator: DeviceAuthenticator,
     routines: Routines,
+    todos: Todos,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -96,6 +103,7 @@ fun EmilysHubApp(
             lockedAwayState.SaveableStateProvider("content") {
                 AppShell(
                     routines = routines,
+                    todos = todos,
                     tags = tags,
                     places = places,
                     wifi = wifi,
@@ -145,6 +153,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 @Composable
 private fun AppShell(
     routines: Routines,
+    todos: Todos,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -163,13 +172,27 @@ private fun AppShell(
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var statusOpen by rememberSaveable { mutableStateOf(false) }
+    var todoEditor by rememberSaveable { mutableStateOf<TodoEditorTarget?>(null) }
+    var todoArchiveOpen by rememberSaveable { mutableStateOf(false) }
+    // Here, so that they stay while a to-do is open and while another tab shows.
+    var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
+    var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var placeEditor by rememberSaveable { mutableStateOf<PlaceEditorTarget?>(null) }
     // Here, so that it stays while a routine is open and while another tab shows.
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val editor = routineEditor
     val placeTarget = placeEditor
+    val todoTarget = todoEditor
     when {
+        todoTarget != null -> {
+            BackHandler { todoEditor = null }
+            TodoEditorScreen(todos, tags, todoTarget, onClose = { todoEditor = null })
+        }
+        todoArchiveOpen -> {
+            BackHandler { todoArchiveOpen = false }
+            TodoArchiveScreen(todos, onBack = { todoArchiveOpen = false })
+        }
         // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
         placeTarget != null -> {
             BackHandler { placeEditor = null }
@@ -220,9 +243,16 @@ private fun AppShell(
             BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
             TopLevelScaffold(
                 routines = routines,
+                todos = todos,
                 tags = tags,
                 routineTagFilter = routineTagFilter,
                 onRoutineTagFilterChange = { routineTagFilter = it },
+                todoOrder = todoOrder,
+                onTodoOrderChange = { todoOrder = it },
+                todoTagFilter = todoTagFilter,
+                onTodoTagFilterChange = { todoTagFilter = it },
+                onOpenTodo = { todoEditor = it },
+                onOpenTodoArchive = { todoArchiveOpen = true },
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -246,9 +276,16 @@ private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
 @Composable
 private fun TopLevelScaffold(
     routines: Routines,
+    todos: Todos,
     tags: Tags,
     routineTagFilter: Long?,
     onRoutineTagFilterChange: (Long?) -> Unit,
+    todoOrder: TodoOrder,
+    onTodoOrderChange: (TodoOrder) -> Unit,
+    todoTagFilter: Long?,
+    onTodoTagFilterChange: (Long?) -> Unit,
+    onOpenTodo: (TodoEditorTarget) -> Unit,
+    onOpenTodoArchive: () -> Unit,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -284,7 +321,7 @@ private fun TopLevelScaffold(
     ) { contentPadding ->
         // Each later slice swaps its placeholder for the real screen.
         when (current) {
-            TopLevelDestination.Today -> TodayScreen(routines, contentPadding, onOpenStatus)
+            TopLevelDestination.Today -> TodayScreen(routines, todos, contentPadding, onOpenStatus)
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = routines,
                 tags = tags,
@@ -295,7 +332,18 @@ private fun TopLevelScaffold(
                 onCreate = { onOpenRoutine(RoutineEditorTarget.New) },
                 onOpenArchive = onOpenArchive,
             )
-            TopLevelDestination.Todos -> PlaceholderScreen(stringResource(R.string.placeholder_todos), contentPadding)
+            TopLevelDestination.Todos -> TodosScreen(
+                todos = todos,
+                tags = tags,
+                order = todoOrder,
+                onOrderChange = onTodoOrderChange,
+                tagFilter = todoTagFilter,
+                onTagFilterChange = onTodoTagFilterChange,
+                contentPadding = contentPadding,
+                onOpen = { onOpenTodo(TodoEditorTarget.Edit(it)) },
+                onCreate = { onOpenTodo(TodoEditorTarget.New) },
+                onOpenArchive = onOpenTodoArchive,
+            )
             TopLevelDestination.Wishlist -> PlaceholderScreen(stringResource(R.string.placeholder_wishlist), contentPadding)
             TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)
         }

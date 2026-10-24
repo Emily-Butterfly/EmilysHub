@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +31,7 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.priorityNameStyle
@@ -124,17 +122,5 @@ private fun RoutineRow(routine: Routine, tagNames: List<String>, onClick: () -> 
             }
         },
         modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-/** Room below the last routine, so that the "+" button never covers it. */
-@Composable
-private fun PaddingValues.plusFabSpace(): PaddingValues {
-    val direction = LocalLayoutDirection.current
-    return PaddingValues(
-        start = calculateStartPadding(direction),
-        top = calculateTopPadding(),
-        end = calculateEndPadding(direction),
-        bottom = calculateBottomPadding() + 88.dp,
     )
 }
