@@ -161,8 +161,12 @@ private fun Probe(onProbe: () -> Unit, shows: Boolean) {
             },
         ) { Text(stringResource(R.string.checkup_probe, seconds)) }
         if (sent) {
-            val said = if (shows) stringResource(R.string.checkup_probe_sent, seconds) else stringResource(R.string.checkup_probe_not_shown)
-            Hint(said)
+            Hint(
+                when {
+                    shows -> stringResource(R.string.checkup_probe_sent, seconds)
+                    else -> stringResource(R.string.checkup_probe_not_shown)
+                },
+            )
         }
     }
 }
