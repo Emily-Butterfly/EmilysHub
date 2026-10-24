@@ -123,6 +123,9 @@
 
     <string name="alarm_unlock">Entsperren</string>
     <string name="alarm_close">Schließen</string>
+    <string name="alarm_ringing">Alarm klingelt</string>
+    <string name="alarm_ringing_channel">Klingelnder Alarm</string>
+    <string name="alarm_silence">Stumm</string>
 
     <string name="reminders_notifications_title">Erinnerungen erlauben?</string>
     <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen.\n\nDamit auf dem Sperrbildschirm nur „Erinnerung fällig“ steht, stelle in den Android-Einstellungen ein, dass er die Inhalte von Benachrichtigungen ausblendet.</string>

@@ -23,6 +23,7 @@ class ReminderReceiver : BroadcastReceiver() {
             ACTION_OFFER_PUT_OFF -> occurrence?.let { suspend { app.reminders.offerPutOff(it) } }
             ACTION_PUT_OFF -> putOffBy?.let { by -> occurrence?.let { suspend { app.reminders.putOff(it, by) } } }
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
+            ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             else -> null
         }
         if (work != null) finishInBackground(app, work)
@@ -38,6 +39,9 @@ class ReminderReceiver : BroadcastReceiver() {
         /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"
         const val ACTION_SKIP = "de.emilyshub.action.SKIP"
+
+        /** "Stumm" while an alarm rings: it stops ringing, its reminders stay. */
+        const val ACTION_SILENCE = "de.emilyshub.action.SILENCE"
         const val EXTRA_MINUTES = "minutes"
     }
 }

@@ -32,9 +32,11 @@ import java.time.Duration
  * only says "Erinnerung fällig"; once it is unlocked, it shows the routine with its actions. A newer alarm
  * comes first; once a reminder is answered, here or anywhere else, the alarm shows the next one still due,
  * or goes away. It shows no more than the reminder does, so it is not behind the app lock, and its time on
- * the screen is not time in the app. Not exported: only the reminder's full-screen intent opens it.
+ * the screen is not time in the app. Not exported: only the reminder opens it, with its full-screen intent or when
+ * it is tapped.
  *
- * Like an alarm clock, it rings and keeps the screen on when an alarm comes, for at most [RING_LIMIT].
+ * Like an alarm clock, it rings and keeps the screen on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
+ * by a tap on the reminder, it only rings on if the alarm rings already in the background ([AlarmRingService]).
  * Answering the reminder, here or anywhere else, closing the alarm or leaving it for longer than
  * [LEAVE_GRACE], say with the power button or for a call, silences it until the next alarm.
  */
@@ -74,8 +76,11 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ContextCompat.registerReceiver(this, userPresent, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         queue = savedInstanceState?.getLongArray(QUEUE)?.toList() ?: listOfNotNull(intent.occurrenceId())
         showFirst()
-        if (queue.isNotEmpty()) {
-            if (savedInstanceState == null) ring() else ring(until = savedInstanceState.getLong(RING_UNTIL))
+        when {
+            queue.isEmpty() -> Unit
+            savedInstanceState == null -> if (intent.rings()) ring()
+            // Turned while it rang: it rings on, for as long as it had left.
+            savedInstanceState.getLong(RING_UNTIL) > 0 -> ring(until = savedInstanceState.getLong(RING_UNTIL))
         }
 
         setContent {
@@ -104,7 +109,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         val occurrenceId = intent.occurrenceId() ?: return
         queue = listOf(occurrenceId) + (queue - occurrenceId)
         showFirst()
-        ring()
+        if (intent.rings()) ring()
     }
 
     override fun onStart() {
@@ -144,7 +149,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     }
 
     /** Rings and keeps the screen on [until] then, a time on [now]; not at all once that is past. */
-    private fun ring(until: Long = now() + RING_LIMIT.toMillis()) {
+    private fun ring(until: Long = now() + AlarmRinger.LIMIT.toMillis()) {
         ringLimit?.cancel()
         if (until <= now()) return silence()
         ringUntil = until
@@ -161,6 +166,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ringLimit = null
         ringUntil = 0
         app.ringer.stop()
+        // Heard here, the alarm rings no more in the background either.
+        AlarmRingService.silence(this)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
@@ -212,14 +219,27 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         app.background.launch { work(occurrenceId) }
     }
 
+    private fun Intent.rings() = getBooleanExtra(EXTRA_RING, true)
+
     private companion object {
         const val QUEUE = "queue"
         const val RING_UNTIL = "ring-until"
-
-        /** As long as an alarm clock rings before it goes quiet by itself. */
-        val RING_LIMIT: Duration = Duration.ofMinutes(10)
 
         /** Long enough for a phone to turn its screen on, short enough to silence the alarm with the power button. */
         val LEAVE_GRACE: Duration = Duration.ofSeconds(3)
     }
 }
+
+/**
+ * Opens the full-screen alarm of the occurrence: [ring]ing, as when it pops up, or only showing it, as when its
+ * reminder is tapped, where it rings on only if it already does.
+ */
+internal fun alarmIntent(context: Context, occurrenceId: Long, ring: Boolean): Intent =
+    Intent(context, AlarmActivity::class.java)
+        // Tells the two apart, so that each keeps its own extras.
+        .setIdentifier(if (ring) "occurrence:$occurrenceId" else "occurrence:$occurrenceId:open")
+        .putExtra(EXTRA_OCCURRENCE, occurrenceId)
+        .putExtra(EXTRA_RING, ring)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+private const val EXTRA_RING = "ring"

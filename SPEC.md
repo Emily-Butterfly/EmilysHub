@@ -195,7 +195,8 @@ Ausschließlich:
 - `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
 - `RECEIVE_BOOT_COMPLETED` (Alarme nach Neustart wiederherstellen)
 - `USE_BIOMETRIC`
-- `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_LOCATION` (nur falls für die Ortserkennung nötig)
+- `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (Vollbild-Alarm klingelt wie ein Wecker weiter, auch wenn Android bei benutztem Gerät nur die Benachrichtigung zeigt)
+- `FOREGROUND_SERVICE_LOCATION` (nur falls für die Ortserkennung nötig)
 
 - Abfrage **erst bei Bedarf**, jeweils mit deutscher Erklärung.
 - **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s.

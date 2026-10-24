@@ -19,6 +19,9 @@
          without it, a reminder comes as a normal notification. It vibrates like an alarm clock while it rings. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- A full-screen alarm rings on in the background, like an alarm clock (SPEC.md §11). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
 
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
@@ -45,13 +48,20 @@
         </activity>
 
         <!-- The full-screen alarm, in a task of its own that Recents leaves out; it shows over the lock screen.
-             Not exported (SPEC.md §9): only the reminder's full-screen intent opens it. -->
+             Not exported (SPEC.md §9): only the reminder opens it, with its full-screen intent or when tapped. -->
         <activity
             android:name=".reminders.AlarmActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
             android:taskAffinity="" />
+
+        <!-- Rings for a full-screen alarm also while Android shows only its reminder. Not exported (SPEC.md §9).
+             "systemExempted" is the type for alarm clocks, which may set exact alarms. -->
+        <service
+            android:name=".reminders.AlarmRingService"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted" />
 
         <!-- Not exported (SPEC.md §9): the app's own intents and the system's broadcasts still arrive. -->
         <receiver

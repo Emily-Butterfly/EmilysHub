@@ -9,14 +9,20 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import java.time.Duration
 
-/** What rings while a full-screen alarm is up. */
+/** What rings for a full-screen alarm, while it is up and in the background ([AlarmRingService]). */
 interface AlarmRinger {
     /** Rings until [stop]; while it rings already, it rings on. */
     fun start()
 
     /** Stops the ringing; while it is silent, it stays so. */
     fun stop()
+
+    companion object {
+        /** As long as an alarm clock rings before it goes quiet by itself. */
+        val LIMIT: Duration = Duration.ofMinutes(10)
+    }
 }
 
 /**

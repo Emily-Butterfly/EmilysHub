@@ -48,6 +48,8 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         // coming again, at a follow-up for one, is posted anew.
         if (notification.fullScreenIntent != null) manager.cancel(tagOf(reminder.occurrenceId), ID)
         manager.notify(tagOf(reminder.occurrenceId), ID, notification)
+        // While the phone or tablet is in use, Android shows only the reminder instead: it rings all the same.
+        if (notification.fullScreenIntent != null) AlarmRingService.ring(context, reminder.occurrenceId)
     }
 
     private fun isOfferingPutOff(occurrenceId: Long) = manager.activeNotifications.any {
@@ -101,8 +103,9 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(public)
-            .setContentIntent(openApp())
-            .apply { if (fullScreen) setFullScreenIntent(alarm(id), true) }
+            // Tapped, an alarm's reminder opens the alarm, as the reminder is all Android shows of it while in use.
+            .setContentIntent(if (alarm) alarm(id, ring = false) else openApp())
+            .apply { if (fullScreen) setFullScreenIntent(alarm(id, ring = true), true) }
             .setAutoCancel(true)
             .setOnlyAlertOnce(!alert)
             .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offering) })
@@ -124,12 +127,9 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             .build()
     }
 
-    /** The full-screen alarm for the occurrence; it is shown over the lock screen too. */
-    private fun alarm(occurrenceId: Long): PendingIntent {
-        val intent = Intent(context, AlarmActivity::class.java)
-            .setIdentifier(tagOf(occurrenceId))
-            .putExtra(EXTRA_OCCURRENCE, occurrenceId)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    /** The full-screen alarm for the occurrence, shown over the lock screen too, as [alarmIntent] has it. */
+    private fun alarm(occurrenceId: Long, ring: Boolean): PendingIntent {
+        val intent = alarmIntent(context, occurrenceId, ring)
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
