@@ -25,10 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -54,6 +51,8 @@ import kotlinx.coroutines.flow.map
 fun RoutinesScreen(
     routines: Routines,
     tags: Tags,
+    tagFilter: Long?,
+    onTagFilterChange: (Long?) -> Unit,
     contentPadding: PaddingValues,
     onOpen: (Long) -> Unit,
     onCreate: () -> Unit,
@@ -62,19 +61,19 @@ fun RoutinesScreen(
     val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
     val archivedCount by remember(routines) { routines.archived().map { it.size } }.collectAsState(initial = 0)
     val allTags by remember(tags) { tags.all() }.collectAsState(initial = emptyList())
-    val tagsByRoutine by remember(routines) { routines.tagsByRoutine() }.collectAsState(initial = emptyMap())
-    var filterId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val tagsByRoutine by remember(routines) { routines.tagIdsByRoutine() }.collectAsState(initial = emptyMap())
     // One deleted meanwhile no longer filters.
-    val filter = allTags.find { it.id == filterId }
-    val all = inUse
+    val filter = allTags.find { it.id == tagFilter }
+    val routinesInUse = inUse
     Box(Modifier.fillMaxSize()) {
         when {
-            all == null -> Unit
-            all.isEmpty() && archivedCount == 0 -> PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
+            routinesInUse == null -> Unit
+            routinesInUse.isEmpty() && archivedCount == 0 ->
+                PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
             else -> LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
-                val list = all.filter { filter == null || filter.id in tagsByRoutine[it.id].orEmpty() }
+                val list = routinesInUse.filter { filter == null || filter.id in tagsByRoutine[it.id].orEmpty() }
                 if (allTags.isNotEmpty()) {
-                    item(key = "filter") { TagFilter(allTags, filter, onChoose = { filterId = it?.id }) }
+                    item(key = "filter") { TagFilter(allTags, filter, onChoose = { onTagFilterChange(it?.id) }) }
                 }
                 if (filter != null && list.isEmpty()) {
                     item(key = "none") {

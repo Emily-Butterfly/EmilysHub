@@ -50,6 +50,16 @@ class TagsTest {
     }
 
     @Test
+    fun `names that look the same are the same, whichever way their letters were typed`() = runBlocking {
+        // "Ä" as one character, and as "A" with a combining umlaut; a zero-width space in between.
+        val doctors = tags.create("A\u0308rzte")
+
+        assertEquals(listOf("\u00C4rzte"), names())
+        assertEquals(TagProblem.NameTaken, tagNameProblem("\u00C4rzte", listOf(Tag(doctors, "\u00C4rzte"))))
+        assertEquals(TagProblem.NameTaken, tagNameProblem("Ar\u200Bbeit", listOf(Tag(1, "Arbeit"))))
+    }
+
+    @Test
     fun `a tag can be renamed, also to its own name in other case, but not to the name of another`() = runBlocking {
         val work = tags.create("arbeit")
         tags.create("Sport")
@@ -69,13 +79,13 @@ class TagsTest {
         val work = tags.create("Arbeit")
         val sport = tags.create("Sport")
         val running = routines.create(
-            RoutineDraft("Joggen", description = "", listOf(LocalTime.of(7, 30)), Repetition.Daily, tags = setOf(work, sport)),
+            RoutineDraft("Joggen", description = "", listOf(LocalTime.of(7, 30)), Repetition.Daily, tagIds = setOf(work, sport)),
         )
 
         tags.delete(work)
 
         assertEquals(listOf("Sport"), names())
-        assertEquals(setOf(sport), routines.tagsOf(running))
+        assertEquals(setOf(sport), routines.tagIdsOf(running))
         assertEquals(listOf("Joggen"), routines.inUse().first().map { it.name })
     }
 

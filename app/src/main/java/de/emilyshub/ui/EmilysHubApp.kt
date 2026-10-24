@@ -40,13 +40,13 @@ import de.emilyshub.data.Settings
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
+import de.emilyshub.tags.Tags
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.reminders.ReminderPermissions
 import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
-import de.emilyshub.tags.Tags
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
@@ -136,6 +136,8 @@ private fun AppShell(
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
+    // Here, so that it stays while a routine is open and while another tab shows.
+    var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val editor = routineEditor
     when {
@@ -169,6 +171,8 @@ private fun AppShell(
             TopLevelScaffold(
                 routines = routines,
                 tags = tags,
+                routineTagFilter = routineTagFilter,
+                onRoutineTagFilterChange = { routineTagFilter = it },
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -192,6 +196,8 @@ private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
 private fun TopLevelScaffold(
     routines: Routines,
     tags: Tags,
+    routineTagFilter: Long?,
+    onRoutineTagFilterChange: (Long?) -> Unit,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -230,6 +236,8 @@ private fun TopLevelScaffold(
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = routines,
                 tags = tags,
+                tagFilter = routineTagFilter,
+                onTagFilterChange = onRoutineTagFilterChange,
                 contentPadding = contentPadding,
                 onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
                 onCreate = { onOpenRoutine(RoutineEditorTarget.New) },

@@ -54,7 +54,7 @@ class Routines(
         database().withTransaction {
             dao.insert(cleaned.toRoutine(plannedFrom = now())).also { id ->
                 saveChecklist(id, cleaned.checklist)
-                saveTags(id, cleaned.tags)
+                saveTags(id, cleaned.tagIds)
                 plan(today())
             }
         }
@@ -65,11 +65,11 @@ class Routines(
     /** The routine's checklist, in its order. */
     suspend fun checklist(routineId: Long): List<ChecklistItem> = withContext(io) { dao.checklist(routineId) }
 
-    /** The ids of the routine's tags (SPEC.md §8). */
-    suspend fun tagsOf(routineId: Long): Set<Long> = withContext(io) { dao.tagsOf(routineId).toSet() }
+    /** The routine's tags (SPEC.md §8). */
+    suspend fun tagIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.tagIdsOf(routineId).toSet() }
 
-    /** The ids of each tagged routine's tags, by the routine's id. */
-    fun tagsByRoutine(): Flow<Map<Long, Set<Long>>> = flow {
+    /** Each tagged routine's tags, by the routine's id. */
+    fun tagIdsByRoutine(): Flow<Map<Long, Set<Long>>> = flow {
         val byRoutine = dao.observeRoutineTags().map { all ->
             all.groupBy(RoutineTag::routineId, RoutineTag::tagId).mapValues { (_, tags) -> tags.toSet() }
         }
@@ -93,7 +93,7 @@ class Routines(
             val changed = changes.toRoutine(id, plannedFrom = if (rescheduled) now else routine.plannedFrom, routine.status)
             dao.update(changed)
             saveChecklist(id, changes.checklist)
-            saveTags(id, changes.tags)
+            saveTags(id, changes.tagIds)
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -300,7 +300,7 @@ class Routines(
     }
 
     private suspend fun saveTags(routineId: Long, tagIds: Set<Long>) {
-        dao.untag(routineId)
+        dao.untagAll(routineId)
         dao.tag(routineId, tagIds)
     }
 

@@ -669,11 +669,11 @@ class RoutinesTest {
         tags.delete(gone)
 
         val pills = routines.create(draft("Tabletten", "08:00", tags = setOf(health, gone)))
-        assertEquals(setOf(health), routines.tagsOf(pills))
+        assertEquals(setOf(health), routines.tagIdsOf(pills))
 
         routines.update(pills, draft("Tabletten", "08:00", tags = setOf(work, health)))
-        assertEquals(setOf(work, health), routines.tagsOf(pills))
-        assertEquals(mapOf(pills to setOf(work, health)), routines.tagsByRoutine().first())
+        assertEquals(setOf(work, health), routines.tagIdsOf(pills))
+        assertEquals(mapOf(pills to setOf(work, health)), routines.tagIdsByRoutine().first())
     }
 
     @Test

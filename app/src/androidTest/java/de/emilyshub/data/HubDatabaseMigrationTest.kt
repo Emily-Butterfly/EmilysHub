@@ -219,14 +219,14 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val routine = database.routines().get(3)
             assertEquals(listOf(Priority.High, RoutineStatus.Paused), routine?.let { listOf(it.priority, it.status) })
-            assertEquals(emptyList<Long>(), database.routines().tagsOf(3))
+            assertEquals(emptyList<Long>(), database.routines().tagIdsOf(3))
 
             // A tag deleted is taken off the routine, and a routine deleted takes its tags along.
             val work = database.tags().insert(Tag(name = "Arbeit"))
             val health = database.tags().insert(Tag(name = "Gesundheit"))
             database.routines().tag(3, listOf(work, health))
             database.tags().delete(work)
-            assertEquals(listOf(health), database.routines().tagsOf(3))
+            assertEquals(listOf(health), database.routines().tagIdsOf(3))
             database.routines().delete(3)
             assertEquals(emptyList<RoutineTag>(), database.routines().observeRoutineTags().first())
         }

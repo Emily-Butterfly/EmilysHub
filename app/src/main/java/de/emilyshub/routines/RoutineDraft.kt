@@ -36,8 +36,8 @@ data class RoutineDraft(
     val priority: Priority = Priority.Normal,
     /** Its sub-items ("Unterpunkte") in their order, ticked off one by one on each occurrence. */
     val checklist: List<ChecklistDraftItem> = emptyList(),
-    /** The ids of its tags; one deleted meanwhile is left out on saving. */
-    val tags: Set<Long> = emptySet(),
+    /** Its tags; one deleted meanwhile is left out on saving. */
+    val tagIds: Set<Long> = emptySet(),
 ) : Serializable {
 
     val problems: Set<DraftProblem>
@@ -100,8 +100,8 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
     fun cleaned() = copy(text = InputText.singleLine(text))
 }
 
-/** The routine with its [checklist] and [tags] as the editor starts out with it. */
-fun Routine.toDraft(checklist: List<ChecklistItem>, tags: Set<Long>) = RoutineDraft(
+/** The routine with its [checklist] and tags as the editor starts out with it. */
+fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tags,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds,
 )

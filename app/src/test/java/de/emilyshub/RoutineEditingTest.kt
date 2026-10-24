@@ -2,9 +2,9 @@ package de.emilyshub
 
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
-import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -425,17 +425,17 @@ class RoutineEditingTest {
 
         launchApp().use {
             newRoutine("Tabletten")
-            tagChip("Gesundheit").tap()
+            option("Gesundheit").tap()
             compose.onNodeWithText("Neuer Tag").tap()
-            compose.onNode(hasSetTextAction() and hasText("Name des Tags")).performTextInput("Morgens")
+            field("Name des Tags").performTextInput("Morgens")
             compose.onNodeWithText("Anlegen").performClick()
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Gesundheit · Morgens").assertIsDisplayed()
 
             compose.onNodeWithText("Tabletten").performClick()
-            tagChip("Gesundheit").performScrollTo().assertIsSelected()
-            tagChip("Arbeit").assertIsNotSelected()
+            option("Gesundheit").performScrollTo().assertIsSelected()
+            option("Arbeit").assertIsNotSelected()
         }
     }
 
@@ -448,17 +448,37 @@ class RoutineEditingTest {
 
         launchApp().use {
             tab("Routinen").performClick()
-            tagChip("Gesundheit").performClick()
+            option("Gesundheit").performClick()
 
             compose.onNodeWithText("Tabletten").assertIsDisplayed()
             compose.onNodeWithText("Lesen").assertDoesNotExist()
 
-            tagChip("Arbeit").performClick()
+            option("Arbeit").performClick()
             compose.onNodeWithText("Keine Routine mit dem Tag „Arbeit“.").assertIsDisplayed()
 
-            tagChip("Alle").performClick()
+            option("Alle").performClick()
             compose.onNodeWithText("Tabletten").assertIsDisplayed()
             compose.onNodeWithText("Lesen").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the tag filter stays while a routine is changed, and on return from another tab`() {
+        val health = app.tag("Gesundheit")
+        app.routine("Tabletten", "08:00", tags = setOf(health))
+        app.routine("Lesen", "21:00")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            option("Gesundheit").performClick()
+
+            compose.onNodeWithText("Tabletten").performClick()
+            compose.onNodeWithText("Speichern").performClick()
+            tab("Heute").performClick()
+            tab("Routinen").performClick()
+
+            option("Gesundheit").assertIsSelected()
+            compose.onNodeWithText("Lesen").assertDoesNotExist()
         }
     }
 
@@ -511,7 +531,6 @@ class RoutineEditingTest {
 
     private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
 
-    private fun tagChip(name: String) = compose.onNode(isSelectable() and hasText(name))
 
     private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
 

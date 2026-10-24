@@ -20,6 +20,7 @@
     <string name="settings_app_lock">App-Sperre</string>
     <string name="settings_app_lock_summary">Fingerabdruck oder Geräte-PIN beim Öffnen und nach 1 Minute im Hintergrund</string>
     <string name="settings_app_lock_needs_screen_lock">Richte zuerst in den Android-Einstellungen eine Displaysperre ein (PIN, Muster oder Passwort).</string>
+    <string name="settings_tags">Tags</string>
 
     <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht.</string>
     <string name="today_skip">Überspringen</string>
@@ -97,6 +98,9 @@
     <string name="archive_open">Archiv (%1$d)</string>
     <string name="archive_restore">Wiederherstellen</string>
     <string name="archive_empty">Nichts archiviert.</string>
+    <string name="routine_tags">Tags</string>
+    <string name="routines_filter_all">Alle</string>
+    <string name="routines_filter_empty">Keine Routine mit dem Tag „%1$s“.</string>
     <string name="routine_delete_title">Routine löschen?</string>
     <string name="routine_delete_text">„%1$s“ wird mit allem gelöscht, was du dazu abgehakt hast.</string>
     <string name="text_length">%1$d/%2$d</string>
@@ -134,10 +138,6 @@
     <string name="app_lock_unlock">Entsperren</string>
     <string name="app_lock_prompt_title">EmilysHub entsperren</string>
 
-    <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
-    <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
-    <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
-    <string name="settings_tags">Tags</string>
     <string name="tags_manage">Tags verwalten</string>
     <string name="tags_manage_summary">Anlegen, umbenennen und löschen</string>
     <string name="tags_title">Tags</string>
@@ -152,8 +152,9 @@
     <string name="tag_delete">%1$s löschen</string>
     <string name="tag_delete_title">Tag löschen?</string>
     <string name="tag_delete_text">„%1$s“ wird überall entfernt, wo er vergeben ist. Was ihn hat, bleibt.</string>
-    <string name="routine_tags">Tags</string>
-    <string name="routines_filter_all">Alle</string>
-    <string name="routines_filter_empty">Keine Routine mit dem Tag „%1$s“.</string>
+
+    <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
+    <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
+    <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
     <string name="placeholder_settings">Orte, Statusseite und Backups folgen hier.</string>
 </resources>

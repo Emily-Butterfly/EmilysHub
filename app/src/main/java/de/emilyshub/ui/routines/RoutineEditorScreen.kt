@@ -63,7 +63,8 @@ sealed interface RoutineEditorTarget : Serializable {
 
 /**
  * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on.
- * Leaving without saving drops the changes.
+ * Leaving without saving drops the changes; a tag made here ([TagsField]) is saved at once, like one made in the
+ * settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +93,7 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTar
             if (routine == null) {
                 onClose()
             } else {
-                draft = routine.toDraft(routines.checklist(routineId), routines.tagsOf(routineId))
+                draft = routine.toDraft(routines.checklist(routineId), routines.tagIdsOf(routineId))
                 original = draft
                 status = routine.status
                 loaded = true
@@ -208,7 +209,7 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTar
             )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
-            TagsField(tags, draft.tags, onChange = { draft = draft.copy(tags = it) })
+            TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })

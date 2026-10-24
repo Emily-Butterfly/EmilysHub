@@ -14,7 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import de.emilyshub.R
-import de.emilyshub.tags.TAG_NAME_MAX
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.TagProblem
 import de.emilyshub.tags.tagNameProblem
@@ -45,7 +44,7 @@ fun TagNameDialog(
                 isError = problem == TagProblem.NameTooLong || problem == TagProblem.NameTaken,
                 supportingText = when (problem) {
                     TagProblem.NameTooLong -> {
-                        { Text(stringResource(R.string.text_too_long, TAG_NAME_MAX)) }
+                        { Text(stringResource(R.string.text_too_long, Tag.NAME_MAX)) }
                     }
                     TagProblem.NameTaken -> {
                         { Text(stringResource(R.string.tag_name_taken)) }
