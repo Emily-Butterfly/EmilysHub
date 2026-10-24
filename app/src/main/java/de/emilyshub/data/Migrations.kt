@@ -141,3 +141,10 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_place_wifis_ssid` ON `place_wifis` (`ssid`)")
     }
 }
+
+/** Version 11: the same WLAN can be at several places (#13), such as "eduroam" at a university and at work. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_place_wifis_ssid`")
+    }
+}

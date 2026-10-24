@@ -159,12 +159,12 @@ private fun AppShell(
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val editor = routineEditor
-    val openPlace = placeEditor
+    val placeTarget = placeEditor
     when {
         // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
-        openPlace != null -> {
+        placeTarget != null -> {
             BackHandler { placeEditor = null }
-            PlaceEditorScreen(places, wifi, openPlace, onClose = { placeEditor = null })
+            PlaceEditorScreen(places, wifi, placeTarget, onClose = { placeEditor = null })
         }
         placesOpen -> {
             BackHandler { placesOpen = false }

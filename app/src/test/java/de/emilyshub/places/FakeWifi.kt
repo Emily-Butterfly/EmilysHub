@@ -5,13 +5,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The WLAN the test says the device is connected to; none to begin with. */
 class FakeWifi : CurrentWifi {
-    private val current = MutableStateFlow<String?>(null)
+    private val wifi = MutableStateFlow<Wifi>(Wifi.None)
 
-    var ssid: String?
-        get() = current.value
+    var connected: Wifi
+        get() = wifi.value
         set(value) {
-            current.value = value
+            wifi.value = value
         }
 
-    override fun ssid(): Flow<String?> = current
+    /** Connected to the WLAN named so, or to none. */
+    var ssid: String?
+        get() = (connected as? Wifi.Named)?.ssid
+        set(value) {
+            connected = value?.let(Wifi::Named) ?: Wifi.None
+        }
+
+    override fun current(): Flow<Wifi> = wifi
 }

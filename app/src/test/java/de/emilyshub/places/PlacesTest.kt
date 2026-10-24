@@ -23,11 +23,11 @@ class PlacesTest {
     }
 
     @Test
-    fun `places are listed by name, each with its WLANs, empty and repeated ones left out`() = runBlocking {
-        places.create(PlaceDraft(" Zuhause ", listOf("FritzBox 7590", " ", "FritzBox 7590 ", "Gast")))
+    fun `places are listed by name, each with its WLANs as Android names them, empty and repeated ones left out`() = runBlocking {
+        places.create(PlaceDraft(" Zuhause ", listOf("FritzBox 7590", " ", "FritzBox 7590", "Gast ")))
         places.create(PlaceDraft("Arbeit", listOf("Firma")))
 
-        assertEquals(listOf("Arbeit" to listOf("Firma"), "Zuhause" to listOf("FritzBox 7590", "Gast")), listed())
+        assertEquals(listOf("Arbeit" to listOf("Firma"), "Zuhause" to listOf("FritzBox 7590", "Gast ")), listed())
     }
 
     @Test
@@ -53,8 +53,7 @@ class PlacesTest {
     }
 
     @Test
-    fun `a place has 1 to 10 WLANs, each with a name of up to 32 bytes that no other place has`() {
-        val work = PlaceWithWifis(Place(1, "Arbeit"), listOf(PlaceWifi(1, "Firma")))
+    fun `a place has 1 to 10 WLANs, each a name Android could give one, of up to 32 bytes`() {
         val ten = (1..10).map { "WLAN $it" }
 
         assertEquals(setOf(PlaceProblem.WifisMissing), PlaceDraft("Zuhause", listOf(" ")).problems(others = emptyList()))
@@ -62,9 +61,17 @@ class PlacesTest {
         assertEquals(setOf(PlaceProblem.TooManyWifis), PlaceDraft("Zuhause", ten + "WLAN 11").problems(others = emptyList()))
         // "ä" takes two bytes: 16 of them fit, 17 do not.
         assertEquals(emptySet<PlaceProblem>(), PlaceDraft("Zuhause", listOf("ä".repeat(16))).problems(others = emptyList()))
-        assertEquals(setOf(PlaceProblem.WifiTooLong), PlaceDraft("Zuhause", listOf("ä".repeat(17))).problems(others = emptyList()))
-        assertEquals(setOf(PlaceProblem.WifiTaken), PlaceDraft("Zuhause", listOf("Firma")).problems(listOf(work)))
-        assertEquals("Arbeit", PlaceDraft("Zuhause", listOf("Firma")).ownerOf("Firma", listOf(work))?.place?.name)
+        assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("ä".repeat(17))).problems(others = emptyList()))
+        assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("Fritz\u0007Box")).problems(others = emptyList()))
+        assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("\u200B")).problems(others = emptyList()))
+    }
+
+    @Test
+    fun `the same WLAN can be at several places, which are all where one is with it`() = runBlocking {
+        places.create(PlaceDraft("Uni", listOf("eduroam")))
+        places.create(PlaceDraft("Arbeit", listOf("eduroam", "Firma")))
+
+        assertEquals(listOf("Arbeit", "Uni"), places.all().first().placesOf(Wifi.Named("eduroam")).map { it.name })
     }
 
     @Test
@@ -74,7 +81,7 @@ class PlacesTest {
 
         places.update(home, PlaceDraft("zuhause", listOf("FritzBox")))
 
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { places.create(PlaceDraft("Gym", listOf("Firma"))) } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { places.create(PlaceDraft("Gym", listOf("\u0007"))) } }
         val takenName = PlaceDraft("Arbeit", listOf("FritzBox"))
         assertThrows(IllegalArgumentException::class.java) { runBlocking { places.update(home, takenName) } }
         assertEquals(listOf("Arbeit" to listOf("Firma"), "zuhause" to listOf("FritzBox")), listed())
@@ -86,21 +93,22 @@ class PlacesTest {
         places.create(PlaceDraft("Arbeit", listOf("Firma")))
         val all = places.all().first()
 
-        assertEquals("Zuhause", all.placeOf("Mesh")?.place?.name)
-        assertEquals(null, all.placeOf("mesh"))
-        assertEquals(null, all.placeOf("Café"))
-        assertEquals(null, all.placeOf(null))
+        assertEquals(listOf("Zuhause"), all.placesOf(Wifi.Named("Mesh")).map { it.name })
+        assertEquals(emptyList<String>(), all.placesOf(Wifi.Named("mesh")).map { it.name })
+        assertEquals(emptyList<String>(), all.placesOf(Wifi.Named("Café")).map { it.name })
+        assertEquals(emptyList<String>(), all.placesOf(Wifi.NameHidden).map { it.name })
+        assertEquals(emptyList<String>(), all.placesOf(Wifi.None).map { it.name })
     }
 
     @Test
     fun `the WLAN name Android reports loses its quotes, and is none while Android keeps it back`() {
-        assertEquals("FritzBox 7590", ssidOf("\"FritzBox 7590\""))
-        assertEquals(null, ssidOf("<unknown ssid>"))
-        assertEquals(null, ssidOf(null))
-        assertEquals(null, ssidOf("\"\""))
+        assertEquals("FritzBox 7590", Ssid.of("\"FritzBox 7590\""))
+        assertEquals(null, Ssid.of("<unknown ssid>"))
+        assertEquals(null, Ssid.of(null))
+        assertEquals(null, Ssid.of("\"\""))
         // A name that is no UTF-8 comes as hex digits, without quotes, and is taken as it is.
-        assertEquals("c8f6", ssidOf("c8f6"))
+        assertEquals("c8f6", Ssid.of("c8f6"))
     }
 
-    private suspend fun listed() = places.all().first().map { it.place.name to it.ssids }
+    private suspend fun listed() = places.all().first().map { it.name to it.ssids }
 }

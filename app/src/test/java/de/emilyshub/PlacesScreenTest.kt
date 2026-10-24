@@ -1,6 +1,7 @@
 package de.emilyshub
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.provider.Settings
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.places.Wifi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -80,22 +82,98 @@ class PlacesScreenTest {
     }
 
     @Test
-    fun `a WLAN that belongs to another place already says so, and the place is not saved`() {
-        app.place("Arbeit", "Firma")
+    fun `a WLAN at several places shows all of them as recognised`() {
+        allowLocation()
+        app.place("Uni", "eduroam")
+        app.place("Arbeit", "eduroam", "Firma")
+        app.wifi.ssid = "eduroam"
 
         launchApp().use {
             openPlaces()
-            compose.onNodeWithContentDescription("Ort anlegen").performClick()
-            field("Name").performTextInput("Büro")
-            field("WLAN-Name (SSID)").performTextInput("Firma")
-            compose.onNodeWithText("Hinzufügen").performScrollTo().performClick()
 
-            compose.onNodeWithText("Gehört schon zu „Arbeit“").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Speichern").performClick()
-            compose.onNodeWithText("Ort bearbeiten").assertDoesNotExist()
-            compose.onNodeWithText("Neuer Ort").assertIsDisplayed()
+            compose.onNodeWithText("Arbeit, Uni, über das WLAN „eduroam“").assertIsDisplayed()
         }
-        assertEquals(listOf("Arbeit" to listOf("Firma")), places())
+    }
+
+    @Test
+    fun `a WLAN name typed in is taken without surrounding spaces and as typed, where upper and lower case count`() {
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+            field("Name").performTextInput("Zuhause")
+            compose.onNodeWithText("Groß- und Kleinschreibung zählen").performScrollTo().assertIsDisplayed()
+            field("WLAN-Name (SSID)").performTextInput(" fritzBox ")
+            compose.onNodeWithText("Hinzufügen").performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf("Zuhause" to listOf("fritzBox")), places())
+    }
+
+    @Test
+    fun `with the location turned on in the quick settings, the place recognised shows at once`() {
+        allowLocation()
+        val locationManager = shadowOf(app.getSystemService(LocationManager::class.java))
+        locationManager.setLocationEnabled(false)
+        app.place("Zuhause", "FritzBox")
+        app.wifi.ssid = "FritzBox"
+
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithText("Der Standort ist ausgeschaltet", substring = true).assertIsDisplayed()
+
+            locationManager.setLocationEnabled(true)
+            app.sendBroadcast(Intent(LocationManager.MODE_CHANGED_ACTION))
+
+            compose.onNodeWithText("Zuhause, über das WLAN „FritzBox“").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `with only the approximate location allowed, the app asks for the precise one`() {
+        shadowOf(app).grantPermissions(COARSE)
+
+        launchApp().use { scenario ->
+            openPlaces()
+            compose.onNodeWithText("nur den ungefähren Standort", substring = true).assertIsDisplayed()
+
+            compose.onNodeWithText("Genauen Standort erlauben").performClick()
+
+            scenario.onActivity { activity ->
+                val request = checkNotNull(shadowOf(activity).lastRequestedPermission)
+                assertEquals(listOf(FINE, COARSE), request.requestedPermissions.toList())
+            }
+        }
+    }
+
+    @Test
+    fun `once the location was turned down for good, the app leads to its settings`() {
+        launchApp().use { scenario ->
+            openPlaces()
+            compose.onNodeWithText("Erlauben").performClick()
+            scenario.onActivity { activity ->
+                val request = checkNotNull(shadowOf(activity).lastRequestedPermission)
+                // Android asks no more and says so by no longer wanting the reason told.
+                shadowOf(app.packageManager).setShouldShowRequestPermissionRationale(FINE, false)
+                val denied = intArrayOf(PackageManager.PERMISSION_DENIED, PackageManager.PERMISSION_DENIED)
+                activity.onRequestPermissionsResult(request.requestCode, request.requestedPermissions, denied)
+            }
+
+            compose.onNodeWithText("In den App-Einstellungen erlauben").performClick()
+
+            assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, shadowOf(app).nextStartedActivity?.action)
+        }
+    }
+
+    @Test
+    fun `connected to a WLAN whose name Android keeps back, the place recognised says so`() {
+        allowLocation()
+        app.wifi.connected = Wifi.NameHidden
+
+        launchApp().use {
+            openPlaces()
+
+            compose.onNodeWithText("Android verrät gerade nicht, wie es heißt", substring = true).assertIsDisplayed()
+        }
     }
 
     @Test
@@ -179,7 +257,7 @@ class PlacesScreenTest {
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 
-    private fun places() = runBlocking { app.places.all().first().map { it.place.name to it.ssids } }
+    private fun places() = runBlocking { app.places.all().first().map { it.name to it.ssids } }
 
     private companion object {
         const val FINE = Manifest.permission.ACCESS_FINE_LOCATION

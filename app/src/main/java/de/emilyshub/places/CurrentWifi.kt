@@ -8,54 +8,54 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 
+/** The WLAN the device is connected to, as far as Android tells. */
+sealed interface Wifi {
+    /** No WLAN connected. */
+    data object None : Wifi
+
+    /**
+     * A WLAN connected whose name Android keeps back: it tells it only to apps allowed to see the precise location,
+     * and only while the location is on.
+     */
+    data object NameHidden : Wifi
+
+    data class Named(val ssid: String) : Wifi
+}
+
 /** The WLAN the device is connected to (SPEC.md §4). */
 interface CurrentWifi {
-    /**
-     * Its name (SSID) as it changes; none without a WLAN, or while Android keeps the name back: it tells it only to
-     * apps allowed to see the precise location, and only while the location is on.
-     */
-    fun ssid(): Flow<String?>
+    /** The WLAN connected to, as it changes. */
+    fun current(): Flow<Wifi>
 }
 
 /** Asks Android's own connectivity service, without Google Play Services (SPEC.md §4). */
 class SystemWifi(private val context: Context) : CurrentWifi {
-    override fun ssid(): Flow<String?> = callbackFlow {
+    override fun current(): Flow<Wifi> = callbackFlow {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
-        // Every WLAN network Android reports, with its name; usually one.
-        val networks = mutableMapOf<Network, String?>()
+        // Every WLAN network Android reports; usually one.
+        val networks = mutableMapOf<Network, Wifi>()
         fun report() {
-            trySend(networks.values.firstOrNull { it != null })
+            trySend(networks.values.firstOrNull { it is Wifi.Named } ?: networks.values.firstOrNull() ?: Wifi.None)
         }
-        val onChange = { network: Network, capabilities: NetworkCapabilities ->
-            networks[network] = ssidOf(reportedSsid(capabilities))
-            report()
-        }
-        val onLost = { network: Network ->
-            networks.remove(network)
-            report()
-        }
-        val callback = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // From Android 12 on, the name comes only to a callback that asks for it.
-            object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
-                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) =
-                    onChange(network, capabilities)
-
-                override fun onLost(network: Network) = onLost(network)
-            }
-        } else {
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) =
-                    onChange(network, capabilities)
-
-                override fun onLost(network: Network) = onLost(network)
-            }
-        }
-        report()
+        val callback = wifiCallback(
+            changed = { network, capabilities ->
+                networks[network] = Ssid.of(reportedSsid(capabilities))?.let(Wifi::Named) ?: Wifi.NameHidden
+                report()
+            },
+            lost = { network ->
+                networks.remove(network)
+                report()
+            },
+        )
+        // A WLAN connected already is reported to the callback right away; only without one is there nothing to wait for.
+        val active = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+        if (active?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) report()
         val wifi = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
         connectivity.registerNetworkCallback(wifi, callback)
         awaitClose { connectivity.unregisterNetworkCallback(callback) }
@@ -71,16 +71,31 @@ class SystemWifi(private val context: Context) : CurrentWifi {
         }
 }
 
-/**
- * The WLAN name as Android reports it, without the quotes around it; none while Android keeps it back. A name that
- * is no UTF-8 comes as hex digits without quotes, and is taken as it is.
- */
-fun ssidOf(reported: String?): String? = when {
-    reported == null || reported == UNKNOWN_SSID -> null
-    reported.length >= 2 && reported.startsWith('"') && reported.endsWith('"') ->
-        reported.substring(1, reported.length - 1).ifEmpty { null }
-    else -> reported.ifEmpty { null }
+/** Passes on what Android reports of WLAN networks. */
+private class WifiCallback : ConnectivityManager.NetworkCallback {
+    private val changed: (Network, NetworkCapabilities) -> Unit
+    private val lost: (Network) -> Unit
+
+    /** From Android 12 on, WLAN names come only to a callback that asks for them with [flags]. */
+    @RequiresApi(Build.VERSION_CODES.S)
+    constructor(flags: Int, changed: (Network, NetworkCapabilities) -> Unit, lost: (Network) -> Unit) : super(flags) {
+        this.changed = changed
+        this.lost = lost
+    }
+
+    constructor(changed: (Network, NetworkCapabilities) -> Unit, lost: (Network) -> Unit) : super() {
+        this.changed = changed
+        this.lost = lost
+    }
+
+    override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = changed(network, capabilities)
+
+    override fun onLost(network: Network) = lost(network)
 }
 
-/** What Android says for a name it keeps back, as `WifiManager.UNKNOWN_SSID`. */
-private const val UNKNOWN_SSID = "<unknown ssid>"
+private fun wifiCallback(changed: (Network, NetworkCapabilities) -> Unit, lost: (Network) -> Unit): WifiCallback =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        WifiCallback(ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO, changed, lost)
+    } else {
+        WifiCallback(changed, lost)
+    }

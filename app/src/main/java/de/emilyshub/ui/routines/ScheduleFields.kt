@@ -40,8 +40,8 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,13 +56,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
+import de.emilyshub.reminders.fullScreenAlarmsAllowed
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.TimeWindow
+import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.numericDate
-import de.emilyshub.reminders.fullScreenAlarmsAllowed
 import de.emilyshub.ui.reminders.FullScreenAlarmPermission
 import de.emilyshub.ui.reminders.openFullScreenAlarmSettings
 import java.io.Serializable
@@ -359,17 +360,6 @@ private fun NumberField(text: String, number: Int, range: IntRange, label: Strin
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
-    )
-}
-
-@Composable
-internal fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier
-            .padding(top = 8.dp, bottom = 4.dp)
-            .semantics { heading() },
     )
 }
 

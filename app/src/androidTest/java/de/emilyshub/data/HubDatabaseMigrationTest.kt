@@ -251,12 +251,29 @@ class HubDatabaseMigrationTest {
             assertEquals(listOf(4L), database.routines().tagIdsOf(3))
             assertEquals(emptyList<PlaceWithWifis>(), database.places().all())
 
-            // A WLAN belongs to one place only, and a place deleted takes its WLANs along.
+            // A place deleted takes its WLANs along.
             val home = database.places().insert(Place(name = "Zuhause"))
             database.places().insertWifis(listOf(PlaceWifi(home, "FritzBox")))
             assertEquals(listOf("FritzBox"), database.places().all().single().ssids)
             database.places().delete(home)
             assertEquals(emptyList<PlaceWithWifis>(), database.places().all())
+        }
+    }
+
+    @Test
+    fun `version 10 moves to version 11 keeping each place and letting a WLAN be at several`() {
+        createAtVersion(10) {
+            it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Uni')")
+            it.execSQL("INSERT INTO places (id, name) VALUES (2, 'Arbeit')")
+            it.execSQL("INSERT INTO place_wifis (place_id, ssid) VALUES (1, 'eduroam')")
+        }
+
+        withMigratedDatabase { database ->
+            database.places().insertWifis(listOf(PlaceWifi(2, "eduroam")))
+            assertEquals(
+                listOf("Uni" to listOf("eduroam"), "Arbeit" to listOf("eduroam")),
+                database.places().all().map { it.name to it.ssids },
+            )
         }
     }
 

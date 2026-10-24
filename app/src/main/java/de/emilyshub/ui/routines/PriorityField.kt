@@ -15,6 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import de.emilyshub.R
 import de.emilyshub.routines.Priority
+import de.emilyshub.ui.SectionTitle
 
 /** Low, normal or high (SPEC.md §2). */
 @Composable

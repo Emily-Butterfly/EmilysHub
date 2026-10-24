@@ -46,11 +46,12 @@ import de.emilyshub.R
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.PlaceProblem
-import de.emilyshub.places.PlaceWithWifis
 import de.emilyshub.places.Places
+import de.emilyshub.places.Ssid
+import de.emilyshub.places.Wifi
 import de.emilyshub.places.toDraft
+import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
-import de.emilyshub.ui.routines.SectionTitle
 import java.io.Serializable
 
 /** Which place the editor shows. Serializable, so that the open editor survives rotation and the lock. */
@@ -87,8 +88,8 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
         }
         return
     }
-    // The other places, which its name and WLANs are checked against; saving waits for them.
-    val others = all?.filter { it.place.id != placeId } ?: return
+    // The other places, which its name is checked against; saving waits for them.
+    val others = all?.filter { it.id != placeId } ?: return
     val problems = draft.problems(others)
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
@@ -156,8 +157,7 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
                 modifier = Modifier.fillMaxWidth(),
             )
             WifisField(
-                draft = draft,
-                others = others,
+                wifis = draft.wifis,
                 wifi = wifi,
                 showMissing = triedToSave && PlaceProblem.WifisMissing in problems,
                 onChange = { draft = draft.copy(wifis = it) },
@@ -181,35 +181,27 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
 }
 
 /**
- * The place's WLANs, each with what keeps it from being saved; below them, the WLAN connected to now to take over,
- * or why Android does not tell its name, and a name to type in.
+ * The place's WLANs, each marked if Android could not name one so; below them, the WLAN connected to now to take
+ * over exactly as Android names it, or why Android does not tell its name, and a name to type in.
  */
 @Composable
-private fun WifisField(
-    draft: PlaceDraft,
-    others: List<PlaceWithWifis>,
-    wifi: CurrentWifi,
-    showMissing: Boolean,
-    onChange: (List<String>) -> Unit,
-) {
-    val wifis = draft.wifis
+private fun WifisField(wifis: List<String>, wifi: CurrentWifi, showMissing: Boolean, onChange: (List<String>) -> Unit) {
     var typed by rememberSaveable { mutableStateOf("") }
     val access = rememberWifiAccess()
-    val add = { ssid: String ->
-        val name = ssid.trim()
-        if (name.isNotEmpty() && name !in wifis) onChange(wifis + name)
-    }
+    val add = { ssid: String -> if (ssid.isNotBlank() && ssid !in wifis) onChange(wifis + ssid) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.place_wifis))
         wifis.forEach { ssid ->
-            val problem = when {
-                PlaceDraft.isTooLong(ssid) -> stringResource(R.string.place_wifi_too_long, PlaceDraft.SSID_MAX_BYTES)
-                else -> draft.ownerOf(ssid, others)?.let { stringResource(R.string.place_wifi_taken, it.place.name) }
-            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(ssid, style = MaterialTheme.typography.bodyLarge)
-                    problem?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+                    if (!Ssid.isValid(ssid)) {
+                        Text(
+                            stringResource(R.string.place_wifi_invalid, Ssid.MAX_BYTES),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
                 IconButton(onClick = { onChange(wifis - ssid) }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.place_wifi_remove, ssid))
@@ -227,36 +219,44 @@ private fun WifisField(
             Text(stringResource(R.string.place_too_many_wifis, PlaceDraft.WIFIS_MAX), style = MaterialTheme.typography.bodyMedium)
             return@Column
         }
-        if (access.current == WifiAccess.Granted) {
-            val current by remember(wifi, access.current) { wifi.ssid() }.collectAsState(initial = null)
-            val connected = current
-            when {
-                connected == null -> Text(stringResource(R.string.place_wifi_none), style = MaterialTheme.typography.bodyMedium)
-                connected !in wifis -> TextButton(onClick = { add(connected) }) {
+        when (val connected = rememberConnectedWifi(wifi, access)) {
+            null -> if (access.current != WifiAccess.Granted) WifiAccessNotice(access)
+            Wifi.None -> Hint(stringResource(R.string.place_wifi_none))
+            Wifi.NameHidden -> Hint(stringResource(R.string.places_recognised_name_hidden))
+            is Wifi.Named -> if (connected.ssid !in wifis) {
+                TextButton(onClick = { add(connected.ssid) }) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.place_wifi_take_current, connected))
+                    Text(stringResource(R.string.place_wifi_take_current, connected.ssid))
                 }
             }
-        } else {
-            WifiAccessNotice(access)
         }
+        // Typed in, it is taken without the spaces around it, which keyboards add after a word; as typed otherwise.
+        val trimmed = typed.trim()
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = typed,
                 onValueChange = { typed = it },
                 label = { Text(stringResource(R.string.place_wifi_typed)) },
                 singleLine = true,
-                isError = PlaceDraft.isTooLong(typed),
+                // A keyboard's corrections would change a name that has to match exactly.
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+                isError = trimmed.isNotEmpty() && !Ssid.isValid(trimmed),
+                supportingText = { Text(stringResource(R.string.place_wifi_typed_hint)) },
                 modifier = Modifier.weight(1f),
             )
             TextButton(
                 onClick = {
-                    add(typed)
+                    add(trimmed)
                     typed = ""
                 },
-                enabled = typed.isNotBlank(),
+                enabled = trimmed.isNotEmpty(),
             ) { Text(stringResource(R.string.place_wifi_add)) }
         }
     }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium)
 }

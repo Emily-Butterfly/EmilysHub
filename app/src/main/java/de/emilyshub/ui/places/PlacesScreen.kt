@@ -32,7 +32,8 @@ import de.emilyshub.R
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.PlaceWithWifis
 import de.emilyshub.places.Places
-import de.emilyshub.places.placeOf
+import de.emilyshub.places.Wifi
+import de.emilyshub.places.placesOf
 
 /**
  * The places (SPEC.md §4), each with its WLANs; tapping one opens it in the editor, "+" starts a new one. Above them,
@@ -72,18 +73,21 @@ fun PlacesScreen(places: Places, wifi: CurrentWifi, onOpen: (Long) -> Unit, onCr
                     )
                 }
             }
-            items(list, key = { it.place.id }) { place ->
+            items(list, key = { it.id }) { place ->
                 ListItem(
-                    headlineContent = { Text(place.place.name) },
+                    headlineContent = { Text(place.name) },
                     supportingContent = { Text(place.ssids.joinToString(" · ")) },
-                    modifier = Modifier.clickable { onOpen(place.place.id) },
+                    modifier = Modifier.clickable { onOpen(place.id) },
                 )
             }
         }
     }
 }
 
-/** Which of the [places] the device is at now, by the WLAN it is connected to; or why that cannot be told. */
+/**
+ * Which of the [places] the device is at now, by the WLAN it is connected to; or why that cannot be told. With a
+ * WLAN at several places, it is at all of them.
+ */
 @Composable
 private fun RecognisedPlace(places: List<PlaceWithWifis>, wifi: CurrentWifi) {
     val access = rememberWifiAccess()
@@ -100,22 +104,23 @@ private fun RecognisedPlace(places: List<PlaceWithWifis>, wifi: CurrentWifi) {
                     .padding(bottom = 8.dp)
                     .semantics { heading() },
             )
-            if (access.current == WifiAccess.Granted) {
-                // Asked anew once allowed: before, Android left the name out.
-                val ssid by remember(wifi, access.current) { wifi.ssid() }.collectAsState(initial = null)
-                val current = ssid
-                val place = places.placeOf(current)
-                Text(
-                    text = when {
-                        current == null -> stringResource(R.string.places_recognised_no_wifi)
-                        place == null -> stringResource(R.string.places_recognised_unknown, current)
-                        else -> stringResource(R.string.places_recognised, place.place.name, current)
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            } else {
+            if (access.current != WifiAccess.Granted) {
                 WifiAccessNotice(access)
+                return@Column
             }
+            val connected = rememberConnectedWifi(wifi, access) ?: return@Column
+            val here = places.placesOf(connected)
+            Text(
+                text = when (connected) {
+                    Wifi.None -> stringResource(R.string.places_recognised_no_wifi)
+                    Wifi.NameHidden -> stringResource(R.string.places_recognised_name_hidden)
+                    is Wifi.Named -> when {
+                        here.isEmpty() -> stringResource(R.string.places_recognised_unknown, connected.ssid)
+                        else -> stringResource(R.string.places_recognised, here.joinToString { it.name }, connected.ssid)
+                    }
+                },
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
 }

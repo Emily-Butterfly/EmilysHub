@@ -22,10 +22,10 @@ class Places(private val database: () -> HubDatabase, private val io: CoroutineC
 
     /** All places by name, each with its WLANs. */
     fun all(): Flow<List<PlaceWithWifis>> = flow {
-        emitAll(dao.observeAll().map { all -> all.sortedWith(compareBy(InputText.byName) { it.place.name }) })
+        emitAll(dao.observeAll().map { all -> all.sortedWith(compareBy(InputText.byName, PlaceWithWifis::name)) })
     }.flowOn(io)
 
-    suspend fun get(id: Long): PlaceWithWifis? = withContext(io) { dao.all().find { it.place.id == id } }
+    suspend fun get(id: Long): PlaceWithWifis? = withContext(io) { dao.all().find { it.id == id } }
 
     /** A new place; refuses one with problems, which the editor shows before. */
     suspend fun create(draft: PlaceDraft): Long = write {
@@ -38,7 +38,7 @@ class Places(private val database: () -> HubDatabase, private val io: CoroutineC
     /** Renames the place and gives it the WLANs of [draft], as [create] checks them. */
     suspend fun update(id: Long, draft: PlaceDraft) = write {
         database().withTransaction {
-            val place = checked(draft, others = dao.all().filter { it.place.id != id })
+            val place = checked(draft, others = dao.all().filter { it.id != id })
             dao.rename(id, place.name)
             dao.deleteWifisOf(id)
             dao.insertWifis(place.wifis.map { PlaceWifi(id, it) })

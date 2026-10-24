@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.tags.TagChip
 import de.emilyshub.ui.tags.TagNameDialog

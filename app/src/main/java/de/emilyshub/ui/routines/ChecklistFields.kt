@@ -25,6 +25,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.ui.SectionTitle
 
 /** The checklist's sub-items in their order (SPEC.md §2): each can be changed or taken away, and more added. */
 @Composable
