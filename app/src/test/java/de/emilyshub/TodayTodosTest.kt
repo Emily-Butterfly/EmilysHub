@@ -105,6 +105,16 @@ class TodayTodosTest {
         }
     }
 
+    @Test
+    fun `a to-do waiting for its place says so on Heute`() {
+        val home = app.place("Zuhause", "FritzBox")
+        app.todo("Pakete", due = Due.On(today), places = setOf(home))
+
+        launchApp().use {
+            compose.onNodeWithText("Wartet auf Zuhause").assertIsDisplayed()
+        }
+    }
+
     private fun row(name: String) = compose.onNode(isToggleable() and hasText(name))
 
     /** Of [names], those on Heute, in the order shown. */

@@ -70,9 +70,10 @@ fun TestApplication.todo(
     priority: Priority = Priority.Normal,
     checklist: List<String> = emptyList(),
     tags: Set<Long> = emptySet(),
+    places: Set<Long> = emptySet(),
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
-    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags))
+    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places))
 }
 
 /** A tag, set up before the test opens the app. */

@@ -30,6 +30,8 @@ data class TodoDraft(
     val checklist: List<ChecklistDraftItem> = emptyList(),
     /** Its tags; one deleted meanwhile is left out on saving. */
     val tagIds: Set<Long> = emptySet(),
+    /** The places it reminds at (SPEC.md §4); one deleted meanwhile is left out on saving. */
+    val placeIds: Set<Long> = emptySet(),
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -50,9 +52,9 @@ data class TodoDraft(
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
     )
 
-    /** The to-do this draft makes, [id] if it is saved already, ticked off [doneAt] then if it is. */
-    fun toTodo(id: Long = 0, doneAt: Instant? = null) =
-        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt)
+    /** The to-do this draft makes: [id] if saved already, ticked off [doneAt] then if it is, its reminder as [reminding]. */
+    fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding()) =
+        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding)
 
     companion object {
         const val TITLE_MAX = 80
@@ -60,7 +62,7 @@ data class TodoDraft(
     }
 }
 
-/** The to-do with its [checklist] and [tagIds] as the editor starts out with it. */
-fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>) = TodoDraft(
-    title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds,
+/** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
+fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
+    title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds,
 )

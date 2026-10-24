@@ -197,3 +197,23 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_tags_tag_id` ON `todo_tags` (`tag_id`)")
     }
 }
+
+/**
+ * To-dos remind (SPEC.md §5): their reminder's state, and the places they remind at. An open one with a time reminds at
+ * it, as it would saved now; one whose time is gone by already does not, since it is outside what is reminded of next.
+ */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `at_due_time` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `remind_at` TEXT")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `waiting` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE `todos` SET `at_due_time` = 1 WHERE `due_time` IS NOT NULL AND `done_at` IS NULL")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `todo_places` (`todo_id` INTEGER NOT NULL, `place_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`todo_id`, `place_id`), " +
+                "FOREIGN KEY(`todo_id`) REFERENCES `todos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`place_id`) REFERENCES `places`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_places_place_id` ON `todo_places` (`place_id`)")
+    }
+}

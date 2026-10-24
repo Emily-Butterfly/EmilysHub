@@ -50,6 +50,7 @@ import de.emilyshub.routines.toDraft
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
@@ -212,7 +213,13 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: 
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
-            PlacesField(places, draft.placeIds, onChange = { draft = draft.copy(placeIds = it) })
+            PlacesField(
+                places = places,
+                selected = draft.placeIds,
+                noneChosen = R.string.routine_places_everywhere,
+                chosenHint = R.string.routine_places_chosen,
+                onChange = { draft = draft.copy(placeIds = it) },
+            )
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })

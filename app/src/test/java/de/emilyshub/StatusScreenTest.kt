@@ -148,6 +148,19 @@ class StatusScreenTest {
     }
 
     @Test
+    fun `a to-do waiting for a place needs what a routine bound to one does`() {
+        val home = app.place("Zuhause", "FritzBox")
+        app.todo("Pakete", places = setOf(home))
+
+        launchApp().use {
+            openStatus()
+
+            compose.onAllNodesWithText("Fehlt").assertCountEquals(3)
+            compose.onNodeWithText("Für Routinen und To-dos an Orten", substring = true).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `on a Samsung, it tells how to keep Samsung from putting the app to sleep`() {
         ShadowBuild.setManufacturer("samsung")
 

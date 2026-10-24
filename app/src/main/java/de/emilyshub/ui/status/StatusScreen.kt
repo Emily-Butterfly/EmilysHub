@@ -43,6 +43,7 @@ import de.emilyshub.status.Need
 import de.emilyshub.status.Readiness
 import de.emilyshub.status.Standing
 import de.emilyshub.status.Use
+import de.emilyshub.todos.Todos
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.SystemSettings
@@ -56,9 +57,9 @@ import de.emilyshub.ui.rememberChecked
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatusScreen(routines: Routines, onProbe: () -> Unit, onBack: () -> Unit) {
+fun StatusScreen(routines: Routines, todos: Todos, onProbe: () -> Unit, onBack: () -> Unit) {
     val readiness = rememberChecked { readiness() }
-    val use = rememberUse(routines)
+    val use = rememberUse(routines, todos)
     Scaffold(
         topBar = {
             TopAppBar(

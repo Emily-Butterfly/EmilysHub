@@ -196,7 +196,10 @@ private fun OrderChoice(order: TodoOrder, onChange: (TodoOrder) -> Unit) {
     }
 }
 
-/** A to-do with a box to tick it off, when it is due, said in red once it is overdue, its priority, tags and description. */
+/**
+ * A to-do with a box to tick it off, when it is due, said in red once it is overdue, its priority, the places it reminds
+ * at, its tags and description.
+ */
 @Composable
 private fun TodoRow(
     details: TodoWithDetails,
@@ -223,6 +226,8 @@ private fun TodoRow(
                     }
                 }
                 PriorityNote(todo.priority)
+                val places = details.placeNames.joinToString(stringResource(R.string.today_or))
+                if (places.isNotEmpty()) Text(stringResource(R.string.todo_reminder_places, places))
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))
                 if (todo.description.isNotEmpty()) Text(todo.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

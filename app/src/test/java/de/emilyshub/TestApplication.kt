@@ -35,12 +35,12 @@ class TestApplication : EmilysHubApplication() {
     private val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
-    override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined)
+    override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
-    override val reminders: Reminders by lazy { Reminders(this, routines, clock, locator::whereabouts) { settingsDao } }
+    override val reminders: Reminders by lazy { Reminders(this, routines, todos, clock, locator::whereabouts) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */

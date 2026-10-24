@@ -65,7 +65,7 @@ import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.todos.TodosScreen
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -187,7 +187,7 @@ private fun AppShell(
     when {
         todoTarget != null -> {
             BackHandler { todoEditor = null }
-            TodoEditorScreen(todos, tags, todoTarget, onClose = { todoEditor = null })
+            TodoEditorScreen(todos, tags, places, todoTarget, onClose = { todoEditor = null })
         }
         todoArchiveOpen -> {
             BackHandler { todoArchiveOpen = false }
@@ -211,7 +211,7 @@ private fun AppShell(
         }
         statusOpen -> {
             BackHandler { statusOpen = false }
-            StatusScreen(routines, onProbe, onBack = { statusOpen = false })
+            StatusScreen(routines, todos, onProbe, onBack = { statusOpen = false })
         }
         tagsOpen -> {
             BackHandler { tagsOpen = false }
@@ -260,16 +260,18 @@ private fun AppShell(
                 onOpenArchive = { archiveOpen = true },
                 onOpenStatus = { statusOpen = true },
             )
-            if (!settings.remindersAsked) AskOnceThereIsARoutine(routines, onRemindersAsked)
+            if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
         }
     }
 }
 
-/** Asks for what reminders need (SPEC.md §11) once the first routine is there, not before. */
+/** Asks for what reminders need (SPEC.md §11) once something reminds, the first routine or a to-do that does, not before. */
 @Composable
-private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
-    val anyRoutine by remember(routines) { routines.inUse().map { it.isNotEmpty() } }.collectAsState(initial = false)
-    if (anyRoutine) ReminderPermissions(onFinished = onAsked)
+private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: () -> Unit) {
+    val reminds by remember(routines, todos) {
+        combine(routines.inUse(), todos.open()) { inUse, open -> inUse.isNotEmpty() || open.any { it.reminds } }
+    }.collectAsState(initial = false)
+    if (reminds) ReminderPermissions(onFinished = onAsked)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

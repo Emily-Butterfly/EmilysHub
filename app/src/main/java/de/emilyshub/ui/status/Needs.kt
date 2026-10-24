@@ -21,6 +21,7 @@ import de.emilyshub.status.Need
 import de.emilyshub.status.Readiness
 import de.emilyshub.status.Standing
 import de.emilyshub.status.Use
+import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SystemSettings
 import de.emilyshub.ui.isGranted
 import de.emilyshub.ui.places.locationOn
@@ -49,13 +50,17 @@ private fun standing(allowed: Boolean, on: Boolean = true) = when {
     else -> Standing.Allowed
 }
 
-/** What the active routines use, as it changes; none until it is known. */
+/** What the reminders of the active routines and the open to-dos use, as it changes; none until it is known. */
 @Composable
-fun rememberUse(routines: Routines): Use? {
-    val use = remember(routines) {
-        combine(routines.inUse(), routines.boundToPlaces()) { all, boundToPlaces ->
+fun rememberUse(routines: Routines, todos: Todos): Use? {
+    val use = remember(routines, todos) {
+        combine(routines.inUse(), routines.boundToPlaces(), todos.open()) { all, boundToPlaces, open ->
             val active = all.filter { it.status == RoutineStatus.Active }
-            Use(anyRoutine = active.isNotEmpty(), boundToPlaces = boundToPlaces, fullScreen = active.any { it.fullScreen })
+            Use(
+                reminds = active.isNotEmpty() || open.any { it.reminds },
+                boundToPlaces = boundToPlaces || open.any { it.todo.reminding.waiting },
+                fullScreen = active.any { it.fullScreen },
+            )
         }
     }
     return use.collectAsState(initial = null).value

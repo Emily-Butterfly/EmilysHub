@@ -18,6 +18,24 @@ interface TodoDao {
     @Query("SELECT * FROM todos WHERE id = :id")
     suspend fun get(id: Long): Todo?
 
+    /** The open to-dos, each with its checklist, tags and places. */
+    @Transaction
+    @Query("SELECT * FROM todos WHERE done_at IS NULL")
+    suspend fun open(): List<TodoWithDetails>
+
+    /** The open to-dos waiting for their places, each with them. */
+    @Transaction
+    @Query("SELECT * FROM todos WHERE done_at IS NULL AND waiting")
+    suspend fun openWaiting(): List<TodoWithDetails>
+
+    @Transaction
+    @Query("SELECT * FROM todos WHERE id IN (:ids)")
+    suspend fun withDetails(ids: Collection<Long>): List<TodoWithDetails>
+
+    /** Whether an open to-do waits for its places, so that arriving at one matters. */
+    @Query("SELECT EXISTS (SELECT 1 FROM todos WHERE done_at IS NULL AND waiting)")
+    suspend fun anyOpenWaiting(): Boolean
+
     @Insert
     suspend fun insert(todo: Todo): Long
 
@@ -29,6 +47,20 @@ interface TodoDao {
 
     @Query("UPDATE todos SET done_at = :doneAt WHERE id = :id")
     suspend fun setDoneAt(id: Long, doneAt: Instant?)
+
+    /** Sets its reminder anew, as it is saved: not put off or popped up, [waiting] for its places if it has any. */
+    @Query("UPDATE todos SET at_due_time = :atDueTime, remind_at = NULL, waiting = :waiting WHERE id = :id")
+    suspend fun rearm(id: Long, atDueTime: Boolean, waiting: Boolean)
+
+    @Query("UPDATE todos SET remind_at = :until WHERE id = :id")
+    suspend fun putOff(id: Long, until: Instant)
+
+    @Query("UPDATE todos SET waiting = :waiting WHERE id IN (:ids)")
+    suspend fun setWaiting(ids: Collection<Long>, waiting: Boolean)
+
+    /** They pop up [at] then, on arrival or bound to no place any more, and wait no more. */
+    @Query("UPDATE todos SET waiting = 0, remind_at = :at WHERE id IN (:ids)")
+    suspend fun popUp(ids: Collection<Long>, at: Instant)
 
     @Query("SELECT * FROM todo_checklist_items WHERE todo_id = :todoId ORDER BY position")
     suspend fun checklist(todoId: Long): List<TodoChecklistItem>
@@ -58,4 +90,14 @@ interface TodoDao {
     /** Tags the to-do with those of [tagIds] that are still there: one deleted meanwhile is left out. */
     @Query("INSERT INTO todo_tags (todo_id, tag_id) SELECT :todoId, id FROM tags WHERE id IN (:tagIds)")
     suspend fun tag(todoId: Long, tagIds: Collection<Long>)
+
+    @Query("SELECT place_id FROM todo_places WHERE todo_id = :todoId")
+    suspend fun placeIdsOf(todoId: Long): List<Long>
+
+    @Query("DELETE FROM todo_places WHERE todo_id = :todoId")
+    suspend fun unbindAll(todoId: Long)
+
+    /** Binds the to-do to those of [placeIds] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO todo_places (todo_id, place_id) SELECT :todoId, id FROM places WHERE id IN (:placeIds)")
+    suspend fun bind(todoId: Long, placeIds: Collection<Long>)
 }

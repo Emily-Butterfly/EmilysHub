@@ -7,21 +7,27 @@ import de.emilyshub.EmilysHubApplication
 import kotlinx.coroutines.launch
 
 /**
- * The reminder alarm and the actions on a reminder. Not exported, so only the app and the system can
- * send here, and anything without one of the actions below, without an occurrence for them, or with a
- * time to put off by that "Später" does not offer, is ignored (SPEC.md §9).
+ * The reminder alarm and the actions on a reminder, of a routine's occurrence or of a to-do. Not exported, so only the
+ * app and the system can send here, and anything without one of the actions below, without an occurrence or a to-do
+ * for them, or with a time to put off by that "Später" does not offer, is ignored (SPEC.md §9).
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
         val occurrence = intent.occurrenceId()
+        val todo = intent.todoId()
         val minutes = intent.getLongExtra(EXTRA_MINUTES, 0)
         val putOffBy = Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }
+
+        /** The work on the occurrence's reminder, or else on the to-do's; none without either. */
+        fun onEither(ofOccurrence: suspend (Long) -> Unit, ofTodo: suspend (Long) -> Unit): (suspend () -> Unit)? =
+            occurrence?.let { suspend { ofOccurrence(it) } } ?: todo?.let { suspend { ofTodo(it) } }
+
         val work: (suspend () -> Unit)? = when (intent.action) {
             ACTION_REMIND -> suspend { app.reminders.remind() }
-            ACTION_DONE -> occurrence?.let { suspend { app.routines.markDone(it) } }
-            ACTION_OFFER_PUT_OFF -> occurrence?.let { suspend { app.reminders.offerPutOff(it) } }
-            ACTION_PUT_OFF -> putOffBy?.let { by -> occurrence?.let { suspend { app.reminders.putOff(it, by) } } }
+            ACTION_DONE -> onEither(app.routines::markDone, app.todos::markDone)
+            ACTION_OFFER_PUT_OFF -> onEither(app.reminders::offerPutOff, app.reminders::offerTodoPutOff)
+            ACTION_PUT_OFF -> putOffBy?.let { by -> onEither({ app.reminders.putOff(it, by) }, { app.reminders.putOffTodo(it, by) }) }
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
@@ -59,6 +65,12 @@ const val EXTRA_OCCURRENCE = "occurrence"
 
 /** The occurrence an intent is about; none without a valid one. */
 internal fun Intent.occurrenceId(): Long? = getLongExtra(EXTRA_OCCURRENCE, 0).takeIf { it > 0 }
+
+/** The to-do that the actions of its reminder are about. */
+const val EXTRA_TODO = "todo"
+
+/** The to-do an intent is about; none without a valid one. */
+internal fun Intent.todoId(): Long? = getLongExtra(EXTRA_TODO, 0).takeIf { it > 0 }
 
 /** Does [work] after onReceive has returned, in the app's background scope, and tells Android once it is done. */
 internal fun BroadcastReceiver.finishInBackground(app: EmilysHubApplication, work: suspend () -> Unit) {

@@ -41,20 +41,23 @@ data class Readiness(val standings: Map<Need, Standing>, val putsAppsToSleep: Bo
     fun has(need: Need): Boolean = standing(need) == Standing.Allowed
 
     /**
-     * Whether the routines in [use] need [need]: any of them notifications and exact alarms, those bound to places the
+     * Whether the reminders in [use] need [need]: any of them notifications and exact alarms, those bound to places the
      * location always, those with a full-screen alarm full-screen alarms. No battery limits only where the device puts
-     * apps to sleep, as their reminders stop altogether then; elsewhere reminders still come, if maybe late.
+     * apps to sleep, as the reminders stop altogether then; elsewhere they still come, if maybe late.
      */
     fun needs(use: Use, need: Need): Boolean = when (need) {
-        Need.Notifications, Need.ExactAlarms -> use.anyRoutine
+        Need.Notifications, Need.ExactAlarms -> use.reminds
         Need.LocationAlways -> use.boundToPlaces
         Need.FullScreenAlarms -> use.fullScreen
-        Need.NoBatteryLimits -> use.anyRoutine && putsAppsToSleep
+        Need.NoBatteryLimits -> use.reminds && putsAppsToSleep
     }
 
-    /** What the routines in [use] need and Android does not give them now, in the order of [Need]. */
+    /** What the reminders in [use] need and Android does not give them now, in the order of [Need]. */
     fun lacking(use: Use): List<Need> = Need.entries.filter { needs(use, it) && !has(it) }
 }
 
-/** What the active routines use: whether there are any, any bound to a place, any with a full-screen alarm. */
-data class Use(val anyRoutine: Boolean, val boundToPlaces: Boolean, val fullScreen: Boolean)
+/**
+ * What the reminders use: whether anything [reminds], an active routine or an open to-do at its time or places; whether
+ * any is bound to a place, a routine, or a to-do waiting for one; and whether any routine has a full-screen alarm.
+ */
+data class Use(val reminds: Boolean, val boundToPlaces: Boolean, val fullScreen: Boolean)

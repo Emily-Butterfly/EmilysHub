@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.todos.Due
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -26,6 +27,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
+import java.time.LocalDate
+import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
 class ReminderPermissionsTest {
@@ -62,6 +65,19 @@ class ReminderPermissionsTest {
             compose.onNodeWithText("Erinnerungen erlauben?").assertDoesNotExist()
         }
         assertEquals("yes", app.settingsDao.values["reminders-asked"])
+    }
+
+    @Test
+    fun `a to-do asks for what reminders need once it reminds, at a time or at a place, not before`() {
+        app.todo("Fenster", due = Due.On(LocalDate.parse("2026-10-23")))
+        launchApp().use {
+            compose.onNodeWithText("Erinnerungen erlauben?").assertDoesNotExist()
+        }
+
+        app.todo("Arzt", due = Due.At(LocalDate.parse("2026-10-23"), LocalTime.of(9, 0)))
+        launchApp().use {
+            compose.onNodeWithText("Erinnerungen erlauben?").assertIsDisplayed()
+        }
     }
 
     @Test

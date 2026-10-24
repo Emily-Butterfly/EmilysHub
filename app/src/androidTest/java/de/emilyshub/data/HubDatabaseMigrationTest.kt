@@ -21,6 +21,7 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
+import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
@@ -342,6 +343,31 @@ class HubDatabaseMigrationTest {
             // A tag deleted is taken off the to-dos.
             database.tags().delete(1)
             assertEquals(emptySet<Long>(), database.todos().observeAll().first().single().tagIds)
+        }
+    }
+
+    @Test
+    fun `version 14 moves to version 15 where open to-dos with a time remind at it and to-dos can be bound to places`() {
+        createAtVersion(14) {
+            it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Zuhause')")
+            val columns = "INSERT INTO todos (id, title, description, due_date, due_time, priority, done_at) VALUES"
+            it.execSQL("$columns (1, 'Arzt', '', '2026-10-30', '09:00', 'normal', NULL)")
+            it.execSQL("$columns (2, 'Müll', '', '2026-10-30', NULL, 'normal', NULL)")
+            it.execSQL("$columns (3, 'Steuer', '', '2026-10-20', '09:00', 'normal', '2026-10-20T08:00:00Z')")
+        }
+
+        withMigratedDatabase { database ->
+            val todos = database.todos().observeAll().first().associateBy { it.todo.title }
+            assertEquals(Reminding(atDueTime = true), todos.getValue("Arzt").todo.reminding)
+            assertEquals(Reminding(), todos.getValue("Müll").todo.reminding)
+            assertEquals(Reminding(), todos.getValue("Steuer").todo.reminding)
+
+            database.todos().bind(1, listOf(1L))
+            assertEquals(setOf(1L), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
+
+            // A place deleted is taken off the to-dos.
+            database.places().delete(1)
+            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
         }
     }
 

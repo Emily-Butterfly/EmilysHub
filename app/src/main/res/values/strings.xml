@@ -122,7 +122,7 @@
     <string name="ok">OK</string>
 
     <string name="reminder_channel">Erinnerungen</string>
-    <string name="reminder_channel_description">Pop-ups zur Uhrzeit deiner Routinen</string>
+    <string name="reminder_channel_description">Pop-ups zur Uhrzeit deiner Routinen und To-dos, auch beim Ankommen an ihren Orten</string>
     <string name="reminder_public">Erinnerung fällig</string>
     <string name="reminder_due_at">Fällig um %1$s</string>
     <string name="reminder_done">Erledigt</string>
@@ -131,6 +131,9 @@
     <string name="reminder_put_off_minutes">%1$d Min.</string>
     <string name="reminder_put_off_hours">%1$d Std.</string>
     <string name="reminder_skip">Überspringen</string>
+    <string name="todo_reminder_places">Ort: %1$s</string>
+    <string name="todo_places_none">Ohne Ort erinnert ein To-do nur zu seiner Uhrzeit, falls es eine hat.</string>
+    <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Die Erinnerung wartet, bis das To-do erledigt ist.</string>
 
     <string name="alarm_unlock">Entsperren</string>
     <string name="alarm_close">Schließen</string>
@@ -139,7 +142,7 @@
     <string name="alarm_silence">Stumm</string>
 
     <string name="reminders_notifications_title">Erinnerungen erlauben?</string>
-    <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen.\n\nDamit auf dem Sperrbildschirm nur „Erinnerung fällig“ steht, stelle in den Android-Einstellungen ein, dass er die Inhalte von Benachrichtigungen ausblendet.</string>
+    <string name="reminders_notifications_text">Damit EmilysHub dich zur Uhrzeit an deine Routinen und To-dos erinnern kann, braucht die App die Erlaubnis, Benachrichtigungen zu zeigen.\n\nDamit auf dem Sperrbildschirm nur „Erinnerung fällig“ steht, stelle in den Android-Einstellungen ein, dass er die Inhalte von Benachrichtigungen ausblendet.</string>
     <string name="reminders_exact_title">Pünktlich erinnern?</string>
     <string name="reminders_exact_text">Damit Erinnerungen auf die Minute genau kommen, braucht EmilysHub die Erlaubnis für „Wecker und Erinnerungen“. Android öffnet dazu die passende Einstellung.</string>
     <string name="reminders_full_screen_title">Vollbild-Alarme erlauben?</string>
@@ -196,7 +199,7 @@
     <string name="place_area_remove">GPS-Bereich entfernen</string>
     <string name="place_area_summary">GPS-Bereich, %1$d m</string>
     <string name="place_delete_title">Ort löschen?</string>
-    <string name="place_delete_text">„%1$s“ wird gelöscht. Routinen, die nur hier erinnern, erinnern danach überall.</string>
+    <string name="place_delete_text">„%1$s“ wird gelöscht. Routinen und To-dos, die nur hier erinnern, erinnern danach überall.</string>
     <string name="location_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN und am Standort zu erkennen: Die App merkt sich nur die Orte, die du anlegst, und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
     <string name="location_access_approximate_text">Du hast EmilysHub nur den ungefähren Standort erlaubt. Android verrät den Namen des WLANs aber nur mit dem genauen, und für die GPS-Bereiche ist der ungefähre zu ungenau. Die App merkt sich nur die Orte, die du anlegst, und sendet nichts weg.</string>
     <string name="location_access_allow">Erlauben</string>
@@ -204,7 +207,7 @@
     <string name="location_access_settings">In den App-Einstellungen erlauben</string>
     <string name="location_off_text">Der Standort ist ausgeschaltet. Android verrät den Namen des WLANs und den Standort nur, wenn er an ist.</string>
     <string name="location_off_open">Standort einschalten</string>
-    <string name="background_location_text">Damit EmilysHub auch bei geschlossener App merkt, wann du an einem Ort ankommst, braucht die App den Standort mit „Immer erlauben“: Sonst verrät Android ihr den Namen des WLANs und den Standort nur, solange sie offen ist, und die Routine erinnert zur Uhrzeit überall.</string>
+    <string name="background_location_text">Damit EmilysHub auch bei geschlossener App merkt, wann du an einem Ort ankommst, braucht die App den Standort mit „Immer erlauben“: Sonst verrät Android ihr den Namen des WLANs und den Standort nur, solange sie offen ist, und die Erinnerung kommt überall.</string>
     <string name="background_location_allow">Immer erlauben</string>
 
     <string name="tags_manage">Tags verwalten</string>
@@ -276,7 +279,7 @@
     <string name="need_exact_alarms_purpose">Damit Erinnerungen auf die Minute kommen und nicht erst Minuten später.</string>
     <string name="need_exact_alarms_allow">Exakte Wecker erlauben</string>
     <string name="need_location_always">Standort „Immer“</string>
-    <string name="need_location_always_purpose">Für Routinen an Orten: Damit die App auch geschlossen erkennt, wo du bist. In den App-Einstellungen unter Berechtigungen → Standort „Immer zulassen“ und „Genauen Standort verwenden“ wählen.</string>
+    <string name="need_location_always_purpose">Für Routinen und To-dos an Orten: Damit die App auch geschlossen erkennt, wo du bist. In den App-Einstellungen unter Berechtigungen → Standort „Immer zulassen“ und „Genauen Standort verwenden“ wählen.</string>
     <string name="need_location_always_allow">Standort „Immer“ erlauben</string>
     <string name="need_location_off">Der Standort ist ausgeschaltet. Ohne ihn erkennt die App keine Orte.</string>
     <string name="need_location_off_title">Standort eingeschaltet</string>

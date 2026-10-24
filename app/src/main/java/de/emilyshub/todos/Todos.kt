@@ -2,7 +2,10 @@ package de.emilyshub.todos
 
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.data.InputText
+import de.emilyshub.places.Whereabouts
 import de.emilyshub.routines.ChecklistDraftItem
+import de.emilyshub.routines.Locate
 import de.emilyshub.routines.dueAt
 import de.emilyshub.routines.today
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +44,7 @@ class Todos(
 
     /**
      * The to-dos on Heute of [date]: those due by then, still open or ticked off that day, each [DueTodo.overdue] as
-     * [isOverdue] says at [now].
+     * [isOverdue] says at [now], and waiting for its places once its time or day has come, as [arrive] has it.
      */
     fun dueOn(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
         all.filter { (todo) ->
@@ -51,7 +54,10 @@ class Todos(
         }.map { details ->
             val todo = details.todo
             val overdue = isOverdue(todo, now)
-            DueTodo(todo.id, todo.title, todo.due, todo.priority, done = todo.doneAt != null, overdue, details.checklist())
+            val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo.due, now)
+            val waitingFor = if (waiting) details.placeNames else emptyList()
+            val done = todo.doneAt != null
+            DueTodo(todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor)
         }
     }
 
@@ -64,25 +70,36 @@ class Todos(
     /** The to-do's tags (SPEC.md §8). */
     suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
 
-    /** A new to-do, open; refuses a draft with problems, which the editor shows before. */
+    /** The places the to-do reminds at (SPEC.md §4); none: by its time only. */
+    suspend fun placeIdsOf(id: Long): Set<Long> = withContext(io) { dao.placeIdsOf(id).toSet() }
+
+    /** A new to-do, open, reminding as [Reminding] describes; refuses a draft with problems, which the editor shows before. */
     suspend fun create(draft: TodoDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
             dao.insert(cleaned.toTodo()).also { id ->
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
+                savePlaces(id, cleaned.placeIds)
+                rearm(id, cleaned.due)
             }
         }
     }
 
-    /** Changes the to-do as [draft] has it; checklist items kept keep their ticks, as [create] checks it. */
+    /**
+     * Changes the to-do as [draft] has it, as [create] checks it; checklist items kept keep their ticks. A new due or new
+     * places set its reminder anew, as for one just created; other changes leave it as it is.
+     */
     suspend fun update(id: Long, draft: TodoDraft) = write {
         val cleaned = checked(draft)
         database().withTransaction {
             val todo = dao.get(id) ?: return@withTransaction
-            dao.update(cleaned.toTodo(id, doneAt = todo.doneAt))
+            val placesBefore = dao.placeIdsOf(id).toSet()
+            dao.update(cleaned.toTodo(id, doneAt = todo.doneAt, reminding = todo.reminding))
             saveChecklist(id, cleaned.checklist)
             saveTags(id, cleaned.tagIds)
+            savePlaces(id, cleaned.placeIds)
+            if (cleaned.due != todo.due || dao.placeIdsOf(id).toSet() != placesBefore) rearm(id, cleaned.due)
         }
     }
 
@@ -100,8 +117,71 @@ class Todos(
         }
     }
 
-    /** Deletes the to-do for good, with its checklist and tags. */
+    /** Deletes the to-do for good, with its checklist, tags and places. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
+
+    /** Puts the to-do's reminder off ("Später"): it pops up again at [until], anywhere. */
+    suspend fun putOff(id: Long, until: Instant) = write { dao.putOff(id, until) }
+
+    /**
+     * The open to-dos to remind of after [after] and up to [until] (SPEC.md §3), at their time or when put off to, by
+     * that time and their title. One waiting for its places pops up at its time only where [locate] says the device is
+     * at one of them, and waits on elsewhere, for [arrive]; [locate] is only asked when that matters, about the places
+     * that do. Not reported as a change: the reminders do this themselves.
+     */
+    suspend fun remindersDue(after: Instant, until: Instant, locate: Locate): List<TodoReminder> =
+        withContext(io + NonCancellable) {
+            val due = dao.open()
+                .mapNotNull { details -> nextReminder(details.todo)?.let { time -> details to time } }
+                .filter { (_, time) -> time.isAfter(after) && !time.isAfter(until) }
+                .sortedWith(compareBy<Pair<TodoWithDetails, Instant>> { it.second }.thenBy(InputText.byName) { it.first.todo.title })
+                .map { it.first }
+            val held = due.filter { it.todo.reminding.waiting && it.placeIds.isNotEmpty() }
+            val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate(held.flatMap { it.placeIds }.toSet())
+            val shown = due.filter { it !in held || whereabouts.allows(it.placeIds) }
+            dao.setWaiting(shown.map { it.todo.id }, waiting = false)
+            shown.map(::reminderOf)
+        }
+
+    /**
+     * Arrived at a place (SPEC.md §4): the open to-dos waiting for one of the places [locate] says the device is at, once
+     * their time or day has come or without either, are to pop up now and wait no more, as [remindersDue] then has them.
+     * Returns them. [locate] is only asked while one waits, about the places it waits for. Not reported as a change: the
+     * reminders do this themselves.
+     */
+    suspend fun arrive(locate: Locate): List<TodoReminder> = withContext(io + NonCancellable) {
+        val now = now()
+        val waiting = dao.openWaiting().filter { it.placeIds.isNotEmpty() && waitsFrom(it.todo.due, now) }
+        if (waiting.isEmpty()) return@withContext emptyList()
+        val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
+        popUp(waiting.filter { whereabouts.allows(it.placeIds) }, now)
+    }
+
+    /**
+     * The to-dos waiting for places they are bound to no more, as those were deleted, wait no more: those waiting already
+     * pop up now, as on arrival; the others remind at their time, anywhere. Not reported as a change: the reminders do
+     * this themselves.
+     */
+    suspend fun releaseFromPlaces() = withContext(io + NonCancellable) {
+        val now = now()
+        val (waitingAlready, ahead) = dao.openWaiting().filter { it.placeIds.isEmpty() }.partition { waitsFrom(it.todo.due, now) }
+        dao.setWaiting(ahead.map { it.todo.id }, waiting = false)
+        popUp(waitingAlready, now)
+    }
+
+    /** Whether an open to-do waits for its places, so that arriving at one matters. */
+    suspend fun anyWaiting(): Boolean = withContext(io) { dao.anyOpenWaiting() }
+
+    /** Of [ids], the to-dos to remind of now: open and popped up, not put off or set anew since. */
+    suspend fun stillDue(ids: Collection<Long>): List<TodoReminder> = withContext(io) {
+        val now = now()
+        dao.withDetails(ids).filter { isReminding(it.todo, now) }.map(::reminderOf)
+    }
+
+    /** When the reminders have a to-do to pop up next after [after], at its time or when put off to; none if never. */
+    suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
+        dao.open().mapNotNull { nextReminder(it.todo) }.filter { it.isAfter(after) }.minOrNull()
+    }
 
     /**
      * Ticks an item of the to-do's checklist off, or unticks it, and tells whether that ticked the to-do off: with all
@@ -151,9 +231,42 @@ class Todos(
         return todo.doneAt == null && when (due) {
             Due.None -> false
             is Due.On -> due.date.isBefore(dayOf(now))
-            is Due.At -> !now.isBefore(dueAt(due.date, due.time, clock.zone).toInstant().plus(1, ChronoUnit.MINUTES))
+            is Due.At -> !now.isBefore(instantOf(due).plus(1, ChronoUnit.MINUTES))
         }
     }
+
+    /** The moment of [due] in the phone's current time zone. */
+    private fun instantOf(due: Due.At): Instant = dueAt(due.date, due.time, clock.zone).toInstant()
+
+    /** When [todo] pops up next, anywhere or waiting for its places: when put off to, or at its time. */
+    private fun nextReminder(todo: Todo): Instant? =
+        todo.reminding.remindAt ?: (todo.due as? Due.At)?.takeIf { todo.reminding.atDueTime }?.let(::instantOf)
+
+    /** Whether [todo] is open and its reminder has popped up by [now], not put off since or set anew to come. */
+    private fun isReminding(todo: Todo, now: Instant): Boolean =
+        todo.doneAt == null && !todo.reminding.waiting && nextReminder(todo)?.isAfter(now) == false
+
+    /** Whether a to-do [due] then waits for its places at [now]: from its time on, from its day on, or always without. */
+    private fun waitsFrom(due: Due, now: Instant): Boolean = when (due) {
+        Due.None -> true
+        is Due.On -> !due.date.isAfter(dayOf(now))
+        is Due.At -> !instantOf(due).isAfter(now)
+    }
+
+    /** [todos] pop up [now], by the alarm, and wait no more; returns their reminders, by title. */
+    private suspend fun popUp(todos: List<TodoWithDetails>, now: Instant): List<TodoReminder> {
+        dao.popUp(todos.map { it.todo.id }, at = now)
+        return todos.sortedWith(compareBy(InputText.byName) { it.todo.title }).map(::reminderOf)
+    }
+
+    /** Sets the to-do's reminder anew, as [Reminding] has it for one just saved [due] then. */
+    private suspend fun rearm(id: Long, due: Due) {
+        val atDueTime = due is Due.At && instantOf(due).isAfter(now())
+        dao.rearm(id, atDueTime, waiting = dao.placeIdsOf(id).isNotEmpty())
+    }
+
+    private fun reminderOf(details: TodoWithDetails): TodoReminder =
+        TodoReminder(details.todo.id, details.todo.title, details.todo.due, details.placeNames)
 
     /** Ticks the to-do off if all of its checklist is, and tells whether it did. */
     private suspend fun doneIfAllTicked(todoId: Long): Boolean =
@@ -180,6 +293,11 @@ class Todos(
     private suspend fun saveTags(todoId: Long, tagIds: Set<Long>) {
         dao.untagAll(todoId)
         dao.tag(todoId, tagIds)
+    }
+
+    private suspend fun savePlaces(todoId: Long, placeIds: Set<Long>) {
+        dao.unbindAll(todoId)
+        dao.bind(todoId, placeIds)
     }
 
     private fun <T> observe(select: (List<TodoWithDetails>) -> T): Flow<T> = flow { emitAll(dao.observeAll().map(select)) }.flowOn(io)

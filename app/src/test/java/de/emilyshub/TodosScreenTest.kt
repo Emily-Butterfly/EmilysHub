@@ -132,6 +132,24 @@ class TodosScreenTest {
     }
 
     @Test
+    fun `a to-do is bound to places in the editor, which says how it reminds there, and the list says where`() {
+        val home = app.place("Zuhause", "FritzBox")
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Pakete")
+            compose.onNodeWithText("Ohne Ort erinnert", substring = true).performScrollTo().assertIsDisplayed()
+            option("Zuhause").tap()
+            compose.onNodeWithText("Erinnert an diesen Orten", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Ort: Zuhause").assertIsDisplayed()
+        }
+        assertEquals(setOf(home), runBlocking { app.todos.open().first().single().placeIds })
+    }
+
+    @Test
     fun `a to-do needs a title before it is saved`() {
         launchApp().use {
             openTodos()

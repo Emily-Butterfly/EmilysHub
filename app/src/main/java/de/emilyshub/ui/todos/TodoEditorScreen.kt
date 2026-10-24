@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.places.Places
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
@@ -54,6 +55,7 @@ import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
@@ -70,12 +72,12 @@ sealed interface TodoEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a to-do with its title, description, due, priority, checklist and tags (SPEC.md §5), or deletes
- * it. Leaving without saving drops the changes.
+ * Creates or changes a to-do with its title, description, due, places, priority, checklist and tags (SPEC.md §5), or
+ * deletes it. Leaving without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoEditorScreen(todos: Todos, tags: Tags, target: TodoEditorTarget, onClose: () -> Unit) {
+fun TodoEditorScreen(todos: Todos, tags: Tags, places: Places, target: TodoEditorTarget, onClose: () -> Unit) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
     var loaded by rememberSaveable { mutableStateOf(todoId == null) }
@@ -92,7 +94,7 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, target: TodoEditorTarget, onClose
             if (todo == null) {
                 onClose()
             } else {
-                draft = todo.toDraft(todos.checklist(todoId), todos.tagIdsOf(todoId))
+                draft = todo.toDraft(todos.checklist(todoId), todos.tagIdsOf(todoId), todos.placeIdsOf(todoId))
                 loaded = true
             }
         }
@@ -181,6 +183,13 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, target: TodoEditorTarget, onClose
                 today = todos.today(),
                 start = todos.nextFullHour(),
                 onChange = { draft = draft.copy(due = it) },
+            )
+            PlacesField(
+                places = places,
+                selected = draft.placeIds,
+                noneChosen = R.string.todo_places_none,
+                chosenHint = R.string.todo_places_chosen,
+                onChange = { draft = draft.copy(placeIds = it) },
             )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })

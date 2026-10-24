@@ -20,6 +20,7 @@ import de.emilyshub.tags.TagDao
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoDao
+import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -32,7 +33,8 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 @Database(
     entities = [
         Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class, Tag::class, RoutineTag::class,
-        Place::class, PlaceWifi::class, RoutinePlace::class, Todo::class, TodoChecklistItem::class, TodoTag::class,
+        Place::class, PlaceWifi::class, RoutinePlace::class,
+        Todo::class, TodoChecklistItem::class, TodoTag::class, TodoPlace::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -49,7 +51,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun todos(): TodoDao
 
     companion object {
-        const val VERSION = 14
+        const val VERSION = 15
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -62,7 +64,7 @@ abstract class HubDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
+                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
                 )
                 .build()
         }

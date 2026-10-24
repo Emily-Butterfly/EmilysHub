@@ -51,7 +51,7 @@ open class EmilysHubApplication : Application() {
 
     open val tags: Tags by lazy { Tags({ database }) }
 
-    open val todos: Todos by lazy { Todos({ database }, DeviceClock) }
+    open val todos: Todos by lazy { Todos({ database }, DeviceClock, onChange = ::updateReminders) }
 
     open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 
@@ -64,7 +64,9 @@ open class EmilysHubApplication : Application() {
     /** Where the device is, by the WLAN connected to, the position, and the places that have them. */
     open val locator: Locator by lazy { Locator(wifi, location, places) }
 
-    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock, locator::whereabouts) { database.settings() } }
+    open val reminders: Reminders by lazy {
+        Reminders(this, routines, todos, DeviceClock, locator::whereabouts) { database.settings() }
+    }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(
@@ -82,7 +84,7 @@ open class EmilysHubApplication : Application() {
         background.launch { reminders.update() }
     }
 
-    /** After every change to the routines or places. The change stands even if this fails; the next one tries again. */
+    /** After every change to the routines, to-dos or places. The change stands even if this fails; the next one tries again. */
     protected suspend fun updateReminders() {
         try {
             reminders.update()

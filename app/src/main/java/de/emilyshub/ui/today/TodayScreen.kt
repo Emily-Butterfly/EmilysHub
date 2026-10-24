@@ -81,11 +81,11 @@ fun TodayScreen(routines: Routines, todos: Todos, contentPadding: PaddingValues,
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
-            SetupWarning(routines, onCheck = onOpenStatus)
+            SetupWarning(routines, todos, onCheck = onOpenStatus)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
         }
         else -> LazyColumn(contentPadding = contentPadding) {
-            item(key = "setup-warning") { SetupWarning(routines, onCheck = onOpenStatus) }
+            item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
             items(list, key = { it.key }) { entry ->
                 when (entry) {
                     is TodayEntry.OfRoutine -> RoutineEntry(entry.routine, today, routines)
@@ -136,7 +136,10 @@ private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos) {
     }
 }
 
-/** A to-do's row on Heute: when it is due, in red while it is overdue, and its title, crossed out once done. */
+/**
+ * A to-do's row on Heute: when it is due, in red while it is overdue, its title, crossed out once done, and the places it
+ * waits for.
+ */
 @Composable
 private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) -> Unit) {
     Row(
@@ -170,6 +173,10 @@ private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) 
                 textDecoration = if (todo.done) TextDecoration.LineThrough else null,
             )
             PriorityNote(todo.priority)
+            // It pops up on arrival at one of its places (SPEC.md §4).
+            if (todo.waitingFor.isNotEmpty()) {
+                Hint(stringResource(R.string.today_waiting_for, todo.waitingFor.joinToString(stringResource(R.string.today_or))))
+            }
         }
     }
 }

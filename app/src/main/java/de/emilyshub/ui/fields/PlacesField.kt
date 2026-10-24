@@ -1,5 +1,6 @@
-package de.emilyshub.ui.routines
+package de.emilyshub.ui.fields
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -17,11 +18,18 @@ import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.places.BackgroundLocationNotice
 
 /**
- * The places the routine pops up at (SPEC.md §4): any of those chosen, everywhere with none. Once it is bound to one,
- * the location is asked for in the background here, and only here, so that it pops up on arrival with the app closed.
+ * The places a routine or to-do pops up at (SPEC.md §4): any of those chosen; how it reminds with none and with some,
+ * [noneChosen] and [chosenHint] say. Once it is bound to one, the location is asked for in the background here, and only
+ * here, so that it pops up on arrival with the app closed.
  */
 @Composable
-fun PlacesField(places: Places, selected: Set<Long>, onChange: (Set<Long>) -> Unit) {
+fun PlacesField(
+    places: Places,
+    selected: Set<Long>,
+    @StringRes noneChosen: Int,
+    @StringRes chosenHint: Int,
+    onChange: (Set<Long>) -> Unit,
+) {
     val all by remember(places) { places.all() }.collectAsState(initial = null)
     val list = all ?: return
     // One deleted meanwhile is chosen no more.
@@ -38,7 +46,7 @@ fun PlacesField(places: Places, selected: Set<Long>, onChange: (Set<Long>) -> Un
                 ChoiceChip(place.name, isChosen, onClick = { onChange(if (isChosen) chosen - place.id else chosen + place.id) })
             }
         }
-        Hint(stringResource(if (chosen.isEmpty()) R.string.routine_places_everywhere else R.string.routine_places_chosen))
+        Hint(stringResource(if (chosen.isEmpty()) noneChosen else chosenHint))
         if (chosen.isNotEmpty()) BackgroundLocationNotice()
     }
 }
