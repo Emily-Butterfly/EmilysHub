@@ -137,5 +137,23 @@
     <string name="placeholder_todos">Hier sammelst du bald deine To-dos.</string>
     <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
+    <string name="settings_tags">Tags</string>
+    <string name="tags_manage">Tags verwalten</string>
+    <string name="tags_manage_summary">Anlegen, umbenennen und löschen</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_empty">Noch keine Tags.</string>
+    <string name="tag_create">Tag anlegen</string>
+    <string name="tag_create_confirm">Anlegen</string>
+    <string name="tag_new">Neuer Tag</string>
+    <string name="tag_name">Name des Tags</string>
+    <string name="tag_name_taken">Diesen Tag gibt es schon.</string>
+    <string name="tag_rename">Tag umbenennen</string>
+    <string name="tag_rename_confirm">Umbenennen</string>
+    <string name="tag_delete">%1$s löschen</string>
+    <string name="tag_delete_title">Tag löschen?</string>
+    <string name="tag_delete_text">„%1$s“ wird überall entfernt, wo er vergeben ist. Was ihn hat, bleibt.</string>
+    <string name="routine_tags">Tags</string>
+    <string name="routines_filter_all">Alle</string>
+    <string name="routines_filter_empty">Keine Routine mit dem Tag „%1$s“.</string>
     <string name="placeholder_settings">Orte, Statusseite und Backups folgen hier.</string>
 </resources>

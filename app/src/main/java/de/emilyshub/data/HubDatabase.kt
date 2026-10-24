@@ -10,6 +10,9 @@ import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineDao
+import de.emilyshub.routines.RoutineTag
+import de.emilyshub.tags.Tag
+import de.emilyshub.tags.TagDao
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -19,7 +22,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
  * deliberately no destructive fallback: a missing migration fails loudly instead of wiping data.
  */
 @Database(
-    entities = [Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class],
+    entities = [
+        Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class, Tag::class, RoutineTag::class,
+    ],
     version = HubDatabase.VERSION,
 )
 @TypeConverters(Converters::class)
@@ -28,8 +33,10 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun routines(): RoutineDao
 
+    abstract fun tags(): TagDao
+
     companion object {
-        const val VERSION = 8
+        const val VERSION = 9
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -40,7 +47,8 @@ abstract class HubDatabase : RoomDatabase() {
             return Room.databaseBuilder(context, HubDatabase::class.java, name)
                 .openHelperFactory(SupportOpenHelperFactory(rawKey(key)))
                 .addMigrations(
-                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
                 )
                 .build()
         }

@@ -42,12 +42,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.routines.toDraft
+import de.emilyshub.tags.Tags
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalTime
@@ -65,7 +67,7 @@ sealed interface RoutineEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose: () -> Unit) {
+fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTarget, onClose: () -> Unit) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
@@ -90,7 +92,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                draft = routine.toDraft(routines.checklist(routineId))
+                draft = routine.toDraft(routines.checklist(routineId), routines.tagsOf(routineId))
                 original = draft
                 status = routine.status
                 loaded = true
@@ -189,7 +191,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 supportingText = {
                     when {
                         showMissingName && DraftProblem.NameMissing in problems -> Text(stringResource(R.string.routine_name_missing))
-                        else -> LengthHint(RoutineDraft.lengthOf(cleaned.name), RoutineDraft.NAME_MAX)
+                        else -> LengthHint(InputText.lengthOf(cleaned.name), RoutineDraft.NAME_MAX)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -201,11 +203,12 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 isError = DraftProblem.DescriptionTooLong in problems,
-                supportingText = { LengthHint(RoutineDraft.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
+                supportingText = { LengthHint(InputText.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
                 modifier = Modifier.fillMaxWidth(),
             )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
+            TagsField(tags, draft.tags, onChange = { draft = draft.copy(tags = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })

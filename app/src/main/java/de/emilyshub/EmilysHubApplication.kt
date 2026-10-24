@@ -15,6 +15,7 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
+import de.emilyshub.tags.Tags
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,8 @@ open class EmilysHubApplication : Application() {
     open val ringer: AlarmRinger by lazy { AlarmSound(this) }
 
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
+
+    open val tags: Tags by lazy { Tags({ database }) }
 
     open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) { database.settings() } }
 

@@ -4,6 +4,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -418,6 +419,50 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine can have several tags, also one made in the editor, and the list shows them`() {
+        app.tag("Gesundheit")
+        app.tag("Arbeit")
+
+        launchApp().use {
+            newRoutine("Tabletten")
+            tagChip("Gesundheit").tap()
+            compose.onNodeWithText("Neuer Tag").tap()
+            compose.onNode(hasSetTextAction() and hasText("Name des Tags")).performTextInput("Morgens")
+            compose.onNodeWithText("Anlegen").performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Gesundheit · Morgens").assertIsDisplayed()
+
+            compose.onNodeWithText("Tabletten").performClick()
+            tagChip("Gesundheit").performScrollTo().assertIsSelected()
+            tagChip("Arbeit").assertIsNotSelected()
+        }
+    }
+
+    @Test
+    fun `the routine list can be filtered by tag`() {
+        val health = app.tag("Gesundheit")
+        app.tag("Arbeit")
+        app.routine("Tabletten", "08:00", tags = setOf(health))
+        app.routine("Lesen", "21:00")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            tagChip("Gesundheit").performClick()
+
+            compose.onNodeWithText("Tabletten").assertIsDisplayed()
+            compose.onNodeWithText("Lesen").assertDoesNotExist()
+
+            tagChip("Arbeit").performClick()
+            compose.onNodeWithText("Keine Routine mit dem Tag „Arbeit“.").assertIsDisplayed()
+
+            tagChip("Alle").performClick()
+            compose.onNodeWithText("Tabletten").assertIsDisplayed()
+            compose.onNodeWithText("Lesen").assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `deleting a routine asks first`() {
         app.routine("Vitamine", "08:00")
 
@@ -465,6 +510,8 @@ class RoutineEditingTest {
     private fun SemanticsNodeInteraction.tap() = performScrollTo().performClick()
 
     private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
+
+    private fun tagChip(name: String) = compose.onNode(isSelectable() and hasText(name))
 
     private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
 

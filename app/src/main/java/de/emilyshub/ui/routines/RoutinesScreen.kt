@@ -1,26 +1,34 @@
 package de.emilyshub.ui.routines
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -31,16 +39,21 @@ import de.emilyshub.R
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
+import de.emilyshub.tags.Tag
+import de.emilyshub.tags.Tags
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.tags.TagChip
 import kotlinx.coroutines.flow.map
 
 /**
- * The routines in use, by their first time; tapping one opens it in the editor, "+" starts a new one. Below
- * them, the way to the archived ones, if there are any.
+ * The routines in use, by their first time, each with its tags; above them, once there are tags, a choice of one
+ * to show only the routines that have it (SPEC.md §8). Tapping a routine opens it in the editor, "+" starts a new
+ * one. Below them, the way to the archived ones, if there are any.
  */
 @Composable
 fun RoutinesScreen(
     routines: Routines,
+    tags: Tags,
     contentPadding: PaddingValues,
     onOpen: (Long) -> Unit,
     onCreate: () -> Unit,
@@ -48,14 +61,35 @@ fun RoutinesScreen(
 ) {
     val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
     val archivedCount by remember(routines) { routines.archived().map { it.size } }.collectAsState(initial = 0)
-    val list = inUse
+    val allTags by remember(tags) { tags.all() }.collectAsState(initial = emptyList())
+    val tagsByRoutine by remember(routines) { routines.tagsByRoutine() }.collectAsState(initial = emptyMap())
+    var filterId by rememberSaveable { mutableStateOf<Long?>(null) }
+    // One deleted meanwhile no longer filters.
+    val filter = allTags.find { it.id == filterId }
+    val all = inUse
     Box(Modifier.fillMaxSize()) {
         when {
-            list == null -> Unit
-            list.isEmpty() && archivedCount == 0 -> PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
+            all == null -> Unit
+            all.isEmpty() && archivedCount == 0 -> PlaceholderScreen(stringResource(R.string.routines_empty), contentPadding)
             else -> LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
+                val list = all.filter { filter == null || filter.id in tagsByRoutine[it.id].orEmpty() }
+                if (allTags.isNotEmpty()) {
+                    item(key = "filter") { TagFilter(allTags, filter, onChoose = { filterId = it?.id }) }
+                }
+                if (filter != null && list.isEmpty()) {
+                    item(key = "none") {
+                        Text(
+                            text = stringResource(R.string.routines_filter_empty, filter.name),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
                 items(list, key = { it.id }) { routine ->
-                    RoutineRow(routine, onClick = { onOpen(routine.id) })
+                    val tagIds = tagsByRoutine[routine.id].orEmpty()
+                    val tagNames = allTags.filter { it.id in tagIds }.map { it.name }
+                    RoutineRow(routine, tagNames, onClick = { onOpen(routine.id) })
                 }
                 if (archivedCount > 0) {
                     item {
@@ -78,8 +112,25 @@ fun RoutinesScreen(
     }
 }
 
+/** "Alle", then each tag, by name: the one chosen shows only the routines that have it. */
 @Composable
-private fun RoutineRow(routine: Routine, onClick: () -> Unit) {
+private fun TagFilter(tags: List<Tag>, chosen: Tag?, onChoose: (Tag?) -> Unit) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TagChip(stringResource(R.string.routines_filter_all), chosen = chosen == null, onClick = { onChoose(null) })
+        tags.forEach { tag ->
+            // Tapped again, it shows all of them again.
+            TagChip(tag.name, chosen = tag == chosen, onClick = { onChoose(if (tag == chosen) null else tag) })
+        }
+    }
+}
+
+@Composable
+private fun RoutineRow(routine: Routine, tagNames: List<String>, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(routine.name, style = priorityNameStyle(routine.priority)) },
         supportingContent = {
@@ -87,6 +138,7 @@ private fun RoutineRow(routine: Routine, onClick: () -> Unit) {
                 Text(scheduleText(routine))
                 if (routine.status == RoutineStatus.Paused) Text(stringResource(R.string.routine_paused))
                 PriorityNote(routine.priority)
+                if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))
                 if (routine.description.isNotEmpty()) {
                     Text(routine.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.tags.Tags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -660,6 +661,22 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a routine is saved with its tags, which change with it, leaving out those deleted meanwhile`() = runBlocking {
+        val tags = Tags({ database }, Dispatchers.Unconfined)
+        val work = tags.create("Arbeit")
+        val health = tags.create("Gesundheit")
+        val gone = tags.create("Alt")
+        tags.delete(gone)
+
+        val pills = routines.create(draft("Tabletten", "08:00", tags = setOf(health, gone)))
+        assertEquals(setOf(health), routines.tagsOf(pills))
+
+        routines.update(pills, draft("Tabletten", "08:00", tags = setOf(work, health)))
+        assertEquals(setOf(work, health), routines.tagsOf(pills))
+        assertEquals(mapOf(pills to setOf(work, health)), routines.tagsByRoutine().first())
+    }
+
+    @Test
     fun `a routine has normal priority unless it is given another, which changes with it`() = runBlocking {
         val pills = routines.create(draft("Tabletten", "08:00"))
         assertEquals(Priority.Normal, routines.get(pills)?.priority)
@@ -803,9 +820,10 @@ class RoutinesTest {
         window: TimeWindow = TimeWindow(),
         priority: Priority = Priority.Normal,
         checklist: List<String> = emptyList(),
+        tags: Set<Long> = emptySet(),
     ) = RoutineDraft(
         name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) },
+        checklist.map { ChecklistDraftItem(text = it) }, tags,
     )
 
     /** Each checklist item of the occurrences on Heute on [date], and whether it is ticked off there. */

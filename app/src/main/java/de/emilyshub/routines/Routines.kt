@@ -2,6 +2,7 @@ package de.emilyshub.routines
 
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.data.InputText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -10,13 +11,11 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import java.text.Collator
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -34,11 +33,13 @@ class Routines(
     private val dao get() = database().routines()
 
     /** Those in use, active or paused, by their first time, then by name; the archived ones are [archived]. */
-    fun inUse(): Flow<List<Routine>> =
-        observe(compareBy<Routine> { it.times.first() }.thenBy(byName, Routine::name)) { it.status != RoutineStatus.Archived }
+    fun inUse(): Flow<List<Routine>> {
+        val order = compareBy<Routine> { it.times.first() }.thenBy(InputText.byName, Routine::name)
+        return observe(order) { it.status != RoutineStatus.Archived }
+    }
 
     /** The archived routines (SPEC.md §2), by name. */
-    fun archived(): Flow<List<Routine>> = observe(compareBy(byName, Routine::name)) { it.status == RoutineStatus.Archived }
+    fun archived(): Flow<List<Routine>> = observe(compareBy(InputText.byName, Routine::name)) { it.status == RoutineStatus.Archived }
 
     private fun observe(order: Comparator<Routine>, which: (Routine) -> Boolean): Flow<List<Routine>> = flow {
         emitAll(dao.observeAll().map { all -> all.filter(which).sortedWith(order) })
@@ -53,6 +54,7 @@ class Routines(
         database().withTransaction {
             dao.insert(cleaned.toRoutine(plannedFrom = now())).also { id ->
                 saveChecklist(id, cleaned.checklist)
+                saveTags(id, cleaned.tags)
                 plan(today())
             }
         }
@@ -62,6 +64,17 @@ class Routines(
 
     /** The routine's checklist, in its order. */
     suspend fun checklist(routineId: Long): List<ChecklistItem> = withContext(io) { dao.checklist(routineId) }
+
+    /** The ids of the routine's tags (SPEC.md §8). */
+    suspend fun tagsOf(routineId: Long): Set<Long> = withContext(io) { dao.tagsOf(routineId).toSet() }
+
+    /** The ids of each tagged routine's tags, by the routine's id. */
+    fun tagsByRoutine(): Flow<Map<Long, Set<Long>>> = flow {
+        val byRoutine = dao.observeRoutineTags().map { all ->
+            all.groupBy(RoutineTag::routineId, RoutineTag::tagId).mapValues { (_, tags) -> tags.toSet() }
+        }
+        emitAll(byRoutine)
+    }.flowOn(io)
 
     /**
      * New times and repetition apply from now on, as [replanDay] describes: today's open occurrences
@@ -80,6 +93,7 @@ class Routines(
             val changed = changes.toRoutine(id, plannedFrom = if (rescheduled) now else routine.plannedFrom, routine.status)
             dao.update(changed)
             saveChecklist(id, changes.checklist)
+            saveTags(id, changes.tags)
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -153,7 +167,7 @@ class Routines(
                     val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
                     DueRoutine(occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority, due.entries())
                 }
-                .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(byName) { it.name })
+                .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
         }
         emitAll(list)
     }.flowOn(io)
@@ -247,7 +261,8 @@ class Routines(
                 times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { open to it }
             }
             .sortedWith(
-                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }.thenBy(byName) { (open) -> open.routine.name },
+                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }
+                    .thenBy(InputText.byName) { (open) -> open.routine.name },
             )
             .map { (open) -> reminderOf(open) }
     }
@@ -282,6 +297,11 @@ class Routines(
     /** Ticks the open occurrence off once every one of the checklist's [items] is ticked off on it. */
     private suspend fun tickOffIfAllTicked(occurrenceId: Long, items: List<Long>) {
         if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
+    }
+
+    private suspend fun saveTags(routineId: Long, tagIds: Set<Long>) {
+        dao.untag(routineId)
+        dao.tag(routineId, tagIds)
     }
 
     /**
@@ -337,10 +357,5 @@ class Routines(
     private fun checked(draft: RoutineDraft): RoutineDraft {
         require(draft.problems.isEmpty()) { "Invalid routine: ${draft.problems}" }
         return draft.cleaned()
-    }
-
-    private companion object {
-        /** German alphabetical order, with umlauts next to their base letters. */
-        val byName: Collator = Collator.getInstance(Locale.GERMAN)
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.RoutineDraft
 
@@ -32,7 +33,7 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
         SectionTitle(stringResource(R.string.routine_checklist))
         items.forEachIndexed { index, item ->
             val text = item.cleaned().text
-            val tooLong = RoutineDraft.lengthOf(text) > RoutineDraft.CHECKLIST_ITEM_MAX
+            val tooLong = InputText.lengthOf(text) > RoutineDraft.CHECKLIST_ITEM_MAX
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = item.text,

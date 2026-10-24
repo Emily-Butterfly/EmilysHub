@@ -1,5 +1,6 @@
 package de.emilyshub.routines
 
+import de.emilyshub.data.InputText
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.DayOfWeek
@@ -35,7 +36,7 @@ class RoutineDraftTest {
     @Test
     fun `an emoji counts as one character`() {
         assertEquals(emptySet<DraftProblem>(), draft(name = "🌱".repeat(80)).problems)
-        assertEquals(80, RoutineDraft.lengthOf("🌱".repeat(80)))
+        assertEquals(80, InputText.lengthOf("🌱".repeat(80)))
     }
 
     @Test

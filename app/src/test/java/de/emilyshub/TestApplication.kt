@@ -7,6 +7,7 @@ import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.FakeAuthenticator
+import de.emilyshub.tags.Tags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -27,6 +28,7 @@ class TestApplication : EmilysHubApplication() {
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
+    override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
     override val reminders: Reminders by lazy { Reminders(this, routines, clock) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 

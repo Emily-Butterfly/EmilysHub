@@ -1,6 +1,7 @@
 package de.emilyshub.ui.settings
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -46,6 +48,7 @@ fun SettingsScreen(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onOpenTags: () -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -73,6 +76,13 @@ fun SettingsScreen(
 
             SectionHeader(R.string.settings_security)
             AppLockSwitch(on = settings.appLockEnabled, canAuthenticate = canAuthenticate, onChange = onAppLockChange)
+
+            SectionHeader(R.string.settings_tags)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.tags_manage)) },
+                supportingContent = { Text(stringResource(R.string.tags_manage_summary)) },
+                modifier = Modifier.clickable(onClick = onOpenTags),
+            )
 
             Text(
                 text = stringResource(R.string.placeholder_settings),

@@ -1,5 +1,6 @@
 package de.emilyshub.routines
 
+import de.emilyshub.data.InputText
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalTime
@@ -35,14 +36,16 @@ data class RoutineDraft(
     val priority: Priority = Priority.Normal,
     /** Its sub-items ("Unterpunkte") in their order, ticked off one by one on each occurrence. */
     val checklist: List<ChecklistDraftItem> = emptyList(),
+    /** The ids of its tags; one deleted meanwhile is left out on saving. */
+    val tags: Set<Long> = emptySet(),
 ) : Serializable {
 
     val problems: Set<DraftProblem>
         get() = with(cleaned()) {
             buildSet {
-                if (name.none(::isVisible)) add(DraftProblem.NameMissing)
-                if (lengthOf(name) > NAME_MAX) add(DraftProblem.NameTooLong)
-                if (lengthOf(description) > DESCRIPTION_MAX) add(DraftProblem.DescriptionTooLong)
+                if (!InputText.isVisible(name)) add(DraftProblem.NameMissing)
+                if (InputText.lengthOf(name) > NAME_MAX) add(DraftProblem.NameTooLong)
+                if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(DraftProblem.DescriptionTooLong)
                 if (times.isEmpty()) add(DraftProblem.TimesMissing)
                 if (times.size > TIMES_MAX) add(DraftProblem.TooManyTimes)
                 when (val repetition = repetition) {
@@ -54,7 +57,7 @@ data class RoutineDraft(
                 if (followUps.everyMinutes !in FollowUps.MINUTES) add(DraftProblem.FollowUpIntervalOutOfRange)
                 if (window.hours !in TimeWindow.HOURS) add(DraftProblem.WindowOutOfRange)
                 if (checklist.size > CHECKLIST_MAX) add(DraftProblem.ChecklistTooLong)
-                if (checklist.any { lengthOf(it.text) > CHECKLIST_ITEM_MAX }) add(DraftProblem.ChecklistItemTooLong)
+                if (checklist.any { InputText.lengthOf(it.text) > CHECKLIST_ITEM_MAX }) add(DraftProblem.ChecklistItemTooLong)
             }
         }
 
@@ -64,12 +67,12 @@ data class RoutineDraft(
      * midnight, the default hours: neither is shown then.
      */
     fun cleaned() = copy(
-        name = name.trim().replace(WHITESPACE, " "),
+        name = InputText.singleLine(name),
         description = description.trim(),
         times = times.distinct().sorted(),
         followUps = if (followUps.count == 0) FollowUps(count = 0) else followUps,
         window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,
-        checklist = checklist.map(ChecklistDraftItem::cleaned).filter { it.text.any(::isVisible) },
+        checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
     )
 
     /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
@@ -88,25 +91,17 @@ data class RoutineDraft(
 
         const val CHECKLIST_MAX = 20
         const val CHECKLIST_ITEM_MAX = 80
-
-        /** Characters as people count them: an emoji is one, not the two UTF-16 units it takes. */
-        fun lengthOf(text: String): Int = text.codePointCount(0, text.length)
-
-        // Zero-width spaces and joiners are "format" characters: they print nothing on their own.
-        private fun isVisible(char: Char) = !char.isWhitespace() && Character.getType(char) != Character.FORMAT.toInt()
     }
 }
 
 /** An item of a routine's checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. */
 data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable {
     /** On a single line, without surrounding spaces. */
-    fun cleaned() = copy(text = text.trim().replace(WHITESPACE, " "))
+    fun cleaned() = copy(text = InputText.singleLine(text))
 }
 
-private val WHITESPACE = Regex("\\s+")
-
-/** The routine with its [checklist] as the editor starts out with it. */
-fun Routine.toDraft(checklist: List<ChecklistItem>) = RoutineDraft(
+/** The routine with its [checklist] and [tags] as the editor starts out with it. */
+fun Routine.toDraft(checklist: List<ChecklistItem>, tags: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) },
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tags,
 )

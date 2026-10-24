@@ -131,6 +131,19 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
     fun observeOccurrencesWithChecklists(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
 
+    @Query("SELECT tag_id FROM routine_tags WHERE routine_id = :routineId")
+    suspend fun tagsOf(routineId: Long): List<Long>
+
+    @Query("SELECT * FROM routine_tags")
+    fun observeRoutineTags(): Flow<List<RoutineTag>>
+
+    @Query("DELETE FROM routine_tags WHERE routine_id = :routineId")
+    suspend fun untag(routineId: Long)
+
+    /** Gives the routine those of [tagIds] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO routine_tags (routine_id, tag_id) SELECT :routineId, id FROM tags WHERE id IN (:tagIds)")
+    suspend fun tag(routineId: Long, tagIds: Collection<Long>)
+
     @Query("SELECT * FROM checklist_items WHERE routine_id = :routineId ORDER BY position")
     suspend fun checklist(routineId: Long): List<ChecklistItem>
 

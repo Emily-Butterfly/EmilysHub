@@ -46,7 +46,9 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
+import de.emilyshub.tags.Tags
 import de.emilyshub.ui.settings.SettingsScreen
+import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.TodayScreen
@@ -58,7 +60,7 @@ import kotlinx.coroutines.launch
  * the lock screen while the app is locked (SPEC.md §9).
  */
 @Composable
-fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuthenticator, routines: Routines) {
+fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuthenticator, routines: Routines, tags: Tags) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
 
@@ -77,6 +79,7 @@ fun EmilysHubApp(settings: AppSettings, lock: AppLock, authenticator: DeviceAuth
             lockedAwayState.SaveableStateProvider("content") {
                 AppShell(
                     routines = routines,
+                    tags = tags,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
                     onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
@@ -121,6 +124,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 @Composable
 private fun AppShell(
     routines: Routines,
+    tags: Tags,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
@@ -131,9 +135,15 @@ private fun AppShell(
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
+    var tagsOpen by rememberSaveable { mutableStateOf(false) }
 
     val editor = routineEditor
     when {
+        // Opened from the settings, it goes back there.
+        tagsOpen -> {
+            BackHandler { tagsOpen = false }
+            TagsScreen(tags, onBack = { tagsOpen = false })
+        }
         settingsOpen -> {
             BackHandler { settingsOpen = false }
             SettingsScreen(
@@ -141,12 +151,13 @@ private fun AppShell(
                 canAuthenticate = canAuthenticate,
                 onDesignChange = onDesignChange,
                 onAppLockChange = onAppLockChange,
+                onOpenTags = { tagsOpen = true },
                 onBack = { settingsOpen = false },
             )
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            RoutineEditorScreen(routines, editor, onClose = { routineEditor = null })
+            RoutineEditorScreen(routines, tags, editor, onClose = { routineEditor = null })
         }
         archiveOpen -> {
             BackHandler { archiveOpen = false }
@@ -157,6 +168,7 @@ private fun AppShell(
             BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
             TopLevelScaffold(
                 routines = routines,
+                tags = tags,
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -179,6 +191,7 @@ private fun AskOnceThereIsARoutine(routines: Routines, onAsked: () -> Unit) {
 @Composable
 private fun TopLevelScaffold(
     routines: Routines,
+    tags: Tags,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -216,6 +229,7 @@ private fun TopLevelScaffold(
             TopLevelDestination.Today -> TodayScreen(routines, contentPadding)
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = routines,
+                tags = tags,
                 contentPadding = contentPadding,
                 onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
                 onCreate = { onOpenRoutine(RoutineEditorTarget.New) },

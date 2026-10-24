@@ -13,7 +13,9 @@ import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.TimeWindow
+import de.emilyshub.tags.Tag
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -201,6 +203,32 @@ class HubDatabaseMigrationTest {
             assertEquals(listOf(item.id), database.routines().ticks(9))
             database.routines().delete(3)
             assertEquals(emptyList<Long>(), database.routines().ticks(9))
+        }
+    }
+
+    @Test
+    fun `version 8 moves to version 9 keeping each routine and giving it no tags yet`() {
+        createAtVersion(8) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, follow_up_count, " +
+                    "follow_up_minutes, full_screen, window_hours, window_until_midnight, priority, status) " +
+                    "VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 5, 10, 1, 6, 0, 'high', 'paused')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val routine = database.routines().get(3)
+            assertEquals(listOf(Priority.High, RoutineStatus.Paused), routine?.let { listOf(it.priority, it.status) })
+            assertEquals(emptyList<Long>(), database.routines().tagsOf(3))
+
+            // A tag deleted is taken off the routine, and a routine deleted takes its tags along.
+            val work = database.tags().insert(Tag(name = "Arbeit"))
+            val health = database.tags().insert(Tag(name = "Gesundheit"))
+            database.routines().tag(3, listOf(work, health))
+            database.tags().delete(work)
+            assertEquals(listOf(health), database.routines().tagsOf(3))
+            database.routines().delete(3)
+            assertEquals(emptyList<RoutineTag>(), database.routines().observeRoutineTags().first())
         }
     }
 

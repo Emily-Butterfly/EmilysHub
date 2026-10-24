@@ -110,3 +110,21 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_checklist_ticks_item_id` ON `checklist_ticks` (`item_id`)")
     }
 }
+
+/**
+ * Version 9: the tags shared by all areas, and which routines have which (#12); there are none so far. Later areas
+ * add a link table of their own.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tags_name` ON `tags` (`name`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_tags` (`routine_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`routine_id`, `tag_id`), " +
+                "FOREIGN KEY(`routine_id`) REFERENCES `routines`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`tag_id`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_tags_tag_id` ON `routine_tags` (`tag_id`)")
+    }
+}
