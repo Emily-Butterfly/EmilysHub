@@ -24,8 +24,11 @@ import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Wifi
 import de.emilyshub.ui.Hint
 
-/** Whether Android tells the app the name of the WLAN: only with the precise location allowed, and only while it is on. */
-enum class WifiAccess {
+/**
+ * Whether Android tells the app the name of the WLAN and where the device is, as the places need: only with the precise
+ * location allowed, and only while it is on.
+ */
+enum class LocationAccess {
     Granted,
     LocationOff,
 
@@ -34,21 +37,21 @@ enum class WifiAccess {
     NotAllowed,
 }
 
-private fun Context.wifiAccess(): WifiAccess = when {
+private fun Context.locationAccess(): LocationAccess = when {
     !isGranted(Manifest.permission.ACCESS_FINE_LOCATION) ->
-        if (isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) WifiAccess.ApproximateOnly else WifiAccess.NotAllowed
-    !LocationManagerCompat.isLocationEnabled(getSystemService(LocationManager::class.java)) -> WifiAccess.LocationOff
-    else -> WifiAccess.Granted
+        if (isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) LocationAccess.ApproximateOnly else LocationAccess.NotAllowed
+    !LocationManagerCompat.isLocationEnabled(getSystemService(LocationManager::class.java)) -> LocationAccess.LocationOff
+    else -> LocationAccess.Granted
 }
 
 /**
- * The [WifiAccess], checked again on every return to the app, say from Android's settings, and whenever the location
+ * The [LocationAccess], checked again on every return to the app, say from Android's settings, and whenever the location
  * is turned on or off, say in the quick settings, which leave the app as it is.
  */
 @Composable
-fun rememberWifiAccess(): Checked<WifiAccess> {
+fun rememberLocationAccess(): Checked<LocationAccess> {
     val context = LocalContext.current
-    val state = rememberChecked { wifiAccess() }
+    val state = rememberChecked { locationAccess() }
     DisposableEffect(context, state) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) = state.check()
@@ -63,8 +66,8 @@ fun rememberWifiAccess(): Checked<WifiAccess> {
 
 /** The WLAN connected to, while Android tells its name; none before it is known, or while [access] keeps it back. */
 @Composable
-fun rememberConnectedWifi(wifi: CurrentWifi, access: Checked<WifiAccess>): Wifi? {
-    if (access.current != WifiAccess.Granted) return null
+fun rememberConnectedWifi(wifi: CurrentWifi, access: Checked<LocationAccess>): Wifi? {
+    if (access.current != LocationAccess.Granted) return null
     // Asked anew once allowed: before, Android left the name out.
     val connected by remember(wifi, access.current) { wifi.current() }.collectAsState(initial = null)
     return connected
@@ -72,26 +75,26 @@ fun rememberConnectedWifi(wifi: CurrentWifi, access: Checked<WifiAccess>): Wifi?
 
 /** Why the app needs the location for the WLAN name, and the way to allow it, or to turn the location on. */
 @Composable
-fun WifiAccessNotice(state: Checked<WifiAccess>) {
+fun LocationAccessNotice(state: Checked<LocationAccess>) {
     val context = LocalContext.current
     when (state.current) {
-        WifiAccess.Granted -> Unit
-        WifiAccess.NotAllowed -> PermissionNotice(
-            text = stringResource(R.string.wifi_access_text),
-            allow = stringResource(R.string.wifi_access_allow),
+        LocationAccess.Granted -> Unit
+        LocationAccess.NotAllowed -> PermissionNotice(
+            text = stringResource(R.string.location_access_text),
+            allow = stringResource(R.string.location_access_allow),
             permissions = LOCATION,
             onAnswer = state::check,
         )
-        WifiAccess.ApproximateOnly -> PermissionNotice(
-            text = stringResource(R.string.wifi_access_approximate_text),
-            allow = stringResource(R.string.wifi_access_allow_precise),
+        LocationAccess.ApproximateOnly -> PermissionNotice(
+            text = stringResource(R.string.location_access_approximate_text),
+            allow = stringResource(R.string.location_access_allow_precise),
             permissions = LOCATION,
             onAnswer = state::check,
         )
-        WifiAccess.LocationOff -> Column {
-            Hint(stringResource(R.string.wifi_location_off_text))
+        LocationAccess.LocationOff -> Column {
+            Hint(stringResource(R.string.location_off_text))
             TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
-                Text(stringResource(R.string.wifi_location_off_open))
+                Text(stringResource(R.string.location_off_open))
             }
         }
     }

@@ -1,5 +1,6 @@
 package de.emilyshub.places
 
+import androidx.room.Embedded
 import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlin.math.asin
@@ -33,15 +34,18 @@ data class Coordinates(val latitude: Double, val longitude: Double) {
 /** Where Android says the device is: at [coordinates], give or take [accuracy] meters. */
 data class Position(val coordinates: Coordinates, val accuracy: Double)
 
-/** A place's GPS area (SPEC.md §4): the circle of [radius] meters around its center. */
-data class Area(val latitude: Double, val longitude: Double, val radius: Int) {
-    val center: Coordinates get() = Coordinates(latitude, longitude)
+/** A place's GPS area (SPEC.md §4): the circle of [radius] meters around [center]. */
+data class Area(@Embedded val center: Coordinates, val radius: Int) {
 
     /**
-     * Whether the device may be within it at [position]: up to the radius from the center, the border included, and
-     * also once Android's give or take reaches into it, so that a reminder is not held back on a position unsure.
+     * Whether the device is within it at [position]: up to the radius from the center, the border included, and also
+     * once Android's give or take reaches into it, so that a reminder is not held back on a position near the border.
+     * A position less precise than the area is large tells nothing (null): within or not, it would be a guess.
      */
-    fun mayContain(position: Position): Boolean = center.distanceTo(position.coordinates) <= radius + position.accuracy
+    fun includes(position: Position): Boolean? = when {
+        position.accuracy > radius -> null
+        else -> center.distanceTo(position.coordinates) <= radius + position.accuracy
+    }
 
     companion object {
         const val RADIUS_MIN = 50

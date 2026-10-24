@@ -3,7 +3,6 @@ package de.emilyshub.routines
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
-import de.emilyshub.places.Area
 import de.emilyshub.places.Whereabouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -268,10 +267,10 @@ class Routines(
      *
      * One bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them; elsewhere it
      * waits, and its follow-ups, until it has popped up once, only look again: it pops up at one of them should its
-     * arrival have gone unnoticed. [locate] is only asked when that matters. Not reported as a change: the reminders
-     * do this themselves.
+     * arrival have gone unnoticed. [locate] is only asked when that matters, about the places that do. Not reported as
+     * a change: the reminders do this themselves.
      */
-    suspend fun remindersDue(after: Instant, until: Instant, locate: suspend () -> Whereabouts): List<Reminder> =
+    suspend fun remindersDue(after: Instant, until: Instant, locate: Locate): List<Reminder> =
         withContext(io + NonCancellable) {
             val last = today(until, clock.zone)
             planDays(from = today(after, clock.zone), to = last)
@@ -285,7 +284,7 @@ class Routines(
                         .thenBy(InputText.byName) { (open) -> open.routine.name },
                 )
             val (held, free) = due.partition { (open, time) -> open.isHeldForPlaces(time, clock.zone) }
-            val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate()
+            val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate(held.flatMap { (open) -> open.placeIds }.toSet())
             val (popping, waiting) = held.partition { (open) -> whereabouts.allows(open.placeIds) }
             dao.setWaiting(waiting.map { (open) -> open.occurrence.id }, waiting = true)
             dao.setWaiting(popping.map { (open) -> open.occurrence.id }, waiting = false)
@@ -294,12 +293,16 @@ class Routines(
         }
 
     /**
-     * Arrived at a place (SPEC.md §4): the occurrences waiting for one of the places the device is at, their time
-     * window still open, are to pop up now and wait no more, as [remindersDue] then has them; their follow-ups count
-     * from now. Returns them. Not reported as a change: the reminders do this themselves.
+     * Arrived at a place (SPEC.md §4): the occurrences waiting for one of the places [locate] says the device is at,
+     * their time window still open, are to pop up now and wait no more, as [remindersDue] then has them; their
+     * follow-ups count from now. Returns them. [locate] is only asked while something waits, about the places it waits
+     * for. Not reported as a change: the reminders do this themselves.
      */
-    suspend fun arrive(whereabouts: Whereabouts): List<Reminder> = withContext(io + NonCancellable) {
-        popUp(dao.openWaiting().filter { whereabouts.allows(it.placeIds) })
+    suspend fun arrive(locate: Locate): List<Reminder> = withContext(io + NonCancellable) {
+        val waiting = dao.openWaiting()
+        if (waiting.isEmpty()) return@withContext emptyList()
+        val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
+        popUp(waiting.filter { whereabouts.allows(it.placeIds) })
     }
 
     /**
@@ -317,9 +320,6 @@ class Routines(
         dao.popUp(popping.map { it.occurrence.id }, at = now)
         return popping.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
     }
-
-    /** The GPS areas of the places open occurrences wait for, to watch for arriving at them (SPEC.md §4). */
-    suspend fun areasWaitedFor(): Set<Area> = withContext(io) { dao.placesWithAreasWaitedFor().mapNotNull { it.area }.toSet() }
 
     /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
@@ -419,3 +419,6 @@ class Routines(
         return draft.cleaned()
     }
 }
+
+/** Where the device is, as far as the places with the ids given go (SPEC.md §4). */
+typealias Locate = suspend (placeIds: Set<Long>) -> Whereabouts

@@ -104,7 +104,7 @@ fun PlacesScreen(
  */
 @Composable
 private fun RecognisedPlace(places: List<PlaceWithWifis>, wifi: CurrentWifi, location: CurrentLocation) {
-    val access = rememberWifiAccess()
+    val access = rememberLocationAccess()
     OutlinedCard(
         Modifier
             .fillMaxWidth()
@@ -118,8 +118,8 @@ private fun RecognisedPlace(places: List<PlaceWithWifis>, wifi: CurrentWifi, loc
                     .padding(bottom = 8.dp)
                     .semantics { heading() },
             )
-            if (access.current != WifiAccess.Granted) {
-                WifiAccessNotice(access)
+            if (access.current != LocationAccess.Granted) {
+                LocationAccessNotice(access)
                 return@Column
             }
             val connected = rememberConnectedWifi(wifi, access) ?: return@Column
@@ -159,10 +159,12 @@ private fun RecognisedByPosition(places: List<PlaceWithWifis>, location: Current
             found == null -> stringResource(R.string.places_no_position)
             else -> {
                 val accuracy = found.accuracy.roundToInt()
-                val here = places.filter { it.area?.mayContain(found) == true }
+                val told = places.mapNotNull { place -> place.area?.let { place to it.includes(found) } }
+                val here = told.filter { (_, within) -> within == true }.map { (place) -> place.name }
                 when {
-                    here.isEmpty() -> stringResource(R.string.places_recognised_no_area, accuracy)
-                    else -> stringResource(R.string.places_recognised_area, here.joinToString { it.name }, accuracy)
+                    here.isNotEmpty() -> stringResource(R.string.places_recognised_area, here.joinToString(), accuracy)
+                    told.any { (_, within) -> within == null } -> stringResource(R.string.places_position_imprecise, accuracy)
+                    else -> stringResource(R.string.places_recognised_no_area, accuracy)
                 }
             }
         },

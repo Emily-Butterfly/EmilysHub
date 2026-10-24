@@ -19,22 +19,24 @@ class AreaTest {
 
     @Test
     fun `a position lies within an area up to its radius from the center, the border included`() {
-        val gym = Area(berlin.latitude, berlin.longitude, radius = 150)
+        val gym = Area(berlin, radius = 150)
 
-        assertEquals(true, gym.mayContain(at(metersNorth = 0.0)))
-        assertEquals(true, gym.mayContain(at(metersNorth = 140.0)))
-        assertEquals(true, gym.mayContain(at(metersNorth = 149.9)))
-        assertEquals(false, gym.mayContain(at(metersNorth = 160.0)))
-        assertEquals(false, gym.mayContain(at(metersNorth = -2_000.0)))
+        assertEquals(true, gym.includes(at(metersNorth = 0.0)))
+        assertEquals(true, gym.includes(at(metersNorth = 140.0)))
+        assertEquals(true, gym.includes(at(metersNorth = 149.9)))
+        assertEquals(false, gym.includes(at(metersNorth = 160.0)))
+        assertEquals(false, gym.includes(at(metersNorth = -2_000.0)))
     }
 
     @Test
-    fun `a position Android is less sure of counts as within once it might be, so as not to hold a reminder back`() {
-        val gym = Area(berlin.latitude, berlin.longitude, radius = 150)
+    fun `Android's give or take counts towards the area, and a position less precise than the area is large tells nothing`() {
+        val gym = Area(berlin, radius = 150)
 
-        assertEquals(false, gym.mayContain(at(metersNorth = 180.0, accuracy = 20.0)))
-        assertEquals(true, gym.mayContain(at(metersNorth = 160.0, accuracy = 20.0)))
-        assertEquals(true, gym.mayContain(at(metersNorth = 1_800.0, accuracy = 2_000.0)))
+        assertEquals(false, gym.includes(at(metersNorth = 180.0, accuracy = 20.0)))
+        assertEquals(true, gym.includes(at(metersNorth = 160.0, accuracy = 20.0)))
+        assertEquals(false, gym.includes(at(metersNorth = 400.0, accuracy = 150.0)))
+        assertEquals(null, gym.includes(at(metersNorth = 400.0, accuracy = 151.0)))
+        assertEquals(null, gym.includes(at(metersNorth = 1_800.0, accuracy = 2_000.0)))
     }
 
     @Test

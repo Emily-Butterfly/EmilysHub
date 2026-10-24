@@ -22,7 +22,7 @@ interface CurrentLocation {
 
 /**
  * Asks Android's own location service, without Google Play Services (SPEC.md §4): a position it found in the last
- * [RECENT] does, as when it has just told of entering an area; otherwise it is asked for one now, for up to [wait].
+ * [RECENT] does; otherwise it is asked for one now, for up to [wait].
  */
 class SystemLocation(private val context: Context, private val wait: Duration = Duration.ofSeconds(8)) : CurrentLocation {
 
@@ -38,14 +38,14 @@ class SystemLocation(private val context: Context, private val wait: Duration = 
         }
     }
 
-    /** The most accurate position any of Android's ways found in the last [RECENT]. */
+    /** The newest position any of Android's ways found in the last [RECENT]: an older one may be from before arriving. */
     @SuppressLint("MissingPermission")
     private fun recent(manager: LocationManager): Location? {
         val now = SystemClock.elapsedRealtimeNanos()
         return manager.getProviders(true)
             .mapNotNull(manager::getLastKnownLocation)
             .filter { Duration.ofNanos(now - it.elapsedRealtimeNanos) <= RECENT }
-            .minByOrNull { if (it.hasAccuracy()) it.accuracy else Float.MAX_VALUE }
+            .maxByOrNull { it.elapsedRealtimeNanos }
     }
 
     /** The position now, by the best way Android has turned on; none if it finds none within [wait]. */

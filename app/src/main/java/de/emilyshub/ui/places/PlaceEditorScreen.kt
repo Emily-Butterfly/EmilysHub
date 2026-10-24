@@ -52,7 +52,6 @@ import de.emilyshub.R
 import de.emilyshub.places.Area
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
-import de.emilyshub.places.Degrees
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.PlaceProblem
 import de.emilyshub.places.Places
@@ -97,7 +96,7 @@ fun PlaceEditorScreen(
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val all by remember(places) { places.all() }.collectAsState(initial = null)
-    val access = rememberWifiAccess()
+    val access = rememberLocationAccess()
 
     if (!loaded && placeId != null) {
         LaunchedEffect(placeId) {
@@ -179,6 +178,8 @@ fun PlaceEditorScreen(
                 supportingText = nameProblem?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
             )
+            // Both the WLAN connected to and the position now need the location allowed and on.
+            if (access.current != LocationAccess.Granted) LocationAccessNotice(access)
             WifisField(
                 wifis = draft.wifis,
                 wifi = wifi,
@@ -215,13 +216,14 @@ fun PlaceEditorScreen(
 
 /**
  * The place's WLANs, each marked if Android could not name one so; below them, the WLAN connected to now to take
- * over exactly as Android names it, or why Android does not tell its name, and a name to type in.
+ * over exactly as Android names it while the location is allowed, or why Android does not tell its name, and a name
+ * to type in.
  */
 @Composable
 private fun WifisField(
     wifis: List<String>,
     wifi: CurrentWifi,
-    access: Checked<WifiAccess>,
+    access: Checked<LocationAccess>,
     showMissing: Boolean,
     onChange: (List<String>) -> Unit,
 ) {
@@ -248,7 +250,7 @@ private fun WifisField(
         }
         if (showMissing) {
             Text(
-                stringResource(R.string.place_wifis_missing),
+                stringResource(R.string.place_wifi_or_area_missing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -258,7 +260,8 @@ private fun WifisField(
             return@Column
         }
         when (val connected = rememberConnectedWifi(wifi, access)) {
-            null -> if (access.current != WifiAccess.Granted) WifiAccessNotice(access)
+            // Without the location allowed and on, the notice above the WLANs says why.
+            null -> Unit
             Wifi.None -> Hint(stringResource(R.string.place_wifi_none))
             Wifi.NameHidden -> Hint(stringResource(R.string.places_recognised_name_hidden))
             is Wifi.Named -> if (connected.ssid !in wifis) {
@@ -304,17 +307,14 @@ private fun AreaField(
     problems: Set<PlaceProblem>,
     triedToSave: Boolean,
     location: CurrentLocation,
-    access: Checked<WifiAccess>,
+    access: Checked<LocationAccess>,
     onChange: ((PlaceDraft) -> PlaceDraft) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.place_area))
         Hint(stringResource(R.string.place_area_hint))
-        if (access.current == WifiAccess.Granted) {
-            TakePosition(location) { position ->
-                val center = position.coordinates
-                onChange { it.copy(latitude = Degrees.format(center.latitude), longitude = Degrees.format(center.longitude)) }
-            }
+        if (access.current == LocationAccess.Granted) {
+            TakePosition(location) { position -> onChange { it.withCenter(position.coordinates) } }
         }
         DegreesField(
             value = draft.latitude,
@@ -344,7 +344,7 @@ private fun AreaField(
                 colors = SliderDefaults.colors(activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent),
                 modifier = Modifier.semantics { stateDescription = radius },
             )
-            TextButton(onClick = { onChange { it.copy(latitude = "", longitude = "", radius = Area.RADIUS_DEFAULT) } }) {
+            TextButton(onClick = { onChange(PlaceDraft::withoutArea) }) {
                 Text(stringResource(R.string.place_area_remove))
             }
         }

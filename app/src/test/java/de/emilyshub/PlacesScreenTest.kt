@@ -105,7 +105,7 @@ class PlacesScreenTest {
 
             compose.onNodeWithText("GPS-Bereich, 300 m").assertIsDisplayed()
         }
-        assertEquals(listOf(Area(latitude = 52.520008, longitude = 13.404954, radius = 300)), areas())
+        assertEquals(listOf(Area(Coordinates(52.520008, 13.404954), radius = 300)), areas())
     }
 
     @Test
@@ -141,7 +141,18 @@ class PlacesScreenTest {
             compose.onNode(hasSetTextAction() and hasText("52,520008")).assertExists()
             compose.onNodeWithText("Speichern").performClick()
         }
-        assertEquals(listOf(Area(latitude = 52.520008, longitude = 13.404954, radius = 150)), areas())
+        assertEquals(listOf(Area(Coordinates(52.520008, 13.404954), radius = 150)), areas())
+    }
+
+    @Test
+    fun `without the location allowed, the editor says why once, for the WLAN and the position alike`() {
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+
+            compose.onNodeWithText("Android verrät den Namen des WLANs", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Aktuellen Standort übernehmen").assertDoesNotExist()
+        }
     }
 
     @Test
@@ -161,7 +172,7 @@ class PlacesScreenTest {
 
     @Test
     fun `a place loses its GPS area again, recognised then by its WLAN alone`() {
-        app.place("Zuhause", "FritzBox", area = Area(latitude = 52.5, longitude = 13.3, radius = 200))
+        app.place("Zuhause", "FritzBox", area = Area(Coordinates(52.5, 13.3), radius = 200))
 
         launchApp().use {
             openPlaces()
@@ -179,8 +190,8 @@ class PlacesScreenTest {
     @Test
     fun `the place recognised now is also the one whose GPS area the position lies within`() {
         allowLocation()
-        app.place("Gym", area = Area(latitude = 52.520008, longitude = 13.404954, radius = 150))
-        app.place("Zuhause", "FritzBox", area = Area(latitude = 52.5, longitude = 13.3, radius = 150))
+        app.place("Gym", area = Area(Coordinates(52.520008, 13.404954), radius = 150))
+        app.place("Zuhause", "FritzBox", area = Area(Coordinates(52.5, 13.3), radius = 150))
         app.location.position = Position(Coordinates(52.5201, 13.405), accuracy = 12.0)
 
         launchApp().use {

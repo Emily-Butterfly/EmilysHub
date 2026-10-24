@@ -78,7 +78,8 @@ class PlacesTest {
     @Test
     fun `a GPS area has a latitude from -90 to 90 and a longitude from -180 to 180, both of them, in degrees`() {
         val gym = PlaceDraft("Gym", emptyList())
-        fun problemsAt(latitude: String, longitude: String) = gym.copy(latitude = latitude, longitude = longitude).problems(emptyList())
+        fun problemsAt(latitude: String, longitude: String) =
+            gym.copy(latitude = latitude, longitude = longitude).problems(others = emptyList())
 
         assertEquals(emptySet<PlaceProblem>(), problemsAt("90", "-180"))
         assertEquals(emptySet<PlaceProblem>(), problemsAt("-90,0", "180.0"))
@@ -105,7 +106,7 @@ class PlacesTest {
         val gym = places.create(PlaceDraft("Gym", emptyList(), latitude = " 52.520008", longitude = "13,404954 ", radius = 200))
 
         val saved = places.all().first().single()
-        assertEquals(Area(latitude = 52.520008, longitude = 13.404954, radius = 200), saved.area)
+        assertEquals(Area(Coordinates(52.520008, 13.404954), radius = 200), saved.area)
         assertEquals(PlaceDraft("Gym", emptyList(), latitude = "52,520008", longitude = "13,404954", radius = 200), saved.toDraft())
 
         places.update(gym, PlaceDraft("Gym", listOf("FitX"), latitude = "", longitude = "", radius = 200))

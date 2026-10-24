@@ -67,7 +67,7 @@ fun PermissionNotice(text: String, allow: String, permissions: Array<String>, on
         Hint(text)
         if (turnedDown) {
             TextButton(onClick = { context.startActivity(appSettings(context)) }) {
-                Text(stringResource(R.string.wifi_access_settings))
+                Text(stringResource(R.string.location_access_settings))
             }
         } else {
             TextButton(onClick = { request.launch(permissions) }) { Text(allow) }

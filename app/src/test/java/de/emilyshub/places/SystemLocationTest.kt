@@ -32,13 +32,16 @@ class SystemLocationTest {
     }
 
     @Test
-    fun `a position Android found in the last two minutes is taken at once, the most accurate one`() = runBlocking {
-        manager.setProviderEnabled(LocationManager.NETWORK_PROVIDER, true)
-        manager.setLastKnownLocation(LocationManager.GPS_PROVIDER, location(52.52, 13.4, accuracy = 30f, age = Duration.ofMinutes(1)))
-        manager.setLastKnownLocation(LocationManager.NETWORK_PROVIDER, location(52.53, 13.41, accuracy = 12f, age = Duration.ofSeconds(30)))
+    fun `a position Android found in the last two minutes is taken at once, the newest one, as the device may have moved`() =
+        runBlocking {
+            manager.setProviderEnabled(LocationManager.NETWORK_PROVIDER, true)
+            val earlier = location(52.52, 13.4, accuracy = 8f, age = Duration.ofMinutes(1))
+            manager.setLastKnownLocation(LocationManager.GPS_PROVIDER, earlier)
+            val newer = location(52.53, 13.41, accuracy = 30f, age = Duration.ofSeconds(30))
+            manager.setLastKnownLocation(LocationManager.NETWORK_PROVIDER, newer)
 
-        assertEquals(Position(Coordinates(52.53, 13.41), 12.0), SystemLocation(app).position())
-    }
+            assertEquals(Position(Coordinates(52.53, 13.41), 30.0), SystemLocation(app).position())
+        }
 
     @Test
     fun `without one that recent, Android is asked where the device is now`() = runBlocking {

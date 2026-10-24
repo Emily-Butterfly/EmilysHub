@@ -13,8 +13,8 @@ import de.emilyshub.R
  */
 @Composable
 fun BackgroundLocationNotice() {
-    val access = rememberWifiAccess()
-    if (access.current != WifiAccess.Granted) return WifiAccessNotice(access)
+    val access = rememberLocationAccess()
+    if (access.current != LocationAccess.Granted) return LocationAccessNotice(access)
     val background = rememberChecked { isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
     if (background.current) return
     PermissionNotice(

@@ -7,11 +7,12 @@ class WhereaboutsTest {
 
     private val uni = PlaceWithWifis(Place(1, "Uni"), listOf(PlaceWifi(1, "eduroam")))
     private val work = PlaceWithWifis(Place(2, "Arbeit"), listOf(PlaceWifi(2, "eduroam"), PlaceWifi(2, "Firma")))
-    private val gym = PlaceWithWifis(Place(3, "Gym", Area(52.52, 13.4, radius = 150)), emptyList())
-    private val home = PlaceWithWifis(Place(4, "Zuhause", Area(52.5, 13.3, radius = 150)), listOf(PlaceWifi(4, "FritzBox")))
+    private val gym = PlaceWithWifis(Place(3, "Gym", Area(Coordinates(52.52, 13.4), radius = 150)), emptyList())
+    private val home =
+        PlaceWithWifis(Place(4, "Zuhause", Area(Coordinates(52.5, 13.3), radius = 150)), listOf(PlaceWifi(4, "FritzBox")))
 
     @Test
-    fun `the device is at the places with the WLAN it is connected to, at none without one, maybe at any while its name is kept back`() {
+    fun `the device is at the places with the WLAN connected to, at none without one, maybe at any while its name is kept back`() {
         assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(Wifi.Named("eduroam"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(setOf(2L)), Whereabouts.of(Wifi.Named("Firma"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.Named("Café"), null, listOf(uni, work)))

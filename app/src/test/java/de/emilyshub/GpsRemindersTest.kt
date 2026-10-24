@@ -3,13 +3,13 @@ package de.emilyshub
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationManager
+import android.net.ConnectivityManager
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.Position
-import de.emilyshub.reminders.SystemAreaWatch
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
@@ -26,14 +26,15 @@ import java.time.ZoneId
 
 /**
  * Routines bound to GPS places (SPEC.md §4), with the app closed: they pop up at their time where the device's position
- * lies within one's area, wait elsewhere, and pop up on entering it while their time window is open. Android watches
- * the areas only while something waits for them, to save the battery.
+ * lies within one's area, and wait elsewhere. Without proximity alerts, which would need a PendingIntent Android may
+ * change (SPEC.md §9), arriving is noticed at the follow-ups and on joining a WLAN, while the time window is open.
  */
 @RunWith(AndroidJUnit4::class)
 class GpsRemindersTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val alarmManager = shadowOf(app.getSystemService(AlarmManager::class.java))
+    private val connectivity = shadowOf(app.getSystemService(ConnectivityManager::class.java))
 
     @Before
     fun aRoutineBoundToTheGym() {
@@ -43,46 +44,51 @@ class GpsRemindersTest {
     }
 
     @Test
-    fun `within the gym's area at its time, it pops up at once, and no area is watched`() {
-        app.location.position = Position(GYM.center, accuracy = 15.0)
+    fun `within the gym's area at its time, it pops up at once`() {
+        app.location.position = AT_THE_GYM
 
         goOffAt("2026-10-23T18:00")
 
         assertEquals(listOf("Training"), reminders())
-        assertEquals(emptySet<Area>(), app.areaWatch.watched)
     }
 
     @Test
-    fun `elsewhere at its time, it waits while the gym's area is watched, and pops up on entering it`() {
+    fun `elsewhere at its time, it waits, and pops up at a follow-up once within the area`() {
         app.location.position = ELSEWHERE
         goOffAt("2026-10-23T18:00")
         assertEquals(emptyList<String>(), reminders())
-        assertEquals(setOf(GYM), app.areaWatch.watched)
 
-        app.clock.now = berlin("2026-10-23T18:40")
-        app.location.position = Position(GYM.center, accuracy = 15.0)
-        enterOrLeaveAnArea()
+        app.location.position = AT_THE_GYM
+        goOffAt("2026-10-23T18:30")
 
         assertEquals(listOf("Training"), reminders())
-        assertEquals(emptySet<Area>(), app.areaWatch.watched)
     }
 
     @Test
-    fun `told of the area while not within it, as on leaving it again, it waits on`() {
+    fun `waiting, it pops up on joining a WLAN within the area, as the position is looked at then too`() {
         app.location.position = ELSEWHERE
         goOffAt("2026-10-23T18:00")
 
-        app.clock.now = berlin("2026-10-23T18:40")
-        app.location.position = Position(Coordinates(52.5225, 13.404954), accuracy = 15.0)
-        enterOrLeaveAnArea()
+        app.clock.now = berlin("2026-10-23T18:10")
+        app.location.position = AT_THE_GYM
+        app.wifi.ssid = "FitX Gast"
+        connectivity.networkCallbackPendingIntents.single().send()
+        idle()
+        goOffAt("2026-10-23T18:10")
 
-        assertEquals(emptyList<String>(), reminders())
-        assertEquals(setOf(GYM), app.areaWatch.watched)
+        assertEquals(listOf("Training"), reminders())
     }
 
     @Test
-    fun `with no position to be had at its time, it pops up rather than being held back`() {
+    fun `with no position to be had at its time, it pops up rather than wait`() {
         app.location.position = null
+        goOffAt("2026-10-23T18:00")
+        assertEquals(listOf("Training"), reminders())
+    }
+
+    @Test
+    fun `with a position less precise than the area is large, it pops up rather than wait`() {
+        app.location.position = Position(Coordinates(52.53, 13.404954), accuracy = 2_000.0)
 
         goOffAt("2026-10-23T18:00")
 
@@ -90,36 +96,15 @@ class GpsRemindersTest {
     }
 
     @Test
-    fun `once its time window has ended, it is missed and the area no longer watched`() {
+    fun `still elsewhere once its time window has ended, it is missed`() {
         app.location.position = ELSEWHERE
         goOffAt("2026-10-23T18:00")
 
         goOffAt("2026-10-23T20:01")
 
         assertEquals(emptyList<String>(), reminders())
-        assertEquals(emptySet<Area>(), app.areaWatch.watched)
         val statuses = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
         assertEquals(listOf(OccurrenceStatus.Missed), statuses)
-    }
-
-    @Test
-    fun `waiting for a place known only by its WLAN, no area is watched`() {
-        val home = app.place("Zuhause", "FritzBox")
-        app.routine("Tabletten", "08:00", places = setOf(home))
-        app.wifi.ssid = null
-
-        goOffAt("2026-10-23T08:00")
-
-        assertEquals(emptyList<String>(), reminders())
-        assertEquals(emptySet<Area>(), app.areaWatch.watched)
-    }
-
-    /** Android tells the app it entered or left a watched area, as the app may be closed; the alarm set then goes off. */
-    private fun enterOrLeaveAnArea() {
-        SystemAreaWatch.operation(app).send()
-        idle()
-        alarmManager.peekNextScheduledAlarm()?.let { alarmManager.fireAlarm(it) }
-        idle()
     }
 
     /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
@@ -141,7 +126,9 @@ class GpsRemindersTest {
 
     private companion object {
         /** A gym in Berlin Mitte, 150 m around. */
-        val GYM = Area(latitude = 52.520008, longitude = 13.404954, radius = 150)
+        val GYM = Area(Coordinates(52.520008, 13.404954), radius = 150)
+
+        val AT_THE_GYM = Position(GYM.center, accuracy = 15.0)
 
         /** Some 9 km north of it. */
         val ELSEWHERE = Position(Coordinates(52.6, 13.4), accuracy = 20.0)

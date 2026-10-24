@@ -7,7 +7,6 @@ import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.places.Locator
 import de.emilyshub.places.Places
-import de.emilyshub.reminders.FakeAreaWatch
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
@@ -22,7 +21,7 @@ import java.time.ZoneId
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
  * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, a WLAN
- * the test connects to, a position the test sets, and GPS areas watched only as far as the test sees.
+ * the test connects to, and a position the test sets.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
@@ -39,8 +38,7 @@ class TestApplication : EmilysHubApplication() {
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
-    override val areaWatch = FakeAreaWatch()
-    override val reminders: Reminders by lazy { Reminders(this, routines, clock, locator::whereabouts, areaWatch) { settingsDao } }
+    override val reminders: Reminders by lazy { Reminders(this, routines, clock, locator::whereabouts) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */

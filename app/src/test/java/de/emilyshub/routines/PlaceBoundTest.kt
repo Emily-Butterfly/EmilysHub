@@ -74,8 +74,8 @@ class PlaceBoundTest {
             dueAt("08:00", elsewhere)
             clock.now = berlin("2026-10-23T09:10")
 
-            assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(gym))).map { it.name })
-            assertEquals(listOf("Tabletten"), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+            assertEquals(emptyList<String>(), routines.arrive { Whereabouts.At(setOf(gym)) }.map { it.name })
+            assertEquals(listOf("Tabletten"), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
 
             assertEquals(listOf<List<String>>(emptyList()), waitingFor())
             assertEquals(berlin("2026-10-23T09:40"), routines.nextAlarm(after = clock.now))
@@ -89,7 +89,7 @@ class PlaceBoundTest {
 
         routines.markMissed(since = berlin("2026-10-23T08:00"))
 
-        assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+        assertEquals(emptyList<String>(), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
         assertEquals(listOf(OccurrenceStatus.Missed), routines.dueOn(today).first().map { it.status })
     }
 
@@ -99,7 +99,7 @@ class PlaceBoundTest {
         dueAt("08:00", elsewhere)
         clock.now = berlin("2026-10-23T10:30")
 
-        assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+        assertEquals(emptyList<String>(), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
     }
 
     @Test
@@ -108,10 +108,10 @@ class PlaceBoundTest {
         dueAt("20:00", elsewhere)
 
         clock.now = berlin("2026-10-24T00:10")
-        assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+        assertEquals(emptyList<String>(), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
 
         clock.now = berlin("2026-10-23T23:50")
-        assertEquals(listOf("Tabletten"), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+        assertEquals(listOf("Tabletten"), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
     }
 
     @Test
@@ -123,7 +123,7 @@ class PlaceBoundTest {
 
             val fromTheDayBefore = routines.dueOn(today.plusDays(1)).first().single { it.dueAt.toLocalDate() == today }
             assertEquals(listOf("Zuhause"), fromTheDayBefore.waitingFor)
-            assertEquals(listOf("Lesen"), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+            assertEquals(listOf("Lesen"), routines.arrive { Whereabouts.At(setOf(home)) }.map { it.name })
         }
 
     @Test
@@ -132,7 +132,7 @@ class PlaceBoundTest {
             routines.create(pills(at = setOf(home)))
             dueAt("08:00", elsewhere)
 
-            assertEquals(listOf("Tabletten"), routines.arrive(Whereabouts.Unknown).map { it.name })
+            assertEquals(listOf("Tabletten"), routines.arrive { Whereabouts.Unknown }.map { it.name })
             assertEquals(listOf<List<String>>(emptyList()), waitingFor())
         }
 

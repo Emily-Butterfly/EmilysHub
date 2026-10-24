@@ -49,9 +49,13 @@ data class PlaceWithWifis(
 }
 
 /** The places the device is at with [wifi]: those with a WLAN of its name, which matches exactly, as for Android. */
-fun List<PlaceWithWifis>.placesOf(wifi: Wifi): List<PlaceWithWifis> = when (wifi) {
-    is Wifi.Named -> filter { wifi.ssid in it.ssids }
-    Wifi.NameHidden, Wifi.None -> emptyList()
+fun List<PlaceWithWifis>.placesOf(wifi: Wifi): List<PlaceWithWifis> = filter { it.has(wifi) == true }
+
+/** Whether [wifi] is one of the place's WLANs; nothing told (null) while Android keeps back its name, or without one. */
+fun PlaceWithWifis.has(wifi: Wifi?): Boolean? = when (wifi) {
+    null, Wifi.NameHidden -> null
+    Wifi.None -> false
+    is Wifi.Named -> wifi.ssid in ssids
 }
 
 enum class PlaceProblem {
@@ -106,8 +110,15 @@ data class PlaceDraft(
     fun area(): Area? {
         val latitude = Degrees.parse(latitude) ?: return null
         val longitude = Degrees.parse(longitude) ?: return null
-        return Area(latitude, longitude, radius)
+        return Area(Coordinates(latitude, longitude), radius)
     }
+
+    /** With its GPS area around [center], in degrees as they are shown. */
+    fun withCenter(center: Coordinates) =
+        copy(latitude = Degrees.format(center.latitude), longitude = Degrees.format(center.longitude))
+
+    /** Without a GPS area; the radius as it starts out for a new one. */
+    fun withoutArea() = copy(latitude = "", longitude = "", radius = Area.RADIUS_DEFAULT)
 
     /**
      * The name on a single line; the WLANs each once, those of only spaces left out; the degrees without spaces around
@@ -131,10 +142,7 @@ data class PlaceDraft(
 }
 
 /** The place as the editor starts out with it. */
-fun PlaceWithWifis.toDraft() = PlaceDraft(
-    place.name,
-    ssids,
-    latitude = area?.let { Degrees.format(it.latitude) }.orEmpty(),
-    longitude = area?.let { Degrees.format(it.longitude) }.orEmpty(),
-    radius = area?.radius ?: Area.RADIUS_DEFAULT,
-)
+fun PlaceWithWifis.toDraft(): PlaceDraft {
+    val draft = PlaceDraft(place.name, ssids)
+    return area?.let { draft.withCenter(it.center).copy(radius = it.radius) } ?: draft
+}

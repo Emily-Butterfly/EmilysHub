@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.places.Area
+import de.emilyshub.places.Coordinates
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
 import de.emilyshub.places.PlaceWithWifis
@@ -313,7 +314,7 @@ class HubDatabaseMigrationTest {
             val places = database.places().all()
             assertEquals(listOf(Triple("Zuhause", listOf("FritzBox"), null)), places.map { Triple(it.name, it.ssids, it.area) })
 
-            val gym = Area(latitude = 52.520008, longitude = 13.404954, radius = 150)
+            val gym = Area(Coordinates(52.520008, 13.404954), radius = 150)
             database.places().insert(Place(name = "Gym", area = gym))
             assertEquals(listOf(null, gym), database.places().all().map { it.area })
         }

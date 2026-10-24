@@ -12,9 +12,7 @@ import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.AlarmSound
-import de.emilyshub.reminders.AreaWatch
 import de.emilyshub.reminders.Reminders
-import de.emilyshub.reminders.SystemAreaWatch
 import de.emilyshub.routines.Routines
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.AppLockLifecycle
@@ -63,12 +61,7 @@ open class EmilysHubApplication : Application() {
     /** Where the device is, by the WLAN connected to, the position, and the places that have them. */
     open val locator: Locator by lazy { Locator(wifi, location, places) }
 
-    /** Watches the GPS areas of the places something waits for. */
-    open val areaWatch: AreaWatch by lazy { SystemAreaWatch(this) }
-
-    open val reminders: Reminders by lazy {
-        Reminders(this, routines, DeviceClock, locator::whereabouts, areaWatch) { database.settings() }
-    }
+    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock, locator::whereabouts) { database.settings() } }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(

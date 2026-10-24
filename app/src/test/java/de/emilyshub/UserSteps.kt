@@ -58,7 +58,7 @@ fun TestApplication.routine(
 /** A place recognised by the WLANs named [wifis], by its GPS [area], or by both, set up before the test opens the app. */
 fun TestApplication.place(name: String, vararg wifis: String, area: Area? = null): Long = runBlocking {
     val draft = PlaceDraft(name, wifis.toList())
-    places.create(area?.let { draft.copy(latitude = "${it.latitude}", longitude = "${it.longitude}", radius = it.radius) } ?: draft)
+    places.create(area?.let { draft.withCenter(it.center).copy(radius = it.radius) } ?: draft)
 }
 
 /** A tag, set up before the test opens the app. */
