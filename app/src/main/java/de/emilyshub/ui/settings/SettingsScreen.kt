@@ -48,6 +48,7 @@ fun SettingsScreen(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onOpenStatus: () -> Unit,
     onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
     onBack: () -> Unit,
@@ -90,6 +91,13 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.tags_manage)) },
                 supportingContent = { Text(stringResource(R.string.tags_manage_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenTags),
+            )
+
+            SectionHeader(R.string.settings_reminders)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.status_title)) },
+                supportingContent = { Text(stringResource(R.string.status_summary)) },
+                modifier = Modifier.clickable(onClick = onOpenStatus),
             )
 
             Text(

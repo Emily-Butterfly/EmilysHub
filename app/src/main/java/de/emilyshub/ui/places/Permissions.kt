@@ -1,10 +1,6 @@
 package de.emilyshub.ui.places
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,38 +10,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
 import de.emilyshub.ui.Hint
-
-/** What Android allows the app, as it is now, read again by [check]. */
-class Checked<T>(private val read: () -> T) {
-    var current by mutableStateOf(read())
-        private set
-
-    fun check() {
-        current = read()
-    }
-}
-
-/** Reads what Android allows with [read], and again on every return to the app, say from Android's settings. */
-@Composable
-fun <T> rememberChecked(read: Context.() -> T): Checked<T> {
-    val context = LocalContext.current
-    val state = remember(context) { Checked { context.read() } }
-    LifecycleResumeEffect(state) {
-        state.check()
-        onPauseOrDispose {}
-    }
-    return state
-}
-
-fun Context.isGranted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+import de.emilyshub.ui.SystemSettings
+import de.emilyshub.ui.openSettings
 
 /**
  * Why the app needs [permissions], the first of which matters, and the way to allow them (SPEC.md §11: asked only when
@@ -66,7 +38,7 @@ fun PermissionNotice(text: String, allow: String, permissions: Array<String>, on
     Column {
         Hint(text)
         if (turnedDown) {
-            TextButton(onClick = { context.startActivity(appSettings(context)) }) {
+            TextButton(onClick = { context.openSettings(SystemSettings.app(context)) }) {
                 Text(stringResource(R.string.location_access_settings))
             }
         } else {
@@ -74,6 +46,3 @@ fun PermissionNotice(text: String, allow: String, permissions: Array<String>, on
         }
     }
 }
-
-private fun appSettings(context: Context) =
-    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))

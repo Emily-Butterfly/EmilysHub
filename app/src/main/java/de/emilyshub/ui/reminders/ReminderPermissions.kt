@@ -1,17 +1,10 @@
 package de.emilyshub.ui.reminders
 
 import android.Manifest
-import android.app.NotificationManager
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -27,6 +20,9 @@ import androidx.compose.ui.res.stringResource
 import de.emilyshub.R
 import de.emilyshub.reminders.exactAlarmsAllowed
 import de.emilyshub.reminders.fullScreenAlarmsAllowed
+import de.emilyshub.reminders.notificationsAllowed
+import de.emilyshub.ui.SystemSettings
+import de.emilyshub.ui.openSettings
 
 /** What reminders still need from Android, in the order it is asked for. */
 private enum class Missing { Notifications, ExactAlarms }
@@ -54,8 +50,7 @@ fun ReminderPermissions(onFinished: () -> Unit) {
                     requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
                     // Before Android 13 notifications are on unless turned off in the app's settings.
-                    val settings = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    context.openSettings(settings.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                    context.openSettings(SystemSettings.notifications(context))
                     afterNotifications()
                 }
             },
@@ -66,7 +61,7 @@ fun ReminderPermissions(onFinished: () -> Unit) {
             text = R.string.reminders_exact_text,
             confirm = R.string.reminders_open_settings,
             onConfirm = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) context.openExactAlarmSettings()
+                context.openSettings(SystemSettings.exactAlarms(context))
                 missing = null
             },
             onLater = { missing = null },
@@ -93,7 +88,7 @@ fun FullScreenAlarmPermission(onFinished: () -> Unit) {
         text = R.string.reminders_full_screen_text,
         confirm = R.string.reminders_open_settings,
         onConfirm = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) context.openFullScreenAlarmSettings()
+            context.openSettings(SystemSettings.fullScreenAlarms(context))
             onFinished()
         },
         onLater = onFinished,
@@ -118,31 +113,7 @@ private fun Explanation(
 }
 
 private fun firstMissing(context: Context): Missing? = when {
-    !notificationsAllowed(context) -> Missing.Notifications
+    !context.notificationsAllowed() -> Missing.Notifications
     !context.exactAlarmsAllowed() -> Missing.ExactAlarms
     else -> null
-}
-
-private fun notificationsAllowed(context: Context): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    } else {
-        context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
-    }
-
-@RequiresApi(Build.VERSION_CODES.S)
-private fun Context.openExactAlarmSettings() =
-    openSettings(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.fromParts("package", packageName, null)))
-
-@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-internal fun Context.openFullScreenAlarmSettings() =
-    openSettings(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.fromParts("package", packageName, null)))
-
-/** A phone without that settings page gets the app's page in Android's settings instead. */
-private fun Context.openSettings(intent: Intent) {
-    try {
-        startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
-    }
 }

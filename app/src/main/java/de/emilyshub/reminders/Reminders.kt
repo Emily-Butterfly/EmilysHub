@@ -35,6 +35,7 @@ class Reminders(
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
+    private val probeAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_PROBE)
     private val arrivals = ArrivalWatch(context)
     private val notifications = ReminderNotifications(context, clock)
 
@@ -98,6 +99,12 @@ class Reminders(
         }
     }
 
+    /** A reminder to try out (SPEC.md §11), in [PROBE_DELAY], by an alarm as the reminders come: also with the app closed. */
+    fun probe() = probeAlarm.set(clock.instant() + PROBE_DELAY)
+
+    /** The reminder to try out pops up. */
+    fun showProbe() = notifications.showProbe()
+
     /** What "Später" offers for [reminder] now. */
     fun putOffChoices(reminder: Reminder): List<Duration> = reminder.putOffChoices(clock.instant())
 
@@ -129,6 +136,9 @@ class Reminders(
     companion object {
         /** What "Später" offers (SPEC.md §3). */
         val PUT_OFF_CHOICES: List<Duration> = listOf(10L, 30L, 60L).map(Duration::ofMinutes)
+
+        /** How long until the reminder to try out comes (SPEC.md §11). */
+        val PROBE_DELAY: Duration = Duration.ofSeconds(10)
 
         private const val REMINDED_UNTIL = "reminded-until"
     }

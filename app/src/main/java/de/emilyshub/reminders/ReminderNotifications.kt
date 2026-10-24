@@ -1,11 +1,13 @@
 package de.emilyshub.reminders
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import de.emilyshub.MainActivity
@@ -37,6 +39,20 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, offeringPutOff = true)
 
     fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
+
+    /** A reminder to try out (SPEC.md §11): popping up as a reminder does, without a routine or actions. */
+    fun showProbe() {
+        manager.createNotificationChannel(channel())
+        val notification = Notification.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.reminder_probe))
+            .setContentText(context.getString(R.string.reminder_probe_text))
+            .setCategory(Notification.CATEGORY_REMINDER)
+            .setContentIntent(openApp())
+            .setAutoCancel(true)
+            .build()
+        manager.notify(PROBE_TAG, ID, notification)
+    }
 
     /** The occurrences whose reminders are on the screen. */
     fun shown(): List<Long> = manager.activeNotifications.mapNotNull { it.tag?.removePrefix(TAG_PREFIX)?.toLongOrNull() }
@@ -145,8 +161,10 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     private fun tagOf(occurrenceId: Long) = TAG_PREFIX + occurrenceId
 
     private companion object {
-        const val CHANNEL = "reminders"
         const val TAG_PREFIX = "occurrence:"
+
+        /** Not an occurrence's, so that tidying the reminders leaves it. */
+        const val PROBE_TAG = "probe"
         const val ID = 1
         const val EXTRA_OFFERING_PUT_OFF = "de.emilyshub.extra.OFFERING_PUT_OFF"
     }
@@ -156,6 +174,23 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
 fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 60) {
     0L -> getString(R.string.reminder_put_off_hours, choice.toHours())
     else -> getString(R.string.reminder_put_off_minutes, choice.toMinutes())
+}
+
+/** The channel of the reminders, which the user may turn off on its own. */
+private const val CHANNEL = "reminders"
+
+/**
+ * Whether reminders may show: notifications allowed, from Android 13 on with a permission of their own, and their
+ * channel not turned off.
+ */
+fun Context.notificationsAllowed(): Boolean {
+    val manager = getSystemService(NotificationManager::class.java)
+    val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    } else {
+        manager.areNotificationsEnabled()
+    }
+    return allowed && manager.getNotificationChannel(CHANNEL)?.importance != NotificationManager.IMPORTANCE_NONE
 }
 
 /**

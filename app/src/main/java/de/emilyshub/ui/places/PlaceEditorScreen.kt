@@ -59,6 +59,7 @@ import de.emilyshub.places.Position
 import de.emilyshub.places.Ssid
 import de.emilyshub.places.Wifi
 import de.emilyshub.places.toDraft
+import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow

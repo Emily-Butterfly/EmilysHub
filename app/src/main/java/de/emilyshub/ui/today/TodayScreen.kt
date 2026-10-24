@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,20 +50,32 @@ import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.routines.PriorityNote
 import de.emilyshub.ui.routines.priorityNameStyle
+import de.emilyshub.ui.status.SetupWarning
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
-/** Today's routines in the order they are due, to tick off or skip (SPEC.md §1, Heute-Übersicht). */
+/**
+ * Today's routines in the order they are due, to tick off or skip (SPEC.md §1, Heute-Übersicht); above them, a warning
+ * while something they need from Android is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]).
+ */
 @Composable
-fun TodayScreen(routines: Routines, contentPadding: PaddingValues) {
+fun TodayScreen(routines: Routines, contentPadding: PaddingValues, onOpenStatus: () -> Unit) {
     val today = rememberToday(routines)
     val due by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     val list = due
     when {
         list == null -> Unit
-        list.isEmpty() -> PlaceholderScreen(stringResource(R.string.today_empty), contentPadding)
+        list.isEmpty() -> Column(
+            Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
+        ) {
+            SetupWarning(routines, onCheck = onOpenStatus)
+            Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
+        }
         else -> LazyColumn(contentPadding = contentPadding) {
+            item(key = "setup-warning") { SetupWarning(routines, onCheck = onOpenStatus) }
             items(list, key = { it.occurrenceId }) { routine ->
                 Column {
                     DueRoutineRow(

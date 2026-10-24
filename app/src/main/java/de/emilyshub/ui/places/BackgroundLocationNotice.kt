@@ -4,6 +4,8 @@ import android.Manifest
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import de.emilyshub.R
+import de.emilyshub.ui.isGranted
+import de.emilyshub.ui.rememberChecked
 
 /**
  * For a routine bound to a place (SPEC.md §4, §11): first the precise location, as for the WLAN name at all, then the

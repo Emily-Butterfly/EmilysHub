@@ -28,6 +28,9 @@
     <!-- For the WLAN name while the app is closed, so that a routine bound to a place pops up on arrival (SPEC.md §4,
          §11); asked only in the routine editor, once a routine is bound to one. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Lets "Funktioniert alles?" ask Android straight away to keep the app out of its battery optimisation, which may
+         hold reminders back while the phone rests (SPEC.md §11). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- A full-screen alarm rings on in the background, like an alarm clock (SPEC.md §11). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />

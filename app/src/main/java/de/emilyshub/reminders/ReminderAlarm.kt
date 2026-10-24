@@ -7,8 +7,11 @@ import android.content.Intent
 import android.os.Build
 import java.time.Instant
 
-/** The one alarm that wakes the app for the next reminder: setting it again replaces it. */
-class ReminderAlarm(private val context: Context) {
+/**
+ * An alarm that wakes the app for [action], to [ReminderReceiver]: the one for the next reminder, or the one for a
+ * reminder to try out. Setting it again replaces it.
+ */
+class ReminderAlarm(private val context: Context, private val action: String = ReminderReceiver.ACTION_REMIND) {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     fun set(at: Instant) {
@@ -31,7 +34,7 @@ class ReminderAlarm(private val context: Context) {
 
     /** Immutable, and sent only to [ReminderReceiver]. */
     private fun operation(flags: Int): PendingIntent? {
-        val intent = Intent(context, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_REMIND)
+        val intent = Intent(context, ReminderReceiver::class.java).setAction(action)
         return PendingIntent.getBroadcast(context, 0, intent, flags or PendingIntent.FLAG_IMMUTABLE)
     }
 }

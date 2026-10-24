@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.location.LocationManager
-import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,7 +21,12 @@ import androidx.core.location.LocationManagerCompat
 import de.emilyshub.R
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Wifi
+import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
+import de.emilyshub.ui.SystemSettings
+import de.emilyshub.ui.isGranted
+import de.emilyshub.ui.openSettings
+import de.emilyshub.ui.rememberChecked
 
 /**
  * Whether Android tells the app the name of the WLAN and where the device is, as the places need: only with the precise
@@ -93,7 +97,7 @@ fun LocationAccessNotice(state: Checked<LocationAccess>) {
         )
         LocationAccess.LocationOff -> Column {
             Hint(stringResource(R.string.location_off_text))
-            TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
+            TextButton(onClick = { context.openSettings(SystemSettings.location()) }) {
                 Text(stringResource(R.string.location_off_open))
             }
         }

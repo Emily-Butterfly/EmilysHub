@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.Manifest
 import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
@@ -18,9 +19,12 @@ import de.emilyshub.routines.Priority
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -32,6 +36,13 @@ class TodayTest {
     val compose = createEmptyComposeRule()
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
+
+    @Before
+    fun allowReminders() {
+        // Heute warns while the reminders lack something from Android, which is not what these tests are about.
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+    }
 
     @Test
     fun `Heute lists today's routines in the order they are due`() {

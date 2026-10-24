@@ -54,6 +54,7 @@ import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
+import de.emilyshub.ui.status.StatusScreen
 import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
@@ -75,6 +76,7 @@ fun EmilysHubApp(
     places: Places,
     wifi: CurrentWifi,
     location: CurrentLocation,
+    onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
@@ -98,6 +100,7 @@ fun EmilysHubApp(
                     places = places,
                     wifi = wifi,
                     location = location,
+                    onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
                     onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
@@ -146,6 +149,7 @@ private fun AppShell(
     places: Places,
     wifi: CurrentWifi,
     location: CurrentLocation,
+    onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
@@ -158,6 +162,7 @@ private fun AppShell(
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
+    var statusOpen by rememberSaveable { mutableStateOf(false) }
     var placeEditor by rememberSaveable { mutableStateOf<PlaceEditorTarget?>(null) }
     // Here, so that it stays while a routine is open and while another tab shows.
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -181,6 +186,10 @@ private fun AppShell(
                 onBack = { placesOpen = false },
             )
         }
+        statusOpen -> {
+            BackHandler { statusOpen = false }
+            StatusScreen(routines, onProbe, onBack = { statusOpen = false })
+        }
         tagsOpen -> {
             BackHandler { tagsOpen = false }
             TagsScreen(tags, onBack = { tagsOpen = false })
@@ -192,6 +201,7 @@ private fun AppShell(
                 canAuthenticate = canAuthenticate,
                 onDesignChange = onDesignChange,
                 onAppLockChange = onAppLockChange,
+                onOpenStatus = { statusOpen = true },
                 onOpenPlaces = { placesOpen = true },
                 onOpenTags = { tagsOpen = true },
                 onBack = { settingsOpen = false },
@@ -218,6 +228,7 @@ private fun AppShell(
                 onOpenSettings = { settingsOpen = true },
                 onOpenRoutine = { routineEditor = it },
                 onOpenArchive = { archiveOpen = true },
+                onOpenStatus = { statusOpen = true },
             )
             if (!settings.remindersAsked) AskOnceThereIsARoutine(routines, onRemindersAsked)
         }
@@ -243,6 +254,7 @@ private fun TopLevelScaffold(
     onOpenSettings: () -> Unit,
     onOpenRoutine: (RoutineEditorTarget) -> Unit,
     onOpenArchive: () -> Unit,
+    onOpenStatus: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -272,7 +284,7 @@ private fun TopLevelScaffold(
     ) { contentPadding ->
         // Each later slice swaps its placeholder for the real screen.
         when (current) {
-            TopLevelDestination.Today -> TodayScreen(routines, contentPadding)
+            TopLevelDestination.Today -> TodayScreen(routines, contentPadding, onOpenStatus)
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = routines,
                 tags = tags,

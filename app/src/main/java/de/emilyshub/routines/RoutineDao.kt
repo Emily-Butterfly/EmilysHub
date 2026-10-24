@@ -169,8 +169,11 @@ interface RoutineDao {
     suspend fun bind(routineId: Long, placeIds: Collection<Long>)
 
     /** Whether an active routine is bound to a place. */
-    @Query("SELECT EXISTS (SELECT 1 FROM routine_places JOIN routines ON routines.id = routine_id WHERE routines.status = :active)")
+    @Query(ANY_ACTIVE_BOUND)
     suspend fun anyActiveBound(active: RoutineStatus = RoutineStatus.Active): Boolean
+
+    @Query(ANY_ACTIVE_BOUND)
+    fun observeAnyActiveBound(active: RoutineStatus = RoutineStatus.Active): Flow<Boolean>
 
     @Query("UPDATE occurrences SET waiting = :waiting WHERE id IN (:ids)")
     suspend fun setWaiting(ids: Collection<Long>, waiting: Boolean)
@@ -223,3 +226,6 @@ interface RoutineDao {
     @Query("DELETE FROM checklist_ticks WHERE occurrence_id = :occurrenceId")
     suspend fun deleteTicks(occurrenceId: Long)
 }
+
+private const val ANY_ACTIVE_BOUND =
+    "SELECT EXISTS (SELECT 1 FROM routine_places JOIN routines ON routines.id = routine_id WHERE routines.status = :active)"

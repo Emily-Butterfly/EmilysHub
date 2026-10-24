@@ -76,6 +76,9 @@ class Routines(
     /** Whether an active routine is bound to a place, so that arriving at one matters. */
     suspend fun anyBoundToPlaces(): Boolean = withContext(io) { dao.anyActiveBound() }
 
+    /** Whether an active routine is bound to a place, as it changes. */
+    fun boundToPlaces(): Flow<Boolean> = flow { emitAll(dao.observeAnyActiveBound()) }.flowOn(io)
+
     /** Each tagged routine's tags, by the routine's id. */
     fun tagIdsByRoutine(): Flow<Map<Long, Set<Long>>> = flow {
         val byRoutine = dao.observeRoutineTags().map { all ->

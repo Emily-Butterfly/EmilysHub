@@ -65,7 +65,8 @@ import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.reminders.FullScreenAlarmPermission
-import de.emilyshub.ui.reminders.openFullScreenAlarmSettings
+import de.emilyshub.ui.SystemSettings
+import de.emilyshub.ui.openSettings
 import java.io.Serializable
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -287,7 +288,7 @@ fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
     }
     if (fullScreen && !allowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         Problem(stringResource(R.string.routine_full_screen_not_allowed))
-        TextButton(onClick = { context.openFullScreenAlarmSettings() }) {
+        TextButton(onClick = { context.openSettings(SystemSettings.fullScreenAlarms(context)) }) {
             Text(stringResource(R.string.routine_full_screen_allow))
         }
     }
