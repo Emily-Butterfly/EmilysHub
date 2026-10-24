@@ -110,8 +110,10 @@ data class Occurrence(
     val date: LocalDate,
     val time: LocalTime,
     val status: OccurrenceStatus,
-    /** When to remind of it instead of its due time, once it was put off ("Später"). */
+    /** When to remind of it instead of its due time, once it was put off ("Später") or arrived at its place. */
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
+    /** Whether it waits for its routine's places: it came due elsewhere and pops up on arrival (SPEC.md §4). */
+    @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
@@ -129,7 +131,10 @@ data class Reminder(
     val windowEnd: Instant,
 )
 
-/** An occurrence on the Heute list, with its routine's name, the moment it is due, and its routine's checklist. */
+/**
+ * An occurrence on the Heute list, with its routine's name, the moment it is due, its routine's checklist, and the
+ * names of the places it waits for, if it waits.
+ */
 data class DueRoutine(
     val occurrenceId: Long,
     val routineId: Long,
@@ -138,4 +143,5 @@ data class DueRoutine(
     val status: OccurrenceStatus,
     val priority: Priority,
     val checklist: List<ChecklistEntry> = emptyList(),
+    val waitingFor: List<String> = emptyList(),
 )

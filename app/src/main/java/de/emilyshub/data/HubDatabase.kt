@@ -13,6 +13,7 @@ import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineDao
+import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.TagDao
@@ -27,7 +28,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 @Database(
     entities = [
         Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class, Tag::class, RoutineTag::class,
-        Place::class, PlaceWifi::class,
+        Place::class, PlaceWifi::class, RoutinePlace::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -42,7 +43,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun places(): PlaceDao
 
     companion object {
-        const val VERSION = 11
+        const val VERSION = 12
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -55,7 +56,7 @@ abstract class HubDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                    MIGRATION_10_11,
+                    MIGRATION_10_11, MIGRATION_11_12,
                 )
                 .build()
         }

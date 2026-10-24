@@ -5,6 +5,7 @@ import android.util.Log
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.places.CurrentWifi
+import de.emilyshub.places.Locator
 import de.emilyshub.places.Places
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
@@ -52,7 +53,10 @@ open class EmilysHubApplication : Application() {
     /** The WLAN connected to, by which the places are recognised. */
     open val wifi: CurrentWifi by lazy { SystemWifi(this) }
 
-    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock) { database.settings() } }
+    /** Where the device is, by the WLAN connected to and the places that have it. */
+    open val locator: Locator by lazy { Locator(wifi, places) }
+
+    open val reminders: Reminders by lazy { Reminders(this, routines, DeviceClock, locator::whereabouts) { database.settings() } }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(

@@ -24,6 +24,7 @@ class ReminderReceiver : BroadcastReceiver() {
             ACTION_PUT_OFF -> putOffBy?.let { by -> occurrence?.let { suspend { app.reminders.putOff(it, by) } } }
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
+            ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             else -> null
         }
         if (work != null) finishInBackground(app, work)
@@ -42,6 +43,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** "Stumm" while an alarm rings: it stops ringing, its reminders stay. */
         const val ACTION_SILENCE = "de.emilyshub.action.SILENCE"
+
+        /** The device joined a WLAN, as Android tells for [ArrivalWatch]. */
+        const val ACTION_ARRIVE = "de.emilyshub.action.ARRIVE"
         const val EXTRA_MINUTES = "minutes"
     }
 }

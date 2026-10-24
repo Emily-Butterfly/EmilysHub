@@ -24,9 +24,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
-import de.emilyshub.ui.tags.TagChip
 import de.emilyshub.ui.tags.TagNameDialog
 
 /** The routine's tags (SPEC.md §8): any of the shared ones, chosen with a tap, and a new one made right here. */
@@ -44,7 +44,7 @@ fun TagsField(tags: Tags, selected: Set<Long>, onChange: (Set<Long>) -> Unit) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             all.forEach { tag ->
                 val chosen = tag.id in selected
-                TagChip(tag.name, chosen, onClick = { onChange(if (chosen) selected - tag.id else selected + tag.id) })
+                ChoiceChip(tag.name, chosen, onClick = { onChange(if (chosen) selected - tag.id else selected + tag.id) })
             }
             AssistChip(
                 onClick = { creating = true },

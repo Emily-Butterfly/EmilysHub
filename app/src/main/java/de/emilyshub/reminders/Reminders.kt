@@ -3,6 +3,7 @@ package de.emilyshub.reminders
 import android.content.Context
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.places.Whereabouts
 import de.emilyshub.routines.Reminder
 import de.emilyshub.routines.Routines
 import kotlinx.coroutines.sync.Mutex
@@ -21,14 +22,19 @@ import java.time.Instant
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
  * due, or if a restart or a change of clock took the alarm before it went off.
+ *
+ * A routine bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them, and waits
+ * elsewhere; while one is bound, Android wakes the app on joining a WLAN ([arrived]), also while it is closed.
  */
 class Reminders(
     context: Context,
     private val routines: Routines,
     private val clock: Clock,
+    private val locate: suspend () -> Whereabouts,
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
+    private val arrivals = ArrivalWatch(context)
     private val notifications = ReminderNotifications(context, clock)
 
     // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
@@ -43,6 +49,7 @@ class Reminders(
     suspend fun update() = lock.withLock {
         routines.markMissed(since = remindedUntil())
         tidyAndSetAlarm()
+        arrivals.watch(on = routines.anyBoundToPlaces())
     }
 
     /**
@@ -53,7 +60,22 @@ class Reminders(
         val now = clock.instant()
         val since = remindedUntil()
         routines.markMissed(since)
-        val due = routines.remindersDue(after = since, until = now)
+        val due = routines.remindersDue(after = since, until = now, locate)
+        due.forEach(notifications::show)
+        settings().put(Setting(REMINDED_UNTIL, now.toString()))
+        tidyAndSetAlarm(justShown = due.map { it.occurrenceId }.toSet())
+    }
+
+    /**
+     * The device joined a WLAN: what waits for the places it is at now pops up, as long as its time window is open,
+     * after what has come due meanwhile, as when the alarm goes off.
+     */
+    suspend fun arrived() = lock.withLock {
+        val now = clock.instant()
+        val since = remindedUntil()
+        routines.markMissed(since)
+        val whereabouts = locate()
+        val due = routines.remindersDue(after = since, until = now) { whereabouts } + routines.arrive(whereabouts)
         due.forEach(notifications::show)
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
         tidyAndSetAlarm(justShown = due.map { it.occurrenceId }.toSet())

@@ -277,6 +277,30 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 11 moves to version 12 with no routine bound to a place and nothing waiting`() {
+        createAtVersion(11) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from, follow_up_count, " +
+                    "follow_up_minutes, full_screen, window_hours, window_until_midnight, priority, status) " +
+                    "VALUES (3, 'Tabletten', '', '08:00', 'daily', '2026-10-23T06:00:00Z', 3, 30, 0, 4, 0, 'normal', 'active')",
+            )
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (9, 3, '2026-10-23', '08:00', 'open')")
+            it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Zuhause')")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(listOf(false), database.routines().occurrencesOn(3, LocalDate.parse("2026-10-23")).map { it.waiting })
+            assertEquals(emptyList<Long>(), database.routines().placeIdsOf(3))
+
+            // A place deleted is taken off the routines bound to it.
+            database.routines().bind(3, listOf(1L))
+            assertEquals(listOf(1L), database.routines().placeIdsOf(3))
+            database.places().delete(1)
+            assertEquals(emptyList<Long>(), database.routines().placeIdsOf(3))
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

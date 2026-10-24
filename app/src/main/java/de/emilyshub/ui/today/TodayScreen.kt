@@ -170,6 +170,15 @@ private fun DueRoutineRow(
                 textDecoration = if (done) TextDecoration.LineThrough else null,
             )
             PriorityNote(routine.priority)
+            // Due elsewhere: it pops up on arrival at one of its places (SPEC.md §4).
+            if (routine.waitingFor.isNotEmpty()) {
+                val places = routine.waitingFor.joinToString(stringResource(R.string.today_or))
+                Text(
+                    text = stringResource(R.string.today_waiting_for, places),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             routine.status.label?.let { label ->
                 Text(
                     text = stringResource(label),

@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.Manifest
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
@@ -36,6 +37,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -479,6 +481,53 @@ class RoutineEditingTest {
 
             option("Gesundheit").assertIsSelected()
             compose.onNodeWithText("Lesen").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `a routine can be bound to places, at any of which it pops up, and the editor says where it reminds`() {
+        val home = app.place("Zuhause", "FritzBox")
+        val work = app.place("Arbeit", "Firma")
+
+        launchApp().use {
+            newRoutine("Tabletten")
+            compose.onNodeWithText("Erinnert überall.").performScrollTo().assertIsDisplayed()
+
+            option("Zuhause").tap()
+            option("Arbeit").tap()
+
+            compose.onNodeWithText("Erinnert nur an diesen Orten", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(setOf(home, work), runBlocking { app.routines.placeIdsOf(savedRoutines().single().id) })
+    }
+
+    @Test
+    fun `with no places yet, the editor says where to make them`() {
+        launchApp().use {
+            newRoutine("Tabletten")
+
+            compose.onNodeWithText("Orte legst du in den Einstellungen", substring = true).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `bound to a place, the routine asks for the location in the background, with why, and only then`() {
+        shadowOf(app).grantPermissions(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        app.place("Zuhause", "FritzBox")
+
+        launchApp().use { scenario ->
+            newRoutine("Tabletten")
+            compose.onNodeWithText("auch bei geschlossener App", substring = true).assertDoesNotExist()
+
+            option("Zuhause").tap()
+            compose.onNodeWithText("auch bei geschlossener App", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Immer erlauben").tap()
+
+            scenario.onActivity { activity ->
+                val request = checkNotNull(shadowOf(activity).lastRequestedPermission)
+                assertEquals(listOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), request.requestedPermissions.toList())
+            }
         }
     }
 

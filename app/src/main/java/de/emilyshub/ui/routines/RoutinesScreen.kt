@@ -38,8 +38,8 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.tags.TagChip
 import kotlinx.coroutines.flow.map
 
 /**
@@ -120,10 +120,10 @@ private fun TagFilter(tags: List<Tag>, chosen: Tag?, onChoose: (Tag?) -> Unit) {
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        TagChip(stringResource(R.string.routines_filter_all), chosen = chosen == null, onClick = { onChoose(null) })
+        ChoiceChip(stringResource(R.string.routines_filter_all), chosen = chosen == null, onClick = { onChoose(null) })
         tags.forEach { tag ->
             // Tapped again, it shows all of them again.
-            TagChip(tag.name, chosen = tag == chosen, onClick = { onChoose(if (tag == chosen) null else tag) })
+            ChoiceChip(tag.name, chosen = tag == chosen, onClick = { onChoose(if (tag == chosen) null else tag) })
         }
     }
 }

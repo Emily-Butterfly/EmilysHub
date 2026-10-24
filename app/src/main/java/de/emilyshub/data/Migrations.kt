@@ -148,3 +148,20 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("DROP INDEX IF EXISTS `index_place_wifis_ssid`")
     }
 }
+
+/**
+ * Version 12: routines bound to places, and occurrences that wait for them (#14); so far no routine is bound to one,
+ * and nothing waits.
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `waiting` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_places` (`routine_id` INTEGER NOT NULL, `place_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`routine_id`, `place_id`), " +
+                "FOREIGN KEY(`routine_id`) REFERENCES `routines`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`place_id`) REFERENCES `places`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_places_place_id` ON `routine_places` (`place_id`)")
+    }
+}

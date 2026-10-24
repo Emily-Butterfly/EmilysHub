@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.places.Places
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -68,7 +69,7 @@ sealed interface RoutineEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTarget, onClose: () -> Unit) {
+fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: RoutineEditorTarget, onClose: () -> Unit) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
@@ -93,7 +94,7 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTar
             if (routine == null) {
                 onClose()
             } else {
-                draft = routine.toDraft(routines.checklist(routineId), routines.tagIdsOf(routineId))
+                draft = routine.toDraft(routines.checklist(routineId), routines.tagIdsOf(routineId), routines.placeIdsOf(routineId))
                 original = draft
                 status = routine.status
                 loaded = true
@@ -210,6 +211,7 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, target: RoutineEditorTar
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
+            PlacesField(places, draft.placeIds, onChange = { draft = draft.copy(placeIds = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })

@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.places.Whereabouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -55,6 +56,7 @@ class Routines(
             dao.insert(cleaned.toRoutine(plannedFrom = now())).also { id ->
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
+                savePlaces(id, cleaned.placeIds)
                 plan(today())
             }
         }
@@ -67,6 +69,12 @@ class Routines(
 
     /** The routine's tags (SPEC.md §8). */
     suspend fun tagIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.tagIdsOf(routineId).toSet() }
+
+    /** The places the routine pops up at (SPEC.md §4); none: everywhere. */
+    suspend fun placeIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.placeIdsOf(routineId).toSet() }
+
+    /** Whether an active routine is bound to a place, so that arriving at one matters. */
+    suspend fun anyBoundToPlaces(): Boolean = withContext(io) { dao.anyActiveBound() }
 
     /** Each tagged routine's tags, by the routine's id. */
     fun tagIdsByRoutine(): Flow<Map<Long, Set<Long>>> = flow {
@@ -94,6 +102,7 @@ class Routines(
             dao.update(changed)
             saveChecklist(id, changes.checklist)
             saveTags(id, changes.tagIds)
+            savePlaces(id, changes.placeIds)
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -165,7 +174,16 @@ class Routines(
                 .map { due ->
                     val (occurrence, routine) = due
                     val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
-                    DueRoutine(occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority, due.entries())
+                    val waitingFor = if (occurrence.waiting && occurrence.status == OccurrenceStatus.Open) {
+                        due.places.map { it.name }.sortedWith(InputText.byName)
+                    } else {
+                        emptyList()
+                    }
+                    DueRoutine(
+                        occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority,
+                        checklist = due.entries(),
+                        waitingFor = waitingFor,
+                    )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
         }
@@ -251,11 +269,20 @@ class Routines(
     /**
      * The open occurrences to remind of after [after] and up to [until], at their time or a follow-up before
      * their time window ends; the days in between are planned first.
+     *
+     * One bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them; elsewhere it
+     * waits, and its follow-ups, until it has popped up once, only look again: it pops up at one of them should its
+     * arrival have gone unnoticed. [locate] is only asked when that matters; without it, every place is [Unknown]
+     * and allows all. Not reported as a change: the reminders do this themselves.
      */
-    suspend fun remindersDue(after: Instant, until: Instant): List<Reminder> = withContext(io) {
+    suspend fun remindersDue(
+        after: Instant,
+        until: Instant,
+        locate: suspend () -> Whereabouts = { Whereabouts.Unknown },
+    ): List<Reminder> = withContext(io + NonCancellable) {
         val last = today(until, clock.zone)
         planDays(from = today(after, clock.zone), to = last)
-        dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
+        val due = dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
             .mapNotNull { open ->
                 val times = open.routine.reminderTimes(open.occurrence, clock.zone)
                 times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { open to it }
@@ -264,7 +291,30 @@ class Routines(
                 compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }
                     .thenBy(InputText.byName) { (open) -> open.routine.name },
             )
-            .map { (open) -> reminderOf(open) }
+        // Bound to places, and not popped up yet: at its first reminder time, or waiting since.
+        val (held, free) = due.partition { (open, time) ->
+            open.placeIds.isNotEmpty() && (open.occurrence.waiting || time == open.occurrence.reminderTime(clock.zone))
+        }
+        val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate()
+        val (popping, waiting) = held.partition { (open) -> whereabouts.allows(open.placeIds) }
+        dao.setWaiting(waiting.map { (open) -> open.occurrence.id }, waiting = true)
+        dao.setWaiting(popping.map { (open) -> open.occurrence.id }, waiting = false)
+        val shown = (free + popping).map { (open) -> open.occurrence.id }.toSet()
+        due.filter { (open) -> open.occurrence.id in shown }.map { (open) -> reminderOf(open) }
+    }
+
+    /**
+     * Arrived at a place (SPEC.md §4): the occurrences waiting for one of the places the device is at, their time
+     * window still open, pop up now and wait no more; their follow-ups count from now. Not reported as a change:
+     * the reminders do this themselves.
+     */
+    suspend fun arrive(whereabouts: Whereabouts): List<Reminder> = withContext(io + NonCancellable) {
+        val now = now()
+        val arrived = dao.waiting().filter { open ->
+            whereabouts.allows(open.placeIds) && !open.routine.windowEnded(open.occurrence, now, clock.zone)
+        }
+        dao.arrived(arrived.map { it.occurrence.id }, at = now)
+        arrived.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
     }
 
     /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
@@ -297,6 +347,13 @@ class Routines(
     /** Ticks the open occurrence off once every one of the checklist's [items] is ticked off on it. */
     private suspend fun tickOffIfAllTicked(occurrenceId: Long, items: List<Long>) {
         if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
+    }
+
+    /** Binds the routine to its places; bound to none, it waits for none any more either. */
+    private suspend fun savePlaces(routineId: Long, placeIds: Set<Long>) {
+        dao.unbindAll(routineId)
+        dao.bind(routineId, placeIds)
+        if (dao.placeIdsOf(routineId).isEmpty()) dao.stopWaiting(routineId)
     }
 
     private suspend fun saveTags(routineId: Long, tagIds: Set<Long>) {

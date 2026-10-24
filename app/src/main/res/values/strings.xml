@@ -26,6 +26,8 @@
     <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht.</string>
     <string name="today_skip">Überspringen</string>
     <string name="today_yesterday_at">Gestern, %1$s</string>
+    <string name="today_waiting_for">Wartet auf %1$s</string>
+    <string name="today_or">" oder "</string>
     <string name="today_undo">Rückgängig</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>
@@ -100,6 +102,10 @@
     <string name="archive_restore">Wiederherstellen</string>
     <string name="archive_empty">Nichts archiviert.</string>
     <string name="routine_tags">Tags</string>
+    <string name="routine_places">Orte</string>
+    <string name="routine_places_none">Orte legst du in den Einstellungen unter „Orte verwalten“ an.</string>
+    <string name="routine_places_everywhere">Erinnert überall.</string>
+    <string name="routine_places_chosen">Erinnert nur an diesen Orten. Anderswo wartet die Erinnerung, bis du ankommst, solange das Zeitfenster läuft.</string>
     <string name="routines_filter_all">Alle</string>
     <string name="routines_filter_empty">Keine Routine mit dem Tag „%1$s“.</string>
     <string name="routine_delete_title">Routine löschen?</string>
@@ -168,7 +174,7 @@
     <string name="place_wifi_remove">%1$s entfernen</string>
     <string name="place_wifi_invalid">So heißt kein WLAN: höchstens %1$d Bytes, Umlaute zählen doppelt, ohne Steuerzeichen</string>
     <string name="place_delete_title">Ort löschen?</string>
-    <string name="place_delete_text">„%1$s“ wird mit seinen WLANs gelöscht.</string>
+    <string name="place_delete_text">„%1$s“ wird mit seinen WLANs gelöscht. Routinen, die nur hier erinnern, erinnern danach überall.</string>
     <string name="wifi_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN zu erkennen: Die App merkt sich keinen Standort und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
     <string name="wifi_access_approximate_text">Du hast EmilysHub nur den ungefähren Standort erlaubt. Android verrät den Namen des WLANs aber nur mit dem genauen. Die App merkt sich keinen Standort und sendet nichts weg.</string>
     <string name="wifi_access_allow">Erlauben</string>
@@ -176,6 +182,8 @@
     <string name="wifi_access_settings">In den App-Einstellungen erlauben</string>
     <string name="wifi_location_off_text">Der Standort ist ausgeschaltet. Android verrät den Namen des WLANs nur, wenn er an ist.</string>
     <string name="wifi_location_off_open">Standort einschalten</string>
+    <string name="background_location_text">Damit EmilysHub auch bei geschlossener App merkt, wann du an einem Ort ankommst, braucht die App den Standort mit „Immer erlauben“: Sonst verrät Android ihr den Namen des WLANs nur, solange sie offen ist, und die Routine erinnert zur Uhrzeit überall.</string>
+    <string name="background_location_allow">Immer erlauben</string>
 
     <string name="tags_manage">Tags verwalten</string>
     <string name="tags_manage_summary">Anlegen, umbenennen und löschen</string>

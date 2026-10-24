@@ -3,21 +3,27 @@ package de.emilyshub.routines
 import androidx.room.Dao
 import androidx.room.Embedded
 import androidx.room.Insert
+import androidx.room.Junction
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import de.emilyshub.places.Place
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
-/** An occurrence with its routine, which says how it is reminded of and how long it stays open. */
+/** An occurrence with its routine, which says how it is reminded of, where, and how long it stays open. */
 data class OccurrenceOfRoutine(
     @Embedded val occurrence: Occurrence,
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
-)
+    @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val routinePlaces: List<RoutinePlace>,
+) {
+    /** The places it pops up at; none: everywhere. */
+    val placeIds: Set<Long> get() = routinePlaces.map { it.placeId }.toSet()
+}
 
 /** An occurrence on Heute: with its routine, the routine's checklist, and what of it is ticked off on this occurrence. */
 data class OccurrenceWithChecklist(
@@ -25,6 +31,12 @@ data class OccurrenceWithChecklist(
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
     @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val checklist: List<ChecklistItem>,
     @Relation(parentColumn = "id", entityColumn = "occurrence_id") val ticks: List<ChecklistTick>,
+    @Relation(
+        parentColumn = "routine_id",
+        entityColumn = "id",
+        associateBy = Junction(RoutinePlace::class, parentColumn = "routine_id", entityColumn = "place_id"),
+    )
+    val places: List<Place>,
 ) {
     /** The checklist in its order, each item ticked off on this occurrence or with all of it ticked off at once. */
     fun entries(): List<ChecklistEntry> {
@@ -130,6 +142,35 @@ interface RoutineDao {
     @Transaction
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
     fun observeOccurrencesWithChecklists(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
+
+    @Query("SELECT place_id FROM routine_places WHERE routine_id = :routineId")
+    suspend fun placeIdsOf(routineId: Long): List<Long>
+
+    @Query("DELETE FROM routine_places WHERE routine_id = :routineId")
+    suspend fun unbindAll(routineId: Long)
+
+    /** Binds the routine to those of [placeIds] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO routine_places (routine_id, place_id) SELECT :routineId, id FROM places WHERE id IN (:placeIds)")
+    suspend fun bind(routineId: Long, placeIds: Collection<Long>)
+
+    /** Whether an active routine is bound to a place. */
+    @Query("SELECT EXISTS (SELECT 1 FROM routine_places JOIN routines ON routines.id = routine_id WHERE routines.status = :active)")
+    suspend fun anyActiveBound(active: RoutineStatus = RoutineStatus.Active): Boolean
+
+    @Query("UPDATE occurrences SET waiting = 0 WHERE routine_id = :routineId")
+    suspend fun stopWaiting(routineId: Long)
+
+    @Query("UPDATE occurrences SET waiting = :waiting WHERE id IN (:ids)")
+    suspend fun setWaiting(ids: Collection<Long>, waiting: Boolean)
+
+    /** The open occurrences that wait for their routine's places, each with its routine. */
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE status = :open AND waiting")
+    suspend fun waiting(open: OccurrenceStatus = OccurrenceStatus.Open): List<OccurrenceOfRoutine>
+
+    /** It pops up at [at], having arrived at its place, and waits no more. */
+    @Query("UPDATE occurrences SET waiting = 0, remind_at = :at WHERE id IN (:ids)")
+    suspend fun arrived(ids: Collection<Long>, at: Instant)
 
     @Query("SELECT tag_id FROM routine_tags WHERE routine_id = :routineId")
     suspend fun tagIdsOf(routineId: Long): List<Long>

@@ -194,7 +194,7 @@ private fun AppShell(
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            RoutineEditorScreen(routines, tags, editor, onClose = { routineEditor = null })
+            RoutineEditorScreen(routines, tags, places, editor, onClose = { routineEditor = null })
         }
         archiveOpen -> {
             BackHandler { archiveOpen = false }

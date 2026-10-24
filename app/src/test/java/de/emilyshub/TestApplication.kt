@@ -4,6 +4,7 @@ import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.places.FakeWifi
+import de.emilyshub.places.Locator
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
@@ -34,7 +35,8 @@ class TestApplication : EmilysHubApplication() {
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
     override val places = Places({ testDatabase }, Dispatchers.Unconfined)
     override val wifi = FakeWifi()
-    override val reminders: Reminders by lazy { Reminders(this, routines, clock) { settingsDao } }
+    override val locator = Locator(wifi, places)
+    override val reminders: Reminders by lazy { Reminders(this, routines, clock, locator::whereabouts) { settingsDao } }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */

@@ -38,6 +38,8 @@ data class RoutineDraft(
     val checklist: List<ChecklistDraftItem> = emptyList(),
     /** Its tags; one deleted meanwhile is left out on saving. */
     val tagIds: Set<Long> = emptySet(),
+    /** The places it pops up at, any of them; none: everywhere. One deleted meanwhile is left out on saving. */
+    val placeIds: Set<Long> = emptySet(),
 ) : Serializable {
 
     val problems: Set<DraftProblem>
@@ -100,8 +102,8 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
     fun cleaned() = copy(text = InputText.singleLine(text))
 }
 
-/** The routine with its [checklist] and tags as the editor starts out with it. */
-fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>) = RoutineDraft(
+/** The routine with its [checklist], tags and places as the editor starts out with it. */
+fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds,
 )

@@ -149,3 +149,41 @@ private val LOCATION = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifes
 
 private fun appSettings(context: Context) =
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+
+/**
+ * For a routine bound to a place (SPEC.md §4, §11): first the precise location, as for the WLAN name at all, then the
+ * location in the background, so that Android tells the WLAN name with the app closed, and a reminder pops up on
+ * arrival; without it, the routine reminds everywhere at its time. Asked for only here, each with why.
+ */
+@Composable
+fun BackgroundLocationNotice() {
+    val access = rememberWifiAccess()
+    if (access.current != WifiAccess.Granted) return WifiAccessNotice(access)
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+    var allowed by remember(context) { mutableStateOf(context.isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) }
+    LifecycleResumeEffect(context) {
+        allowed = context.isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        onPauseOrDispose {}
+    }
+    var turnedDown by rememberSaveable { mutableStateOf(false) }
+    // From Android 11 on, Android asks this in its own settings, where "Immer erlauben" is one of the choices.
+    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        allowed = granted
+        val mayAskAgain = activity?.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        turnedDown = !granted && mayAskAgain == false
+    }
+    if (allowed) return
+    Column {
+        Notice(stringResource(R.string.background_location_text))
+        if (turnedDown) {
+            TextButton(onClick = { context.startActivity(appSettings(context)) }) {
+                Text(stringResource(R.string.wifi_access_settings))
+            }
+        } else {
+            TextButton(onClick = { request.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }) {
+                Text(stringResource(R.string.background_location_allow))
+            }
+        }
+    }
+}
