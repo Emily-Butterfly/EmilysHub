@@ -28,10 +28,10 @@ data class OccurrenceOfRoutine(
 
     /**
      * Whether at its reminder time [time] it pops up only at its places: bound to some, and not popped up yet, at its
-     * first reminder time or waiting since.
+     * due time or waiting since. Once put off or popped up on arrival, it has popped up.
      */
     fun isHeldForPlaces(time: Instant, zone: ZoneId): Boolean =
-        placeIds.isNotEmpty() && (occurrence.waiting || time == occurrence.reminderTime(zone))
+        placeIds.isNotEmpty() && (occurrence.waiting || occurrence.remindAt == null && time == occurrence.reminderTime(zone))
 }
 
 /** An occurrence on Heute: with its routine, the routine's checklist, and what of it is ticked off on this occurrence. */
@@ -172,9 +172,6 @@ interface RoutineDao {
     @Query("SELECT EXISTS (SELECT 1 FROM routine_places JOIN routines ON routines.id = routine_id WHERE routines.status = :active)")
     suspend fun anyActiveBound(active: RoutineStatus = RoutineStatus.Active): Boolean
 
-    @Query("UPDATE occurrences SET waiting = 0 WHERE routine_id = :routineId")
-    suspend fun stopWaiting(routineId: Long)
-
     @Query("UPDATE occurrences SET waiting = :waiting WHERE id IN (:ids)")
     suspend fun setWaiting(ids: Collection<Long>, waiting: Boolean)
 
@@ -183,9 +180,9 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE status = :open AND waiting")
     suspend fun openWaiting(open: OccurrenceStatus = OccurrenceStatus.Open): List<OccurrenceOfRoutine>
 
-    /** They pop up [at] the arrival at their place, and wait no more; their follow-ups count from then. */
+    /** They pop up [at] then, on arrival or bound to no place any more, and wait no more; their follow-ups count from then. */
     @Query("UPDATE occurrences SET waiting = 0, remind_at = :at WHERE id IN (:ids)")
-    suspend fun popUpOnArrival(ids: Collection<Long>, at: Instant)
+    suspend fun popUp(ids: Collection<Long>, at: Instant)
 
     @Query("SELECT tag_id FROM routine_tags WHERE routine_id = :routineId")
     suspend fun tagIdsOf(routineId: Long): List<Long>

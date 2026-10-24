@@ -33,7 +33,7 @@ class TestApplication : EmilysHubApplication() {
     private val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
-    override val places = Places({ testDatabase }, Dispatchers.Unconfined)
+    override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wifi = FakeWifi()
     override val locator = Locator(wifi, places)
     override val reminders: Reminders by lazy { Reminders(this, routines, clock, locator::whereabouts) { settingsDao } }

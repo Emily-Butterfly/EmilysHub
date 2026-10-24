@@ -54,8 +54,12 @@ class SystemWifi(private val context: Context) : CurrentWifi {
             },
         )
         // A WLAN connected already is reported to the callback right away; only without one is there nothing to wait for.
-        val active = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
-        if (active?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) report()
+        // Any WLAN counts, not just the network in use: one just joined is not that yet while the mobile network still is.
+        @Suppress("DEPRECATION")
+        val wifiConnected = connectivity.allNetworks.any {
+            connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+        if (!wifiConnected) report()
         val wifi = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
         connectivity.registerNetworkCallback(wifi, callback)
         awaitClose { connectivity.unregisterNetworkCallback(callback) }

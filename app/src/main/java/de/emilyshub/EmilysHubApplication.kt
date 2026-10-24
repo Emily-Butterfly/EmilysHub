@@ -48,7 +48,7 @@ open class EmilysHubApplication : Application() {
 
     open val tags: Tags by lazy { Tags({ database }) }
 
-    open val places: Places by lazy { Places({ database }) }
+    open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 
     /** The WLAN connected to, by which the places are recognised. */
     open val wifi: CurrentWifi by lazy { SystemWifi(this) }
@@ -74,7 +74,7 @@ open class EmilysHubApplication : Application() {
         background.launch { reminders.update() }
     }
 
-    /** After every change to the routines. The change stands even if this fails; the next one tries again. */
+    /** After every change to the routines or places. The change stands even if this fails; the next one tries again. */
     protected suspend fun updateReminders() {
         try {
             reminders.update()

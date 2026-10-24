@@ -94,6 +94,83 @@ class PlaceBoundTest {
     }
 
     @Test
+    fun `arriving once its time window has ended, nothing pops up, also before it is marked missed`() = runBlocking {
+        routines.create(pills(at = setOf(home), window = TimeWindow(hours = 2)))
+        dueAt("08:00", elsewhere)
+        clock.now = berlin("2026-10-23T10:30")
+
+        assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+    }
+
+    @Test
+    fun `caught up on until midnight, it pops up on arrival before midnight, and after it no more`() = runBlocking {
+        routines.create(draft("Tabletten", "20:00", TimeWindow(untilMidnight = true)).copy(placeIds = setOf(home)))
+        dueAt("20:00", elsewhere)
+
+        clock.now = berlin("2026-10-24T00:10")
+        assertEquals(emptyList<String>(), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+
+        clock.now = berlin("2026-10-23T23:50")
+        assertEquals(listOf("Tabletten"), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+    }
+
+    @Test
+    fun `with a time window past midnight, it pops up on arrival after midnight, and Heute shows it from the day before`() =
+        runBlocking {
+            routines.create(draft("Lesen", "22:00").copy(placeIds = setOf(home)))
+            dueAt("22:00", elsewhere)
+            clock.now = berlin("2026-10-24T01:30")
+
+            val fromTheDayBefore = routines.dueOn(today.plusDays(1)).first().single { it.dueAt.toLocalDate() == today }
+            assertEquals(listOf("Zuhause"), fromTheDayBefore.waitingFor)
+            assertEquals(listOf("Lesen"), routines.arrive(Whereabouts.At(setOf(home))).map { it.name })
+        }
+
+    @Test
+    fun `joining a WLAN whose name Android keeps back, what waits pops up, as it is not to be held back for want of it`() =
+        runBlocking {
+            routines.create(pills(at = setOf(home)))
+            dueAt("08:00", elsewhere)
+
+            assertEquals(listOf("Tabletten"), routines.arrive(Whereabouts.Unknown).map { it.name })
+            assertEquals(listOf<List<String>>(emptyList()), waitingFor())
+        }
+
+    @Test
+    fun `put off once it has popped up, it comes back also away from its places`() = runBlocking {
+        routines.create(pills(at = setOf(home)))
+        dueAt("08:00", Whereabouts.At(setOf(home)))
+        routines.putOff(occurrence(), until = berlin("2026-10-23T08:10"))
+
+        assertEquals(listOf("Tabletten"), dueAt("08:10", elsewhere))
+    }
+
+    @Test
+    fun `bound to no place any more, what waited pops up now`() = runBlocking {
+        val pills = routines.create(pills(at = setOf(home)))
+        dueAt("08:00", elsewhere)
+        clock.now = berlin("2026-10-23T08:05")
+
+        routines.update(pills, pills(at = emptySet()))
+        routines.releaseFromPlaces()
+
+        assertEquals(listOf<List<String>>(emptyList()), waitingFor())
+        assertEquals(listOf("Tabletten"), dueAt("08:05", elsewhere))
+    }
+
+    @Test
+    fun `with its only place deleted, what waited for it pops up now`() = runBlocking {
+        routines.create(pills(at = setOf(home)))
+        dueAt("08:00", elsewhere)
+        clock.now = berlin("2026-10-23T08:05")
+
+        places.delete(home)
+        routines.releaseFromPlaces()
+
+        assertEquals(listOf("Tabletten"), dueAt("08:05", elsewhere))
+    }
+
+    @Test
     fun `waiting, it pops up at a follow-up once it is at its place, should the arrival have gone unnoticed`() = runBlocking {
         routines.create(pills(at = setOf(home)))
         dueAt("08:00", elsewhere)
@@ -144,6 +221,9 @@ class PlaceBoundTest {
         val until = berlin("2026-10-23T$time")
         return routines.remindersDue(after = until.minusSeconds(60), until = until) { whereabouts }.map { it.name }
     }
+
+    /** Today's only occurrence. */
+    private suspend fun occurrence() = routines.dueOn(today).first().single().occurrenceId
 
     /** For each occurrence on Heute, the places it waits for. */
     private suspend fun waitingFor() = routines.dueOn(today).first().map { it.waitingFor }

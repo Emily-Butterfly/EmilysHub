@@ -294,16 +294,27 @@ class Routines(
 
     /**
      * Arrived at a place (SPEC.md §4): the occurrences waiting for one of the places the device is at, their time
-     * window still open, pop up now and wait no more; their follow-ups count from now. Not reported as a change:
-     * the reminders do this themselves.
+     * window still open, are to pop up now and wait no more, as [remindersDue] then has them; their follow-ups count
+     * from now. Returns them. Not reported as a change: the reminders do this themselves.
      */
     suspend fun arrive(whereabouts: Whereabouts): List<Reminder> = withContext(io + NonCancellable) {
+        popUp(dao.openWaiting().filter { whereabouts.allows(it.placeIds) })
+    }
+
+    /**
+     * The occurrences waiting for places their routine is bound to no more, as it was changed or its places were
+     * deleted, are to pop up now, as on arrival. Not reported as a change: the reminders do this themselves.
+     */
+    suspend fun releaseFromPlaces() = withContext(io + NonCancellable) {
+        popUp(dao.openWaiting().filter { it.placeIds.isEmpty() })
+    }
+
+    /** Those of [waiting] whose time window is still open pop up now, by name. */
+    private suspend fun popUp(waiting: List<OccurrenceOfRoutine>): List<Reminder> {
         val now = now()
-        val arrived = dao.openWaiting().filter { open ->
-            whereabouts.allows(open.placeIds) && !open.routine.windowEnded(open.occurrence, now, clock.zone)
-        }
-        dao.popUpOnArrival(arrived.map { it.occurrence.id }, at = now)
-        arrived.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
+        val popping = waiting.filter { !it.routine.windowEnded(it.occurrence, now, clock.zone) }
+        dao.popUp(popping.map { it.occurrence.id }, at = now)
+        return popping.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
     }
 
     /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
@@ -338,11 +349,10 @@ class Routines(
         if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
     }
 
-    /** Binds the routine to its places; bound to none, it waits for none any more either. */
+    /** Binds the routine to its places; bound to none, what waits for them pops up with [releaseFromPlaces]. */
     private suspend fun savePlaces(routineId: Long, placeIds: Set<Long>) {
         dao.unbindAll(routineId)
         dao.bind(routineId, placeIds)
-        if (dao.placeIdsOf(routineId).isEmpty()) dao.stopWaiting(routineId)
     }
 
     private suspend fun saveTags(routineId: Long, tagIds: Set<Long>) {

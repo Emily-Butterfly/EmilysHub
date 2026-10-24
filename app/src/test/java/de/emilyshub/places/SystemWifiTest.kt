@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowNetwork
 import org.robolectric.shadows.ShadowNetworkCapabilities
+import org.robolectric.shadows.ShadowNetworkInfo
 
 /** The WLAN as Android's connectivity service reports it, to a callback that asks for its name (SPEC.md §4). */
 @RunWith(AndroidJUnit4::class)
@@ -26,6 +27,8 @@ class SystemWifiTest {
     @Test
     fun `the WLAN connected to is reported by its name, one with its name kept back as such, and none once it is lost`() =
         runBlocking {
+            // Robolectric starts out with a WLAN not connected, which Android itself would not list.
+            shadowOf(connectivity).clearAllNetworks()
             val seen = mutableListOf<Wifi>()
             val collecting = launch(Dispatchers.Unconfined) { SystemWifi(context).current().collect { seen += it } }
             val callback = shadowOf(connectivity).networkCallbacks.single()
@@ -38,6 +41,20 @@ class SystemWifiTest {
 
             assertEquals(listOf(Wifi.None, Wifi.Named("FritzBox 7590"), Wifi.NameHidden, Wifi.None), seen)
         }
+
+    @Test
+    fun `a WLAN joined that is not yet the network in use is waited for, not taken for none`() = runBlocking {
+        val network = ShadowNetwork.newInstance(2)
+        shadowOf(connectivity).addNetwork(network, ShadowNetworkInfo.newInstance(null, ConnectivityManager.TYPE_WIFI, 0, true, true))
+        shadowOf(connectivity).setNetworkCapabilities(network, wifi(named = "FritzBox"))
+        val seen = mutableListOf<Wifi>()
+        val collecting = launch(Dispatchers.Unconfined) { SystemWifi(context).current().collect { seen += it } }
+
+        shadowOf(connectivity).networkCallbacks.single().onCapabilitiesChanged(network, wifi(named = "FritzBox"))
+        collecting.cancel()
+
+        assertEquals(listOf(Wifi.Named("FritzBox")), seen)
+    }
 
     /** A WLAN network, with its name, or with the name kept back as Android does without the location. */
     private fun wifi(named: String?): NetworkCapabilities {

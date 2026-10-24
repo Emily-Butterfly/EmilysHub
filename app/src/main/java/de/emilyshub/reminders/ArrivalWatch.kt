@@ -10,21 +10,30 @@ import android.net.NetworkRequest
 /**
  * Has Android wake the app whenever the device joins a WLAN, also while the app is closed (SPEC.md §4), so that a
  * reminder waiting for a place pops up on arrival. Android keeps the request until it is taken back or the device
- * restarts; every update of the reminders, as after a restart, asks anew.
+ * restarts, so the app asks anew once it starts, as after a restart. Asking anew replaces the request, and Android
+ * then reports a WLAN connected already right away: the app, started where a reminder waits, takes that for arriving.
  */
 class ArrivalWatch(private val context: Context) {
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
 
+    // Whether it watches, as far as the app knows since it started. Asked anew only when that changes, so that not
+    // every change of the routines counts as arriving.
+    private var watching: Boolean? = null
+
     /** Watches for arrivals while [on], as long as a routine is bound to a place; stops otherwise. */
     fun watch(on: Boolean) {
+        if (on == watching) return
         val operation = operation()
-        // Taken back first, so that asking again does not add up.
-        try {
-            connectivity.unregisterNetworkCallback(operation)
-        } catch (_: IllegalArgumentException) {
-            // Not watched yet.
+        if (on) {
+            connectivity.registerNetworkCallback(WIFI, operation)
+        } else {
+            try {
+                connectivity.unregisterNetworkCallback(operation)
+            } catch (_: IllegalArgumentException) {
+                // Not watched.
+            }
         }
-        if (on) connectivity.registerNetworkCallback(WIFI, operation)
+        watching = on
     }
 
     /** What Android sends on joining a WLAN: the arrival, to the reminders. */

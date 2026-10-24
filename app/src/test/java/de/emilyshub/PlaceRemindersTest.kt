@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.reminders.AlarmRingService
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
@@ -74,6 +75,36 @@ class PlaceRemindersTest {
     }
 
     @Test
+    fun `on arrival it pops up by the alarm, which lets a full-screen alarm ring also with the app closed`() {
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "08:00", fullScreen = true, places = setOf(home))
+        app.wifi.ssid = null
+        goOffAt("2026-10-23T08:00")
+
+        app.clock.now = berlin("2026-10-23T09:10")
+        app.wifi.ssid = "FritzBox"
+        connectivity.networkCallbackPendingIntents.single().send()
+        idle()
+        assertEquals(emptyList<String>(), reminders())
+
+        goOffAt("2026-10-23T09:10")
+        assertEquals(listOf("Arzttermin", "Tabletten"), reminders().sortedBy { it })
+        assertEquals(AlarmRingService::class.java.name, shadowOf(app).nextStartedService?.component?.className)
+    }
+
+    @Test
+    fun `with its only place deleted, what waited for it pops up`() {
+        app.wifi.ssid = null
+        goOffAt("2026-10-23T08:00")
+
+        app.clock.now = berlin("2026-10-23T08:05")
+        runBlocking { app.places.delete(home) }
+        goOffAt("2026-10-23T08:05")
+
+        assertEquals(listOf("Tabletten"), reminders())
+    }
+
+    @Test
     fun `arriving home once its time window has ended, it is missed and nothing pops up`() {
         app.wifi.ssid = null
         goOffAt("2026-10-23T08:00")
@@ -96,9 +127,11 @@ class PlaceRemindersTest {
         assertEquals(0, connectivity.networkCallbackPendingIntents.size)
     }
 
-    /** Joins a WLAN: Android sends what the app asked it to, as the app may be closed. */
+    /** Joins a WLAN: Android sends what the app asked it to, as the app may be closed, and the alarm set then goes off. */
     private fun arrive() {
         connectivity.networkCallbackPendingIntents.single().send()
+        idle()
+        alarmManager.fireAlarm(checkNotNull(alarmManager.peekNextScheduledAlarm()))
         idle()
     }
 

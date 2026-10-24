@@ -15,9 +15,14 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The named places (SPEC.md §4), recognised by their WLANs. [database] is only called on [io], since the first call
- * opens it. Writes run to the end once started, even if the screen that started them goes away.
+ * opens it. Writes run to the end once started, even if the screen that started them goes away. After each write,
+ * [onChange] runs, for the reminders to follow.
  */
-class Places(private val database: () -> HubDatabase, private val io: CoroutineContext = Dispatchers.IO) {
+class Places(
+    private val database: () -> HubDatabase,
+    private val io: CoroutineContext = Dispatchers.IO,
+    private val onChange: suspend () -> Unit = {},
+) {
     private val dao get() = database().places()
 
     /** All places by name, each with its WLANs. */
@@ -45,10 +50,10 @@ class Places(private val database: () -> HubDatabase, private val io: CoroutineC
         }
     }
 
-    /** Deletes the place with its WLANs. */
+    /** Deletes the place with its WLANs; the routines bound to it are bound to it no more. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
-    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
+    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block().also { onChange() } }
 
     private fun checked(draft: PlaceDraft, others: List<PlaceWithWifis>): PlaceDraft {
         val problems = draft.problems(others)
