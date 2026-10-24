@@ -9,11 +9,13 @@ import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import de.emilyshub.data.InputText
 import de.emilyshub.places.Place
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 /** An occurrence with its routine, which says how it is reminded of, where, and how long it stays open. */
 data class OccurrenceOfRoutine(
@@ -23,6 +25,13 @@ data class OccurrenceOfRoutine(
 ) {
     /** The places it pops up at; none: everywhere. */
     val placeIds: Set<Long> get() = routinePlaces.map { it.placeId }.toSet()
+
+    /**
+     * Whether at its reminder time [time] it pops up only at its places: bound to some, and not popped up yet, at its
+     * first reminder time or waiting since.
+     */
+    fun isHeldForPlaces(time: Instant, zone: ZoneId): Boolean =
+        placeIds.isNotEmpty() && (occurrence.waiting || time == occurrence.reminderTime(zone))
 }
 
 /** An occurrence on Heute: with its routine, the routine's checklist, and what of it is ticked off on this occurrence. */
@@ -38,6 +47,12 @@ data class OccurrenceWithChecklist(
     )
     val places: List<Place>,
 ) {
+    /** The names of the places it waits for, in alphabetical order; none unless it is open and waits. */
+    fun waitingFor(): List<String> = when {
+        occurrence.waiting && occurrence.status == OccurrenceStatus.Open -> places.map { it.name }.sortedWith(InputText.byName)
+        else -> emptyList()
+    }
+
     /** The checklist in its order, each item ticked off on this occurrence or with all of it ticked off at once. */
     fun entries(): List<ChecklistEntry> {
         val ticked = ticks.map { it.itemId }.toSet()
@@ -166,11 +181,11 @@ interface RoutineDao {
     /** The open occurrences that wait for their routine's places, each with its routine. */
     @Transaction
     @Query("SELECT * FROM occurrences WHERE status = :open AND waiting")
-    suspend fun waiting(open: OccurrenceStatus = OccurrenceStatus.Open): List<OccurrenceOfRoutine>
+    suspend fun openWaiting(open: OccurrenceStatus = OccurrenceStatus.Open): List<OccurrenceOfRoutine>
 
-    /** It pops up at [at], having arrived at its place, and waits no more. */
+    /** They pop up [at] the arrival at their place, and wait no more; their follow-ups count from then. */
     @Query("UPDATE occurrences SET waiting = 0, remind_at = :at WHERE id IN (:ids)")
-    suspend fun arrived(ids: Collection<Long>, at: Instant)
+    suspend fun popUpOnArrival(ids: Collection<Long>, at: Instant)
 
     @Query("SELECT tag_id FROM routine_tags WHERE routine_id = :routineId")
     suspend fun tagIdsOf(routineId: Long): List<Long>

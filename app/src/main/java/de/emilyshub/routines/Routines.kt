@@ -174,15 +174,10 @@ class Routines(
                 .map { due ->
                     val (occurrence, routine) = due
                     val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
-                    val waitingFor = if (occurrence.waiting && occurrence.status == OccurrenceStatus.Open) {
-                        due.places.map { it.name }.sortedWith(InputText.byName)
-                    } else {
-                        emptyList()
-                    }
                     DueRoutine(
                         occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority,
                         checklist = due.entries(),
-                        waitingFor = waitingFor,
+                        waitingFor = due.waitingFor(),
                     )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
@@ -272,36 +267,30 @@ class Routines(
      *
      * One bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them; elsewhere it
      * waits, and its follow-ups, until it has popped up once, only look again: it pops up at one of them should its
-     * arrival have gone unnoticed. [locate] is only asked when that matters; without it, every place is [Unknown]
-     * and allows all. Not reported as a change: the reminders do this themselves.
+     * arrival have gone unnoticed. [locate] is only asked when that matters. Not reported as a change: the reminders
+     * do this themselves.
      */
-    suspend fun remindersDue(
-        after: Instant,
-        until: Instant,
-        locate: suspend () -> Whereabouts = { Whereabouts.Unknown },
-    ): List<Reminder> = withContext(io + NonCancellable) {
-        val last = today(until, clock.zone)
-        planDays(from = today(after, clock.zone), to = last)
-        val due = dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
-            .mapNotNull { open ->
-                val times = open.routine.reminderTimes(open.occurrence, clock.zone)
-                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { open to it }
-            }
-            .sortedWith(
-                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }
-                    .thenBy(InputText.byName) { (open) -> open.routine.name },
-            )
-        // Bound to places, and not popped up yet: at its first reminder time, or waiting since.
-        val (held, free) = due.partition { (open, time) ->
-            open.placeIds.isNotEmpty() && (open.occurrence.waiting || time == open.occurrence.reminderTime(clock.zone))
+    suspend fun remindersDue(after: Instant, until: Instant, locate: suspend () -> Whereabouts): List<Reminder> =
+        withContext(io + NonCancellable) {
+            val last = today(until, clock.zone)
+            planDays(from = today(after, clock.zone), to = last)
+            val due = dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
+                .mapNotNull { open ->
+                    val times = open.routine.reminderTimes(open.occurrence, clock.zone)
+                    times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { open to it }
+                }
+                .sortedWith(
+                    compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }
+                        .thenBy(InputText.byName) { (open) -> open.routine.name },
+                )
+            val (held, free) = due.partition { (open, time) -> open.isHeldForPlaces(time, clock.zone) }
+            val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate()
+            val (popping, waiting) = held.partition { (open) -> whereabouts.allows(open.placeIds) }
+            dao.setWaiting(waiting.map { (open) -> open.occurrence.id }, waiting = true)
+            dao.setWaiting(popping.map { (open) -> open.occurrence.id }, waiting = false)
+            val shown = (free + popping).map { (open) -> open.occurrence.id }.toSet()
+            due.filter { (open) -> open.occurrence.id in shown }.map { (open) -> reminderOf(open) }
         }
-        val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate()
-        val (popping, waiting) = held.partition { (open) -> whereabouts.allows(open.placeIds) }
-        dao.setWaiting(waiting.map { (open) -> open.occurrence.id }, waiting = true)
-        dao.setWaiting(popping.map { (open) -> open.occurrence.id }, waiting = false)
-        val shown = (free + popping).map { (open) -> open.occurrence.id }.toSet()
-        due.filter { (open) -> open.occurrence.id in shown }.map { (open) -> reminderOf(open) }
-    }
 
     /**
      * Arrived at a place (SPEC.md §4): the occurrences waiting for one of the places the device is at, their time
@@ -310,10 +299,10 @@ class Routines(
      */
     suspend fun arrive(whereabouts: Whereabouts): List<Reminder> = withContext(io + NonCancellable) {
         val now = now()
-        val arrived = dao.waiting().filter { open ->
+        val arrived = dao.openWaiting().filter { open ->
             whereabouts.allows(open.placeIds) && !open.routine.windowEnded(open.occurrence, now, clock.zone)
         }
-        dao.arrived(arrived.map { it.occurrence.id }, at = now)
+        dao.popUpOnArrival(arrived.map { it.occurrence.id }, at = now)
         arrived.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
     }
 

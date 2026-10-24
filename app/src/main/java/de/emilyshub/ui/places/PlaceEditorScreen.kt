@@ -50,6 +50,7 @@ import de.emilyshub.places.Places
 import de.emilyshub.places.Ssid
 import de.emilyshub.places.Wifi
 import de.emilyshub.places.toDraft
+import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
@@ -254,9 +255,4 @@ private fun WifisField(wifis: List<String>, wifi: CurrentWifi, showMissing: Bool
             ) { Text(stringResource(R.string.place_wifi_add)) }
         }
     }
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium)
 }

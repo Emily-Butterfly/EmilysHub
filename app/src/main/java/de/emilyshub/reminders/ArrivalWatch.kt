@@ -17,17 +17,18 @@ class ArrivalWatch(private val context: Context) {
 
     /** Watches for arrivals while [on], as long as a routine is bound to a place; stops otherwise. */
     fun watch(on: Boolean) {
-        val arrived = arrived()
+        val operation = operation()
         // Taken back first, so that asking again does not add up.
         try {
-            connectivity.unregisterNetworkCallback(arrived)
+            connectivity.unregisterNetworkCallback(operation)
         } catch (_: IllegalArgumentException) {
             // Not watched yet.
         }
-        if (on) connectivity.registerNetworkCallback(WIFI, arrived)
+        if (on) connectivity.registerNetworkCallback(WIFI, operation)
     }
 
-    private fun arrived(): PendingIntent {
+    /** What Android sends on joining a WLAN: the arrival, to the reminders. */
+    private fun operation(): PendingIntent {
         val intent = Intent(context, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_ARRIVE)
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }

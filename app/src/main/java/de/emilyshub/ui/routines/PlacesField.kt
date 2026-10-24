@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.places.Places
 import de.emilyshub.ui.ChoiceChip
+import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.places.BackgroundLocationNotice
 
@@ -42,9 +43,4 @@ fun PlacesField(places: Places, selected: Set<Long>, onChange: (Set<Long>) -> Un
         Hint(stringResource(if (chosen.isEmpty()) R.string.routine_places_everywhere else R.string.routine_places_chosen))
         if (chosen.isNotEmpty()) BackgroundLocationNotice()
     }
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }

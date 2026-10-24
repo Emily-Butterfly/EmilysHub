@@ -57,13 +57,7 @@ class Reminders(
      * next alarm. What came due long ago, say while the phone was off, still pops up while its window is open.
      */
     suspend fun remind() = lock.withLock {
-        val now = clock.instant()
-        val since = remindedUntil()
-        routines.markMissed(since)
-        val due = routines.remindersDue(after = since, until = now, locate)
-        due.forEach(notifications::show)
-        settings().put(Setting(REMINDED_UNTIL, now.toString()))
-        tidyAndSetAlarm(justShown = due.map { it.occurrenceId }.toSet())
+        catchUp { since, now -> routines.remindersDue(after = since, until = now, locate) }
     }
 
     /**
@@ -71,14 +65,10 @@ class Reminders(
      * after what has come due meanwhile, as when the alarm goes off.
      */
     suspend fun arrived() = lock.withLock {
-        val now = clock.instant()
-        val since = remindedUntil()
-        routines.markMissed(since)
-        val whereabouts = locate()
-        val due = routines.remindersDue(after = since, until = now) { whereabouts } + routines.arrive(whereabouts)
-        due.forEach(notifications::show)
-        settings().put(Setting(REMINDED_UNTIL, now.toString()))
-        tidyAndSetAlarm(justShown = due.map { it.occurrenceId }.toSet())
+        catchUp { since, now ->
+            val whereabouts = locate()
+            routines.remindersDue(after = since, until = now) { whereabouts } + routines.arrive(whereabouts)
+        }
     }
 
     /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
@@ -104,6 +94,17 @@ class Reminders(
 
     /** What "Später" offers for [reminder] now. */
     fun putOffChoices(reminder: Reminder): List<Duration> = reminder.putOffChoices(clock.instant())
+
+    /** Marks what ran out missed, shows what is [due] between how far it has reminded and now, and goes on from now. */
+    private suspend fun catchUp(due: suspend (since: Instant, now: Instant) -> List<Reminder>) {
+        val now = clock.instant()
+        val since = remindedUntil()
+        routines.markMissed(since)
+        val shown = due(since, now)
+        shown.forEach(notifications::show)
+        settings().put(Setting(REMINDED_UNTIL, now.toString()))
+        tidyAndSetAlarm(justShown = shown.map { it.occurrenceId }.toSet())
+    }
 
     private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet()) {
         val shown = notifications.shown()

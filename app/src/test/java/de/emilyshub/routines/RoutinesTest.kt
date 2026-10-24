@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.places.Whereabouts
 import de.emilyshub.tags.Tags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -809,6 +810,9 @@ class RoutinesTest {
     }
 
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.zone).toInstant()
+
+    /** The reminders due, for routines bound to no place, so that where the device is does not matter. */
+    private suspend fun Routines.remindersDue(after: Instant, until: Instant) = remindersDue(after, until) { Whereabouts.Unknown }
 
     private fun draft(
         name: String,

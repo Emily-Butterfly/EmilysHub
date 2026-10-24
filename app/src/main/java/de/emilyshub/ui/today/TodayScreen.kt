@@ -42,6 +42,7 @@ import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
+import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.launchNow
@@ -172,20 +173,9 @@ private fun DueRoutineRow(
             PriorityNote(routine.priority)
             // Due elsewhere: it pops up on arrival at one of its places (SPEC.md §4).
             if (routine.waitingFor.isNotEmpty()) {
-                val places = routine.waitingFor.joinToString(stringResource(R.string.today_or))
-                Text(
-                    text = stringResource(R.string.today_waiting_for, places),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Hint(stringResource(R.string.today_waiting_for, routine.waitingFor.joinToString(stringResource(R.string.today_or))))
             }
-            routine.status.label?.let { label ->
-                Text(
-                    text = stringResource(label),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            routine.status.label?.let { Hint(stringResource(it)) }
         }
         when (routine.status) {
             OccurrenceStatus.Open -> TextButton(onClick = onSkip) { Text(stringResource(R.string.today_skip)) }
