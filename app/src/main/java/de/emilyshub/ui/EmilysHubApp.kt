@@ -21,10 +21,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -57,6 +55,7 @@ import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.status.StatusScreen
+import de.emilyshub.ui.status.rememberUse
 import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
@@ -65,7 +64,6 @@ import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.todos.TodosScreen
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -265,13 +263,10 @@ private fun AppShell(
     }
 }
 
-/** Asks for what reminders need (SPEC.md §11) once something reminds, the first routine or a to-do that does, not before. */
+/** Asks for what reminders need (SPEC.md §11) once something reminds, an active routine or a to-do that does, not before. */
 @Composable
 private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: () -> Unit) {
-    val reminds by remember(routines, todos) {
-        combine(routines.inUse(), todos.open()) { inUse, open -> inUse.isNotEmpty() || open.any { it.reminds } }
-    }.collectAsState(initial = false)
-    if (reminds) ReminderPermissions(onFinished = onAsked)
+    if (rememberUse(routines, todos)?.reminds == true) ReminderPermissions(onFinished = onAsked)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

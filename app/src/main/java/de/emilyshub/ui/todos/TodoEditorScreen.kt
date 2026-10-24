@@ -187,8 +187,8 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, places: Places, target: TodoEdito
             PlacesField(
                 places = places,
                 selected = draft.placeIds,
-                noneChosen = R.string.todo_places_none,
-                chosenHint = R.string.todo_places_chosen,
+                hintNone = R.string.todo_places_none,
+                hintChosen = R.string.todo_places_chosen,
                 onChange = { draft = draft.copy(placeIds = it) },
             )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })

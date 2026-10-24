@@ -175,7 +175,7 @@ private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) 
             PriorityNote(todo.priority)
             // It pops up on arrival at one of its places (SPEC.md §4).
             if (todo.waitingFor.isNotEmpty()) {
-                Hint(stringResource(R.string.today_waiting_for, todo.waitingFor.joinToString(stringResource(R.string.today_or))))
+                Hint(stringResource(R.string.today_waiting_for, todo.waitingFor.joinToString(stringResource(R.string.names_or))))
             }
         }
     }
@@ -275,7 +275,7 @@ private fun DueRoutineRow(
             PriorityNote(routine.priority)
             // Due elsewhere: it pops up on arrival at one of its places (SPEC.md §4).
             if (routine.waitingFor.isNotEmpty()) {
-                Hint(stringResource(R.string.today_waiting_for, routine.waitingFor.joinToString(stringResource(R.string.today_or))))
+                Hint(stringResource(R.string.today_waiting_for, routine.waitingFor.joinToString(stringResource(R.string.names_or))))
             }
             routine.status.label?.let { Hint(stringResource(it)) }
         }

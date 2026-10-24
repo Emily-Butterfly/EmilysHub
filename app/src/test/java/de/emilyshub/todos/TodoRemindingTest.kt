@@ -6,6 +6,7 @@ import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.Places
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.routines.ChecklistDraftItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -162,6 +163,23 @@ class TodoRemindingTest {
             assertEquals(listOf("Post", "Pakete"), dueBetween("2026-10-23T06:00", "2026-10-23T09:00", elsewhere))
             assertEquals(false, todos.anyWaiting())
         }
+
+    @Test
+    fun `brought back from the archive or by unticking its checklist, a to-do reminds anew`() = runBlocking {
+        val post = todo("Post", places = setOf(home))
+        val pickUp = listOf(ChecklistDraftItem(text = "Abholen"))
+        val parcels = todos.create(TodoDraft("Pakete", checklist = pickUp, placeIds = setOf(home)))
+        arrive(atHome)
+        todos.markDone(post)
+        val item = todos.checklist(parcels).single()
+        todos.tick(parcels, item.id, ticked = true)
+
+        todos.reopen(post)
+        todos.tick(parcels, item.id, ticked = false)
+
+        assertEquals(true, todos.anyWaiting())
+        assertEquals(listOf("Pakete", "Post"), arrive(atHome))
+    }
 
     @Test
     fun `the places of a to-do are kept, but one deleted meanwhile`() = runBlocking {

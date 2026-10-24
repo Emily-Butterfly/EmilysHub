@@ -45,7 +45,7 @@ class Reminders(
     private val notifications = ReminderNotifications(context, clock)
 
     // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
-    // write to the routines in a way that reports a change, since every such write updates the reminders.
+    // write to the routines or to-dos in a way that reports a change, since every such write updates the reminders.
     // Marking missed and planning do not report one.
     private val lock = Mutex()
 

@@ -58,7 +58,7 @@ fun rememberUse(routines: Routines, todos: Todos): Use? {
             val active = all.filter { it.status == RoutineStatus.Active }
             Use(
                 reminds = active.isNotEmpty() || open.any { it.reminds },
-                boundToPlaces = boundToPlaces || open.any { it.todo.reminding.waiting },
+                boundToPlaces = boundToPlaces || open.any { it.waitsForPlaces },
                 fullScreen = active.any { it.fullScreen },
             )
         }

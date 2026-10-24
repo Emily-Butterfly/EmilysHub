@@ -216,8 +216,8 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: 
             PlacesField(
                 places = places,
                 selected = draft.placeIds,
-                noneChosen = R.string.routine_places_everywhere,
-                chosenHint = R.string.routine_places_chosen,
+                hintNone = R.string.routine_places_everywhere,
+                hintChosen = R.string.routine_places_chosen,
                 onChange = { draft = draft.copy(placeIds = it) },
             )
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })

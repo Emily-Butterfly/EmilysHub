@@ -60,12 +60,12 @@ data class Todo(
 
 /**
  * Where a to-do's reminder stands (SPEC.md §3, §4). It pops up at its due time if it had one still ahead when that was
- * saved ([atDueTime]), so that a time gone by already does not pop up. Bound to places, it is [waiting] for them until
+ * saved ([remindsAtDueTime]), so that a time gone by already does not pop up. Bound to places, it is [waiting] for them until
  * it has popped up: at its time if there, otherwise on arriving at one, from its time or day on, or from the start
  * without either. It pops up anywhere at [remindAt]: when it was put off to ("Später"), or on arrival, by the alarm.
  */
 data class Reminding(
-    @ColumnInfo(name = "at_due_time", defaultValue = "0") val atDueTime: Boolean = false,
+    @ColumnInfo(name = "reminds_at_due_time", defaultValue = "0") val remindsAtDueTime: Boolean = false,
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
 )
@@ -139,6 +139,12 @@ data class TodoWithDetails(
 
     /** Whether it reminds at all: at its time, or at its places. */
     val reminds: Boolean get() = todo.due is Due.At || places.isNotEmpty()
+
+    /** Whether it waits for its places, to pop up on arriving at one; with none left, it waits for nothing. */
+    val waitsForPlaces: Boolean get() = todo.reminding.waiting && places.isNotEmpty()
+
+    /** Its reminder, as it pops up. */
+    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames)
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
     fun checklist(): List<ChecklistEntry> = checklistItems.sortedBy { it.position }.map {

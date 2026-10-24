@@ -61,6 +61,7 @@ class TodoRemindersTest {
         assertTrue(reminder.actions.all { it.isAuthenticationRequired })
         assertEquals("Erinnerung fällig", reminder.publicVersion.extras.getString(Notification.EXTRA_TITLE))
         assertSentOnlyTo(MainActivity::class.java.name, reminder.contentIntent)
+        assertEquals("tapped, it stays up until done", 0, reminder.flags and Notification.FLAG_AUTO_CANCEL)
     }
 
     @Test

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "30b914731dee0b7c3405100f298914e1",
+    "identityHash": "696226a19f490b6ed3b4e3a163d31563",
     "entities": [
       {
         "tableName": "settings",
@@ -568,7 +568,7 @@
       },
       {
         "tableName": "todos",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `due_date` TEXT, `due_time` TEXT, `priority` TEXT NOT NULL, `done_at` TEXT, `at_due_time` INTEGER NOT NULL DEFAULT 0, `remind_at` TEXT, `waiting` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `due_date` TEXT, `due_time` TEXT, `priority` TEXT NOT NULL, `done_at` TEXT, `reminds_at_due_time` INTEGER NOT NULL DEFAULT 0, `remind_at` TEXT, `waiting` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -610,8 +610,8 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "reminding.atDueTime",
-            "columnName": "at_due_time",
+            "fieldPath": "reminding.remindsAtDueTime",
+            "columnName": "reminds_at_due_time",
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
@@ -825,7 +825,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30b914731dee0b7c3405100f298914e1')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '696226a19f490b6ed3b4e3a163d31563')"
     ]
   }
 }

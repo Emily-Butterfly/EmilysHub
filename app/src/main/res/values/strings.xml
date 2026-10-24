@@ -31,7 +31,7 @@
     <string name="today_skip">Überspringen</string>
     <string name="today_yesterday_at">Gestern, %1$s</string>
     <string name="today_waiting_for">Wartet auf %1$s</string>
-    <string name="today_or">" oder "</string>
+    <string name="names_or">" oder "</string>
     <string name="today_undo">Rückgängig</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>
@@ -133,7 +133,7 @@
     <string name="reminder_skip">Überspringen</string>
     <string name="todo_reminder_places">Ort: %1$s</string>
     <string name="todo_places_none">Ohne Ort erinnert ein To-do nur zu seiner Uhrzeit, falls es eine hat.</string>
-    <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Die Erinnerung wartet, bis das To-do erledigt ist.</string>
+    <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Das Ankommen erkennt die App, wenn sich das Handy mit einem WLAN verbindet. Die Erinnerung wartet, bis das To-do erledigt ist.</string>
 
     <string name="alarm_unlock">Entsperren</string>
     <string name="alarm_close">Schließen</string>
@@ -199,7 +199,7 @@
     <string name="place_area_remove">GPS-Bereich entfernen</string>
     <string name="place_area_summary">GPS-Bereich, %1$d m</string>
     <string name="place_delete_title">Ort löschen?</string>
-    <string name="place_delete_text">„%1$s“ wird gelöscht. Routinen und To-dos, die nur hier erinnern, erinnern danach überall.</string>
+    <string name="place_delete_text">„%1$s“ wird gelöscht. Routinen, die nur hier erinnern, erinnern danach überall. To-dos, die hier auf dich warten, erinnern gleich, die übrigen nur noch zu ihrer Uhrzeit.</string>
     <string name="location_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN und am Standort zu erkennen: Die App merkt sich nur die Orte, die du anlegst, und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
     <string name="location_access_approximate_text">Du hast EmilysHub nur den ungefähren Standort erlaubt. Android verrät den Namen des WLANs aber nur mit dem genauen, und für die GPS-Bereiche ist der ungefähre zu ungenau. Die App merkt sich nur die Orte, die du anlegst, und sendet nichts weg.</string>
     <string name="location_access_allow">Erlauben</string>

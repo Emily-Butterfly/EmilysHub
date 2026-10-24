@@ -199,15 +199,18 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
 }
 
 /**
- * To-dos remind (SPEC.md §5): their reminder's state, and the places they remind at. An open one with a time reminds at
- * it, as it would saved now; one whose time is gone by already does not, since it is outside what is reminded of next.
+ * To-dos remind (SPEC.md §5): their reminder's state, and the places they remind at. An open one with a time still ahead
+ * on the phone's clock reminds at it, as it would saved now; one whose time is gone by does not.
  */
 val MIGRATION_14_15 = object : Migration(14, 15) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE `todos` ADD COLUMN `at_due_time` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `reminds_at_due_time` INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `remind_at` TEXT")
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `waiting` INTEGER NOT NULL DEFAULT 0")
-        db.execSQL("UPDATE `todos` SET `at_due_time` = 1 WHERE `due_time` IS NOT NULL AND `done_at` IS NULL")
+        db.execSQL(
+            "UPDATE `todos` SET `reminds_at_due_time` = 1 WHERE `due_time` IS NOT NULL AND `done_at` IS NULL " +
+                "AND `due_date` || 'T' || `due_time` > strftime('%Y-%m-%dT%H:%M', 'now', 'localtime')",
+        )
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `todo_places` (`todo_id` INTEGER NOT NULL, `place_id` INTEGER NOT NULL, " +
                 "PRIMARY KEY(`todo_id`, `place_id`), " +

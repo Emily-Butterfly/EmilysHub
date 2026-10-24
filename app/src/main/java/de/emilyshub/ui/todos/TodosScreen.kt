@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +48,7 @@ import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.TagFilter
+import de.emilyshub.ui.fields.placesLabel
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
@@ -226,8 +228,7 @@ private fun TodoRow(
                     }
                 }
                 PriorityNote(todo.priority)
-                val places = details.placeNames.joinToString(stringResource(R.string.today_or))
-                if (places.isNotEmpty()) Text(stringResource(R.string.todo_reminder_places, places))
+                LocalResources.current.placesLabel(details.placeNames)?.let { Text(it) }
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))
                 if (todo.description.isNotEmpty()) Text(todo.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

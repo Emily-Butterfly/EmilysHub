@@ -347,20 +347,22 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 14 moves to version 15 where open to-dos with a time remind at it and to-dos can be bound to places`() {
+    fun `version 14 moves to version 15 where open to-dos with a time ahead remind at it and to-dos can be bound to places`() {
         createAtVersion(14) {
             it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Zuhause')")
             val columns = "INSERT INTO todos (id, title, description, due_date, due_time, priority, done_at) VALUES"
-            it.execSQL("$columns (1, 'Arzt', '', '2026-10-30', '09:00', 'normal', NULL)")
-            it.execSQL("$columns (2, 'Müll', '', '2026-10-30', NULL, 'normal', NULL)")
-            it.execSQL("$columns (3, 'Steuer', '', '2026-10-20', '09:00', 'normal', '2026-10-20T08:00:00Z')")
+            it.execSQL("$columns (1, 'Arzt', '', '2099-10-30', '09:00', 'normal', NULL)")
+            it.execSQL("$columns (2, 'Müll', '', '2099-10-30', NULL, 'normal', NULL)")
+            it.execSQL("$columns (3, 'Steuer', '', '2099-10-20', '09:00', 'normal', '2026-10-20T08:00:00Z')")
+            it.execSQL("$columns (4, 'Vorbei', '', '2020-10-20', '09:00', 'normal', NULL)")
         }
 
         withMigratedDatabase { database ->
             val todos = database.todos().observeAll().first().associateBy { it.todo.title }
-            assertEquals(Reminding(atDueTime = true), todos.getValue("Arzt").todo.reminding)
+            assertEquals(Reminding(remindsAtDueTime = true), todos.getValue("Arzt").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Müll").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Steuer").todo.reminding)
+            assertEquals(Reminding(), todos.getValue("Vorbei").todo.reminding)
 
             database.todos().bind(1, listOf(1L))
             assertEquals(setOf(1L), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)

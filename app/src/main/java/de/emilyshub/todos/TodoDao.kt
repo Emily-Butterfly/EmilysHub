@@ -8,7 +8,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
-/** The to-dos in the database, with their checklists and tags; [Todos] is the way to them. */
+/** The to-dos in the database, with their checklists, tags and places; [Todos] is the way to them. */
 @Dao
 interface TodoDao {
     @Transaction
@@ -49,14 +49,15 @@ interface TodoDao {
     suspend fun setDoneAt(id: Long, doneAt: Instant?)
 
     /** Sets its reminder anew, as it is saved: not put off or popped up, [waiting] for its places if it has any. */
-    @Query("UPDATE todos SET at_due_time = :atDueTime, remind_at = NULL, waiting = :waiting WHERE id = :id")
-    suspend fun rearm(id: Long, atDueTime: Boolean, waiting: Boolean)
+    @Query("UPDATE todos SET reminds_at_due_time = :remindsAtDueTime, remind_at = NULL, waiting = :waiting WHERE id = :id")
+    suspend fun rearm(id: Long, remindsAtDueTime: Boolean, waiting: Boolean)
 
     @Query("UPDATE todos SET remind_at = :until WHERE id = :id")
     suspend fun putOff(id: Long, until: Instant)
 
-    @Query("UPDATE todos SET waiting = :waiting WHERE id IN (:ids)")
-    suspend fun setWaiting(ids: Collection<Long>, waiting: Boolean)
+    /** They wait for their places no more, as they popped up there or are bound to none any more. */
+    @Query("UPDATE todos SET waiting = 0 WHERE id IN (:ids)")
+    suspend fun stopWaiting(ids: Collection<Long>)
 
     /** They pop up [at] then, on arrival or bound to no place any more, and wait no more. */
     @Query("UPDATE todos SET waiting = 0, remind_at = :at WHERE id IN (:ids)")

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.fields
 
+import android.content.res.Resources
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,15 +20,15 @@ import de.emilyshub.ui.places.BackgroundLocationNotice
 
 /**
  * The places a routine or to-do pops up at (SPEC.md §4): any of those chosen; how it reminds with none and with some,
- * [noneChosen] and [chosenHint] say. Once it is bound to one, the location is asked for in the background here, and only
+ * [hintNone] and [hintChosen] say. Once it is bound to one, the location is asked for in the background here, and only
  * here, so that it pops up on arrival with the app closed.
  */
 @Composable
 fun PlacesField(
     places: Places,
     selected: Set<Long>,
-    @StringRes noneChosen: Int,
-    @StringRes chosenHint: Int,
+    @StringRes hintNone: Int,
+    @StringRes hintChosen: Int,
     onChange: (Set<Long>) -> Unit,
 ) {
     val all by remember(places) { places.all() }.collectAsState(initial = null)
@@ -46,7 +47,11 @@ fun PlacesField(
                 ChoiceChip(place.name, isChosen, onClick = { onChange(if (isChosen) chosen - place.id else chosen + place.id) })
             }
         }
-        Hint(stringResource(if (chosen.isEmpty()) noneChosen else chosenHint))
+        Hint(stringResource(if (chosen.isEmpty()) hintNone else hintChosen))
         if (chosen.isNotEmpty()) BackgroundLocationNotice()
     }
 }
+
+/** "Ort: Zuhause oder Arbeit": the places a to-do reminds at, by [names], as its row and its reminder say; none without. */
+fun Resources.placesLabel(names: List<String>): String? =
+    names.takeIf { it.isNotEmpty() }?.let { getString(R.string.todo_reminder_places, it.joinToString(getString(R.string.names_or))) }
