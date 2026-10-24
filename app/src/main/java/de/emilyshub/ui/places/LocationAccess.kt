@@ -44,7 +44,7 @@ enum class LocationAccess {
 private fun Context.locationAccess(): LocationAccess = when {
     !isGranted(Manifest.permission.ACCESS_FINE_LOCATION) ->
         if (isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) LocationAccess.ApproximateOnly else LocationAccess.NotAllowed
-    !LocationManagerCompat.isLocationEnabled(getSystemService(LocationManager::class.java)) -> LocationAccess.LocationOff
+    !locationOn() -> LocationAccess.LocationOff
     else -> LocationAccess.Granted
 }
 
@@ -106,3 +106,6 @@ fun LocationAccessNotice(state: Checked<LocationAccess>) {
 
 /** Precise, as the WLAN name needs, and approximate, which Android wants asked for along with it. */
 private val LOCATION = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+/** Whether the location is turned on, in the quick settings say. */
+fun Context.locationOn(): Boolean = LocationManagerCompat.isLocationEnabled(getSystemService(LocationManager::class.java))

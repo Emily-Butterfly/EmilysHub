@@ -13,8 +13,15 @@ object SystemSettings {
     /** The app's own page, from which every permission is reached. */
     fun app(context: Context) = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageOf(context))
 
+    /** The app's notifications, all of them. */
     fun notifications(context: Context): Intent =
         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+
+    /** The app's notification channel [channelId], where it pops up or not. */
+    fun notificationChannel(context: Context, channelId: String): Intent =
+        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
 
     /** Exact alarms have a page of their own from Android 12 on; before, they need nothing. */
     fun exactAlarms(context: Context): Intent = when {
@@ -35,6 +42,12 @@ object SystemSettings {
      */
     @SuppressLint("BatteryLife")
     fun noBatteryLimits(context: Context) = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageOf(context))
+
+    /** The apps kept out of the battery optimisation, where the app can be put back in. */
+    fun batteryOptimisation() = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+
+    /** The battery, from where a Samsung's limits for apps in the background are reached. */
+    fun battery() = Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
 
     /** Where the location is turned on. */
     fun location() = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)

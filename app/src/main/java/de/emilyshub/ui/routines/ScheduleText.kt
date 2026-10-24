@@ -7,6 +7,7 @@ import de.emilyshub.R
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.numericDate
 
 /** When a routine is due, in a line: "Täglich um 07:30", "Mo, Mi, Fr um 07:30 und 20:00", "Einmalig am 30.10.2026 um 09:30". */
@@ -25,9 +26,3 @@ fun scheduleText(routine: Routine): String {
     }
 }
 
-/** "07:30", "07:30 und 20:00", "07:30, 12:00 und 20:00" */
-@Composable
-private fun enumeration(items: List<String>): String = when (items.size) {
-    1 -> items.single()
-    else -> stringResource(R.string.enumeration, items.dropLast(1).joinToString(", "), items.last())
-}

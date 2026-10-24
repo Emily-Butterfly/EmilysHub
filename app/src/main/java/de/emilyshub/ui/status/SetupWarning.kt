@@ -24,6 +24,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.routines.Routines
+import de.emilyshub.status.Standing
+import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.rememberChecked
 
 /**
@@ -55,8 +57,11 @@ fun SetupWarning(routines: Routines, onCheck: () -> Unit) {
                     modifier = Modifier.semantics { heading() },
                 )
             }
-            val names = lacking.map { stringResource(it.title) }
-            Text(stringResource(R.string.setup_warning_lacking, names.joinToString()), style = MaterialTheme.typography.bodyMedium)
+            val names = lacking.map { need ->
+                val texts = need.texts
+                stringResource(if (readiness.current.standing(need) == Standing.Off) texts.offTitle else texts.title)
+            }
+            Text(stringResource(R.string.setup_warning_lacking, enumeration(names)), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = onCheck, modifier = Modifier.align(Alignment.End)) {
                 Text(stringResource(R.string.setup_warning_check))
             }

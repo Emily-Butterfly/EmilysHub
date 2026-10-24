@@ -3,6 +3,7 @@ package de.emilyshub
 import android.Manifest
 import android.app.AlarmManager
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.location.LocationManager
@@ -59,6 +60,35 @@ class StatusScreenTest {
             listOf("Benachrichtigungen", "Exakte Wecker", "Standort „Immer“", "Vollbild-Alarme", "Keine Akku-Einschränkung")
                 .forEach { compose.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
             compose.onAllNodesWithText("Erlaubt").assertCountEquals(5)
+        }
+    }
+
+    @Test
+    fun `what is allowed still leads to its page, the battery to the list of apps without limits`() {
+        allowEverything()
+
+        launchApp().use {
+            openStatus()
+
+            compose.onAllNodesWithText("Einstellung öffnen").assertCountEquals(5)
+            compose.onAllNodesWithText("Einstellung öffnen")[4].performScrollTo().performClick()
+            assertEquals(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, shadowOf(app).nextStartedActivity?.action)
+        }
+    }
+
+    @Test
+    fun `with the reminders turned down so that they no longer pop up, it says so and leads to their channel`() {
+        allowEverything()
+        val manager = app.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel("reminders", "Erinnerungen", NotificationManager.IMPORTANCE_LOW))
+
+        launchApp().use {
+            openStatus()
+
+            compose.onNodeWithText("nicht als Pop-up", substring = true).performScrollTo().assertIsDisplayed()
+            val channel = opens("Pop-up einschalten")
+            assertEquals(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS, channel.action)
+            assertEquals("reminders", channel.getStringExtra(Settings.EXTRA_CHANNEL_ID))
         }
     }
 
@@ -162,6 +192,20 @@ class StatusScreenTest {
         val shown = app.getSystemService(NotificationManager::class.java).activeNotifications.map { it.notification }
         assertEquals(listOf("Probe-Erinnerung"), shown.map { it.extras.getString(Notification.EXTRA_TITLE) })
         assertEquals(listOf("reminders"), shown.map { it.channelId })
+        // On the lock screen as a reminder is: without what it is about.
+        assertEquals(listOf(Notification.VISIBILITY_PRIVATE), shown.map { it.visibility })
+        assertEquals(listOf("Erinnerung fällig"), shown.map { it.publicVersion?.extras?.getString(Notification.EXTRA_TITLE) })
+    }
+
+    @Test
+    fun `without notifications allowed, sending a reminder to try out says it will not show`() {
+        launchApp().use {
+            openStatus()
+            compose.onNodeWithText("Probe-Erinnerung in 10 Sekunden").performScrollTo().performClick()
+
+            compose.onNodeWithText("Ohne Benachrichtigungen erscheint auch die Probe-Erinnerung nicht.").performScrollTo()
+                .assertIsDisplayed()
+        }
     }
 
     private fun openStatus() {

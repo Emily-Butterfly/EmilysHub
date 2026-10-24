@@ -1,41 +1,60 @@
 package de.emilyshub.status
 
 /** What the reminders may need from Android (SPEC.md §11), in the order the status page lists it. */
-enum class Need {
-    /** Without them, no reminder shows. */
+enum class Need(
+    /** Worth allowing even where the routines in use do not need it: reminders come sooner with it. */
+    val recommended: Boolean = false,
+) {
+    /** Without them, no reminder shows; turned down, reminders no longer pop up. */
     Notifications,
 
     /** Without them, a reminder may come minutes late. */
     ExactAlarms,
 
-    /** The location allowed always, for the places while the app is closed (SPEC.md §4). */
+    /** The location allowed always, for the places while the app is closed (SPEC.md §4); of no use while it is off. */
     LocationAlways,
 
     /** Without them, a full-screen alarm comes as a normal notification. */
     FullScreenAlarms,
 
     /** Kept out of Android's battery optimisation, which may hold reminders back while the phone rests. */
-    NoBatteryLimits,
+    NoBatteryLimits(recommended = true),
 }
 
-/** What Android allows the app now, of what the reminders may need, and whether the location is turned on. */
-data class Readiness(val allowed: Set<Need>, val locationOn: Boolean) {
+/** How Android stands on a [Need] now. */
+enum class Standing {
+    Allowed,
+    NotAllowed,
 
-    /** Whether Android allows [need] now; the location always only counts while the location is turned on. */
-    fun has(need: Need): Boolean = need in allowed && (need != Need.LocationAlways || locationOn)
-
-    /** What the routines in [use] call for and Android does not allow, in the order of [Need]. */
-    fun lacking(use: Use): List<Need> = Need.entries.filter { it in use.calledFor() && !has(it) }
+    /** Allowed, but turned off or down elsewhere in Android's settings: the location, or the reminders popping up. */
+    Off,
 }
 
 /**
- * What the active routines use: any at all, any bound to a place, any with a full-screen alarm. Battery limits are
- * never called for: reminders still come with them, if maybe late.
+ * How Android stands on each of what the reminders may need, none known counting as not allowed; and whether the
+ * device puts apps not opened for a while to sleep, as Samsung's do.
  */
-data class Use(val routines: Boolean, val places: Boolean, val fullScreen: Boolean) {
-    fun calledFor(): Set<Need> = buildSet {
-        if (routines) addAll(listOf(Need.Notifications, Need.ExactAlarms))
-        if (places) add(Need.LocationAlways)
-        if (fullScreen) add(Need.FullScreenAlarms)
+data class Readiness(val standings: Map<Need, Standing>, val putsAppsToSleep: Boolean = false) {
+
+    fun standing(need: Need): Standing = standings[need] ?: Standing.NotAllowed
+
+    fun has(need: Need): Boolean = standing(need) == Standing.Allowed
+
+    /**
+     * Whether the routines in [use] need [need]: any of them notifications and exact alarms, those bound to places the
+     * location always, those with a full-screen alarm full-screen alarms. No battery limits only where the device puts
+     * apps to sleep, as their reminders stop altogether then; elsewhere reminders still come, if maybe late.
+     */
+    fun needs(use: Use, need: Need): Boolean = when (need) {
+        Need.Notifications, Need.ExactAlarms -> use.anyRoutine
+        Need.LocationAlways -> use.boundToPlaces
+        Need.FullScreenAlarms -> use.fullScreen
+        Need.NoBatteryLimits -> use.anyRoutine && putsAppsToSleep
     }
+
+    /** What the routines in [use] need and Android does not give them now, in the order of [Need]. */
+    fun lacking(use: Use): List<Need> = Need.entries.filter { needs(use, it) && !has(it) }
 }
+
+/** What the active routines use: whether there are any, any bound to a place, any with a full-screen alarm. */
+data class Use(val anyRoutine: Boolean, val boundToPlaces: Boolean, val fullScreen: Boolean)

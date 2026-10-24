@@ -95,8 +95,8 @@ fun SettingsScreen(
 
             SectionHeader(R.string.settings_reminders)
             ListItem(
-                headlineContent = { Text(stringResource(R.string.status_title)) },
-                supportingContent = { Text(stringResource(R.string.status_summary)) },
+                headlineContent = { Text(stringResource(R.string.checkup_title)) },
+                supportingContent = { Text(stringResource(R.string.checkup_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenStatus),
             )
 

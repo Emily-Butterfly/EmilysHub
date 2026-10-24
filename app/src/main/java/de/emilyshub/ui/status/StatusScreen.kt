@@ -1,7 +1,5 @@
 package de.emilyshub.ui.status
 
-import android.content.Intent
-import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,9 +37,11 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.status.Need
 import de.emilyshub.status.Readiness
+import de.emilyshub.status.Standing
 import de.emilyshub.status.Use
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
@@ -62,7 +62,7 @@ fun StatusScreen(routines: Routines, onProbe: () -> Unit, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.status_title), modifier = Modifier.semantics { heading() }) },
+                title = { Text(stringResource(R.string.checkup_title), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
@@ -79,53 +79,51 @@ fun StatusScreen(routines: Routines, onProbe: () -> Unit, onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Hint(stringResource(R.string.status_intro))
+            Hint(stringResource(R.string.checkup_intro))
             if (use != null) Need.entries.forEach { NeedRow(it, readiness.current, use) }
-            if (Build.MANUFACTURER.equals(SAMSUNG, ignoreCase = true)) SamsungHint()
-            Probe(onProbe)
+            if (readiness.current.putsAppsToSleep) SamsungHint()
+            Probe(onProbe, shows = readiness.current.standing(Need.Notifications) != Standing.NotAllowed)
         }
     }
 }
 
-/** Whether Android allows [need], what it is for, and, if it does not, the way to allow it. */
+/** How Android stands on [need], what it is for, and the way to its page in Android's settings. */
 @Composable
 private fun NeedRow(need: Need, readiness: Readiness, use: Use) {
     val context = LocalContext.current
-    val has = readiness.has(need)
-    val calledFor = need in use.calledFor()
+    val standing = readiness.standing(need)
+    val needed = readiness.needs(use, need)
     val status = when {
-        has -> R.string.status_allowed
-        need == Need.NoBatteryLimits -> R.string.status_recommended
-        calledFor -> R.string.status_lacking
-        else -> R.string.status_not_needed
+        standing == Standing.Allowed -> R.string.checkup_allowed
+        standing == Standing.Off -> R.string.checkup_off
+        needed -> R.string.checkup_lacking
+        need.recommended -> R.string.checkup_recommended
+        else -> R.string.checkup_not_needed
     }
-    val color = if (!has && calledFor) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val allowed = standing == Standing.Allowed
+    val color = if (!allowed && needed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val texts = need.texts
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (has) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                if (allowed) Icons.Filled.CheckCircle else Icons.Filled.Warning,
                 contentDescription = null,
-                tint = if (has) MaterialTheme.colorScheme.primary else color,
+                tint = if (allowed) MaterialTheme.colorScheme.primary else color,
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(stringResource(need.title), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(texts.title), style = MaterialTheme.typography.bodyLarge)
                 Text(stringResource(status), style = MaterialTheme.typography.bodyMedium, color = color)
             }
         }
-        Hint(stringResource(need.purpose))
-        // Allowed always, but turned off: the location is turned on elsewhere.
-        val locationOff = need == Need.LocationAlways && need in readiness.allowed && !readiness.locationOn
-        when {
-            has -> Unit
-            locationOff -> {
-                Hint(stringResource(R.string.need_location_off))
-                TextButton(onClick = { context.openSettings(SystemSettings.location()) }) {
-                    Text(stringResource(R.string.location_off_open))
-                }
-            }
-            else -> TextButton(onClick = { context.openSettings(need.settings(context)) }) { Text(stringResource(need.allow)) }
+        Hint(stringResource(texts.purpose))
+        if (standing == Standing.Off) Hint(stringResource(texts.off))
+        val button = when (standing) {
+            Standing.Allowed -> R.string.checkup_open
+            Standing.NotAllowed -> texts.allow
+            Standing.Off -> texts.turnOn
         }
+        TextButton(onClick = { context.openSettings(need.settings(context, standing)) }) { Text(stringResource(button)) }
     }
 }
 
@@ -136,33 +134,35 @@ private fun SamsungHint() {
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                stringResource(R.string.status_samsung_title),
+                stringResource(R.string.checkup_samsung_title),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.semantics { heading() },
             )
-            Text(stringResource(R.string.status_samsung_text), style = MaterialTheme.typography.bodyMedium)
-            Text(stringResource(R.string.status_samsung_steps), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { context.openSettings(Intent(Intent.ACTION_POWER_USAGE_SUMMARY)) }) {
-                Text(stringResource(R.string.status_samsung_open))
+            Text(stringResource(R.string.checkup_samsung_text), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.checkup_samsung_steps), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = { context.openSettings(SystemSettings.battery()) }) {
+                Text(stringResource(R.string.checkup_samsung_open))
             }
         }
     }
 }
 
-/** Sends a reminder to try out, and says when it comes. */
+/** Sends a reminder to try out, and says when it comes, or that it will not while notifications are not allowed. */
 @Composable
-private fun Probe(onProbe: () -> Unit) {
+private fun Probe(onProbe: () -> Unit, shows: Boolean) {
     var sent by rememberSaveable { mutableStateOf(false) }
+    val seconds = Reminders.PROBE_DELAY.seconds.toInt()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle(stringResource(R.string.status_probe_title))
+        SectionTitle(stringResource(R.string.checkup_probe_title))
         Button(
             onClick = {
                 onProbe()
                 sent = true
             },
-        ) { Text(stringResource(R.string.status_probe)) }
-        if (sent) Hint(stringResource(R.string.status_probe_sent))
+        ) { Text(stringResource(R.string.checkup_probe, seconds)) }
+        if (sent) {
+            val said = if (shows) stringResource(R.string.checkup_probe_sent, seconds) else stringResource(R.string.checkup_probe_not_shown)
+            Hint(said)
+        }
     }
 }
-
-private const val SAMSUNG = "samsung"

@@ -40,14 +40,19 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
 
     fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
 
-    /** A reminder to try out (SPEC.md §11): popping up as a reminder does, without a routine or actions. */
+    /**
+     * A reminder to try out (SPEC.md §11): popping up as a reminder does, on the lock screen too, only without a
+     * routine or actions.
+     */
     fun showProbe() {
         manager.createNotificationChannel(channel())
-        val notification = Notification.Builder(context, CHANNEL)
+        val notification = Notification.Builder(context, REMINDER_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.reminder_probe))
             .setContentText(context.getString(R.string.reminder_probe_text))
             .setCategory(Notification.CATEGORY_REMINDER)
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion())
             .setContentIntent(openApp())
             .setAutoCancel(true)
             .build()
@@ -74,17 +79,19 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
 
     private fun channel(): NotificationChannel {
         val name = context.getString(R.string.reminder_channel)
-        return NotificationChannel(CHANNEL, name, NotificationManager.IMPORTANCE_HIGH).apply {
+        return NotificationChannel(REMINDER_CHANNEL, name, NotificationManager.IMPORTANCE_HIGH).apply {
             description = context.getString(R.string.reminder_channel_description)
         }
     }
 
+    /** What the lock screen shows of a reminder while Android hides the content of notifications there. */
+    private fun publicVersion() = Notification.Builder(context, REMINDER_CHANNEL)
+        .setSmallIcon(R.drawable.ic_notification)
+        .setContentTitle(context.getString(R.string.reminder_public))
+        .setCategory(Notification.CATEGORY_REMINDER)
+        .build()
+
     private fun notification(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean): Notification {
-        val public = Notification.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.reminder_public))
-            .setCategory(Notification.CATEGORY_REMINDER)
-            .build()
         val id = reminder.occurrenceId
         // Only what comes back before the time window ends; with none, there is no "Später".
         val choices = reminder.putOffChoices(clock.instant())
@@ -110,7 +117,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         val alarm = reminder.fullScreen && context.fullScreenAlarmsAllowed()
         // Only when it pops up: shown again quietly, it does not fill the screen again.
         val fullScreen = alert && alarm
-        return Notification.Builder(context, CHANNEL)
+        return Notification.Builder(context, REMINDER_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.name)
             .setContentText(text)
@@ -118,7 +125,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             .setShowWhen(true)
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .setPublicVersion(public)
+            .setPublicVersion(publicVersion())
             // Tapped, an alarm's reminder opens the alarm, as the reminder is all Android shows of it while in use.
             .setContentIntent(if (alarm) alarm(id, ring = false) else openApp())
             .apply { if (fullScreen) setFullScreenIntent(alarm(id, ring = true), true) }
@@ -176,21 +183,24 @@ fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 6
     else -> getString(R.string.reminder_put_off_minutes, choice.toMinutes())
 }
 
-/** The channel of the reminders, which the user may turn off on its own. */
-private const val CHANNEL = "reminders"
+/** The channel of the reminders, which the user may turn down on its own in Android's settings. */
+const val REMINDER_CHANNEL = "reminders"
 
-/**
- * Whether reminders may show: notifications allowed, from Android 13 on with a permission of their own, and their
- * channel not turned off.
- */
-fun Context.notificationsAllowed(): Boolean {
-    val manager = getSystemService(NotificationManager::class.java)
-    val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+/** Whether notifications are allowed, from Android 13 on with a permission of their own. */
+fun Context.notificationsAllowed(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     } else {
-        manager.areNotificationsEnabled()
+        getSystemService(NotificationManager::class.java).areNotificationsEnabled()
     }
-    return allowed && manager.getNotificationChannel(CHANNEL)?.importance != NotificationManager.IMPORTANCE_NONE
+
+/**
+ * Whether reminders pop up (SPEC.md §3), as their channel starts out: the user may turn it down in Android's settings,
+ * so that they only show in the list, or not at all.
+ */
+fun Context.remindersPopUp(): Boolean {
+    val channel = getSystemService(NotificationManager::class.java).getNotificationChannel(REMINDER_CHANNEL)
+    return channel == null || channel.importance >= NotificationManager.IMPORTANCE_HIGH
 }
 
 /**
