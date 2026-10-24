@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.places.Area
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
 import de.emilyshub.places.PlaceWithWifis
@@ -298,6 +299,23 @@ class HubDatabaseMigrationTest {
             assertEquals(listOf(1L), database.routines().placeIdsOf(3))
             database.places().delete(1)
             assertEquals(emptyList<Long>(), database.routines().placeIdsOf(3))
+        }
+    }
+
+    @Test
+    fun `version 12 moves to version 13 keeping each place with its WLANs and no GPS area`() {
+        createAtVersion(12) {
+            it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Zuhause')")
+            it.execSQL("INSERT INTO place_wifis (place_id, ssid) VALUES (1, 'FritzBox')")
+        }
+
+        withMigratedDatabase { database ->
+            val places = database.places().all()
+            assertEquals(listOf(Triple("Zuhause", listOf("FritzBox"), null)), places.map { Triple(it.name, it.ssids, it.area) })
+
+            val gym = Area(latitude = 52.520008, longitude = 13.404954, radius = 150)
+            database.places().insert(Place(name = "Gym", area = gym))
+            assertEquals(listOf(null, gym), database.places().all().map { it.area })
         }
     }
 

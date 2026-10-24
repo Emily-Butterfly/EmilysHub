@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The named places (SPEC.md §4), recognised by their WLANs. [database] is only called on [io], since the first call
+ * The named places (SPEC.md §4), recognised by their WLANs and GPS areas. [database] is only called on [io], since the first call
  * opens it. Writes run to the end once started, even if the screen that started them goes away. After each write,
  * [onChange] runs, for the reminders to follow.
  */
@@ -36,15 +36,17 @@ class Places(
     suspend fun create(draft: PlaceDraft): Long = write {
         database().withTransaction {
             val place = checked(draft, others = dao.all())
-            dao.insert(Place(name = place.name)).also { id -> dao.insertWifis(place.wifis.map { PlaceWifi(id, it) }) }
+            val id = dao.insert(Place(name = place.name, area = place.area()))
+            dao.insertWifis(place.wifis.map { PlaceWifi(id, it) })
+            id
         }
     }
 
-    /** Renames the place and gives it the WLANs of [draft], as [create] checks them. */
+    /** Renames the place and gives it the WLANs and GPS area of [draft], as [create] checks them. */
     suspend fun update(id: Long, draft: PlaceDraft) = write {
         database().withTransaction {
             val place = checked(draft, others = dao.all().filter { it.id != id })
-            dao.rename(id, place.name)
+            dao.update(Place(id, place.name, place.area()))
             dao.deleteWifisOf(id)
             dao.insertWifis(place.wifis.map { PlaceWifi(id, it) })
         }

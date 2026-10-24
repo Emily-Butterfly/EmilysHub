@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.places.Area
 import de.emilyshub.places.Whereabouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -316,6 +317,9 @@ class Routines(
         dao.popUp(popping.map { it.occurrence.id }, at = now)
         return popping.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
     }
+
+    /** The GPS areas of the places open occurrences wait for, to watch for arriving at them (SPEC.md §4). */
+    suspend fun areasWaitedFor(): Set<Area> = withContext(io) { dao.placesWithAreasWaitedFor().mapNotNull { it.area }.toSet() }
 
     /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {

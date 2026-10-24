@@ -24,7 +24,8 @@ import java.time.Instant
  * due, or if a restart or a change of clock took the alarm before it went off.
  *
  * A routine bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them, and waits
- * elsewhere; while one is bound, Android wakes the app on joining a WLAN ([arrived]), also while it is closed.
+ * elsewhere; while one is bound, Android wakes the app on joining a WLAN ([arrived]), also while it is closed, and on
+ * entering or leaving the GPS [areas] of the places something waits for, which are watched only while it waits.
  * What pops up on arrival, or once its routine is bound to no place any more, pops up by the alarm, as at its time.
  */
 class Reminders(
@@ -32,6 +33,7 @@ class Reminders(
     private val routines: Routines,
     private val clock: Clock,
     private val locate: suspend () -> Whereabouts,
+    private val areas: AreaWatch,
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
@@ -112,6 +114,7 @@ class Reminders(
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
         }
+        areas.watch(routines.areasWaitedFor())
     }
 
     /**

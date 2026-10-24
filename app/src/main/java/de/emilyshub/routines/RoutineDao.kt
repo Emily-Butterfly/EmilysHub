@@ -180,6 +180,14 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE status = :open AND waiting")
     suspend fun openWaiting(open: OccurrenceStatus = OccurrenceStatus.Open): List<OccurrenceOfRoutine>
 
+    /** The places with a GPS area that open occurrences wait for. */
+    @Query(
+        "SELECT DISTINCT places.* FROM places JOIN routine_places ON place_id = places.id " +
+            "JOIN occurrences ON occurrences.routine_id = routine_places.routine_id " +
+            "WHERE occurrences.status = :open AND waiting AND area_latitude IS NOT NULL",
+    )
+    suspend fun placesWithAreasWaitedFor(open: OccurrenceStatus = OccurrenceStatus.Open): List<Place>
+
     /** They pop up [at] then, on arrival or bound to no place any more, and wait no more; their follow-ups count from then. */
     @Query("UPDATE occurrences SET waiting = 0, remind_at = :at WHERE id IN (:ids)")
     suspend fun popUp(ids: Collection<Long>, at: Instant)

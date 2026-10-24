@@ -53,10 +53,9 @@ class PlacesTest {
     }
 
     @Test
-    fun `a place has 1 to 10 WLANs, each a name Android could give one, of up to 32 bytes`() {
+    fun `a place has up to 10 WLANs, each a name Android could give one, of up to 32 bytes`() {
         val ten = (1..10).map { "WLAN $it" }
 
-        assertEquals(setOf(PlaceProblem.WifisMissing), PlaceDraft("Zuhause", listOf(" ")).problems(others = emptyList()))
         assertEquals(emptySet<PlaceProblem>(), PlaceDraft("Zuhause", ten).problems(others = emptyList()))
         assertEquals(setOf(PlaceProblem.TooManyWifis), PlaceDraft("Zuhause", ten + "WLAN 11").problems(others = emptyList()))
         // "ä" takes two bytes: 16 of them fit, 17 do not.
@@ -64,6 +63,54 @@ class PlacesTest {
         assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("ä".repeat(17))).problems(others = emptyList()))
         assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("Fritz\u0007Box")).problems(others = emptyList()))
         assertEquals(setOf(PlaceProblem.WifiInvalid), PlaceDraft("Zuhause", listOf("\u200B")).problems(others = emptyList()))
+    }
+
+    @Test
+    fun `a place is recognised by its WLANs, by a GPS area, or by both, and needs one of them`() {
+        val noWifi = PlaceDraft("Gym", listOf(" "))
+
+        assertEquals(setOf(PlaceProblem.WifiOrAreaMissing), noWifi.problems(others = emptyList()))
+        assertEquals(emptySet<PlaceProblem>(), noWifi.copy(latitude = "52,52", longitude = "13,4").problems(others = emptyList()))
+        val both = PlaceDraft("Zuhause", listOf("FritzBox"), latitude = "52,52", longitude = "13,4")
+        assertEquals(emptySet<PlaceProblem>(), both.problems(others = emptyList()))
+    }
+
+    @Test
+    fun `a GPS area has a latitude from -90 to 90 and a longitude from -180 to 180, both of them, in degrees`() {
+        val gym = PlaceDraft("Gym", emptyList())
+        fun problemsAt(latitude: String, longitude: String) = gym.copy(latitude = latitude, longitude = longitude).problems(emptyList())
+
+        assertEquals(emptySet<PlaceProblem>(), problemsAt("90", "-180"))
+        assertEquals(emptySet<PlaceProblem>(), problemsAt("-90,0", "180.0"))
+        assertEquals(setOf(PlaceProblem.LatitudeInvalid), problemsAt("90,000001", "13,4"))
+        assertEquals(setOf(PlaceProblem.LongitudeInvalid), problemsAt("52,5", "-180,5"))
+        assertEquals(setOf(PlaceProblem.LatitudeInvalid), problemsAt("Berlin", "13,4"))
+        assertEquals(setOf(PlaceProblem.LongitudeInvalid), problemsAt("52,5", " "))
+        assertEquals(setOf(PlaceProblem.LatitudeInvalid), problemsAt("", "13,4"))
+    }
+
+    @Test
+    fun `a GPS area has a radius of 50 to 500 m, 150 m unless chosen otherwise`() {
+        val gym = PlaceDraft("Gym", emptyList(), latitude = "52,52", longitude = "13,4")
+
+        assertEquals(150, gym.radius)
+        assertEquals(emptySet<PlaceProblem>(), gym.copy(radius = 50).problems(others = emptyList()))
+        assertEquals(emptySet<PlaceProblem>(), gym.copy(radius = 500).problems(others = emptyList()))
+        assertEquals(setOf(PlaceProblem.RadiusOutOfRange), gym.copy(radius = 49).problems(others = emptyList()))
+        assertEquals(setOf(PlaceProblem.RadiusOutOfRange), gym.copy(radius = 501).problems(others = emptyList()))
+    }
+
+    @Test
+    fun `a place is saved with its GPS area, which comes back in the editor as typed, and can lose it again`() = runBlocking {
+        val gym = places.create(PlaceDraft("Gym", emptyList(), latitude = " 52.520008", longitude = "13,404954 ", radius = 200))
+
+        val saved = places.all().first().single()
+        assertEquals(Area(latitude = 52.520008, longitude = 13.404954, radius = 200), saved.area)
+        assertEquals(PlaceDraft("Gym", emptyList(), latitude = "52,520008", longitude = "13,404954", radius = 200), saved.toDraft())
+
+        places.update(gym, PlaceDraft("Gym", listOf("FitX"), latitude = "", longitude = "", radius = 200))
+        assertEquals(listOf(null), places.all().first().map { it.area })
+        assertEquals(PlaceDraft("Gym", listOf("FitX")), places.all().first().single().toDraft())
     }
 
     @Test

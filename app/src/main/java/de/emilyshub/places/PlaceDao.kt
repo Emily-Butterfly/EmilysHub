@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,8 +20,8 @@ interface PlaceDao {
     @Insert
     suspend fun insert(place: Place): Long
 
-    @Query("UPDATE places SET name = :name WHERE id = :id")
-    suspend fun rename(id: Long, name: String)
+    @Update
+    suspend fun update(place: Place)
 
     @Query("DELETE FROM places WHERE id = :id")
     suspend fun delete(id: Long)

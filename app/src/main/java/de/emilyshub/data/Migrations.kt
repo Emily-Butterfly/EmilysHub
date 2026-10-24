@@ -165,3 +165,12 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_places_place_id` ON `routine_places` (`place_id`)")
     }
 }
+
+/** Version 13: a place can have a GPS area (#15); the places there are have none. */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `places` ADD COLUMN `area_latitude` REAL")
+        db.execSQL("ALTER TABLE `places` ADD COLUMN `area_longitude` REAL")
+        db.execSQL("ALTER TABLE `places` ADD COLUMN `area_radius` INTEGER")
+    }
+}

@@ -7,14 +7,36 @@ class WhereaboutsTest {
 
     private val uni = PlaceWithWifis(Place(1, "Uni"), listOf(PlaceWifi(1, "eduroam")))
     private val work = PlaceWithWifis(Place(2, "Arbeit"), listOf(PlaceWifi(2, "eduroam"), PlaceWifi(2, "Firma")))
+    private val gym = PlaceWithWifis(Place(3, "Gym", Area(52.52, 13.4, radius = 150)), emptyList())
+    private val home = PlaceWithWifis(Place(4, "Zuhause", Area(52.5, 13.3, radius = 150)), listOf(PlaceWifi(4, "FritzBox")))
 
     @Test
-    fun `the device is at the places with the WLAN it is connected to, at none without one, unknown while its name is kept back`() {
-        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(Wifi.Named("eduroam"), listOf(uni, work)))
-        assertEquals(Whereabouts.At(setOf(2L)), Whereabouts.of(Wifi.Named("Firma"), listOf(uni, work)))
-        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.Named("Café"), listOf(uni, work)))
-        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, listOf(uni, work)))
-        assertEquals(Whereabouts.Unknown, Whereabouts.of(Wifi.NameHidden, listOf(uni, work)))
+    fun `the device is at the places with the WLAN it is connected to, at none without one, maybe at any while its name is kept back`() {
+        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(Wifi.Named("eduroam"), null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(setOf(2L)), Whereabouts.of(Wifi.Named("Firma"), null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.Named("Café"), null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(wifi = null, null, listOf(uni, work)))
+    }
+
+    @Test
+    fun `the device is at the GPS places whose area its position lies within, and maybe at any while it has none`() {
+        assertEquals(Whereabouts.At(setOf(3L)), Whereabouts.of(Wifi.None, Position(Coordinates(52.5205, 13.4), 10.0), listOf(gym)))
+        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, Position(Coordinates(52.6, 13.4), 10.0), listOf(gym)))
+        assertEquals(Whereabouts.At(setOf(3L)), Whereabouts.of(Wifi.None, position = null, listOf(gym)))
+    }
+
+    @Test
+    fun `at a place with a WLAN and a GPS area, either tells it is there, and it is not there only if one tells so`() {
+        val away = Position(Coordinates(52.6, 13.4), 10.0)
+        val atHome = Position(Coordinates(52.5, 13.3), 10.0)
+
+        assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.Named("FritzBox"), away, listOf(home)))
+        assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.None, atHome, listOf(home)))
+        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.NameHidden, away, listOf(home)))
+        assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(home)))
+        assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.NameHidden, position = null, listOf(home)))
     }
 
     @Test

@@ -9,11 +9,12 @@ import androidx.room.Relation
 import de.emilyshub.data.InputText
 import java.io.Serializable
 
-/** A named place, such as "Zuhause" or "Arbeit" (SPEC.md §4), recognised by its WLANs. */
+/** A named place, such as "Zuhause" or "Arbeit" (SPEC.md §4), recognised by its WLANs, its GPS [area], or both. */
 @Entity(tableName = "places")
 data class Place(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    @Embedded(prefix = "area_") val area: Area? = null,
 )
 
 /**
@@ -41,6 +42,8 @@ data class PlaceWithWifis(
 
     val name: String get() = place.name
 
+    val area: Area? get() = place.area
+
     /** The names of its WLANs, in alphabetical order. */
     val ssids: List<String> get() = wifis.map { it.ssid }.sortedWith(InputText.byName)
 }
@@ -55,34 +58,69 @@ enum class PlaceProblem {
     NameMissing,
     NameTooLong,
     NameTaken,
-    WifisMissing,
+    WifiOrAreaMissing,
     TooManyWifis,
     WifiInvalid,
+    LatitudeInvalid,
+    LongitudeInvalid,
+    RadiusOutOfRange,
 }
 
 /**
- * A place as typed into the editor, before it is checked; saving refuses one with problems (SPEC.md §9).
- * Serializable, so that the editor keeps it across rotation and the app lock.
+ * A place as typed into the editor, before it is checked; saving refuses one with problems (SPEC.md §9). Its GPS area
+ * is the circle of [radius] meters around [latitude] and [longitude], typed in degrees ([Degrees]); without one, both
+ * are empty. Serializable, so that the editor keeps it across rotation and the app lock.
  */
-data class PlaceDraft(val name: String, val wifis: List<String>) : Serializable {
+data class PlaceDraft(
+    val name: String,
+    val wifis: List<String>,
+    val latitude: String = "",
+    val longitude: String = "",
+    val radius: Int = Area.RADIUS_DEFAULT,
+) : Serializable {
 
-    /** Its problems next to the [others], the places it is not: a name of its own, and WLANs as [Ssid] has them. */
+    /** Whether it has a GPS area, or has one begun. */
+    val hasArea: Boolean get() = latitude.isNotBlank() || longitude.isNotBlank()
+
+    /**
+     * Its problems next to the [others], the places it is not: a name of its own; WLANs as [Ssid] has them, a GPS area,
+     * or both; and for the area, a center on the earth and a radius of [Area.RADIUS_MIN] to [Area.RADIUS_MAX] meters.
+     */
     fun problems(others: List<PlaceWithWifis>): Set<PlaceProblem> = with(cleaned()) {
         buildSet {
             if (!InputText.isVisible(name)) add(PlaceProblem.NameMissing)
             if (InputText.lengthOf(name) > NAME_MAX) add(PlaceProblem.NameTooLong)
             if (others.any { InputText.readTheSame(it.name, name) }) add(PlaceProblem.NameTaken)
-            if (wifis.isEmpty()) add(PlaceProblem.WifisMissing)
+            if (wifis.isEmpty() && !hasArea) add(PlaceProblem.WifiOrAreaMissing)
             if (wifis.size > WIFIS_MAX) add(PlaceProblem.TooManyWifis)
             if (!wifis.all(Ssid::isValid)) add(PlaceProblem.WifiInvalid)
+            if (hasArea) {
+                if (!within(latitude, Coordinates.LATITUDE_MAX)) add(PlaceProblem.LatitudeInvalid)
+                if (!within(longitude, Coordinates.LONGITUDE_MAX)) add(PlaceProblem.LongitudeInvalid)
+                if (radius !in Area.RADIUS_MIN..Area.RADIUS_MAX) add(PlaceProblem.RadiusOutOfRange)
+            }
         }
     }
 
+    /** Its GPS area; none without one, or with one that has problems. */
+    fun area(): Area? {
+        val latitude = Degrees.parse(latitude) ?: return null
+        val longitude = Degrees.parse(longitude) ?: return null
+        return Area(latitude, longitude, radius)
+    }
+
     /**
-     * The name on a single line; the WLANs each once, those of only spaces left out. A WLAN name is kept exactly as
-     * it is otherwise, as Android reports it: spaces and upper and lower case count.
+     * The name on a single line; the WLANs each once, those of only spaces left out; the degrees without spaces around
+     * them. A WLAN name is kept exactly as it is otherwise, as Android reports it: spaces and upper and lower case count.
      */
-    fun cleaned() = copy(name = InputText.singleLine(name), wifis = wifis.filter(String::isNotBlank).distinct())
+    fun cleaned() = copy(
+        name = InputText.singleLine(name),
+        wifis = wifis.filter(String::isNotBlank).distinct(),
+        latitude = latitude.trim(),
+        longitude = longitude.trim(),
+    )
+
+    private fun within(degrees: String, max: Double) = Degrees.parse(degrees)?.let { it in -max..max } == true
 
     companion object {
         const val NAME_MAX = 40
@@ -93,4 +131,10 @@ data class PlaceDraft(val name: String, val wifis: List<String>) : Serializable 
 }
 
 /** The place as the editor starts out with it. */
-fun PlaceWithWifis.toDraft() = PlaceDraft(place.name, ssids)
+fun PlaceWithWifis.toDraft() = PlaceDraft(
+    place.name,
+    ssids,
+    latitude = area?.let { Degrees.format(it.latitude) }.orEmpty(),
+    longitude = area?.let { Degrees.format(it.longitude) }.orEmpty(),
+    radius = area?.radius ?: Area.RADIUS_DEFAULT,
+)

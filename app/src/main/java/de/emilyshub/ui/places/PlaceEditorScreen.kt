@@ -160,7 +160,7 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
             WifisField(
                 wifis = draft.wifis,
                 wifi = wifi,
-                showMissing = triedToSave && PlaceProblem.WifisMissing in problems,
+                showMissing = triedToSave && PlaceProblem.WifiOrAreaMissing in problems,
                 onChange = { draft = draft.copy(wifis = it) },
             )
         }

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
+import de.emilyshub.places.Area
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.FollowUps
@@ -54,8 +55,11 @@ fun TestApplication.routine(
     routines.create(draft)
 }
 
-/** A place recognised by the WLANs named [wifis], set up before the test opens the app. */
-fun TestApplication.place(name: String, vararg wifis: String): Long = runBlocking { places.create(PlaceDraft(name, wifis.toList())) }
+/** A place recognised by the WLANs named [wifis], by its GPS [area], or by both, set up before the test opens the app. */
+fun TestApplication.place(name: String, vararg wifis: String, area: Area? = null): Long = runBlocking {
+    val draft = PlaceDraft(name, wifis.toList())
+    places.create(area?.let { draft.copy(latitude = "${it.latitude}", longitude = "${it.longitude}", radius = it.radius) } ?: draft)
+}
 
 /** A tag, set up before the test opens the app. */
 fun TestApplication.tag(name: String): Long = runBlocking { tags.create(name) }
