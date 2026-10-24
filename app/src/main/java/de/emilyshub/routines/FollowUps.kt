@@ -7,7 +7,8 @@ import java.time.Instant
 
 /**
  * How a routine reminds again of an occurrence left open (SPEC.md §3, "Ignoriert"): [count] more times,
- * [everyMinutes] apart. After the last one the reminder stays up without a sound. Serializable, so that
+ * [everyMinutes] apart, while its time window is open. After the last one the reminder stays up without a sound
+ * until the window ends. Serializable, so that
  * the editor keeps it across rotation and the app lock.
  */
 data class FollowUps(

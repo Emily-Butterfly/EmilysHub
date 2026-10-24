@@ -3,6 +3,7 @@ package de.emilyshub
 import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
@@ -20,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
@@ -41,14 +43,41 @@ class TodayTest {
     }
 
     @Test
-    fun `a routine left open until its time window ended shows as missed`() {
+    fun `a routine left open until its time window ended shows as missed, and stays so`() {
         app.routine("Vitamine", "07:30") // open until 11:30
         app.clock.now = Instant.parse("2026-10-23T10:00:00Z") // 12:00 in Berlin
         runBlocking { app.reminders.update() } // as the app does when it starts
 
         launchApp().use {
             compose.onNodeWithText("Verpasst").assertIsDisplayed()
+            row("Vitamine").assertIsNotEnabled()
+            compose.onNodeWithText("Überspringen").assertDoesNotExist()
             assertEquals(listOf(OccurrenceStatus.Missed), statuses())
+        }
+    }
+
+    @Test
+    fun `after midnight, the day before's routines stay on Heute while their time window is open`() {
+        app.routine("Lesen", "22:00") // open until 02:00
+        app.clock.now = Instant.parse("2026-10-23T23:30:00Z") // 01:30 on Saturday in Berlin
+
+        launchApp().use {
+            assertEquals(listOf("Gestern, 22:00 Lesen", "22:00 Lesen"), rows())
+
+            compose.onNode(isToggleable() and hasText("Gestern, 22:00")).performClick().assertIsOn()
+        }
+        val friday = runBlocking { app.routines.dueOn(LocalDate.parse("2026-10-23")).first().single() }
+        assertEquals(OccurrenceStatus.Done, friday.status)
+    }
+
+    @Test
+    fun `once its time window has ended, the day before's routine leaves Heute`() {
+        app.routine("Lesen", "22:00") // open until 02:00
+        app.clock.now = Instant.parse("2026-10-24T00:30:00Z") // 02:30 on Saturday in Berlin
+        runBlocking { app.reminders.update() } // as the app does when it starts
+
+        launchApp().use {
+            assertEquals(listOf("22:00 Lesen"), rows())
         }
     }
 

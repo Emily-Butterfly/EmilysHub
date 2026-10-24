@@ -13,16 +13,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
-/** An occurrence row joined with its routine's name. */
-data class OccurrenceRow(
-    val id: Long,
-    val routineId: Long,
-    val name: String,
-    val date: LocalDate,
-    val time: LocalTime,
-    val status: OccurrenceStatus,
-)
-
 /** An occurrence with its routine, which says how it is reminded of and how long it stays open. */
 data class OccurrenceOfRoutine(
     @Embedded val occurrence: Occurrence,
@@ -75,11 +65,11 @@ interface RoutineDao {
 
     @Transaction
     @Query("SELECT * FROM occurrences WHERE id IN (:ids)")
-    suspend fun withRoutines(ids: Collection<Long>): List<OccurrenceOfRoutine>
+    suspend fun occurrencesWithRoutines(ids: Collection<Long>): List<OccurrenceOfRoutine>
 
     @Transaction
     @Query("SELECT * FROM occurrences WHERE id = :id")
-    fun observeWithRoutine(id: Long): Flow<OccurrenceOfRoutine?>
+    fun observeOccurrenceWithRoutine(id: Long): Flow<OccurrenceOfRoutine?>
 
     @Query("SELECT * FROM occurrences WHERE routine_id = :routineId AND date = :date")
     suspend fun occurrencesOn(routineId: Long, date: LocalDate): List<Occurrence>
@@ -98,18 +88,15 @@ interface RoutineDao {
     @Query("DELETE FROM occurrences WHERE id IN (:ids)")
     suspend fun deleteOccurrences(ids: Collection<Long>)
 
-    @Query("UPDATE occurrences SET status = :status WHERE id = :id")
-    suspend fun setStatus(id: Long, status: OccurrenceStatus)
+    /** Sets the status of an occurrence not [missed]: once missed, it stays so. */
+    @Query("UPDATE occurrences SET status = :status WHERE id = :id AND status != :missed")
+    suspend fun setStatus(id: Long, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
 
     @Query("UPDATE occurrences SET status = :status WHERE id IN (:ids)")
     suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus)
 
-    @Query(
-        """
-        SELECT o.id AS id, o.routine_id AS routineId, r.name AS name, o.date AS date, o.time AS time, o.status AS status
-        FROM occurrences o JOIN routines r ON r.id = o.routine_id
-        WHERE o.date = :date
-        """,
-    )
-    fun observeOccurrences(date: LocalDate): Flow<List<OccurrenceRow>>
+    /** The occurrences from [from] to [to], each with its routine. */
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
+    fun observeOccurrencesWithRoutines(from: LocalDate, to: LocalDate): Flow<List<OccurrenceOfRoutine>>
 }

@@ -15,6 +15,7 @@ import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -163,6 +164,43 @@ class RemindersTest {
     }
 
     @Test
+    fun `later offers only the times that come back before the time window ends`() {
+        app.routine("Lesen", "23:30", window = TimeWindow(untilMidnight = true))
+        goOffAt("2026-10-23T23:30")
+        app.clock.now = berlin("2026-10-23T23:40")
+
+        tap("Später")
+
+        assertEquals(listOf("10 Min."), reminders().single().actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `with less than ten minutes of the time window left, there is no later`() {
+        app.routine("Lesen", "23:55", window = TimeWindow(untilMidnight = true))
+
+        goOffAt("2026-10-23T23:55")
+
+        assertEquals(listOf("Erledigt", "Überspringen"), reminders().single().actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `a time to put off by that would come back after the time window has ended is refused`() = runBlocking {
+        app.routine("Lesen", "23:30", window = TimeWindow(untilMidnight = true))
+        goOffAt("2026-10-23T23:30")
+        app.clock.now = berlin("2026-10-23T23:40")
+        val occurrence = app.routines.dueOn(app.routines.today()).first().single().occurrenceId
+
+        val putOffBy30 = Intent(app, ReminderReceiver::class.java).setAction(ReminderReceiver.ACTION_PUT_OFF)
+            .putExtra("occurrence", occurrence)
+            .putExtra("minutes", 30L)
+        app.sendBroadcast(putOffBy30) // say, chosen when there was still time
+        idle()
+
+        assertEquals("still up", listOf("Lesen"), titles())
+        assertEquals(berlin("2026-10-24T00:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
     fun `the choice for later stays while the reminder is shown again quietly`() {
         app.routine("Vitamine", "07:30")
         goOffAt("2026-10-23T07:30")
@@ -243,6 +281,20 @@ class RemindersTest {
 
         assertEquals(listOf(OccurrenceStatus.Open), statuses())
         assertEquals(emptyList<ShadowAlarmManager.ScheduledAlarm>(), shadowOf(alarmManager).scheduledAlarms)
+    }
+
+    @Test
+    fun `after the clock is put back, what comes due again is reminded of again`() {
+        app.routine("Vitamine", "07:30")
+        goOffAt("2026-10-23T07:30")
+
+        app.clock.now = berlin("2026-10-23T07:00") // the clock was half an hour fast
+        app.sendBroadcast(Intent(Intent.ACTION_TIME_CHANGED))
+        idle()
+
+        assertEquals(berlin("2026-10-23T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-23T07:30")
+        assertEquals(listOf("Vitamine"), titles())
     }
 
     @Test

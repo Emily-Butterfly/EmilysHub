@@ -42,6 +42,7 @@ import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.Routines
+import de.emilyshub.routines.toDraft
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 import java.time.LocalTime
@@ -81,7 +82,7 @@ fun RoutineEditorScreen(routines: Routines, target: RoutineEditorTarget, onClose
             if (routine == null) {
                 onClose()
             } else {
-                draft = with(routine) { RoutineDraft(name, description, times, repetition, followUps, fullScreen, window) }
+                draft = routine.toDraft()
                 original = draft
                 loaded = true
             }

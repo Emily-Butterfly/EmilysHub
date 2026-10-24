@@ -43,18 +43,7 @@ class Routines(
      * overdue. Refuses a draft with problems; the editor shows them before it gets here.
      */
     suspend fun create(draft: RoutineDraft): Long = write {
-        val routine = checked(draft).let {
-            Routine(
-                name = it.name,
-                description = it.description,
-                times = it.times,
-                repetition = it.repetition,
-                plannedFrom = now(),
-                followUps = it.followUps,
-                fullScreen = it.fullScreen,
-                window = it.window,
-            )
-        }
+        val routine = checked(draft).toRoutine(plannedFrom = now())
         database().withTransaction {
             dao.insert(routine).also { plan(today()) }
         }
@@ -75,16 +64,7 @@ class Routines(
             plan(today)
             val now = now()
             val rescheduled = changes.times != routine.times || changes.repetition != routine.repetition
-            val changed = routine.copy(
-                name = changes.name,
-                description = changes.description,
-                times = changes.times,
-                repetition = changes.repetition,
-                plannedFrom = if (rescheduled) now else routine.plannedFrom,
-                followUps = changes.followUps,
-                fullScreen = changes.fullScreen,
-                window = changes.window,
-            )
+            val changed = changes.toRoutine(id, plannedFrom = if (rescheduled) now else routine.plannedFrom)
             dao.update(changed)
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
             (planned.keys + today).forEach { date -> replan(changed, date, planned[date].orEmpty(), now) }
@@ -101,14 +81,25 @@ class Routines(
     /** Deletes the routine with all its occurrences. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
+    /**
+     * The Heute list of [date] in the order it is due: its occurrences, and while [date] is today, those of the
+     * day before whose time window is still open, as they can still be caught up on.
+     */
     fun dueOn(date: LocalDate): Flow<List<DueRoutine>> = flow {
         plan(date)
-        emitAll(
-            dao.observeOccurrences(date).map { rows ->
-                rows.map { DueRoutine(it.id, it.routineId, it.name, dueAt(it.date, it.time, clock.zone), it.status) }
-                    .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(byName) { it.name })
-            },
-        )
+        val list = dao.observeOccurrencesWithRoutines(from = date.minusDays(1), to = date).map { all ->
+            val now = now()
+            val catchingUp = today(now, clock.zone) == date
+            all.filter { (occurrence, routine) ->
+                occurrence.date == date || catchingUp && !routine.windowEnded(occurrence, now, clock.zone)
+            }
+                .map { (occurrence, routine) ->
+                    val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
+                    DueRoutine(occurrence.id, routine.id, routine.name, dueAt, occurrence.status)
+                }
+                .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(byName) { it.name })
+        }
+        emitAll(list)
     }.flowOn(io)
 
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
@@ -122,7 +113,7 @@ class Routines(
      */
     suspend fun reopen(occurrenceId: Long) = write {
         database().withTransaction {
-            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
+            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status != OccurrenceStatus.Missed } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId) ?: return@withTransaction
             dao.setStatus(occurrenceId, OccurrenceStatus.Open)
             replan(routine, occurrence.date, dao.occurrencesOn(routine.id, occurrence.date), now())
@@ -138,13 +129,9 @@ class Routines(
      */
     suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
         val planned = dao.occurrencesToRemindFrom(firstDayStillOpen(after)).groupBy { it.routineId }
-        dao.getAll().mapNotNull { routine ->
+        dao.getAll().flatMap { routine ->
             val occurrences = planned[routine.id].orEmpty()
-            val windowEnds = occurrences
-                .filter { it.status == OccurrenceStatus.Open }
-                .map { routine.windowEnd(it, clock.zone) }
-                .filter { it.isAfter(after) }
-            (windowEnds + listOfNotNull(routine.nextReminder(occurrences, after, clock.zone))).minOrNull()
+            listOfNotNull(routine.nextReminder(occurrences, after, clock.zone), routine.nextWindowEnd(occurrences, after, clock.zone))
         }.minOrNull()
     }
 
@@ -157,7 +144,7 @@ class Routines(
         val now = now()
         planDays(from = today(since, clock.zone), to = today(now, clock.zone))
         val missed = dao.allOpen(OccurrenceStatus.Open).filter { (occurrence, routine) ->
-            !routine.windowEnd(occurrence, clock.zone).isAfter(now)
+            routine.windowEnded(occurrence, now, clock.zone)
         }
         dao.setStatuses(missed.map { it.occurrence.id }, OccurrenceStatus.Missed)
     }
@@ -170,31 +157,33 @@ class Routines(
         val last = today(until, clock.zone)
         planDays(from = today(after, clock.zone), to = last)
         dao.openToRemind(firstDayStillOpen(after), last, OccurrenceStatus.Open)
-            .mapNotNull { due ->
-                val times = due.routine.reminderTimes(due.occurrence, clock.zone)
-                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { due to it }
+            .mapNotNull { open ->
+                val times = open.routine.reminderTimes(open.occurrence, clock.zone)
+                times.firstOrNull { it.isAfter(after) && !it.isAfter(until) }?.let { open to it }
             }
             .sortedWith(
-                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }.thenBy(byName) { (due) -> due.routine.name },
+                compareBy<Pair<OccurrenceOfRoutine, Instant>> { (_, time) -> time }.thenBy(byName) { (open) -> open.routine.name },
             )
-            .map { (due) -> reminderOf(due) }
+            .map { (open) -> reminderOf(open) }
     }
 
     /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        dao.withRoutines(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
+        dao.occurrencesWithRoutines(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
     }
 
     /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
     fun reminder(occurrenceId: Long): Flow<Reminder?> = flow {
-        emitAll(dao.observeWithRoutine(occurrenceId).map { due -> due?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
+        emitAll(dao.observeOccurrenceWithRoutine(occurrenceId).map { it?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
     }.flowOn(io)
 
     private fun OccurrenceOfRoutine.isDue(now: Instant) = routine.isDue(occurrence, now, clock.zone)
 
-    private fun reminderOf(due: OccurrenceOfRoutine) = with(due.occurrence) {
-        Reminder(id, due.routine.name, dueAt(date, time, clock.zone), due.routine.fullScreen)
+    private fun reminderOf(of: OccurrenceOfRoutine): Reminder {
+        val (occurrence, routine) = of
+        val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
+        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, routine.windowEnd(occurrence, clock.zone))
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }

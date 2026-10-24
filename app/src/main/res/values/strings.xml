@@ -23,6 +23,7 @@
 
     <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht.</string>
     <string name="today_skip">Überspringen</string>
+    <string name="today_yesterday_at">Gestern, %1$s</string>
     <string name="today_undo">Rückgängig</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>

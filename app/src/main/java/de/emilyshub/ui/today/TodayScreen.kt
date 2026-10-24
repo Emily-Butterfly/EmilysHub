@@ -61,6 +61,7 @@ fun TodayScreen(routines: Routines, contentPadding: PaddingValues) {
             items(list, key = { it.occurrenceId }) { routine ->
                 DueRoutineRow(
                     routine = routine,
+                    fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
                     onDoneChange = { done ->
                         scope.launchNow {
                             if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
@@ -124,26 +125,32 @@ private fun OnClockChange(onChange: () -> Unit) {
 @Composable
 private fun DueRoutineRow(
     routine: DueRoutine,
+    fromDayBefore: Boolean,
     onDoneChange: (Boolean) -> Unit,
     onSkip: () -> Unit,
     onReopen: () -> Unit,
 ) {
     val done = routine.status == OccurrenceStatus.Done
+    // Missed is how it ended: it can no longer be ticked off.
+    val tickable = routine.status != OccurrenceStatus.Missed
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .toggleable(value = done, role = Role.Checkbox, onValueChange = onDoneChange)
+            .toggleable(value = done, enabled = tickable, role = Role.Checkbox, onValueChange = onDoneChange)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(checked = done, onCheckedChange = null)
+        Checkbox(checked = done, onCheckedChange = null, enabled = tickable)
         Column(
             Modifier
                 .weight(1f)
                 .padding(start = 16.dp),
         ) {
             Text(
-                text = routine.dueAt.clockTime(),
+                text = when {
+                    fromDayBefore -> stringResource(R.string.today_yesterday_at, routine.dueAt.clockTime())
+                    else -> routine.dueAt.clockTime()
+                },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )

@@ -3,6 +3,7 @@ package de.emilyshub.reminders
 import android.content.Context
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.routines.Reminder
 import de.emilyshub.routines.Routines
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,10 +29,11 @@ class Reminders(
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
-    private val notifications = ReminderNotifications(context)
+    private val notifications = ReminderNotifications(context, clock)
 
-    // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it
-    // may write to the routines, since every write updates the reminders.
+    // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
+    // write to the routines in a way that reports a change, since every such write updates the reminders.
+    // Marking missed and planning do not report one.
     private val lock = Mutex()
 
     /**
@@ -66,15 +68,20 @@ class Reminders(
     }
 
     /**
-     * Puts the reminder off [by] one of [PUT_OFF_CHOICES]: it comes back then, and its follow-ups after that.
-     * Only one that has come due and is still open; one answered meanwhile goes away.
+     * Puts the reminder off [by] one of its [putOffChoices]: it comes back then, and its follow-ups after that.
+     * Only one that has come due and is still open, and only to before its time window ends; otherwise it
+     * stays as it is, and one answered meanwhile goes away.
      */
     suspend fun putOff(occurrenceId: Long, by: Duration) {
-        when (routines.stillDue(listOf(occurrenceId)).isEmpty()) {
-            true -> update()
-            false -> routines.putOff(occurrenceId, until = clock.instant() + by)
+        val reminder = routines.stillDue(listOf(occurrenceId)).singleOrNull()
+        when {
+            reminder == null || by !in putOffChoices(reminder) -> update()
+            else -> routines.putOff(occurrenceId, until = clock.instant() + by)
         }
     }
+
+    /** What "Später" offers for [reminder] now. */
+    fun putOffChoices(reminder: Reminder): List<Duration> = reminder.putOffChoices(clock.instant())
 
     private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet()) {
         val shown = notifications.shown()
@@ -89,10 +96,17 @@ class Reminders(
         }
     }
 
-    /** Up to when reminders have come; from the first update on, so a new installation starts now. */
-    private suspend fun remindedUntil(): Instant =
-        settings().get(REMINDED_UNTIL)?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: clock.instant().also { settings().put(Setting(REMINDED_UNTIL, it.toString())) }
+    /**
+     * Up to when reminders have come; from the first update on, so a new installation starts now. Never after
+     * now: once the clock is put back, what comes due again is reminded of again.
+     */
+    private suspend fun remindedUntil(): Instant {
+        val now = clock.instant()
+        val stored = settings().get(REMINDED_UNTIL)?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        if (stored != null && !stored.isAfter(now)) return stored
+        settings().put(Setting(REMINDED_UNTIL, now.toString()))
+        return now
+    }
 
     companion object {
         /** What "Später" offers (SPEC.md §3). */
@@ -101,3 +115,6 @@ class Reminders(
         private const val REMINDED_UNTIL = "reminded-until"
     }
 }
+
+/** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before the time window ends. */
+fun Reminder.putOffChoices(now: Instant): List<Duration> = Reminders.PUT_OFF_CHOICES.filter { (now + it).isBefore(windowEnd) }

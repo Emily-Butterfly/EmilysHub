@@ -12,6 +12,7 @@ import de.emilyshub.MainActivity
 import de.emilyshub.R
 import de.emilyshub.routines.Reminder
 import de.emilyshub.ui.clockTime
+import java.time.Clock
 import java.time.Duration
 
 /**
@@ -23,7 +24,7 @@ import java.time.Duration
  * full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
  * One notification per occurrence, tagged with its id.
  */
-class ReminderNotifications(private val context: Context) {
+class ReminderNotifications(private val context: Context, private val clock: Clock) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
     /** Pops the reminder up, with a sound even if it is up already: at its time and at each follow-up. */
@@ -67,18 +68,23 @@ class ReminderNotifications(private val context: Context) {
             .setCategory(Notification.CATEGORY_REMINDER)
             .build()
         val id = reminder.occurrenceId
+        // Only what comes back before the time window ends; with none, there is no "Später".
+        val choices = reminder.putOffChoices(clock.instant())
+        val offering = offeringPutOff && choices.isNotEmpty()
         val text: String
         val actions: List<Notification.Action>
-        if (offeringPutOff) {
+        if (offering) {
             text = context.getString(R.string.reminder_put_off_when)
-            actions = Reminders.PUT_OFF_CHOICES.map { choice ->
+            actions = choices.map { choice ->
                 action(context.putOffLabel(choice), ReminderReceiver.ACTION_PUT_OFF, id, putOffBy = choice)
             }
         } else {
             text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
-            actions = listOf(
+            actions = listOfNotNull(
                 action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, id),
-                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, id),
+                choices.firstOrNull()?.let {
+                    action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, id)
+                },
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, id),
             )
         }
@@ -99,7 +105,7 @@ class ReminderNotifications(private val context: Context) {
             .apply { if (fullScreen) setFullScreenIntent(alarm(id), true) }
             .setAutoCancel(true)
             .setOnlyAlertOnce(!alert)
-            .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offeringPutOff) })
+            .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offering) })
             .apply { actions.forEach(::addAction) }
             .build()
     }

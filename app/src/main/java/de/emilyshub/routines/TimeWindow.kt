@@ -30,7 +30,7 @@ data class TimeWindow(
         }
 
     companion object {
-        /** From one hour to a whole day. */
+        /** From one hour to 24. */
         val HOURS = 1..24
 
         /** The longest a window can be open: a whole day, which is 25 hours when the clocks fall back. */

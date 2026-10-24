@@ -17,6 +17,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.TimeWindow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
@@ -138,6 +139,17 @@ class AlarmTest {
         val nextAlarm = checkNotNull(shadowOf(app.getSystemService(AlarmManager::class.java)).peekNextScheduledAlarm())
         assertEquals(berlin("2026-10-23T08:00"), Instant.ofEpochMilli(nextAlarm.triggerAtMs))
         assertEquals(listOf(OccurrenceStatus.Open), statuses())
+    }
+
+    @Test
+    fun `with too little of the time window left, the alarm offers no later`() {
+        app.routine("Lesen", "23:55", fullScreen = true, window = TimeWindow(untilMidnight = true))
+        goOffAt("2026-10-23T23:55")
+
+        openAlarm(of = "Lesen").use {
+            compose.onNodeWithText("Erledigt").assertIsDisplayed()
+            compose.onNodeWithText("Später").assertDoesNotExist()
+        }
     }
 
     @Test

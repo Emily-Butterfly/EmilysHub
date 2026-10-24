@@ -26,7 +26,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.reminders.Reminders
 import de.emilyshub.reminders.putOffLabel
 import de.emilyshub.routines.Reminder
 import de.emilyshub.ui.clockTime
@@ -35,11 +34,12 @@ import java.time.Duration
 /**
  * The full-screen alarm (SPEC.md §3, §9). While [locked], it only says "Erinnerung fällig" and offers to
  * unlock or close; once unlocked, it shows the [reminder] with "Erledigt · Später · Überspringen", and after
- * "Später" the choice when to come back.
+ * "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
 fun AlarmScreen(
     reminder: Reminder?,
+    putOffChoices: List<Duration>,
     locked: Boolean,
     onUnlock: () -> Unit,
     onDone: () -> Unit,
@@ -70,7 +70,7 @@ fun AlarmScreen(
                     Title(reminder.name)
                     Text(stringResource(R.string.reminder_put_off_when), style = MaterialTheme.typography.bodyLarge)
                     val context = LocalContext.current
-                    Reminders.PUT_OFF_CHOICES.forEach { choice ->
+                    putOffChoices.forEach { choice ->
                         WideButton(context.putOffLabel(choice), onClick = { onPutOff(choice) })
                     }
                     TextButton(onClick = { choosingPutOff = false }) { Text(stringResource(R.string.cancel)) }
@@ -82,7 +82,9 @@ fun AlarmScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
-                    WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
+                    if (putOffChoices.isNotEmpty()) {
+                        WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
+                    }
                     TextButton(onClick = onSkip) { Text(stringResource(R.string.reminder_skip)) }
                 }
             }

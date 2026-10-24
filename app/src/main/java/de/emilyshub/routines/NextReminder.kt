@@ -26,5 +26,16 @@ fun Routine.nextReminder(planned: List<Occurrence>, after: Instant, zone: ZoneId
     return (fromPlanned + fromSchedule).minOrNull()
 }
 
+/**
+ * When the time window of one of its [planned] occurrences still open ends next after [after]: it is missed
+ * then. [planned] are as for [nextReminder]; a day not planned yet has a reminder to come before its windows end.
+ */
+fun Routine.nextWindowEnd(planned: List<Occurrence>, after: Instant, zone: ZoneId): Instant? =
+    planned
+        .filter { it.status == OccurrenceStatus.Open }
+        .map { windowEnd(it, zone) }
+        .filter { it.isAfter(after) }
+        .minOrNull()
+
 // Today's times may all be past, and a day with the clocks changing may lose one; a day after that has them.
 private const val DAYS_TO_LOOK_AT = 3

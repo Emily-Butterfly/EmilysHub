@@ -84,6 +84,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
             EmilysHubTheme(darkTheme = isDark(design)) {
                 AlarmScreen(
                     reminder = reminder,
+                    putOffChoices = reminder?.let(app.reminders::putOffChoices).orEmpty(),
                     locked = locked,
                     onUnlock = ::unlock,
                     onDone = { answer { app.routines.markDone(it) } },

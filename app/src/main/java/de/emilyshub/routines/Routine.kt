@@ -13,8 +13,8 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 /**
- * A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says, and reminding again
- * of what is left open as its [followUps] say.
+ * A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says, reminding again of what
+ * is left open as its [followUps] say, and missing what is still open once its time [window] ends.
  */
 @Entity(tableName = "routines")
 data class Routine(
@@ -50,17 +50,23 @@ data class Routine(
     /** When the time window of its [occurrence] ends: if still open then, it is missed. */
     fun windowEnd(occurrence: Occurrence, zone: ZoneId): Instant = window.end(occurrence.date, occurrence.time, zone)
 
-    /** When its [occurrence] is reminded of while it stays open: first and at the follow-ups, before its window ends. */
+    /** Whether the time window of its [occurrence] has ended at [now]. */
+    fun windowEnded(occurrence: Occurrence, now: Instant, zone: ZoneId): Boolean = !windowEnd(occurrence, zone).isAfter(now)
+
+    /**
+     * When its [occurrence] is reminded of while it stays open: at its reminder time and at the follow-ups
+     * after it, before its window ends.
+     */
     fun reminderTimes(occurrence: Occurrence, zone: ZoneId): List<Instant> {
         val windowEnd = windowEnd(occurrence, zone)
-        return occurrence.reminderTimes(followUps, zone).filter { it.isBefore(windowEnd) }
+        return followUps.from(occurrence.reminderTime(zone)).filter { it.isBefore(windowEnd) }
     }
 
     /** Whether its [occurrence] is to be reminded of at [now]: still open, its reminder time come, its window not ended. */
     fun isDue(occurrence: Occurrence, now: Instant, zone: ZoneId): Boolean =
         occurrence.status == OccurrenceStatus.Open &&
             !occurrence.reminderTime(zone).isAfter(now) &&
-            now.isBefore(windowEnd(occurrence, zone))
+            !windowEnded(occurrence, now, zone)
 }
 
 /** How an occurrence ended (SPEC.md §2, Tracking); open until then. */
@@ -93,13 +99,19 @@ data class Occurrence(
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
-
-    /** When it is reminded of while it stays open: at its [reminderTime] and at the [followUps] after it. */
-    fun reminderTimes(followUps: FollowUps, zone: ZoneId): List<Instant> = followUps.from(reminderTime(zone))
 }
 
-/** An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, and whether with a [fullScreen] alarm. */
-data class Reminder(val occurrenceId: Long, val name: String, val dueAt: ZonedDateTime, val fullScreen: Boolean)
+/**
+ * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
+ * [fullScreen] alarm, and when its time window ends.
+ */
+data class Reminder(
+    val occurrenceId: Long,
+    val name: String,
+    val dueAt: ZonedDateTime,
+    val fullScreen: Boolean,
+    val windowEnd: Instant,
+)
 
 /** An occurrence on the Heute list, with its routine's name and the moment it is due. */
 data class DueRoutine(

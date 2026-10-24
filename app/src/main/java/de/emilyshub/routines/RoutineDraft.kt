@@ -1,6 +1,7 @@
 package de.emilyshub.routines
 
 import java.io.Serializable
+import java.time.Instant
 import java.time.LocalTime
 
 enum class DraftProblem {
@@ -63,6 +64,10 @@ data class RoutineDraft(
         window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,
     )
 
+    /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
+    fun toRoutine(id: Long = 0, plannedFrom: Instant) =
+        Routine(id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window)
+
     companion object {
         const val NAME_MAX = 80
         const val DESCRIPTION_MAX = 1000
@@ -82,3 +87,6 @@ data class RoutineDraft(
         private fun isVisible(char: Char) = !char.isWhitespace() && Character.getType(char) != Character.FORMAT.toInt()
     }
 }
+
+/** The routine as the editor starts out with it. */
+fun Routine.toDraft() = RoutineDraft(name, description, times, repetition, followUps, fullScreen, window)

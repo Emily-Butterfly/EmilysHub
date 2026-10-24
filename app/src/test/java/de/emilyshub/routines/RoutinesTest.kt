@@ -493,6 +493,20 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a missed occurrence stays missed, whether ticked off, skipped or undone`() = runBlocking {
+        routines.create(draft("Vitamine", "08:00"))
+        val vitamins = occurrenceAt("08:00")
+        clock.now = berlin("2026-10-23T12:00")
+        routines.markMissed(since = clock.now)
+
+        routines.markDone(vitamins)
+        routines.skip(vitamins)
+        routines.reopen(vitamins)
+
+        assertEquals(listOf("08:00 Vitamine: Missed"), dueOn(today))
+    }
+
+    @Test
     fun `until midnight, an occurrence is missed once its day is over`() = runBlocking {
         routines.create(draft("Lesen", "21:00", window = TimeWindow(untilMidnight = true)))
 

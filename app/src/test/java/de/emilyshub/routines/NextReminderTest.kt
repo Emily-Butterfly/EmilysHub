@@ -183,6 +183,20 @@ class NextReminderTest {
         assertEquals(berlin("2026-10-24T23:00"), routine.nextReminder(emptyList(), todayAt("23:30"), BERLIN))
     }
 
+    @Test
+    fun `the next time window to end is that of an occurrence still open`() {
+        val routine = routine("08:00", "22:00", window = TimeWindow(hours = 3))
+        val planned = listOf(
+            occurrence(today.minusDays(1), "22:00"), // open until 01:00 today
+            occurrence(today, "08:00", OccurrenceStatus.Done),
+            occurrence(today, "22:00"),
+        )
+
+        assertEquals("the day before's, after midnight", todayAt("01:00"), routine.nextWindowEnd(planned, todayAt("00:30"), BERLIN))
+        assertEquals("not that of one done", berlin("2026-10-24T01:00"), routine.nextWindowEnd(planned, todayAt("07:00"), BERLIN))
+        assertEquals(null, routine.nextWindowEnd(planned, berlin("2026-10-24T01:00"), BERLIN))
+    }
+
     /** [time] ("08:30") today in Berlin. */
     private fun todayAt(time: String) = berlin("${today}T$time")
 
