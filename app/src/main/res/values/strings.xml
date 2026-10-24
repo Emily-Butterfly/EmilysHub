@@ -149,7 +149,7 @@
     <string name="app_lock_prompt_title">EmilysHub entsperren</string>
 
     <string name="places_manage">Orte verwalten</string>
-    <string name="places_manage_summary">WLANs, an denen EmilysHub erkennt, wo du bist</string>
+    <string name="places_manage_summary">WLANs und GPS-Bereiche, an denen EmilysHub erkennt, wo du bist</string>
     <string name="places_title">Orte</string>
     <string name="places_empty">Noch keine Orte.</string>
     <string name="places_recognised_title">Aktuell erkannter Ort</string>
@@ -157,6 +157,10 @@
     <string name="places_recognised_unknown">Kein bekannter Ort – WLAN „%1$s“</string>
     <string name="places_recognised_no_wifi">Kein WLAN verbunden</string>
     <string name="places_recognised_name_hidden">Mit einem WLAN verbunden, aber Android verrät gerade nicht, wie es heißt.</string>
+    <string name="places_recognised_area">%1$s, über den Standort (auf etwa %2$d m genau)</string>
+    <string name="places_recognised_no_area">In keinem GPS-Bereich (Standort auf etwa %1$d m genau)</string>
+    <string name="places_locating">Standort wird bestimmt …</string>
+    <string name="places_no_position">Der Standort ist gerade nicht zu bestimmen.</string>
     <string name="place_create">Ort anlegen</string>
     <string name="place_new">Neuer Ort</string>
     <string name="place_edit">Ort bearbeiten</string>
@@ -164,7 +168,7 @@
     <string name="place_name_missing">Bitte gib einen Namen ein.</string>
     <string name="place_name_taken">Diesen Ort gibt es schon.</string>
     <string name="place_wifis">WLANs</string>
-    <string name="place_wifis_missing">Ein Ort braucht mindestens ein WLAN.</string>
+    <string name="place_wifis_missing">Ein Ort braucht mindestens ein WLAN oder einen GPS-Bereich.</string>
     <string name="place_too_many_wifis">Höchstens %1$d WLANs pro Ort.</string>
     <string name="place_wifi_take_current">Aktuelles WLAN übernehmen („%1$s“)</string>
     <string name="place_wifi_none">Gerade mit keinem WLAN verbunden.</string>
@@ -173,16 +177,29 @@
     <string name="place_wifi_add">Hinzufügen</string>
     <string name="place_wifi_remove">%1$s entfernen</string>
     <string name="place_wifi_invalid">So heißt kein WLAN: höchstens %1$d Bytes, Umlaute zählen doppelt, ohne Steuerzeichen</string>
+    <string name="place_area">GPS-Bereich</string>
+    <string name="place_area_hint">Erkennt den Ort im Umkreis eines Punkts, auch ohne WLAN.</string>
+    <string name="place_area_take_current">Aktuellen Standort übernehmen</string>
+    <string name="place_area_taken">Übernommen, auf etwa %1$d m genau.</string>
+    <string name="place_latitude">Breitengrad</string>
+    <string name="place_latitude_hint">−90 bis 90, z. B. 52,520008</string>
+    <string name="place_latitude_invalid">Ein Breitengrad liegt zwischen −90 und 90.</string>
+    <string name="place_longitude">Längengrad</string>
+    <string name="place_longitude_hint">−180 bis 180, z. B. 13,404954</string>
+    <string name="place_longitude_invalid">Ein Längengrad liegt zwischen −180 und 180.</string>
+    <string name="place_radius">Radius: %1$d m</string>
+    <string name="place_area_remove">GPS-Bereich entfernen</string>
+    <string name="place_area_summary">GPS-Bereich, %1$d m</string>
     <string name="place_delete_title">Ort löschen?</string>
-    <string name="place_delete_text">„%1$s“ wird mit seinen WLANs gelöscht. Routinen, die nur hier erinnern, erinnern danach überall.</string>
-    <string name="wifi_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN zu erkennen: Die App merkt sich keinen Standort und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
+    <string name="place_delete_text">„%1$s“ wird gelöscht. Routinen, die nur hier erinnern, erinnern danach überall.</string>
+    <string name="wifi_access_text">Android verrät den Namen des WLANs nur Apps, die den genauen Standort sehen dürfen. EmilysHub braucht ihn nur, um deine Orte am WLAN und am Standort zu erkennen: Die App merkt sich nur die Orte, die du anlegst, und sendet nichts weg. Wähle dafür „Genauer Standort“.</string>
     <string name="wifi_access_approximate_text">Du hast EmilysHub nur den ungefähren Standort erlaubt. Android verrät den Namen des WLANs aber nur mit dem genauen. Die App merkt sich keinen Standort und sendet nichts weg.</string>
     <string name="wifi_access_allow">Erlauben</string>
     <string name="wifi_access_allow_precise">Genauen Standort erlauben</string>
     <string name="wifi_access_settings">In den App-Einstellungen erlauben</string>
     <string name="wifi_location_off_text">Der Standort ist ausgeschaltet. Android verrät den Namen des WLANs nur, wenn er an ist.</string>
     <string name="wifi_location_off_open">Standort einschalten</string>
-    <string name="background_location_text">Damit EmilysHub auch bei geschlossener App merkt, wann du an einem Ort ankommst, braucht die App den Standort mit „Immer erlauben“: Sonst verrät Android ihr den Namen des WLANs nur, solange sie offen ist, und die Routine erinnert zur Uhrzeit überall.</string>
+    <string name="background_location_text">Damit EmilysHub auch bei geschlossener App merkt, wann du an einem Ort ankommst, braucht die App den Standort mit „Immer erlauben“: Sonst verrät Android ihr den Namen des WLANs und den Standort nur, solange sie offen ist, und die Routine erinnert zur Uhrzeit überall.</string>
     <string name="background_location_allow">Immer erlauben</string>
 
     <string name="tags_manage">Tags verwalten</string>

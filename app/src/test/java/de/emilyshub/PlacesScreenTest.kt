@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.provider.Settings
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -16,10 +18,14 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.places.Area
+import de.emilyshub.places.Coordinates
+import de.emilyshub.places.Position
 import de.emilyshub.places.Wifi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -30,7 +36,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 
-/** The places, kept in the settings, and the WLANs they are recognised by (SPEC.md §4). */
+/** The places, kept in the settings, and the WLANs and GPS areas they are recognised by (SPEC.md §4). */
 @RunWith(AndroidJUnit4::class)
 class PlacesScreenTest {
 
@@ -68,7 +74,7 @@ class PlacesScreenTest {
     }
 
     @Test
-    fun `a place needs a name and a WLAN before it is saved`() {
+    fun `a place needs a name and a WLAN or a GPS area before it is saved`() {
         launchApp().use {
             openPlaces()
             compose.onNodeWithContentDescription("Ort anlegen").performClick()
@@ -76,9 +82,113 @@ class PlacesScreenTest {
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Bitte gib einen Namen ein.").assertIsDisplayed()
-            compose.onNodeWithText("Ein Ort braucht mindestens ein WLAN.").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Ein Ort braucht mindestens ein WLAN oder einen GPS-Bereich.").performScrollTo()
+                .assertIsDisplayed()
         }
         assertEquals(emptyList<Any>(), places())
+    }
+
+    @Test
+    fun `a GPS place is created with its center typed in degrees and a radius chosen, and listed with its area`() {
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+            field("Name").performTextInput("Gym")
+
+            field("Breitengrad").performScrollTo().performTextInput("52,520008")
+            field("Längengrad").performScrollTo().performTextInput("13.404954")
+            compose.onNodeWithText("Radius: 150 m").performScrollTo().assertIsDisplayed()
+            compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(300f) }
+            compose.onNodeWithText("Radius: 300 m").assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("GPS-Bereich, 300 m").assertIsDisplayed()
+        }
+        assertEquals(listOf(Area(latitude = 52.520008, longitude = 13.404954, radius = 300)), areas())
+    }
+
+    @Test
+    fun `degrees off the earth are refused, with what they may be`() {
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+            field("Name").performTextInput("Gym")
+            compose.onNodeWithText("−90 bis 90, z. B. 52,520008").performScrollTo().assertIsDisplayed()
+
+            field("Breitengrad").performScrollTo().performTextInput("91")
+            field("Längengrad").performScrollTo().performTextInput("13,4")
+            compose.onNodeWithText("Ein Breitengrad liegt zwischen −90 und 90.").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Neuer Ort").assertIsDisplayed()
+        }
+        assertEquals(emptyList<Any>(), places())
+    }
+
+    @Test
+    fun `the position now is taken over into a place, with how sure Android is of it`() {
+        allowLocation()
+        app.location.position = Position(Coordinates(52.520008, 13.404954), accuracy = 18.0)
+
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+            field("Name").performTextInput("Gym")
+
+            compose.onNodeWithText("Aktuellen Standort übernehmen").performScrollTo().performClick()
+            compose.onNodeWithText("Übernommen, auf etwa 18 m genau.").performScrollTo().assertIsDisplayed()
+            compose.onNode(hasSetTextAction() and hasText("52,520008")).assertExists()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf(Area(latitude = 52.520008, longitude = 13.404954, radius = 150)), areas())
+    }
+
+    @Test
+    fun `with no position to be had, taking it over says so`() {
+        allowLocation()
+        app.location.position = null
+
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+
+            compose.onNodeWithText("Aktuellen Standort übernehmen").performScrollTo().performClick()
+
+            compose.onNodeWithText("Der Standort ist gerade nicht zu bestimmen.").performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a place loses its GPS area again, recognised then by its WLAN alone`() {
+        app.place("Zuhause", "FritzBox", area = Area(latitude = 52.5, longitude = 13.3, radius = 200))
+
+        launchApp().use {
+            openPlaces()
+            compose.onNodeWithText("FritzBox · GPS-Bereich, 200 m").assertIsDisplayed()
+            compose.onNodeWithText("Zuhause").performClick()
+            compose.onNodeWithText("Radius: 200 m").performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("GPS-Bereich entfernen").performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf(null), areas())
+        assertEquals(listOf("Zuhause" to listOf("FritzBox")), places())
+    }
+
+    @Test
+    fun `the place recognised now is also the one whose GPS area the position lies within`() {
+        allowLocation()
+        app.place("Gym", area = Area(latitude = 52.520008, longitude = 13.404954, radius = 150))
+        app.place("Zuhause", "FritzBox", area = Area(latitude = 52.5, longitude = 13.3, radius = 150))
+        app.location.position = Position(Coordinates(52.5201, 13.405), accuracy = 12.0)
+
+        launchApp().use {
+            openPlaces()
+
+            compose.onNodeWithText("Gym, über den Standort (auf etwa 12 m genau)").assertIsDisplayed()
+            compose.onNodeWithText("Kein WLAN verbunden").assertIsDisplayed()
+        }
     }
 
     @Test
@@ -258,6 +368,8 @@ class PlacesScreenTest {
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 
     private fun places() = runBlocking { app.places.all().first().map { it.name to it.ssids } }
+
+    private fun areas() = runBlocking { app.places.all().first().map { it.area } }
 
     private companion object {
         const val FINE = Manifest.permission.ACCESS_FINE_LOCATION

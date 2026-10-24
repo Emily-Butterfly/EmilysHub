@@ -37,6 +37,7 @@ import de.emilyshub.R
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
 import de.emilyshub.routines.Routines
@@ -73,6 +74,7 @@ fun EmilysHubApp(
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
+    location: CurrentLocation,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
@@ -95,6 +97,7 @@ fun EmilysHubApp(
                     tags = tags,
                     places = places,
                     wifi = wifi,
+                    location = location,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
                     onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
@@ -142,6 +145,7 @@ private fun AppShell(
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
+    location: CurrentLocation,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
@@ -164,13 +168,14 @@ private fun AppShell(
         // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
         placeTarget != null -> {
             BackHandler { placeEditor = null }
-            PlaceEditorScreen(places, wifi, placeTarget, onClose = { placeEditor = null })
+            PlaceEditorScreen(places, wifi, location, placeTarget, onClose = { placeEditor = null })
         }
         placesOpen -> {
             BackHandler { placesOpen = false }
             PlacesScreen(
                 places = places,
                 wifi = wifi,
+                location = location,
                 onOpen = { placeEditor = PlaceEditorTarget.Edit(it) },
                 onCreate = { placeEditor = PlaceEditorTarget.New },
                 onBack = { placesOpen = false },

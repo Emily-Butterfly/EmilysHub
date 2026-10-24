@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -23,6 +24,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,23 +40,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.places.Area
+import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
+import de.emilyshub.places.Degrees
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.PlaceProblem
 import de.emilyshub.places.Places
+import de.emilyshub.places.Position
 import de.emilyshub.places.Ssid
 import de.emilyshub.places.Wifi
 import de.emilyshub.places.toDraft
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
+import kotlinx.coroutines.launch
 import java.io.Serializable
+import kotlin.math.roundToInt
 
 /** Which place the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface PlaceEditorTarget : Serializable {
@@ -62,10 +74,19 @@ sealed interface PlaceEditorTarget : Serializable {
     data class Edit(val placeId: Long) : PlaceEditorTarget
 }
 
-/** Creates or changes a place with its name and WLANs, or deletes it. Leaving without saving drops the changes. */
+/**
+ * Creates or changes a place with its name, WLANs and GPS area, or deletes it. Leaving without saving drops the
+ * changes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarget, onClose: () -> Unit) {
+fun PlaceEditorScreen(
+    places: Places,
+    wifi: CurrentWifi,
+    location: CurrentLocation,
+    target: PlaceEditorTarget,
+    onClose: () -> Unit,
+) {
     val placeId = (target as? PlaceEditorTarget.Edit)?.placeId
     var draft by rememberSaveable { mutableStateOf(PlaceDraft(name = "", wifis = emptyList())) }
     var loaded by rememberSaveable { mutableStateOf(placeId == null) }
@@ -76,6 +97,7 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val all by remember(places) { places.all() }.collectAsState(initial = null)
+    val access = rememberWifiAccess()
 
     if (!loaded && placeId != null) {
         LaunchedEffect(placeId) {
@@ -160,8 +182,18 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
             WifisField(
                 wifis = draft.wifis,
                 wifi = wifi,
+                access = access,
                 showMissing = triedToSave && PlaceProblem.WifiOrAreaMissing in problems,
                 onChange = { draft = draft.copy(wifis = it) },
+            )
+            AreaField(
+                draft = draft,
+                problems = problems,
+                triedToSave = triedToSave,
+                location = location,
+                access = access,
+                // A change to the draft as it is then: taking the position over finishes later.
+                onChange = { change -> draft = change(draft) },
             )
         }
     }
@@ -186,9 +218,14 @@ fun PlaceEditorScreen(places: Places, wifi: CurrentWifi, target: PlaceEditorTarg
  * over exactly as Android names it, or why Android does not tell its name, and a name to type in.
  */
 @Composable
-private fun WifisField(wifis: List<String>, wifi: CurrentWifi, showMissing: Boolean, onChange: (List<String>) -> Unit) {
+private fun WifisField(
+    wifis: List<String>,
+    wifi: CurrentWifi,
+    access: Checked<WifiAccess>,
+    showMissing: Boolean,
+    onChange: (List<String>) -> Unit,
+) {
     var typed by rememberSaveable { mutableStateOf("") }
-    val access = rememberWifiAccess()
     val add = { ssid: String -> if (ssid.isNotBlank() && ssid !in wifis) onChange(wifis + ssid) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.place_wifis))
@@ -256,3 +293,109 @@ private fun WifisField(wifis: List<String>, wifi: CurrentWifi, showMissing: Bool
         }
     }
 }
+
+/**
+ * The place's GPS area: its center typed in degrees or the position now taken over, while the location is allowed,
+ * and its radius; or none, the place then recognised by its WLANs alone.
+ */
+@Composable
+private fun AreaField(
+    draft: PlaceDraft,
+    problems: Set<PlaceProblem>,
+    triedToSave: Boolean,
+    location: CurrentLocation,
+    access: Checked<WifiAccess>,
+    onChange: ((PlaceDraft) -> PlaceDraft) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(stringResource(R.string.place_area))
+        Hint(stringResource(R.string.place_area_hint))
+        if (access.current == WifiAccess.Granted) {
+            TakePosition(location) { position ->
+                val center = position.coordinates
+                onChange { it.copy(latitude = Degrees.format(center.latitude), longitude = Degrees.format(center.longitude)) }
+            }
+        }
+        DegreesField(
+            value = draft.latitude,
+            label = stringResource(R.string.place_latitude),
+            hint = stringResource(R.string.place_latitude_hint),
+            problem = stringResource(R.string.place_latitude_invalid)
+                .takeIf { PlaceProblem.LatitudeInvalid in problems && (triedToSave || draft.latitude.isNotBlank()) },
+            onChange = { typed -> onChange { it.copy(latitude = typed) } },
+        )
+        DegreesField(
+            value = draft.longitude,
+            label = stringResource(R.string.place_longitude),
+            hint = stringResource(R.string.place_longitude_hint),
+            problem = stringResource(R.string.place_longitude_invalid)
+                .takeIf { PlaceProblem.LongitudeInvalid in problems && (triedToSave || draft.longitude.isNotBlank()) },
+            onChange = { typed -> onChange { it.copy(longitude = typed) } },
+        )
+        if (draft.hasArea) {
+            val radius = stringResource(R.string.place_radius, draft.radius)
+            Text(radius, style = MaterialTheme.typography.bodyLarge)
+            Slider(
+                value = draft.radius.toFloat(),
+                onValueChange = { chosen -> onChange { it.copy(radius = chosen.roundToInt()) } },
+                valueRange = Area.RADIUS_MIN.toFloat()..Area.RADIUS_MAX.toFloat(),
+                steps = (Area.RADIUS_MAX - Area.RADIUS_MIN) / RADIUS_STEP - 1,
+                // 44 steps would mark the track all over.
+                colors = SliderDefaults.colors(activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent),
+                modifier = Modifier.semantics { stateDescription = radius },
+            )
+            TextButton(onClick = { onChange { it.copy(latitude = "", longitude = "", radius = Area.RADIUS_DEFAULT) } }) {
+                Text(stringResource(R.string.place_area_remove))
+            }
+        }
+    }
+}
+
+/** Takes over where Android says the device is now, and says how sure Android is of it, or that it cannot tell. */
+@Composable
+private fun TakePosition(location: CurrentLocation, onTaken: (Position) -> Unit) {
+    var locating by remember { mutableStateOf(false) }
+    // Of the position taken over last, give or take how many meters; or that there was none to be had.
+    var accuracy by rememberSaveable { mutableStateOf<Int?>(null) }
+    var noPosition by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    TextButton(
+        onClick = {
+            locating = true
+            scope.launch {
+                val position = location.position()
+                locating = false
+                noPosition = position == null
+                accuracy = position?.accuracy?.roundToInt()
+                position?.let(onTaken)
+            }
+        },
+        enabled = !locating,
+    ) {
+        Icon(Icons.Filled.LocationOn, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(if (locating) R.string.places_locating else R.string.place_area_take_current))
+    }
+    when {
+        noPosition -> Hint(stringResource(R.string.places_no_position))
+        accuracy != null -> Hint(stringResource(R.string.place_area_taken, accuracy ?: 0))
+    }
+}
+
+/** A field for degrees, which takes a point or a comma and, for south and west, a minus. */
+@Composable
+private fun DegreesField(value: String, label: String, hint: String, problem: String?, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        isError = problem != null,
+        supportingText = { Text(problem ?: hint) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** The radius goes in steps of 10 m. */
+private const val RADIUS_STEP = 10
