@@ -1,6 +1,6 @@
 package de.emilyshub.stats
 
-import de.emilyshub.routines.Occurrence
+import de.emilyshub.routines.OccurrenceOutcome
 import de.emilyshub.routines.OccurrenceStatus
 import java.time.LocalDate
 import java.util.SortedMap
@@ -37,8 +37,18 @@ data class Streaks(val current: Int, val longest: Int)
 
 /** Of the occurrences [counted], done or missed, those [done]; skipped ones and those still open are not counted. */
 data class DoneRate(val done: Int, val counted: Int) {
-    /** In whole percent; none while nothing counts. */
-    val percent: Int? get() = if (counted == 0) null else (done * PERCENT / counted.toDouble()).roundToInt()
+    /**
+     * In whole percent, rounded; but 100 only with nothing missed and 0 only with nothing done, so that the rounding
+     * never hides either. None while nothing counts.
+     */
+    val percent: Int?
+        get() = when {
+            counted == 0 -> null
+            else -> (done * PERCENT / counted.toDouble()).roundToInt().coerceIn(
+                minimumValue = if (done > 0) 1 else 0,
+                maximumValue = if (done < counted) PERCENT - 1 else PERCENT,
+            )
+        }
 
     private companion object {
         const val PERCENT = 100
@@ -46,14 +56,17 @@ data class DoneRate(val done: Int, val counted: Int) {
 }
 
 /**
- * The statistics of a routine, or of all routines together, by their [occurrences] (SPEC.md §8). Only the days with an
- * occurrence count: those the routine was due on. Days it was not due, or paused, have none.
+ * The statistics of a routine by how its [occurrences] ended (SPEC.md §8). Only the days with an occurrence count: those
+ * the routine was due on. Days it was not due, or paused, have none. Over all routines together, a day's occurrences
+ * are all of theirs that day, as if of one routine with several times: one missed anywhere breaks the streak.
  */
-class RoutineHistory(private val occurrences: List<Occurrence>) {
+class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
 
     /** How each day with an occurrence ended, by date. */
-    val days: SortedMap<LocalDate, DayOutcome> =
-        occurrences.groupBy(Occurrence::date, Occurrence::status).mapValues { (_, statuses) -> DayOutcome.of(statuses) }.toSortedMap()
+    val days: SortedMap<LocalDate, DayOutcome> = occurrences
+        .groupBy(OccurrenceOutcome::date, OccurrenceOutcome::status)
+        .mapValues { (_, statuses) -> DayOutcome.of(statuses) }
+        .toSortedMap()
 
     /** The days done in a row: a day missed breaks the streak, one skipped or still open neither breaks nor counts. */
     fun streaks(): Streaks {

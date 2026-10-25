@@ -51,7 +51,8 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
             return@StatisticsScaffold
         }
         val today = routines.today()
-        val byRoutine = all.groupBy { it.routineId }
+        val overall = remember(all) { RoutineHistory(all) }
+        val byRoutine = remember(all) { all.groupBy { it.routineId }.mapValues { (_, outcomes) -> RoutineHistory(outcomes) } }
         Column(
             Modifier
                 .fillMaxSize()
@@ -60,11 +61,11 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
         ) {
             Column(Modifier.padding(16.dp)) {
                 SectionTitle(stringResource(R.string.statistics_all))
-                Summary(RoutineHistory(all), today)
+                Summary(overall, today)
             }
             Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.statistics_each)) }
             everyRoutine.forEach { routine ->
-                val routineHistory = RoutineHistory(byRoutine[routine.id].orEmpty())
+                val routineHistory = byRoutine[routine.id] ?: RoutineHistory(emptyList())
                 ListItem(
                     headlineContent = { Text(routine.name) },
                     supportingContent = {
@@ -97,7 +98,7 @@ fun RoutineStatisticsScreen(routines: Routines, routineId: Long, onBack: () -> U
         val occurrences = history ?: return@StatisticsScaffold
         if (routine == null) return@StatisticsScaffold
         val today = routines.today()
-        val routineHistory = RoutineHistory(occurrences)
+        val routineHistory = remember(occurrences) { RoutineHistory(occurrences) }
         Column(
             Modifier
                 .fillMaxSize()

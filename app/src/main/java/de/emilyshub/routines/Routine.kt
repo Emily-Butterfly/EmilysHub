@@ -119,6 +119,13 @@ data class Occurrence(
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
 }
 
+/** How an occurrence of a routine ended on its day, or that it is still open, as the statistics need it (SPEC.md §8). */
+data class OccurrenceOutcome(
+    @ColumnInfo(name = "routine_id") val routineId: Long,
+    val date: LocalDate,
+    val status: OccurrenceStatus,
+)
+
 /**
  * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
  * [fullScreen] alarm, and when its time window ends.

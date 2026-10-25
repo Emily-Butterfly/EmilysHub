@@ -1,6 +1,6 @@
 package de.emilyshub.stats
 
-import de.emilyshub.routines.Occurrence
+import de.emilyshub.routines.OccurrenceOutcome
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
@@ -9,7 +9,6 @@ import de.emilyshub.routines.OccurrenceStatus.Skipped
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
-import java.time.LocalTime
 
 /** The statistics of routines (SPEC.md §8): streaks and the done rate, counting only the days they were due. */
 class RoutineHistoryTest {
@@ -94,10 +93,28 @@ class RoutineHistoryTest {
     }
 
     @Test
-    fun `a done rate is rounded to whole percent`() {
+    fun `a done rate is rounded to whole percent, but is 100 only with nothing missed and 0 only with nothing done`() {
         assertEquals(67, DoneRate(done = 2, counted = 3).percent)
         assertEquals(33, DoneRate(done = 1, counted = 3).percent)
         assertEquals(100, DoneRate(done = 4, counted = 4).percent)
+        assertEquals(99, DoneRate(done = 269, counted = 270).percent)
+        assertEquals(1, DoneRate(done = 1, counted = 270).percent)
+        assertEquals(0, DoneRate(done = 0, counted = 3).percent)
+    }
+
+    @Test
+    fun `over all routines, a day counts once something is done and nothing missed, and the rate counts all of them`() {
+        val history = RoutineHistory(
+            listOf(
+                outcome(routine = 1, "2026-10-20", Done), outcome(routine = 2, "2026-10-20", Skipped),
+                outcome(routine = 1, "2026-10-21", Done), outcome(routine = 2, "2026-10-21", Missed),
+                outcome(routine = 1, "2026-10-22", Done), outcome(routine = 2, "2026-10-22", Done),
+                outcome(routine = 2, "2026-10-23", Done),
+            ),
+        )
+
+        assertEquals(Streaks(current = 2, longest = 2), history.streaks())
+        assertEquals(DoneRate(done = 5, counted = 6), history.doneRate(today, period = 7))
     }
 
     @Test
@@ -114,11 +131,10 @@ class RoutineHistoryTest {
         )
     }
 
-    /** The occurrences of a routine on the days given, at times one after another, as they ended. */
-    private fun history(vararg days: Pair<String, OccurrenceStatus>) = RoutineHistory(
-        days.mapIndexed { index, (date, status) ->
-            val time = LocalTime.of(8, 0).plusMinutes(index.toLong())
-            Occurrence(routineId = 1, date = LocalDate.parse(date), time = time, status = status)
-        },
-    )
+    /** The occurrences of a routine on the days given, as they ended. */
+    private fun history(vararg days: Pair<String, OccurrenceStatus>) =
+        RoutineHistory(days.map { (date, status) -> outcome(routine = 1, date, status) })
+
+    private fun outcome(routine: Long, date: String, status: OccurrenceStatus) =
+        OccurrenceOutcome(routine, LocalDate.parse(date), status)
 }

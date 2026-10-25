@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -41,13 +42,15 @@ class Routines(
     }
 
     /**
-     * Every occurrence of every routine, active, paused or archived, as it ended or is still open, for the statistics
-     * (SPEC.md §8); those of a routine deleted go with it.
+     * How every occurrence of every routine, active, paused or archived, ended or that it is still open, for the
+     * statistics (SPEC.md §8); those of a routine deleted go with it. Anew only once one of them changes, not as the
+     * reminders note what they did.
      */
-    fun history(): Flow<List<Occurrence>> = flow { emitAll(dao.observeAllOccurrences()) }.flowOn(io)
+    fun history(): Flow<List<OccurrenceOutcome>> = flow { emitAll(dao.observeOutcomes().distinctUntilChanged()) }.flowOn(io)
 
-    /** The routine's occurrences, as [history] has them. */
-    fun history(routineId: Long): Flow<List<Occurrence>> = flow { emitAll(dao.observeOccurrencesOf(routineId)) }.flowOn(io)
+    /** How the routine's occurrences ended, as [history] has it. */
+    fun history(routineId: Long): Flow<List<OccurrenceOutcome>> =
+        flow { emitAll(dao.observeOutcomesOf(routineId).distinctUntilChanged()) }.flowOn(io)
 
     /** Every routine: those in use, as [inUse] orders them, then the archived ones, as [archived] does. */
     fun all(): Flow<List<Routine>> = combine(inUse(), archived()) { inUse, archived -> inUse + archived }

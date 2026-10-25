@@ -107,11 +107,11 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE id = :id")
     suspend fun occurrence(id: Long): Occurrence?
 
-    @Query("SELECT * FROM occurrences")
-    fun observeAllOccurrences(): Flow<List<Occurrence>>
+    @Query("SELECT routine_id, date, status FROM occurrences")
+    fun observeOutcomes(): Flow<List<OccurrenceOutcome>>
 
-    @Query("SELECT * FROM occurrences WHERE routine_id = :routineId")
-    fun observeOccurrencesOf(routineId: Long): Flow<List<Occurrence>>
+    @Query("SELECT routine_id, date, status FROM occurrences WHERE routine_id = :routineId")
+    fun observeOutcomesOf(routineId: Long): Flow<List<OccurrenceOutcome>>
 
     /** Every routine's occurrences on [date] and after, and those put off, whenever they were due. */
     @Query("SELECT * FROM occurrences WHERE date >= :date OR remind_at IS NOT NULL")

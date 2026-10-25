@@ -21,4 +21,6 @@ Auswertung pro Routine und gesamt.
 
 ## Hinweise
 
-- **Annahme (bitte bestätigen):** Bei mehreren Uhrzeiten pro Tag zählt ein Tag für den Streak, wenn keine Fälligkeit des Tages verpasst wurde.
+- **Entschieden:** Bei mehreren Uhrzeiten pro Tag zählt ein Tag für den Streak, wenn keine Fälligkeit des Tages verpasst wurde.
+- **Entschieden:** Ein Tag, der nur übersprungen wurde, ist für den Streak neutral: Er unterbricht nicht und zählt nicht mit.
+- **Entschieden:** Die Erledigt-Quote lässt Übersprungenes weg: erledigt ÷ (erledigt + verpasst).
