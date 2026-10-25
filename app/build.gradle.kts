@@ -75,15 +75,17 @@ android {
     }
 }
 
+val schemas = "$projectDir/schemas"
+
 room {
     // Every schema version is checked in, so migrations can be written and tested against it.
-    schemaDirectory("$projectDir/schemas")
+    schemaDirectory(schemas)
 }
 
 androidComponents {
     onVariants { variant ->
         // A backup of an older app version is brought up to date in a database laid out as the app's was then.
-        variant.sources.assets?.addStaticSourceDirectory("schemas")
+        variant.sources.assets?.addStaticSourceDirectory(schemas)
     }
 }
 

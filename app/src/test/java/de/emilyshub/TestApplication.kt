@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
@@ -56,7 +57,8 @@ class TestApplication : EmilysHubApplication() {
         settings = { settingsDao },
         wrappingKey = { backupWrappingKey },
         clock = clock,
-        migration = BackupMigration(this),
+        // Android's own SQLite, as SQLCipher's needs its native library.
+        migration = BackupMigration(this) { FrameworkSQLiteOpenHelperFactory() },
         io = Dispatchers.Unconfined,
         // Enough for the tests, which would take seconds with the real count.
         iterations = 1_000,

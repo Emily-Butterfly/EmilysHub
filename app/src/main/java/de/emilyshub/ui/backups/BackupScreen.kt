@@ -324,15 +324,15 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, label: Stri
 }
 
 /**
- * What [block] says of how it went, if anything, or [failure] if it failed: the reason is only logged, for there is
- * nothing the user could do about it.
+ * What [block] says of how it went, if anything, or [failure] if it failed: the kind of failure is only logged, for there
+ * is nothing the user could do about it. Not its message, which may quote the data.
  */
 private suspend fun failingWith(@StringRes failure: Int, block: suspend () -> Int?): Int? = try {
     block()
 } catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    Log.e(TAG, "A backup failed", e)
+    Log.e(TAG, "A backup failed: ${e.javaClass.name}")
     failure
 }
 

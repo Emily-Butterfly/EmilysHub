@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceDao
@@ -60,13 +61,17 @@ abstract class HubDatabase : RoomDatabase() {
         private const val KEY_BYTES = 32
 
         /** Opens the database with its 256-bit [key]; a wrong key fails on first access. */
-        fun open(context: Context, key: ByteArray, name: String = NAME): HubDatabase {
-            require(key.size == KEY_BYTES) { "The database key must be $KEY_BYTES bytes" }
-            System.loadLibrary("sqlcipher")
-            return Room.databaseBuilder(context, HubDatabase::class.java, name)
-                .openHelperFactory(SupportOpenHelperFactory(rawKey(key)))
+        fun open(context: Context, key: ByteArray, name: String = NAME): HubDatabase =
+            Room.databaseBuilder(context, HubDatabase::class.java, name)
+                .openHelperFactory(openHelpers(key))
                 .addMigrations(*MIGRATIONS.toTypedArray())
                 .build()
+
+        /** SQLCipher's, for databases with the 256-bit [key]: the app's database, and those its backups are migrated in. */
+        fun openHelpers(key: ByteArray): SupportSQLiteOpenHelper.Factory {
+            require(key.size == KEY_BYTES) { "The database key must be $KEY_BYTES bytes" }
+            System.loadLibrary("sqlcipher")
+            return SupportOpenHelperFactory(rawKey(key))
         }
 
         /** From each version to the next; also for backups of older versions (SPEC.md §10). */

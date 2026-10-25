@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
+import java.security.SecureRandom
 
 /** Open so that Robolectric tests can swap the parts that only work on a device. */
 open class EmilysHubApplication : Application() {
@@ -72,7 +73,8 @@ open class EmilysHubApplication : Application() {
             settings = { database.settings() },
             wrappingKey = { KeystoreKeys.getOrCreateAesGcmKey("backup-key") },
             clock = DeviceClock,
-            migration = BackupMigration(this),
+            // A key of its own each time: what is migrated there lives only as long as the migration.
+            migration = BackupMigration(this) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
             onRestore = ::updateReminders,
         )
     }

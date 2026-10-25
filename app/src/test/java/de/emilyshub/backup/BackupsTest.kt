@@ -127,6 +127,21 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup several versions old goes through each migration on the way`() {
+        val made = someOfEverything()
+        val file = sealed(asOfVersion14(contentOf(exported())))
+        changeEverything()
+
+        restore(file)
+
+        // Version 14 had no places for to-dos, nor their reminders: they start as an update would have left them.
+        val restored = everything()
+        assertEquals(made - TODO_TABLES, restored - TODO_TABLES)
+        assertEquals(emptyList<Any>(), restored.getValue("todo_places"))
+        assertEquals(listOf("Milch kaufen", "Steuer machen"), runBlocking { app.todos.open().first() }.map { it.todo.title }.sorted())
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the to-dos have a column too many for then.
@@ -313,14 +328,22 @@ class BackupsTest {
      * [content] as version 15 of the app would have made it: its to-dos without the column `away`, which came with 16.
      * A test of the migration of a backup for as long as this is the version that has backups first.
      */
-    private fun asOfVersion15(content: JSONObject): JSONObject {
-        val todos = content.table("todos")
-        val columns = todos.getJSONArray("columns")
-        val away = (0 until columns.length()).first { columns.getString(it) == "away" }
-        columns.remove(away)
-        val rows = todos.getJSONArray("rows")
-        for (row in 0 until rows.length()) rows.getJSONArray(row).remove(away)
-        return content.put("schema", 15)
+    private fun asOfVersion15(content: JSONObject) = content.withoutColumns("todos", "away").put("schema", 15)
+
+    /** [content] as version 14 made it: the to-dos also without their reminders and places, which came with 15. */
+    private fun asOfVersion14(content: JSONObject): JSONObject {
+        content.withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting").tables().remove("todo_places")
+        return content.put("schema", 14)
+    }
+
+    private fun JSONObject.withoutColumns(table: String, vararg names: String) = apply {
+        val columns = table(table).getJSONArray("columns")
+        val rows = rowsOf(table)
+        for (name in names) {
+            val index = (0 until columns.length()).first { columns.getString(it) == name }
+            columns.remove(index)
+            for (row in 0 until rows.length()) rows.getJSONArray(row).remove(index)
+        }
     }
 
     private fun JSONObject.tables() = getJSONObject("tables")
@@ -344,6 +367,7 @@ class BackupsTest {
 
     private companion object {
         const val PASSWORD = "Flieder und Lila"
+        val TODO_TABLES = setOf("todos", "todo_places")
         const val FEW_ITERATIONS = 1_000
     }
 }

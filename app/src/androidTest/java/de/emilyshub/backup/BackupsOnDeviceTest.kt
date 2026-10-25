@@ -32,7 +32,8 @@ import javax.crypto.KeyGenerator
 
 /**
  * Backups (SPEC.md §10) between two databases encrypted with SQLCipher, on Android's own crypto, with the real number
- * of key derivation rounds: what the Robolectric tests cannot show.
+ * of key derivation rounds where that is what counts; and older ones migrated on SQLCipher's SQLite with the schema of
+ * then from the app's assets: what the Robolectric tests cannot show.
  */
 @RunWith(AndroidJUnit4::class)
 class BackupsOnDeviceTest {
@@ -86,15 +87,7 @@ class BackupsOnDeviceTest {
                 val file = ByteArrayOutputStream().also { out -> backups.export { out } }.toByteArray()
                 JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
             }
-            // As version 15 made it: the to-dos without the column that came with 16.
-            content.put("schema", 15).getJSONObject("tables").getJSONObject("todos").apply {
-                val columns = getJSONArray("columns")
-                val away = (0 until columns.length()).first { columns.getString(it) == "away" }
-                columns.remove(away)
-                val rows = getJSONArray("rows")
-                for (row in 0 until rows.length()) rows.getJSONArray(row).remove(away)
-            }
-            val file = BackupFile.seal(content.toString().toByteArray(), key)
+            val file = BackupFile.seal(asOfVersion15(content).toString().toByteArray(), key)
 
             val backups = backupsOf(new)
             runBlocking { backups.restore(backups.open({ ByteArrayInputStream(file) }, PASSWORD)) }
@@ -106,18 +99,31 @@ class BackupsOnDeviceTest {
         }
     }
 
+    /** [content] as version 15 of the app would have made it: its to-dos without the column `away`, which came with 16. */
+    private fun asOfVersion15(content: JSONObject): JSONObject {
+        val todos = content.getJSONObject("tables").getJSONObject("todos")
+        val columns = todos.getJSONArray("columns")
+        val away = (0 until columns.length()).first { columns.getString(it) == "away" }
+        columns.remove(away)
+        val rows = todos.getJSONArray("rows")
+        for (row in 0 until rows.length()) rows.getJSONArray(row).remove(away)
+        return content.put("schema", 15)
+    }
+
     /** A routine with a tag and a place with a WLAN and a GPS area, and a to-do. */
-    private fun someData(database: HubDatabase) = runBlocking {
-        val tag = Tags({ database }).create("Gesundheit")
-        val shop = PlaceDraft("Supermarkt", listOf("Markt-WLAN")).withCenter(Coordinates(52.52, 13.405))
-        val place = Places({ database }).create(shop)
-        Routines({ database }, Clock.systemUTC()).create(
-            RoutineDraft(
-                "Vitamine", description = "", listOf(LocalTime.of(7, 30)), Repetition.Daily,
-                tagIds = setOf(tag), placeIds = setOf(place),
-            ),
-        )
-        Todos({ database }, Clock.systemUTC()).create(TodoDraft("Milch kaufen", placeIds = setOf(place)))
+    private fun someData(database: HubDatabase) {
+        runBlocking {
+            val tag = Tags({ database }).create("Gesundheit")
+            val shop = PlaceDraft("Supermarkt", listOf("Markt-WLAN")).withCenter(Coordinates(52.52, 13.405))
+            val place = Places({ database }).create(shop)
+            Routines({ database }, Clock.systemUTC()).create(
+                RoutineDraft(
+                    "Vitamine", description = "", listOf(LocalTime.of(7, 30)), Repetition.Daily,
+                    tagIds = setOf(tag), placeIds = setOf(place),
+                ),
+            )
+            Todos({ database }, Clock.systemUTC()).create(TodoDraft("Milch kaufen", placeIds = setOf(place)))
+        }
     }
 
     private fun backupsOf(database: HubDatabase, iterations: Int = BackupKey.ITERATIONS) = Backups(
@@ -125,7 +131,7 @@ class BackupsOnDeviceTest {
         settings = { database.settings() },
         wrappingKey = { wrappingKey },
         clock = Clock.systemUTC(),
-        migration = BackupMigration(context),
+        migration = BackupMigration(context) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
         iterations = iterations,
     )
 
