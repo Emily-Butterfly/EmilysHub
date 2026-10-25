@@ -133,7 +133,7 @@
     <string name="reminder_skip">Überspringen</string>
     <string name="todo_reminder_places">Ort: %1$s</string>
     <string name="todo_places_none">Ohne Ort erinnert ein To-do nur zu seiner Uhrzeit, falls es eine hat.</string>
-    <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Das Ankommen erkennt die App, wenn sich das Handy mit einem WLAN verbindet. Die Erinnerung wartet, bis das To-do erledigt ist.</string>
+    <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Das Ankommen erkennt die App, wenn sich das Handy mit einem WLAN verbindet, und indem sie alle 30 Minuten nachsieht, wo du bist (abschaltbar in den Einstellungen). Die Erinnerung wartet, bis das To-do erledigt ist.</string>
 
     <string name="alarm_unlock">Entsperren</string>
     <string name="alarm_close">Schließen</string>
@@ -156,6 +156,8 @@
     <string name="app_lock_prompt_title">EmilysHub entsperren</string>
 
     <string name="places_manage">Orte verwalten</string>
+    <string name="settings_look_around">Alle 30 Minuten nachsehen</string>
+    <string name="settings_look_around_summary">Solange ein To-do auf einen Ort wartet, sieht die App alle 30 Minuten nach, ob du dort angekommen bist, auch an Orten ohne WLAN. Das braucht etwas Akku.</string>
     <string name="places_manage_summary">WLANs und GPS-Bereiche, an denen EmilysHub erkennt, wo du bist</string>
     <string name="places_title">Orte</string>
     <string name="places_empty">Noch keine Orte.</string>

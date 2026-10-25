@@ -82,6 +82,7 @@ fun EmilysHubApp(
     wifi: CurrentWifi,
     location: CurrentLocation,
     onProbe: () -> Unit,
+    updateReminders: suspend () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
@@ -114,6 +115,12 @@ fun EmilysHubApp(
                         scope.launch {
                             settings.setAppLockEnabled(enabled)
                             lock.setEnabled(enabled)
+                        }
+                    },
+                    onLookAroundChange = { on ->
+                        scope.launch {
+                            settings.setLookAround(on)
+                            updateReminders()
                         }
                     },
                     onRemindersAsked = { scope.launch { settings.setRemindersAsked() } },
@@ -161,6 +168,7 @@ private fun AppShell(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onLookAroundChange: (Boolean) -> Unit,
     onRemindersAsked: () -> Unit,
 ) {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
@@ -222,6 +230,7 @@ private fun AppShell(
                 canAuthenticate = canAuthenticate,
                 onDesignChange = onDesignChange,
                 onAppLockChange = onAppLockChange,
+                onLookAroundChange = onLookAroundChange,
                 onOpenStatus = { statusOpen = true },
                 onOpenPlaces = { placesOpen = true },
                 onOpenTags = { tagsOpen = true },

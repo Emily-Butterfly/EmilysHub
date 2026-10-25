@@ -65,7 +65,7 @@ open class EmilysHubApplication : Application() {
     open val locator: Locator by lazy { Locator(wifi, location, places) }
 
     open val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, DeviceClock, locator::whereabouts) { database.settings() }
+        Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::lookAround) { database.settings() }
     }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */

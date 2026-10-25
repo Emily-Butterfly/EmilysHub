@@ -8,8 +8,8 @@ import android.os.Build
 import java.time.Instant
 
 /**
- * An alarm that wakes the app for [action], to [ReminderReceiver]: the one for the next reminder, or the one for a
- * reminder to try out. Setting it again replaces it.
+ * An alarm that wakes the app for [action], to [ReminderReceiver]: the one for the next reminder, the one for looking
+ * around, or the one for a reminder to try out. Setting it again replaces it.
  */
 class ReminderAlarm(private val context: Context, private val action: String = ReminderReceiver.ACTION_REMIND) {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)

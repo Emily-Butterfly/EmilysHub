@@ -101,7 +101,7 @@ class TodoRemindersTest {
         runBlocking { app.reminders.update() }
 
         assertEquals(listOf("Arzt anrufen"), titles())
-        assertEquals(null, alarmManager.peekNextScheduledAlarm())
+        assertEquals(emptyList<ShadowAlarmManager.ScheduledAlarm>(), alarmManager.scheduledAlarms)
     }
 
     @Test
@@ -164,13 +164,15 @@ class TodoRemindersTest {
 
             assertEquals(listOf("Arzt"), titles())
             assertEquals(emptyList<String>(), app.todos.archived().first().map { it.title })
-            assertEquals(null, alarmManager.peekNextScheduledAlarm())
+            assertEquals(emptyList<ShadowAlarmManager.ScheduledAlarm>(), alarmManager.scheduledAlarms)
         }
 
     private fun receiverIntent(action: String, todoId: Long) =
         Intent(app, ReminderReceiver::class.java).setAction(action).putExtra(EXTRA_TODO, todoId)
 
-    private fun nextAlarm() = checkNotNull(alarmManager.peekNextScheduledAlarm()) { "No alarm set" }
+    /** The alarm for the next reminder, not the one for looking around. */
+    private fun nextAlarm() =
+        alarmManager.scheduledAlarms.single { shadowOf(it.operation).savedIntent.action == ReminderReceiver.ACTION_REMIND }
 
     /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
     private fun goOffAt(localDateTime: String) {

@@ -48,6 +48,7 @@ fun SettingsScreen(
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onLookAroundChange: (Boolean) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
@@ -84,6 +85,12 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.places_manage)) },
                 supportingContent = { Text(stringResource(R.string.places_manage_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenPlaces),
+            )
+            SettingSwitch(
+                title = stringResource(R.string.settings_look_around),
+                summary = stringResource(R.string.settings_look_around_summary),
+                checked = settings.lookAround,
+                onChange = onLookAroundChange,
             )
 
             SectionHeader(R.string.settings_tags)
@@ -153,29 +160,35 @@ private fun AppLockSwitch(on: Boolean, canAuthenticate: () -> Boolean, onChange:
         deviceSecure = canAuthenticate()
         onPauseOrDispose {}
     }
-    val checked = on && deviceSecure
+    SettingSwitch(
+        title = stringResource(R.string.settings_app_lock),
+        summary = stringResource(
+            if (deviceSecure) R.string.settings_app_lock_summary else R.string.settings_app_lock_needs_screen_lock,
+        ),
+        checked = on && deviceSecure,
+        enabled = deviceSecure,
+        onChange = onChange,
+    )
+}
 
+/** A setting turned on or off, with what it does under its [title]; the whole row is the switch. */
+@Composable
+private fun SettingSwitch(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, enabled = deviceSecure, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.settings_app_lock), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = stringResource(
-                    if (deviceSecure) R.string.settings_app_lock_summary else R.string.settings_app_lock_needs_screen_lock,
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(
             checked = checked,
             onCheckedChange = null,
-            enabled = deviceSecure,
+            enabled = enabled,
             modifier = Modifier.padding(start = 16.dp),
         )
     }

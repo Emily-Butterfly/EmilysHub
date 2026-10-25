@@ -10,8 +10,11 @@ import kotlin.coroutines.CoroutineContext
 /** The in-app design choice (SPEC.md §1): follow the system, or always light (Flieder) or dark (Lila). */
 enum class Design(val stored: String) { System("system"), Light("light"), Dark("dark") }
 
-/** [remindersAsked]: whether the permissions reminders need were asked for already, which happens once. */
-data class Settings(val design: Design, val appLockEnabled: Boolean, val remindersAsked: Boolean)
+/**
+ * [remindersAsked]: whether the permissions reminders need were asked for already, which happens once. [lookAround]:
+ * whether the app looks around every 30 minutes while a to-do waits for a place (SPEC.md §4), on unless turned off.
+ */
+data class Settings(val design: Design, val appLockEnabled: Boolean, val remindersAsked: Boolean, val lookAround: Boolean)
 
 /**
  * The settings every screen depends on, read from the encrypted database and then kept in memory.
@@ -28,13 +31,14 @@ class AppSettings(
         private set
 
     suspend fun load(): Settings {
-        val (design, appLock, remindersAsked) = withContext(io) {
-            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED).map { dao().get(it) }
+        val (design, appLock, remindersAsked, lookAround) = withContext(io) {
+            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND).map { dao().get(it) }
         }
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
             appLockEnabled = appLock != OFF,
             remindersAsked = remindersAsked == YES,
+            lookAround = lookAround != OFF,
         ).also { current = it }
     }
 
@@ -46,6 +50,12 @@ class AppSettings(
 
     suspend fun setRemindersAsked() =
         save(REMINDERS_ASKED, YES) { it.copy(remindersAsked = true) }
+
+    suspend fun setLookAround(on: Boolean) =
+        save(LOOK_AROUND, if (on) ON else OFF) { it.copy(lookAround = on) }
+
+    /** Whether the app may look around, read anew from the database: the reminders ask while the app may be closed. */
+    suspend fun lookAround(): Boolean = withContext(io) { dao().get(LOOK_AROUND) } != OFF
 
     /** Writes first and only then shows the change, applied to whatever is current by then. */
     private suspend fun save(name: String, value: String, change: (Settings) -> Settings) {
@@ -60,6 +70,7 @@ class AppSettings(
         const val ON = "on"
         const val OFF = "off"
         const val REMINDERS_ASKED = "reminders-asked"
+        const val LOOK_AROUND = "look-around"
         const val YES = "yes"
     }
 }

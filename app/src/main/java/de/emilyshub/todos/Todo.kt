@@ -63,11 +63,14 @@ data class Todo(
  * saved ([remindsAtDueTime]), so that a time gone by already does not pop up. Bound to places, it is [waiting] for them until
  * it has popped up: at its time if there, otherwise on arriving at one, from its time or day on, or from the start
  * without either. It pops up anywhere at [remindAt]: when it was put off to ("Später"), or on arrival, by the alarm.
+ * Looking around, the app notes when it has seen the device surely [away] from its places: surely at one again after
+ * that, it has arrived.
  */
 data class Reminding(
     @ColumnInfo(name = "reminds_at_due_time", defaultValue = "0") val remindsAtDueTime: Boolean = false,
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val away: Boolean = false,
 )
 
 /** A sub-item of a to-do's checklist, at its [position] among the others, [ticked] off or not. */

@@ -220,3 +220,10 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_places_place_id` ON `todo_places` (`place_id`)")
     }
 }
+
+/** To-dos note when they were seen away from their places, so that being at one after that is arriving (SPEC.md §4). */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `away` INTEGER NOT NULL DEFAULT 0")
+    }
+}

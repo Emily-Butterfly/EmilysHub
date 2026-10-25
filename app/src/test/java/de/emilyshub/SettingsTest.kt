@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.ui.theme.FliederColorScheme
@@ -116,6 +117,20 @@ class SettingsTest {
         }
     }
 
+    @Test
+    fun `looking around every 30 minutes for to-dos waiting for a place is on by default, and can be turned off`() {
+        launchApp().use {
+            openSettings()
+            lookAroundSwitch().performScrollTo().assertIsOn()
+            compose.onNodeWithText("auch an Orten ohne WLAN", substring = true).performScrollTo().assertIsDisplayed()
+
+            lookAroundSwitch().performClick()
+
+            lookAroundSwitch().assertIsOff()
+            assertEquals("off", app.settingsDao.values["look-around"])
+        }
+    }
+
     private fun openSettings() {
         compose.onNodeWithContentDescription("Einstellungen").performClick()
     }
@@ -128,6 +143,8 @@ class SettingsTest {
     }
 
     private fun appLockSwitch() = compose.onNode(isToggleable() and hasText("App-Sperre"))
+
+    private fun lookAroundSwitch() = compose.onNode(isToggleable() and hasText("Alle 30 Minuten nachsehen"))
 
     /**
      * The top left corner: the top bar, in the background's color while nothing is scrolled, and

@@ -49,7 +49,7 @@ interface TodoDao {
     suspend fun setDoneAt(id: Long, doneAt: Instant?)
 
     /** Sets its reminder anew, as it is saved: not put off or popped up, [waiting] for its places if it has any. */
-    @Query("UPDATE todos SET reminds_at_due_time = :remindsAtDueTime, remind_at = NULL, waiting = :waiting WHERE id = :id")
+    @Query("UPDATE todos SET reminds_at_due_time = :remindsAtDueTime, remind_at = NULL, waiting = :waiting, away = 0 WHERE id = :id")
     suspend fun rearm(id: Long, remindsAtDueTime: Boolean, waiting: Boolean)
 
     @Query("UPDATE todos SET remind_at = :until WHERE id = :id")
@@ -58,6 +58,10 @@ interface TodoDao {
     /** They wait for their places no more, as they popped up there or are bound to none any more. */
     @Query("UPDATE todos SET waiting = 0 WHERE id IN (:ids)")
     suspend fun stopWaiting(ids: Collection<Long>)
+
+    /** Notes whether they were seen [away] from their places. */
+    @Query("UPDATE todos SET away = :away WHERE id IN (:ids)")
+    suspend fun setAway(ids: Collection<Long>, away: Boolean)
 
     /** They pop up [at] then, on arrival or bound to no place any more, and wait no more. */
     @Query("UPDATE todos SET waiting = 0, remind_at = :at WHERE id IN (:ids)")

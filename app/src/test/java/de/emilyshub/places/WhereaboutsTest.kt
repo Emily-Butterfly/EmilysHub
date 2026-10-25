@@ -17,15 +17,15 @@ class WhereaboutsTest {
         assertEquals(Whereabouts.At(setOf(2L)), Whereabouts.of(Wifi.Named("Firma"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.Named("Café"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, null, listOf(uni, work)))
-        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)))
-        assertEquals(Whereabouts.At(setOf(1L, 2L)), Whereabouts.of(wifi = null, null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(setOf(1L, 2L), surely = emptySet()), Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)))
+        assertEquals(Whereabouts.At(setOf(1L, 2L), surely = emptySet()), Whereabouts.of(wifi = null, null, listOf(uni, work)))
     }
 
     @Test
     fun `the device is at the GPS places whose area its position lies within, and maybe at any while it has none`() {
         assertEquals(Whereabouts.At(setOf(3L)), Whereabouts.of(Wifi.None, Position(Coordinates(52.5205, 13.4), 10.0), listOf(gym)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, Position(Coordinates(52.6, 13.4), 10.0), listOf(gym)))
-        assertEquals(Whereabouts.At(setOf(3L)), Whereabouts.of(Wifi.None, position = null, listOf(gym)))
+        assertEquals(Whereabouts.At(setOf(3L), surely = emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(gym)))
     }
 
     @Test
@@ -37,7 +37,17 @@ class WhereaboutsTest {
         assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.None, atHome, listOf(home)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.NameHidden, away, listOf(home)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(home)))
-        assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.NameHidden, position = null, listOf(home)))
+        assertEquals(Whereabouts.At(setOf(4L), surely = emptySet()), Whereabouts.of(Wifi.NameHidden, position = null, listOf(home)))
+    }
+
+    @Test
+    fun `the device is surely at a place only where the WLAN or the position tells so, not where it only may be`() {
+        assertEquals(true, Whereabouts.of(Wifi.Named("Firma"), null, listOf(uni, work)).surelyAt(setOf(1L, 2L)))
+        assertEquals(false, Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)).surelyAt(setOf(1L)))
+        val imprecise = Position(Coordinates(52.5205, 13.4), accuracy = 2_000.0)
+        assertEquals(false, Whereabouts.of(Wifi.None, imprecise, listOf(gym)).surelyAt(setOf(3L)))
+        assertEquals(true, Whereabouts.of(Wifi.None, Position(Coordinates(52.5205, 13.4), 10.0), listOf(gym)).surelyAt(setOf(3L)))
+        assertEquals(false, Whereabouts.Unknown.surelyAt(setOf(3L)))
     }
 
     @Test

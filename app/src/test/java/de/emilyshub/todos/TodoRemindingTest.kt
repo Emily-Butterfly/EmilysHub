@@ -182,6 +182,32 @@ class TodoRemindingTest {
     }
 
     @Test
+    fun `looking around, a to-do pops up on arriving at its place once seen away from it, not while it stays there`() =
+        runBlocking {
+            todo("Post", places = setOf(home))
+
+            assertEquals(emptyList<String>(), lookAround(atHome))
+            assertEquals(emptyList<String>(), lookAround(elsewhere))
+            assertEquals(listOf("Post"), lookAround(atHome))
+            assertEquals("it pops up by the alarm", clock.now, todos.nextAlarm(after = berlin("2026-10-23T06:00")))
+        }
+
+    @Test
+    fun `looking around, being maybe there changes nothing, and arriving before its day is not arriving on it`() = runBlocking {
+        todo("Müll", Due.On(today.plusDays(1)), places = setOf(home))
+        lookAround(elsewhere)
+
+        assertEquals(emptyList<String>(), lookAround(Whereabouts.At(setOf(home), surely = emptySet())))
+        assertEquals(emptyList<String>(), lookAround(Whereabouts.Unknown))
+        assertEquals(emptyList<String>(), lookAround(atHome))
+        clock.now = berlin("2026-10-24T00:30")
+        assertEquals(emptyList<String>(), lookAround(atHome))
+
+        lookAround(elsewhere)
+        assertEquals(listOf("Müll"), lookAround(atHome))
+    }
+
+    @Test
     fun `the places of a to-do are kept, but one deleted meanwhile`() = runBlocking {
         val gone = places.create(PlaceDraft("Gym", listOf("FitX")))
         places.delete(gone)
@@ -201,6 +227,8 @@ class TodoRemindingTest {
     }
 
     private suspend fun arrive(whereabouts: Whereabouts): List<String> = todos.arrive { whereabouts }.map { it.title }
+
+    private suspend fun lookAround(whereabouts: Whereabouts): List<String> = todos.lookAround { whereabouts }.map { it.title }
 
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.timeZone).toInstant()
 }

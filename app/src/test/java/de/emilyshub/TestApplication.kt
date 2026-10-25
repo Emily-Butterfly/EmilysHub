@@ -40,7 +40,9 @@ class TestApplication : EmilysHubApplication() {
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
-    override val reminders: Reminders by lazy { Reminders(this, routines, todos, clock, locator::whereabouts) { settingsDao } }
+    override val reminders: Reminders by lazy {
+        Reminders(this, routines, todos, clock, locator::whereabouts, settings::lookAround) { settingsDao }
+    }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */

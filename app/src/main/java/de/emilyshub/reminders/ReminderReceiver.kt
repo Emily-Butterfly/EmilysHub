@@ -31,6 +31,7 @@ class ReminderReceiver : BroadcastReceiver() {
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
+            ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
             ACTION_PROBE -> suspend { app.reminders.showProbe() }
             else -> null
         }
@@ -53,6 +54,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** The device joined a WLAN, as Android tells for [ArrivalWatch]. */
         const val ACTION_ARRIVE = "de.emilyshub.action.ARRIVE"
+
+        /** The app is to look around, as a to-do waits for a place. */
+        const val ACTION_LOOK_AROUND = "de.emilyshub.action.LOOK_AROUND"
 
         /** The reminder to try out is due. */
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"

@@ -8,12 +8,13 @@ import org.junit.Test
 class AppSettingsTest {
 
     private val dao = InMemorySettingsDao()
+    private val defaults = Settings(design = Design.System, appLockEnabled = true, remindersAsked = false, lookAround = true)
 
     @Test
     fun `a new installation follows the system design and has the app lock on`() {
         val settings = load()
 
-        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), settings)
+        assertEquals(defaults, settings)
     }
 
     @Test
@@ -44,11 +45,22 @@ class AppSettingsTest {
     }
 
     @Test
+    fun `looking around for to-dos waiting for a place is on until turned off, which is still there after a restart`() {
+        assertEquals(true, load().lookAround)
+
+        runBlocking { AppSettings({ dao }).apply { load() }.setLookAround(false) }
+
+        assertEquals(false, load().lookAround)
+        assertEquals(false, runBlocking { AppSettings({ dao }).lookAround() })
+    }
+
+    @Test
     fun `unknown stored values fall back to the defaults, keeping the app lock on`() {
         dao.values["design"] = "Dark"
         dao.values["app-lock"] = "false"
+        dao.values["look-around"] = "no"
 
-        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), load())
+        assertEquals(defaults, load())
     }
 
     @Test
@@ -57,11 +69,11 @@ class AppSettingsTest {
         assertNull(settings.current)
 
         runBlocking { settings.load() }
-        assertEquals(Settings(design = Design.System, appLockEnabled = true, remindersAsked = false), settings.current)
+        assertEquals(defaults, settings.current)
 
         runBlocking { settings.setDesign(Design.Dark) }
         runBlocking { settings.setAppLockEnabled(false) }
-        assertEquals(Settings(design = Design.Dark, appLockEnabled = false, remindersAsked = false), settings.current)
+        assertEquals(defaults.copy(design = Design.Dark, appLockEnabled = false), settings.current)
     }
 
     private fun load() = runBlocking { AppSettings({ dao }).load() }

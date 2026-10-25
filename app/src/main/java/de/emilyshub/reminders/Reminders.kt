@@ -21,7 +21,9 @@ import java.time.Instant
  * and alarm first marks what ran out meanwhile, also while the phone was off.
  *
  * To-dos remind the same way (SPEC.md §5), at their time and on arrival at their places, only with "Erledigt · Später":
- * a to-do is never skipped or missed, and its reminder stays until it is done.
+ * a to-do is never skipped or missed, and its reminder stays until it is done. While one waits for a place, the app
+ * also looks around every [LOOK_AROUND_EVERY] ([lookAround]), as long as [lookingAround] says the settings let it, so
+ * that arriving is noticed at a place without a WLAN too.
  *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
@@ -37,10 +39,12 @@ class Reminders(
     private val todos: Todos,
     private val clock: Clock,
     private val locate: Locate,
+    private val lookingAround: suspend () -> Boolean,
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
     private val probeAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_PROBE)
+    private val lookAroundAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_LOOK_AROUND)
     private val arrivals = ArrivalWatch(context)
     private val notifications = ReminderNotifications(context, clock)
 
@@ -85,6 +89,16 @@ class Reminders(
         val routinesArrived = routines.arrive(locate)
         val todosArrived = todos.arrive(locate)
         if (routinesArrived.isNotEmpty() || todosArrived.isNotEmpty()) tidyAndSetAlarm()
+    }
+
+    /**
+     * The look around is due: where the device has arrived at a place a to-do waits for, as [Todos.lookAround] tells, the
+     * to-do pops up by the alarm, as on arrival. The next look comes [LOOK_AROUND_EVERY] later, while a to-do still waits.
+     */
+    suspend fun lookAround() = lock.withLock {
+        settings().put(Setting(NEXT_LOOK, ""))
+        todos.lookAround(locate)
+        tidyAndSetAlarm()
     }
 
     /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
@@ -159,7 +173,28 @@ class Reminders(
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
         }
-        arrivals.watch(on = routines.anyBoundToPlaces() || todos.anyWaiting())
+        val todoWaits = todos.anyWaiting()
+        arrivals.watch(on = routines.anyBoundToPlaces() || todoWaits)
+        keepLookingAround(on = todoWaits && lookingAround())
+    }
+
+    /**
+     * Keeps a look around coming [LOOK_AROUND_EVERY] after the last while [on]; none otherwise. Its alarm is set again
+     * each time, as a restart takes it; one that should have come by now, or is too far ahead after the clock was put
+     * back, comes [LOOK_AROUND_EVERY] from now.
+     */
+    private suspend fun keepLookingAround(on: Boolean) {
+        if (!on) {
+            lookAroundAlarm.cancel()
+            settings().put(Setting(NEXT_LOOK, ""))
+            return
+        }
+        val now = clock.instant()
+        val next = settings().get(NEXT_LOOK)?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            ?.takeIf { it.isAfter(now) && !it.isAfter(now + LOOK_AROUND_EVERY) }
+            ?: (now + LOOK_AROUND_EVERY)
+        lookAroundAlarm.set(next)
+        settings().put(Setting(NEXT_LOOK, next.toString()))
     }
 
     /**
@@ -181,7 +216,13 @@ class Reminders(
         /** How long until the reminder to try out comes (SPEC.md §11). */
         val PROBE_DELAY: Duration = Duration.ofSeconds(10)
 
+        /** How often the app looks around while a to-do waits for a place. */
+        val LOOK_AROUND_EVERY: Duration = Duration.ofMinutes(30)
+
         private const val REMINDED_UNTIL = "reminded-until"
+
+        /** When the app looks around next; empty while it does not. */
+        private const val NEXT_LOOK = "next-look-around"
     }
 }
 

@@ -373,6 +373,24 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 15 moves to version 16 where to-dos waiting for a place were not seen away yet`() {
+        createAtVersion(15) {
+            it.execSQL("INSERT INTO places (id, name) VALUES (1, 'Zuhause')")
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, reminds_at_due_time, waiting) " +
+                    "VALUES (1, 'Post', '', 'normal', 0, 1)",
+            )
+            it.execSQL("INSERT INTO todo_places (todo_id, place_id) VALUES (1, 1)")
+        }
+
+        withMigratedDatabase { database ->
+            val post = database.todos().observeAll().first().single()
+            assertEquals(Reminding(waiting = true), post.todo.reminding)
+            assertEquals(setOf(1L), post.placeIds)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

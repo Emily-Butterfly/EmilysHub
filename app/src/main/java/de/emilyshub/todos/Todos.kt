@@ -171,6 +171,25 @@ class Todos(
         popUp(waitingAlready, now)
     }
 
+    /**
+     * Looked around, as the reminders do every so often (SPEC.md §4): an open to-do waiting for its places is seen away
+     * from them where [locate] says the device is surely elsewhere, and has arrived once it is surely at one of them
+     * after that. Then it pops up, as on [arrive], if its time or day has come; arriving before is not arriving then.
+     * Being at one of them already, or maybe, is not arriving. Returns those popping up. [locate] is only asked while one
+     * waits, about the places it waits for. Not reported as a change: the reminders do this themselves.
+     */
+    suspend fun lookAround(locate: Locate): List<TodoReminder> = withContext(io + NonCancellable) {
+        val waiting = dao.openWaiting().filter { it.waitsForPlaces }
+        if (waiting.isEmpty()) return@withContext emptyList()
+        val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
+        val there = waiting.filter { whereabouts.surelyAt(it.placeIds) }
+        val arrived = there.filter { it.todo.reminding.away }
+        dao.setAway(waiting.filter { !whereabouts.allows(it.placeIds) }.map { it.todo.id }, away = true)
+        dao.setAway(there.map { it.todo.id }, away = false)
+        val now = now()
+        popUp(arrived.filter { waitsFrom(it.todo.due, now) }, now)
+    }
+
     /** Whether an open to-do waits for its places, so that arriving at one matters. */
     suspend fun anyWaiting(): Boolean = withContext(io) { dao.anyOpenWaiting() }
 
