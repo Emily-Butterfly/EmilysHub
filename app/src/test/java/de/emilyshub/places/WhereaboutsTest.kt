@@ -17,15 +17,16 @@ class WhereaboutsTest {
         assertEquals(Whereabouts.At(setOf(2L)), Whereabouts.of(Wifi.Named("Firma"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.Named("Café"), null, listOf(uni, work)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, null, listOf(uni, work)))
-        assertEquals(Whereabouts.At(setOf(1L, 2L), surely = emptySet()), Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)))
-        assertEquals(Whereabouts.At(setOf(1L, 2L), surely = emptySet()), Whereabouts.of(wifi = null, null, listOf(uni, work)))
+        val maybeAtBoth = Whereabouts.At(setOf(1L, 2L), surePlaceIds = emptySet())
+        assertEquals(maybeAtBoth, Whereabouts.of(Wifi.NameHidden, null, listOf(uni, work)))
+        assertEquals(maybeAtBoth, Whereabouts.of(wifi = null, null, listOf(uni, work)))
     }
 
     @Test
     fun `the device is at the GPS places whose area its position lies within, and maybe at any while it has none`() {
         assertEquals(Whereabouts.At(setOf(3L)), Whereabouts.of(Wifi.None, Position(Coordinates(52.5205, 13.4), 10.0), listOf(gym)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, Position(Coordinates(52.6, 13.4), 10.0), listOf(gym)))
-        assertEquals(Whereabouts.At(setOf(3L), surely = emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(gym)))
+        assertEquals(Whereabouts.At(setOf(3L), surePlaceIds = emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(gym)))
     }
 
     @Test
@@ -37,7 +38,8 @@ class WhereaboutsTest {
         assertEquals(Whereabouts.At(setOf(4L)), Whereabouts.of(Wifi.None, atHome, listOf(home)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.NameHidden, away, listOf(home)))
         assertEquals(Whereabouts.At(emptySet()), Whereabouts.of(Wifi.None, position = null, listOf(home)))
-        assertEquals(Whereabouts.At(setOf(4L), surely = emptySet()), Whereabouts.of(Wifi.NameHidden, position = null, listOf(home)))
+        val maybeAtHome = Whereabouts.At(setOf(4L), surePlaceIds = emptySet())
+        assertEquals(maybeAtHome, Whereabouts.of(Wifi.NameHidden, position = null, listOf(home)))
     }
 
     @Test
@@ -48,6 +50,9 @@ class WhereaboutsTest {
         assertEquals(false, Whereabouts.of(Wifi.None, imprecise, listOf(gym)).surelyAt(setOf(3L)))
         assertEquals(true, Whereabouts.of(Wifi.None, Position(Coordinates(52.5205, 13.4), 10.0), listOf(gym)).surelyAt(setOf(3L)))
         assertEquals(false, Whereabouts.Unknown.surelyAt(setOf(3L)))
+        val nearTheBorder = Position(Coordinates(52.5215, 13.4), accuracy = 20.0)
+        assertEquals(true, Whereabouts.of(Wifi.None, nearTheBorder, listOf(gym)).allows(setOf(3L)))
+        assertEquals(false, Whereabouts.of(Wifi.None, nearTheBorder, listOf(gym)).surelyAt(setOf(3L)))
     }
 
     @Test

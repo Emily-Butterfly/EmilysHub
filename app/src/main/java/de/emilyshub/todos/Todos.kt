@@ -142,6 +142,8 @@ class Todos(
             val whereabouts = if (held.isEmpty()) Whereabouts.Unknown else locate(held.flatMap { it.placeIds }.toSet())
             val shown = due.filter { it !in held || whereabouts.allows(it.placeIds) }
             dao.stopWaiting(shown.map { it.todo.id })
+            // Held back as surely elsewhere: arriving at one of its places from now on is arriving.
+            dao.setAway((held - shown.toSet()).map { it.todo.id }, away = true)
             shown.map(TodoWithDetails::toReminder)
         }
 
@@ -156,7 +158,9 @@ class Todos(
         val waiting = dao.openWaiting().filter { it.waitsForPlaces && waitsFrom(it.todo.due, now) }
         if (waiting.isEmpty()) return@withContext emptyList()
         val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
-        popUp(waiting.filter { whereabouts.allows(it.placeIds) }, now)
+        val (arrived, elsewhere) = waiting.partition { whereabouts.allows(it.placeIds) }
+        dao.setAway(elsewhere.map { it.todo.id }, away = true)
+        popUp(arrived, now)
     }
 
     /**
@@ -172,18 +176,18 @@ class Todos(
     }
 
     /**
-     * Looked around, as the reminders do every so often (SPEC.md §4): an open to-do waiting for its places is seen away
-     * from them where [locate] says the device is surely elsewhere, and has arrived once it is surely at one of them
-     * after that. Then it pops up, as on [arrive], if its time or day has come; arriving before is not arriving then.
-     * Being at one of them already, or maybe, is not arriving. Returns those popping up. [locate] is only asked while one
-     * waits, about the places it waits for. Not reported as a change: the reminders do this themselves.
+     * Looked around, as the reminders do every so often to notice arriving (SPEC.md §4): an open to-do waiting for its
+     * places is seen away from them where [locate] says the device is surely elsewhere, and has arrived once it is surely
+     * at one of them after that. Then it pops up, as on [arrive], if its time or day has come; arriving before is not
+     * arriving then. Being at one of them already, or maybe, is not arriving. Returns those popping up. [locate] is only
+     * asked while one waits, about the places it waits for. Not reported as a change: the reminders do this themselves.
      */
     suspend fun lookAround(locate: Locate): List<TodoReminder> = withContext(io + NonCancellable) {
         val waiting = dao.openWaiting().filter { it.waitsForPlaces }
         if (waiting.isEmpty()) return@withContext emptyList()
         val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
         val there = waiting.filter { whereabouts.surelyAt(it.placeIds) }
-        val arrived = there.filter { it.todo.reminding.away }
+        val arrived = there.filter { it.seenAway }
         dao.setAway(waiting.filter { !whereabouts.allows(it.placeIds) }.map { it.todo.id }, away = true)
         dao.setAway(there.map { it.todo.id }, away = false)
         val now = now()
@@ -193,16 +197,32 @@ class Todos(
     /** Whether an open to-do waits for its places, so that arriving at one matters. */
     suspend fun anyWaiting(): Boolean = withContext(io) { dao.anyOpenWaiting() }
 
+    /**
+     * Whether looking around is needed: an open to-do waits, its time or day come, for a place where only looking tells
+     * arriving, one with a GPS area. Joining a WLAN tells arriving at the others.
+     */
+    suspend fun needsLookingAround(): Boolean = withContext(io) {
+        val now = now()
+        dao.openWaiting().any { it.waitsForPlaces && waitsFrom(it.todo.due, now) && it.places.any { place -> place.area != null } }
+    }
+
     /** Of [ids], the to-dos to remind of now: open and popped up, not put off or set anew since. */
     suspend fun stillDue(ids: Collection<Long>): List<TodoReminder> = withContext(io) {
         val now = now()
         dao.withDetails(ids).filter { isReminding(it.todo, now) }.map(TodoWithDetails::toReminder)
     }
 
-    /** When the reminders have a to-do to pop up next after [after], at its time or when put off to; none if never. */
+    /**
+     * When the reminders have something to do for a to-do next after [after]: pop it up, at its time or when put off to,
+     * or begin to look around for one waiting for its places, as its day begins; none if never.
+     */
     suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
-        dao.open().mapNotNull { nextReminder(it.todo) }.filter { it.isAfter(after) }.minOrNull()
+        dao.open().flatMap { listOfNotNull(nextReminder(it.todo), waitBegins(it)) }.filter { it.isAfter(after) }.minOrNull()
     }
+
+    /** When a to-do due on a day, waiting for its places, begins to wait: as its day begins. */
+    private fun waitBegins(details: TodoWithDetails): Instant? =
+        (details.todo.due as? Due.On)?.takeIf { details.waitsForPlaces }?.date?.atStartOfDay(clock.zone)?.toInstant()
 
     /**
      * Ticks an item of the to-do's checklist off, or unticks it, and tells whether that ticked the to-do off: with all

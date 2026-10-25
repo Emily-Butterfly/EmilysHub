@@ -3,6 +3,7 @@ package de.emilyshub.todos
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.places.Coordinates
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.Places
 import de.emilyshub.places.Whereabouts
@@ -197,7 +198,7 @@ class TodoRemindingTest {
         todo("Müll", Due.On(today.plusDays(1)), places = setOf(home))
         lookAround(elsewhere)
 
-        assertEquals(emptyList<String>(), lookAround(Whereabouts.At(setOf(home), surely = emptySet())))
+        assertEquals(emptyList<String>(), lookAround(Whereabouts.At(setOf(home), surePlaceIds = emptySet())))
         assertEquals(emptyList<String>(), lookAround(Whereabouts.Unknown))
         assertEquals(emptyList<String>(), lookAround(atHome))
         clock.now = berlin("2026-10-24T00:30")
@@ -205,6 +206,36 @@ class TodoRemindingTest {
 
         lookAround(elsewhere)
         assertEquals(listOf("Müll"), lookAround(atHome))
+    }
+
+    @Test
+    fun `held at its time or on joining a WLAN elsewhere, a to-do is seen away, so arriving before the next look is arriving`() =
+        runBlocking {
+            todo("Pakete", Due.At(today, LocalTime.of(9, 0)), places = setOf(home))
+            todo("Post", places = setOf(home))
+            lookAround(atHome)
+
+            dueBetween("2026-10-23T07:00", "2026-10-23T09:00", elsewhere)
+            arrive(elsewhere)
+
+            assertEquals(listOf("Pakete", "Post"), lookAround(atHome))
+        }
+
+    @Test
+    fun `looking around is needed only while a to-do waits, its time or day come, for a place with a GPS area`() = runBlocking {
+        todo("Post", places = setOf(home))
+        assertEquals(false, todos.needsLookingAround())
+
+        val gym = places.create(PlaceDraft("Gym", emptyList()).withCenter(Coordinates(52.52, 13.4)))
+        val shoes = todo("Schuhe", Due.On(today.plusDays(1)), places = setOf(gym))
+        assertEquals(false, todos.needsLookingAround())
+        assertEquals("its day begins", berlin("2026-10-24T00:00"), todos.nextAlarm(after = clock.now))
+
+        clock.now = berlin("2026-10-24T00:00")
+        assertEquals(true, todos.needsLookingAround())
+
+        todos.markDone(shoes)
+        assertEquals(false, todos.needsLookingAround())
     }
 
     @Test

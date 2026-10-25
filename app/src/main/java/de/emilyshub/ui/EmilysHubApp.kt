@@ -82,7 +82,6 @@ fun EmilysHubApp(
     wifi: CurrentWifi,
     location: CurrentLocation,
     onProbe: () -> Unit,
-    updateReminders: suspend () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
     val current = settings.current ?: return
@@ -117,12 +116,7 @@ fun EmilysHubApp(
                             lock.setEnabled(enabled)
                         }
                     },
-                    onLookAroundChange = { on ->
-                        scope.launch {
-                            settings.setLookAround(on)
-                            updateReminders()
-                        }
-                    },
+                    onLookAroundChange = { enabled -> scope.launch { settings.setLookAroundEnabled(enabled) } },
                     onRemindersAsked = { scope.launch { settings.setRemindersAsked() } },
                 )
             }

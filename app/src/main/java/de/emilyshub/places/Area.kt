@@ -47,6 +47,13 @@ data class Area(@Embedded val center: Coordinates, val radius: Int) {
         else -> center.distanceTo(position.coordinates) <= radius + position.accuracy
     }
 
+    /**
+     * Whether the device is surely within it at [position], so that being there can count as arriving: the position
+     * itself lies within the radius, and it is as precise as the area is large. Near the border, it is only maybe.
+     */
+    fun surelyIncludes(position: Position): Boolean =
+        position.accuracy <= radius && center.distanceTo(position.coordinates) <= radius
+
     companion object {
         const val RADIUS_MIN = 50
         const val RADIUS_MAX = 500

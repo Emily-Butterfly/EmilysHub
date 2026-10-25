@@ -89,7 +89,7 @@ fun SettingsScreen(
             SettingSwitch(
                 title = stringResource(R.string.settings_look_around),
                 summary = stringResource(R.string.settings_look_around_summary),
-                checked = settings.lookAround,
+                checked = settings.lookAroundEnabled,
                 onChange = onLookAroundChange,
             )
 

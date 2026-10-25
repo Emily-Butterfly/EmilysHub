@@ -171,8 +171,7 @@ class TodoRemindersTest {
         Intent(app, ReminderReceiver::class.java).setAction(action).putExtra(EXTRA_TODO, todoId)
 
     /** The alarm for the next reminder, not the one for looking around. */
-    private fun nextAlarm() =
-        alarmManager.scheduledAlarms.single { shadowOf(it.operation).savedIntent.action == ReminderReceiver.ACTION_REMIND }
+    private fun nextAlarm() = alarmManager.alarmsFor(ReminderReceiver.ACTION_REMIND).single()
 
     /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
     private fun goOffAt(localDateTime: String) {

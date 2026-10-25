@@ -74,6 +74,8 @@ Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen 
 2. Nicht am Ort → Eintrag wartet; Pop-up beim Ankommen, solange das Zeitfenster (bzw. „bis Mitternacht“) läuft.
 3. Zeitfenster abgelaufen → **Verpasst**.
 
+Ankommen erkennt die App beim Verbinden mit einem WLAN. Solange ein To-do auf einen Ort mit GPS-Bereich wartet, sieht sie zusätzlich alle 30 Minuten nach, ob du dort angekommen bist (in den Einstellungen abschaltbar).
+
 ## 5. To-dos
 
 | Feld | Details |

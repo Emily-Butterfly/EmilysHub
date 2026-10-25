@@ -146,6 +146,9 @@ data class TodoWithDetails(
     /** Whether it waits for its places, to pop up on arriving at one; with none left, it waits for nothing. */
     val waitsForPlaces: Boolean get() = todo.reminding.waiting && places.isNotEmpty()
 
+    /** Whether the app has seen the device surely away from its places, looking around, since it began waiting. */
+    val seenAway: Boolean get() = todo.reminding.away
+
     /** Its reminder, as it pops up. */
     fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames)
 

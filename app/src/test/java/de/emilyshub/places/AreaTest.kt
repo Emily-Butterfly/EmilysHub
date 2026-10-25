@@ -40,6 +40,15 @@ class AreaTest {
     }
 
     @Test
+    fun `surely within an area is a position that itself lies within it, as precise as the area is large`() {
+        val gym = Area(berlin, radius = 150)
+
+        assertEquals(true, gym.surelyIncludes(at(metersNorth = 140.0, accuracy = 20.0)))
+        assertEquals(false, gym.surelyIncludes(at(metersNorth = 160.0, accuracy = 20.0)))
+        assertEquals(false, gym.surelyIncludes(at(metersNorth = 0.0, accuracy = 151.0)))
+    }
+
+    @Test
     fun `degrees are typed with a point or a comma, a minus for south and west, and are shown with a comma`() {
         assertEquals(52.520008, Degrees.parse("52,520008")!!, 0.0)
         assertEquals(52.520008, Degrees.parse(" 52.520008 ")!!, 0.0)

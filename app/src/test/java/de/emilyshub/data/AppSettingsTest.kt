@@ -8,7 +8,7 @@ import org.junit.Test
 class AppSettingsTest {
 
     private val dao = InMemorySettingsDao()
-    private val defaults = Settings(design = Design.System, appLockEnabled = true, remindersAsked = false, lookAround = true)
+    private val defaults = Settings(design = Design.System, appLockEnabled = true, remindersAsked = false, lookAroundEnabled = true)
 
     @Test
     fun `a new installation follows the system design and has the app lock on`() {
@@ -46,12 +46,12 @@ class AppSettingsTest {
 
     @Test
     fun `looking around for to-dos waiting for a place is on until turned off, which is still there after a restart`() {
-        assertEquals(true, load().lookAround)
+        assertEquals(true, load().lookAroundEnabled)
 
-        runBlocking { AppSettings({ dao }).apply { load() }.setLookAround(false) }
+        runBlocking { AppSettings({ dao }).apply { load() }.setLookAroundEnabled(false) }
 
-        assertEquals(false, load().lookAround)
-        assertEquals(false, runBlocking { AppSettings({ dao }).lookAround() })
+        assertEquals(false, load().lookAroundEnabled)
+        assertEquals(false, runBlocking { AppSettings({ dao }).mayLookAround() })
     }
 
     @Test

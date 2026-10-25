@@ -21,6 +21,8 @@ import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowAlarmManager
 import java.time.LocalTime
 
 /** What a user does with the whole app, shared by the Robolectric tests that drive [MainActivity]. */
@@ -98,3 +100,7 @@ fun ComposeTestRule.assertNamesStandOutByPriority(low: String, normal: String, h
     val sizes = styles.map { it.fontSize.value }
     assertTrue("Larger at high priority: $sizes", sizes[0] == sizes[1] && sizes[1] < sizes[2])
 }
+
+/** The alarms set for [action] of the reminders' receiver, such as the next reminder or looking around. */
+fun ShadowAlarmManager.alarmsFor(action: String): List<ShadowAlarmManager.ScheduledAlarm> =
+    scheduledAlarms.filter { shadowOf(it.operation).savedIntent.action == action }

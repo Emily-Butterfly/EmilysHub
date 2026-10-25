@@ -26,7 +26,7 @@ import java.time.ZoneId
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
-    override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined)
+    override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined, onLookAroundChange = ::updateReminders)
     override val authenticator = FakeAuthenticator()
     override val ringer = FakeRinger()
 
@@ -41,7 +41,7 @@ class TestApplication : EmilysHubApplication() {
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
     override val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, clock, locator::whereabouts, settings::lookAround) { settingsDao }
+        Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround) { settingsDao }
     }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 

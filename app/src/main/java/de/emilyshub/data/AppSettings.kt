@@ -11,20 +11,23 @@ import kotlin.coroutines.CoroutineContext
 enum class Design(val stored: String) { System("system"), Light("light"), Dark("dark") }
 
 /**
- * [remindersAsked]: whether the permissions reminders need were asked for already, which happens once. [lookAround]:
- * whether the app looks around every 30 minutes while a to-do waits for a place (SPEC.md §4), on unless turned off.
+ * [remindersAsked]: whether the permissions reminders need were asked for already, which happens once.
+ * [lookAroundEnabled]: whether the app looks around every 30 minutes while a to-do waits for a place, so that arriving
+ * there is noticed without a WLAN too; on unless turned off.
  */
-data class Settings(val design: Design, val appLockEnabled: Boolean, val remindersAsked: Boolean, val lookAround: Boolean)
+data class Settings(val design: Design, val appLockEnabled: Boolean, val remindersAsked: Boolean, val lookAroundEnabled: Boolean)
 
 /**
  * The settings every screen depends on, read from the encrypted database and then kept in memory.
  *
  * [dao] is only called on [io], since the first call opens the database. Stored values are
  * checked strictly: anything unknown counts as the default, and for the app lock that is "on".
+ * After looking around is turned on or off, [onLookAroundChange] runs, for the reminders to follow.
  */
 class AppSettings(
     private val dao: () -> SettingsDao,
     private val io: CoroutineContext = Dispatchers.IO,
+    private val onLookAroundChange: suspend () -> Unit = {},
 ) {
     /** Compose state: null until [load] has finished. */
     var current: Settings? by mutableStateOf(null)
@@ -36,9 +39,9 @@ class AppSettings(
         }
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
-            appLockEnabled = appLock != OFF,
+            appLockEnabled = isOn(appLock),
             remindersAsked = remindersAsked == YES,
-            lookAround = lookAround != OFF,
+            lookAroundEnabled = isOn(lookAround),
         ).also { current = it }
     }
 
@@ -51,11 +54,16 @@ class AppSettings(
     suspend fun setRemindersAsked() =
         save(REMINDERS_ASKED, YES) { it.copy(remindersAsked = true) }
 
-    suspend fun setLookAround(on: Boolean) =
-        save(LOOK_AROUND, if (on) ON else OFF) { it.copy(lookAround = on) }
+    suspend fun setLookAroundEnabled(enabled: Boolean) {
+        save(LOOK_AROUND, if (enabled) ON else OFF) { it.copy(lookAroundEnabled = enabled) }
+        onLookAroundChange()
+    }
 
     /** Whether the app may look around, read anew from the database: the reminders ask while the app may be closed. */
-    suspend fun lookAround(): Boolean = withContext(io) { dao().get(LOOK_AROUND) } != OFF
+    suspend fun mayLookAround(): Boolean = isOn(withContext(io) { dao().get(LOOK_AROUND) })
+
+    /** On unless stored as off, as for the app lock and looking around. */
+    private fun isOn(stored: String?) = stored != OFF
 
     /** Writes first and only then shows the change, applied to whatever is current by then. */
     private suspend fun save(name: String, value: String, change: (Settings) -> Settings) {

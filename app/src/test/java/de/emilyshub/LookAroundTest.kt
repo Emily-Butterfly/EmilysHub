@@ -11,6 +11,7 @@ import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.Position
 import de.emilyshub.reminders.ReminderReceiver
+import de.emilyshub.todos.Due
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -19,6 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -81,10 +83,38 @@ class LookAroundTest {
     }
 
     @Test
+    fun `after a restart that missed a look, the app looks around right away`() {
+        app.location.position = ELSEWHERE
+        app.todo("Brot", places = setOf(bakery))
+        app.clock.now = berlin("2026-10-23T08:10")
+        val android = app.getSystemService(AlarmManager::class.java)
+        alarmManager.scheduledAlarms.toList().forEach { android.cancel(checkNotNull(it.operation)) }
+
+        app.sendBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+        idle()
+
+        assertEquals(listOf(berlin("2026-10-23T08:10")), looks())
+    }
+
+    @Test
+    fun `for a to-do waiting for a place with a WLAN only, or whose day is yet to come, the app does not look around`() {
+        val home = app.place("Zuhause", "FritzBox")
+        app.todo("Post", places = setOf(home))
+        app.todo("Brot", due = Due.On(LocalDate.parse("2026-10-24")), places = setOf(bakery))
+        assertEquals(emptyList<Instant>(), looks())
+
+        app.clock.now = berlin("2026-10-24T00:00")
+        alarmManager.fireAlarm(alarmManager.alarmsFor(ReminderReceiver.ACTION_REMIND).single())
+        idle()
+
+        assertEquals(listOf(berlin("2026-10-24T00:30")), looks())
+    }
+
+    @Test
     fun `turned off in the settings, the app does not look around`() {
         runBlocking {
             app.settings.load()
-            app.settings.setLookAround(false)
+            app.settings.setLookAroundEnabled(false)
         }
 
         app.todo("Brot", places = setOf(bakery))
@@ -93,18 +123,17 @@ class LookAroundTest {
     }
 
     /** When the app is to look around next. */
-    private fun looks() = alarms(ReminderReceiver.ACTION_LOOK_AROUND).map { Instant.ofEpochMilli(it.triggerAtMs) }
+    private fun looks() = alarmManager.alarmsFor(ReminderReceiver.ACTION_LOOK_AROUND).map { Instant.ofEpochMilli(it.triggerAtMs) }
 
     /** Moves the clock to [localDateTime] in Berlin, lets the app look around, and then any reminder that brings pop up. */
     private fun lookAt(localDateTime: String) {
         app.clock.now = berlin(localDateTime)
-        alarmManager.fireAlarm(alarms(ReminderReceiver.ACTION_LOOK_AROUND).single())
+        alarmManager.fireAlarm(alarmManager.alarmsFor(ReminderReceiver.ACTION_LOOK_AROUND).single())
         idle()
-        alarms(ReminderReceiver.ACTION_REMIND).forEach(alarmManager::fireAlarm)
+        alarmManager.alarmsFor(ReminderReceiver.ACTION_REMIND).forEach(alarmManager::fireAlarm)
         idle()
     }
 
-    private fun alarms(action: String) = alarmManager.scheduledAlarms.filter { shadowOf(it.operation).savedIntent.action == action }
 
     private fun reminders() = app.getSystemService(NotificationManager::class.java).activeNotifications
         .map { it.notification }

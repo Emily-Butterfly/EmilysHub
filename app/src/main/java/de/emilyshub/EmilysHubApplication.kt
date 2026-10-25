@@ -40,7 +40,7 @@ open class EmilysHubApplication : Application() {
         HubDatabase.open(this, key)
     }
 
-    open val settings: AppSettings by lazy { AppSettings({ database.settings() }) }
+    open val settings: AppSettings by lazy { AppSettings({ database.settings() }, onLookAroundChange = ::updateReminders) }
 
     open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
 
@@ -65,7 +65,7 @@ open class EmilysHubApplication : Application() {
     open val locator: Locator by lazy { Locator(wifi, location, places) }
 
     open val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::lookAround) { database.settings() }
+        Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::mayLookAround) { database.settings() }
     }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
@@ -84,7 +84,10 @@ open class EmilysHubApplication : Application() {
         background.launch { reminders.update() }
     }
 
-    /** After every change to the routines, to-dos or places. The change stands even if this fails; the next one tries again. */
+    /**
+     * After every change to the routines, to-dos, places or to looking around. The change stands even if this fails; the
+     * next one tries again.
+     */
     protected suspend fun updateReminders() {
         try {
             reminders.update()

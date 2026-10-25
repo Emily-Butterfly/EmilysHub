@@ -21,9 +21,9 @@ import java.time.Instant
  * and alarm first marks what ran out meanwhile, also while the phone was off.
  *
  * To-dos remind the same way (SPEC.md §5), at their time and on arrival at their places, only with "Erledigt · Später":
- * a to-do is never skipped or missed, and its reminder stays until it is done. While one waits for a place, the app
- * also looks around every [LOOK_AROUND_EVERY] ([lookAround]), as long as [lookingAround] says the settings let it, so
- * that arriving is noticed at a place without a WLAN too.
+ * a to-do is never skipped or missed, and its reminder stays until it is done. While one waits for a place with a GPS
+ * area, the app also looks around every [LOOK_AROUND_EVERY] ([lookAround]), as long as [mayLookAround] says the
+ * settings let it, so that arriving is noticed without a WLAN too.
  *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
@@ -39,7 +39,7 @@ class Reminders(
     private val todos: Todos,
     private val clock: Clock,
     private val locate: Locate,
-    private val lookingAround: suspend () -> Boolean,
+    private val mayLookAround: suspend () -> Boolean,
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
@@ -97,8 +97,12 @@ class Reminders(
      */
     suspend fun lookAround() = lock.withLock {
         settings().put(Setting(NEXT_LOOK, ""))
-        todos.lookAround(locate)
-        tidyAndSetAlarm()
+        try {
+            todos.lookAround(locate)
+        } finally {
+            // The next look comes all the same, should this one fail.
+            tidyAndSetAlarm()
+        }
     }
 
     /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
@@ -154,8 +158,8 @@ class Reminders(
 
     /**
      * Shows the reminders on the screen as they are now, takes down those no longer due, sets the alarm for what comes
-     * next, and watches for arrivals while something may wait for a place. What [justShown] and [todosJustShown] popped up
-     * just now is as it is.
+     * next, and watches for arrivals while something may wait for a place, looking around too while a to-do does. What
+     * [justShown] and [todosJustShown] popped up just now is as it is.
      */
     private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet(), todosJustShown: Set<Long> = emptySet()) {
         val shown = notifications.shown()
@@ -173,15 +177,14 @@ class Reminders(
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
         }
-        val todoWaits = todos.anyWaiting()
-        arrivals.watch(on = routines.anyBoundToPlaces() || todoWaits)
-        keepLookingAround(on = todoWaits && lookingAround())
+        arrivals.watch(on = routines.anyBoundToPlaces() || todos.anyWaiting())
+        keepLookingAround(on = todos.needsLookingAround() && mayLookAround())
     }
 
     /**
      * Keeps a look around coming [LOOK_AROUND_EVERY] after the last while [on]; none otherwise. Its alarm is set again
-     * each time, as a restart takes it; one that should have come by now, or is too far ahead after the clock was put
-     * back, comes [LOOK_AROUND_EVERY] from now.
+     * each time, as a restart takes it: one that should have come by now comes right away, and one too far ahead after
+     * the clock was put back comes [LOOK_AROUND_EVERY] from now.
      */
     private suspend fun keepLookingAround(on: Boolean) {
         if (!on) {
@@ -190,9 +193,12 @@ class Reminders(
             return
         }
         val now = clock.instant()
-        val next = settings().get(NEXT_LOOK)?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?.takeIf { it.isAfter(now) && !it.isAfter(now + LOOK_AROUND_EVERY) }
-            ?: (now + LOOK_AROUND_EVERY)
+        val stored = stored(NEXT_LOOK)
+        val next = when {
+            stored == null || stored.isAfter(now + LOOK_AROUND_EVERY) -> now + LOOK_AROUND_EVERY
+            stored.isBefore(now) -> now
+            else -> stored
+        }
         lookAroundAlarm.set(next)
         settings().put(Setting(NEXT_LOOK, next.toString()))
     }
@@ -203,11 +209,14 @@ class Reminders(
      */
     private suspend fun remindedUntil(): Instant {
         val now = clock.instant()
-        val stored = settings().get(REMINDED_UNTIL)?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        val stored = stored(REMINDED_UNTIL)
         if (stored != null && !stored.isAfter(now)) return stored
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
         return now
     }
+
+    /** The moment stored under [name]; none if there is none, or anything else. */
+    private suspend fun stored(name: String): Instant? = settings().get(name)?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
     companion object {
         /** What "Später" offers (SPEC.md §3). */
