@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -46,7 +47,9 @@ import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.goalIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.wishes.Goal
+import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.GoalTodo
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
@@ -55,9 +58,10 @@ import kotlinx.coroutines.flow.map
 /**
  * The wishes not yet done (SPEC.md §6): those in progress, then the open ones, each with its period, tags, description
  * and progress; above them, once there are tags, the choice of one to show only the goals that have it, at any depth. A
- * goal with parts opens up to show them, indented below it: its subgoals, which open up in turn, and its to-dos, ticked
- * off right there. Nothing here reminds. Tapping a goal or a to-do opens it in its editor, "+" starts a new wish. Below them, the
- * way to the review of the wishes come true, once there is one.
+ * goal with parts opens up to show them, indented below it: its subgoals, which open up in turn, its to-dos, ticked off
+ * right there, and its routines, with how far they have come towards what they aim at. Nothing here reminds. Tapping a
+ * goal, a to-do or a routine opens it in its editor, "+" starts a new wish. Below them, the way to the review of the
+ * wishes come true, once there is one.
  */
 @Composable
 fun WishlistScreen(
@@ -69,6 +73,7 @@ fun WishlistScreen(
     contentPadding: PaddingValues,
     onOpen: (Long) -> Unit,
     onOpenTodo: (Long) -> Unit,
+    onOpenRoutine: (Long) -> Unit,
     onCreate: () -> Unit,
     onOpenReview: () -> Unit,
 ) {
@@ -83,7 +88,9 @@ fun WishlistScreen(
 
     /** The goal and, if opened up, its parts below it, each subgoal in turn the same way. */
     fun lines(goal: Goal, depth: Int): List<TreeLine> = listOf(TreeLine.OfGoal(goal, depth)) + if (goal.wish.id in opened) {
-        goal.subgoals.flatMap { lines(it, depth + 1) } + goal.todos.map { TreeLine.OfTodo(it, depth + 1) }
+        goal.subgoals.flatMap { lines(it, depth + 1) } +
+            goal.todos.map { TreeLine.OfTodo(it, depth + 1) } +
+            goal.routines.map { TreeLine.OfRoutine(it, depth + 1) }
     } else {
         emptyList()
     }
@@ -133,6 +140,8 @@ fun WishlistScreen(
                                 },
                                 onClick = { onOpenTodo(line.todo.id) },
                             )
+                            is TreeLine.OfRoutine ->
+                                RoutinePartRow(line.routine, line.depth, onClick = { onOpenRoutine(line.routine.id) })
                         }
                     }
                 }
@@ -157,7 +166,7 @@ fun WishlistScreen(
     }
 }
 
-/** A line of the tree: a goal, or a to-do that is part of one, at its depth. */
+/** A line of the tree: a goal, or a to-do or routine that is part of one, at its depth. */
 private sealed interface TreeLine {
     val key: String
 
@@ -167,6 +176,10 @@ private sealed interface TreeLine {
 
     data class OfTodo(val todo: GoalTodo, val depth: Int) : TreeLine {
         override val key get() = "todo ${todo.id}"
+    }
+
+    data class OfRoutine(val routine: GoalRoutine, val depth: Int) : TreeLine {
+        override val key get() = "routine ${routine.id}"
     }
 }
 
@@ -186,7 +199,7 @@ private fun GoalRow(goal: Goal, depth: Int, tagNames: List<String>, opened: Bool
                 if (wish.description.isNotEmpty()) Text(wish.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 when {
                     wish.status == WishStatus.Done -> Text(stringResource(R.string.wish_status_done))
-                    goal.hasParts || wish.manualProgress != null -> Text(stringResource(R.string.goal_progress, goal.percent))
+                    goal.hasCountingParts || wish.manualProgress != null -> Text(stringResource(R.string.goal_progress, goal.percent))
                 }
             }
         },
@@ -220,6 +233,43 @@ private fun TodoPartRow(todo: GoalTodo, depth: Int, onTick: (Boolean) -> Unit, o
             .clickable(onClick = onClick)
             .padding(start = goalIndent(depth, INDENT)),
     )
+}
+
+/**
+ * A routine that is part of a goal, and how far it has come towards what it aims at, or that it has reached it; without
+ * a target, only that it is a routine.
+ */
+@Composable
+private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit) {
+    ListItem(
+        leadingContent = { Icon(Icons.Filled.Refresh, contentDescription = null) },
+        headlineContent = { Text(routine.name) },
+        supportingContent = { Text(routineProgressText(routine)) },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(start = goalIndent(depth, INDENT)),
+    )
+}
+
+/** "Routine · 12 von 30 Tagen in Folge", "Routine · Erreicht: 100 Mal erledigt", or "Routine" without a target. */
+@Composable
+private fun routineProgressText(routine: GoalRoutine): String {
+    val target = routine.target ?: return stringResource(R.string.goal_routine)
+    val count = routine.count ?: 0
+    return when (target) {
+        is RoutineTarget.Streak ->
+            if (routine.reached) {
+                stringResource(R.string.goal_routine_streak_reached, target.count)
+            } else {
+                stringResource(R.string.goal_routine_streak, count, target.count)
+            }
+        is RoutineTarget.TimesDone ->
+            if (routine.reached) {
+                stringResource(R.string.goal_routine_times_done_reached, target.count)
+            } else {
+                stringResource(R.string.goal_routine_times_done, count, target.count)
+            }
+    }
 }
 
 private val INDENT = 24.dp

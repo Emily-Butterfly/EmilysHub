@@ -315,7 +315,7 @@ private fun ProgressField(goal: Goal?, status: WishStatus, manual: Int?, onChang
                 )
                 TextButton(onClick = { onChange(null) }) {
                     Text(
-                        if (goal?.hasParts == true) {
+                        if (goal?.hasCountingParts == true) {
                             stringResource(R.string.wish_progress_reset_to, automatic)
                         } else {
                             stringResource(R.string.wish_progress_reset)
@@ -324,7 +324,7 @@ private fun ProgressField(goal: Goal?, status: WishStatus, manual: Int?, onChang
                 }
             }
             else -> {
-                val source = if (goal?.hasParts == true) R.string.wish_progress_automatic else R.string.wish_progress_no_parts
+                val source = if (goal?.hasCountingParts == true) R.string.wish_progress_automatic else R.string.wish_progress_no_parts
                 ProgressValue(automatic, source)
                 TextButton(onClick = { onChange(automatic) }) { Text(stringResource(R.string.wish_progress_set)) }
             }

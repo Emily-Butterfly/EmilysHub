@@ -103,14 +103,17 @@ class BackupsOnDeviceTest {
     private fun asOfVersion16(content: JSONObject): JSONObject {
         val tables = content.getJSONObject("tables")
         listOf("wishes", "wish_tags").forEach { tables.remove(it) }
-        // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19.
-        val todos = tables.getJSONObject("todos")
-        val columns = todos.getJSONArray("columns")
-        val rows = todos.getJSONArray("rows")
-        for (name in listOf("goal_id", "recurrence", "next_id")) {
-            val index = (0 until columns.length()).first { columns.getString(it) == name }
-            columns.remove(index)
-            for (row in 0 until rows.length()) rows.getJSONArray(row).remove(index)
+        // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
+        // goals routines hang under, which came with 20.
+        val newer = mapOf("todos" to listOf("goal_id", "recurrence", "next_id"), "routines" to listOf("goal_id", "target"))
+        for ((table, names) in newer) {
+            val columns = tables.getJSONObject(table).getJSONArray("columns")
+            val rows = tables.getJSONObject(table).getJSONArray("rows")
+            for (name in names) {
+                val index = (0 until columns.length()).first { columns.getString(it) == name }
+                columns.remove(index)
+                for (row in 0 until rows.length()) rows.getJSONArray(row).remove(index)
+            }
         }
         return content.put("schema", 16)
     }

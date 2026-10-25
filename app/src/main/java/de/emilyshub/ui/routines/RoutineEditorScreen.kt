@@ -49,11 +49,13 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.routines.toDraft
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.fields.ChecklistFields
+import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
+import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalTime
 
@@ -65,13 +67,20 @@ sealed interface RoutineEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on.
- * Leaving without saving drops the changes; a tag made here ([TagsField]) is saved at once, like one made in the
- * settings.
+ * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on, and the
+ * goal it is part of with what it aims at for that (SPEC.md §6). Leaving without saving drops the changes; a tag made
+ * here ([TagsField]) is saved at once, like one made in the settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: RoutineEditorTarget, onClose: () -> Unit) {
+fun RoutineEditorScreen(
+    routines: Routines,
+    wishes: Wishes,
+    tags: Tags,
+    places: Places,
+    target: RoutineEditorTarget,
+    onClose: () -> Unit,
+) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
@@ -220,6 +229,14 @@ fun RoutineEditorScreen(routines: Routines, tags: Tags, places: Places, target: 
                 hintChosen = R.string.routine_places_chosen,
                 onChange = { draft = draft.copy(placeIds = it) },
             )
+            GoalField(
+                wishes = wishes,
+                selected = draft.goalId,
+                label = R.string.goal_field,
+                none = R.string.goal_field_none,
+                onChange = { draft = draft.copy(goalId = it) },
+            )
+            if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })

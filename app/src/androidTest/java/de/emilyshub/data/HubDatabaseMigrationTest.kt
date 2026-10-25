@@ -19,6 +19,7 @@ import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Recurrence
@@ -455,6 +456,30 @@ class HubDatabaseMigrationTest {
             // The next deleted, the one before came next for none.
             database.todos().delete(next)
             assertEquals(null, database.todos().get(1)?.nextId)
+        }
+    }
+
+    @Test
+    fun `version 19 moves to version 20 where routines hang under no goal yet and then can aim at something under one`() {
+        createAtVersion(19) {
+            it.execSQL("INSERT INTO wishes (id, title, description, period, status) VALUES (1, 'Wortschatz', '', '', 'open')")
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (1, 'Vokabeln', '', '20:00', 'daily', '2026-10-01T00:00:00Z')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val routine = checkNotNull(database.routines().get(1))
+            assertEquals(null to null, routine.goalId to routine.target)
+
+            database.routines().update(routine.copy(goalId = 1, target = RoutineTarget.Streak(30)))
+            assertEquals(listOf(1L), database.routines().withGoal(1).map { it.id })
+            assertEquals(RoutineTarget.Streak(30), database.routines().get(1)?.target)
+
+            // A goal deleted leaves its routines at none.
+            database.wishes().delete(1)
+            assertEquals(null, database.routines().get(1)?.goalId)
         }
     }
 

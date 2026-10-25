@@ -64,6 +64,10 @@ interface WishDao {
     @Query("UPDATE todos SET goal_id = :to WHERE goal_id = :from")
     suspend fun moveTodos(from: Long, to: Long?)
 
+    /** Hangs the routines of the goal [from] under the goal [to]; none: at no goal. */
+    @Query("UPDATE routines SET goal_id = :to WHERE goal_id = :from")
+    suspend fun moveRoutines(from: Long, to: Long?)
+
     @Query("SELECT tag_id FROM wish_tags WHERE wish_id = :wishId")
     suspend fun tagIdsOf(wishId: Long): List<Long>
 

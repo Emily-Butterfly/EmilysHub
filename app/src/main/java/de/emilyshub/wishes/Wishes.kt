@@ -19,9 +19,9 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The wishlist (SPEC.md §6): things to do some day, deliberately without reminders, so that nothing here tells the
- * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos hanging under them; a goal is done once
- * all of its parts are. [database] is only called on [io], since the first call opens it. Writes run to the end once
- * started, even if the screen that started them goes away.
+ * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos and routines hanging under them; a
+ * goal is done once all of its parts that count are. [database] is only called on [io], since the first call opens it.
+ * Writes run to the end once started, even if the screen that started them goes away.
  */
 class Wishes(
     private val database: () -> HubDatabase,
@@ -101,7 +101,7 @@ class Wishes(
         }
     }
 
-    /** Deletes the wish for good, with its tags and its subgoals; the to-dos of all of them stay, hanging at no goal. */
+    /** Deletes the wish for good, with its tags and its subgoals; the to-dos and routines of all of them stay, at no goal. */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
@@ -111,15 +111,16 @@ class Wishes(
     }
 
     /**
-     * Deletes the wish for good, with its tags, but not its parts: its subgoals and to-dos move up a level, to the goal it
-     * was part of, or to the top and to no goal.
+     * Deletes the wish for good, with its tags, but not its parts: its subgoals, to-dos and routines move up a level, to
+     * the goal it was part of, or to the top and to no goal.
      */
     suspend fun deleteMovingPartsUp(id: Long) = write {
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
-            val partsOpen = dao.partsDone(id).any { !it }
+            val partsOpen = database().partsDoneOf(id).any { !it }
             dao.moveSubgoals(from = id, to = wish.parentId)
             dao.moveTodos(from = id, to = wish.parentId)
+            dao.moveRoutines(from = id, to = wish.parentId)
             dao.delete(id)
             // In its place, its parts: open if one of them is.
             settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen))
@@ -136,7 +137,16 @@ class Wishes(
     fun today(): LocalDate = LocalDate.now(clock)
 
     private fun tree(): Flow<List<Goal>> =
-        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), GoalTree::build)) }.flowOn(io)
+        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), GoalTree::build)) }.flowOn(io)
+
+    /** The routines hanging under goals, each with its history towards what it aims at. */
+    private fun goalRoutines(): Flow<List<GoalRoutine>> {
+        val routines = database().routines()
+        return combine(routines.observeWithGoal(), routines.observeOutcomesWithGoal()) { withGoal, outcomes ->
+            val byRoutine = outcomes.groupBy { it.routineId }
+            withGoal.mapNotNull { GoalRoutine.of(it, byRoutine[it.id].orEmpty()) }
+        }
+    }
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 

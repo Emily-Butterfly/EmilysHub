@@ -285,7 +285,7 @@ private fun AppShell(
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            RoutineEditorScreen(routines, tags, places, editor, onClose = { routineEditor = null })
+            RoutineEditorScreen(routines, wishes, tags, places, editor, onClose = { routineEditor = null })
         }
         archiveOpen -> {
             BackHandler { archiveOpen = false }
@@ -427,6 +427,7 @@ private fun TopLevelScaffold(
                 contentPadding = contentPadding,
                 onOpen = { onOpenWish(WishEditorTarget.Edit(it)) },
                 onOpenTodo = { onOpenTodo(TodoEditorTarget.Edit(it)) },
+                onOpenRoutine = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
                 onCreate = { onOpenWish(WishEditorTarget.New()) },
                 onOpenReview = onOpenWishReview,
             )

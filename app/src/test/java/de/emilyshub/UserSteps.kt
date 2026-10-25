@@ -17,6 +17,7 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.todos.Due
@@ -43,8 +44,8 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
 
 /**
  * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups, time
- * window and priority unless given others, without a [fullScreen] alarm and with a [checklist], [tags] and
- * [places] only if given, set up before the test opens the app.
+ * window and priority unless given others, without a [fullScreen] alarm and with a [checklist], [tags],
+ * [places], a [goal] and a [target] only if given, set up before the test opens the app.
  */
 fun TestApplication.routine(
     name: String,
@@ -57,10 +58,12 @@ fun TestApplication.routine(
     checklist: List<String> = emptyList(),
     tags: Set<Long> = emptySet(),
     places: Set<Long> = emptySet(),
+    goal: Long? = null,
+    target: RoutineTarget? = null,
 ): Long = runBlocking {
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target,
     )
     routines.create(draft)
 }

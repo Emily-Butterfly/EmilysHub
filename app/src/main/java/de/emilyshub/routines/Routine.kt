@@ -6,6 +6,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import de.emilyshub.wishes.Wish
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -15,9 +16,16 @@ import java.time.ZonedDateTime
 /**
  * A routine (SPEC.md §2): due at each of its [times] on the days its [repetition] says, reminding again of what
  * is left open as its [followUps] say, and missing what is still open once its time [window] ends; all that
- * while its [status] is active. Its checklist is kept apart, as [ChecklistItem]s.
+ * while its [status] is active. Its checklist is kept apart, as [ChecklistItem]s. It can hang under a goal, its
+ * [goalId] (SPEC.md §6), and count towards it by what it aims at, its [target].
  */
-@Entity(tableName = "routines")
+@Entity(
+    tableName = "routines",
+    foreignKeys = [
+        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index(value = ["goal_id"])],
+)
 data class Routine(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
@@ -40,6 +48,10 @@ data class Routine(
     @ColumnInfo(defaultValue = "'normal'") val priority: Priority = Priority.Normal,
     /** Only an active routine is planned and reminded of; what it has done, skipped or missed stays all the same. */
     @ColumnInfo(defaultValue = "'active'") val status: RoutineStatus = RoutineStatus.Active,
+    /** The goal it is part of, if any; deleting that goal leaves it hanging at none. */
+    @ColumnInfo(name = "goal_id") val goalId: Long? = null,
+    /** What it aims at for its goal, if anything; only with a goal. Without, it only shows with the goal. */
+    val target: RoutineTarget? = null,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
     fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()

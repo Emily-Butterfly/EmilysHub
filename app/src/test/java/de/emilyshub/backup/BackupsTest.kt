@@ -19,6 +19,7 @@ import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.wish
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
@@ -61,7 +62,7 @@ class BackupsTest {
         restore(file)
 
         assertEquals(made, everything())
-        assertEquals(listOf("Vitamine", "Yoga"), runBlocking { app.routines.inUse().first() }.map { it.name })
+        assertEquals(listOf("Vitamine", "Yoga", "Vokabeln"), runBlocking { app.routines.inUse().first() }.map { it.name })
     }
 
     @Test
@@ -75,7 +76,7 @@ class BackupsTest {
 
         assertEquals(changed, everything())
         assertEquals(Instant.parse("2026-10-23T05:00:00Z"), backup.created.toInstant())
-        assertEquals(Backup.Summary(routines = 2, todos = 4, wishes = 3, places = 2, tags = 2), backup.summary)
+        assertEquals(Backup.Summary(routines = 3, todos = 4, wishes = 3, places = 2, tags = 2), backup.summary)
     }
 
     @Test
@@ -91,7 +92,7 @@ class BackupsTest {
         restore(file)
 
         showing.cancel()
-        assertEquals(listOf("Vitamine", "Yoga"), shown.last())
+        assertEquals(listOf("Vitamine", "Yoga", "Vokabeln"), shown.last())
     }
 
     @Test
@@ -119,7 +120,7 @@ class BackupsTest {
 
     @Test
     fun `a backup of an older app version is brought up to this one, as an update of the app would`() {
-        val made = someOfEverything(comingAgain = false)
+        val made = someOfEverything(before19 = true)
         val file = sealed(asOfVersion16(contentOf(exported())))
         changeEverything()
 
@@ -135,7 +136,7 @@ class BackupsTest {
 
     @Test
     fun `a backup several versions old goes through each migration on the way`() {
-        val made = someOfEverything(comingAgain = false)
+        val made = someOfEverything(before19 = true)
         val file = sealed(asOfVersion14(contentOf(exported())))
         changeEverything()
 
@@ -183,6 +184,7 @@ class BackupsTest {
             "a key unknown in a table" to { it.table("tags").put("colour", "lila") },
             "a repetition the app cannot read" to { it.setFirst("routines", "repetition", "jede Woche") },
             "a recurrence the app cannot read" to { it.setFirst("todos", "recurrence", "monthly:32") },
+            "a routine target the app cannot read" to { it.setFirst("routines", "target", "streak:0") },
             "a status the app cannot read" to { it.setFirst("occurrences", "status", "vielleicht") },
             "a time the app cannot read" to { it.setFirst("routines", "times", "halb acht") },
             "a date the app cannot read" to { it.setFirst("occurrences", "date", "2026-02-30") },
@@ -268,9 +270,10 @@ class BackupsTest {
 
     /**
      * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, and,
-     * unless the data are to be as before version 19, a to-do coming again, ticked off once.
+     * unless the data are to be as an app [before19] made them, a to-do coming again, ticked off once, and a routine
+     * under a goal, aiming at a streak.
      */
-    private fun someOfEverything(comingAgain: Boolean = true): Map<String, List<List<Any?>>> {
+    private fun someOfEverything(before19: Boolean = false): Map<String, List<List<Any?>>> {
         val home = app.place("Zuhause", "FRITZ!Box 7590")
         val shop = app.place("Supermarkt", area = Area(Coordinates(52.52, 13.405), radius = 150))
         val health = app.tag("Gesundheit")
@@ -284,12 +287,13 @@ class BackupsTest {
         }
         app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
-        if (comingAgain) {
+        val northernLights = app.wish("Nordlichter sehen", period = "Winter 2027")
+        if (!before19) {
             val rent = app.todo("Miete überweisen", due = Due.On(LocalDate.parse("2026-10-01")), recurrence = Recurrence.Monthly(1))
             runBlocking { app.todos.markDone(rent) }
+            app.routine("Vokabeln", "20:00", goal = northernLights, target = RoutineTarget.Streak(30))
         }
         app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
-        val northernLights = app.wish("Nordlichter sehen", period = "Winter 2027")
         app.wish("Flüge buchen", parent = northernLights)
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -358,7 +362,11 @@ class BackupsTest {
 
     /** [content] as version 18 made it: without to-dos coming again, which came with 19. */
     private fun asOfVersion18(content: JSONObject): JSONObject =
-        content.withoutColumns("todos", "recurrence", "next_id").put("schema", 18)
+        asOfVersion19(content).withoutColumns("todos", "recurrence", "next_id").put("schema", 18)
+
+    /** [content] as version 19 made it: without routines under goals, which came with 20. */
+    private fun asOfVersion19(content: JSONObject): JSONObject =
+        content.withoutColumns("routines", "goal_id", "target").put("schema", 19)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

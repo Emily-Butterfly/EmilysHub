@@ -4,6 +4,9 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.wishes.GoalPart
+import de.emilyshub.wishes.goalPartOfRoutine
+import de.emilyshub.wishes.settleGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -69,11 +72,13 @@ class Routines(
     suspend fun create(draft: RoutineDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            dao.insert(cleaned.toRoutine(plannedFrom = now())).also { id ->
+            val goalId = database().wishes().stillThere(cleaned.goalId)
+            dao.insert(cleaned.copy(goalId = goalId).toRoutine(plannedFrom = now())).also { id ->
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
                 savePlaces(id, cleaned.placeIds)
                 plan(today())
+                settleGoals(GoalPart.None, database().goalPartOfRoutine(id))
             }
         }
     }
@@ -112,16 +117,20 @@ class Routines(
         val changes = checked(draft)
         database().withTransaction {
             val routine = dao.get(id) ?: return@withTransaction
+            val part = database().goalPartOfRoutine(id)
             val today = today()
             // Today's list as it was before the change, for the change to apply to.
             plan(today)
             val now = now()
             val rescheduled = changes.times != routine.times || changes.repetition != routine.repetition
-            val changed = changes.toRoutine(id, plannedFrom = if (rescheduled) now else routine.plannedFrom, routine.status)
+            val goalId = database().wishes().stillThere(changes.goalId)
+            val plannedFrom = if (rescheduled) now else routine.plannedFrom
+            val changed = changes.copy(goalId = goalId).toRoutine(id, plannedFrom, routine.status)
             dao.update(changed)
             saveChecklist(id, changes.checklist)
             saveTags(id, changes.tagIds)
             savePlaces(id, changes.placeIds)
+            settleGoals(part, database().goalPartOfRoutine(id))
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -174,8 +183,14 @@ class Routines(
         }
     }
 
-    /** Deletes the routine with all its occurrences. */
-    suspend fun delete(id: Long) = write { dao.delete(id) }
+    /** Deletes the routine with all its occurrences; its goal is settled without it. */
+    suspend fun delete(id: Long) = write {
+        database().withTransaction {
+            val part = database().goalPartOfRoutine(id)
+            dao.delete(id)
+            settleGoals(part, GoalPart.None)
+        }
+    }
 
     /**
      * The Heute list of [date] in the order it is due: the occurrences of the active routines, and while [date] is
@@ -218,8 +233,10 @@ class Routines(
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status != OccurrenceStatus.Missed } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
-            if (occurrence.status == OccurrenceStatus.Done) dao.deleteTicks(occurrenceId)
-            reopen(occurrence, routine)
+            settlingGoal(routine.id) {
+                if (occurrence.status == OccurrenceStatus.Done) dao.deleteTicks(occurrenceId)
+                reopen(occurrence, routine)
+            }
         }
     }
 
@@ -235,18 +252,20 @@ class Routines(
             val items = dao.checklist(routine.id).map { it.id }
             if (itemId !in items) return@withTransaction
             val done = occurrence.status == OccurrenceStatus.Done
-            when {
-                ticked && !done -> {
-                    dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
-                    tickOffIfAllTicked(occurrenceId, items)
+            settlingGoal(routine.id) {
+                when {
+                    ticked && !done -> {
+                        dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
+                        tickOffIfAllTicked(occurrenceId, items)
+                    }
+                    // Done as a whole, every item counts as ticked off until one is unticked.
+                    !ticked && done -> {
+                        dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
+                        dao.deleteTick(occurrenceId, itemId)
+                        reopen(occurrence, routine)
+                    }
+                    !ticked -> dao.deleteTick(occurrenceId, itemId)
                 }
-                // Done as a whole, every item counts as ticked off until one is unticked.
-                !ticked && done -> {
-                    dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
-                    dao.deleteTick(occurrenceId, itemId)
-                    reopen(occurrence, routine)
-                }
-                !ticked -> dao.deleteTick(occurrenceId, itemId)
             }
         }
     }
@@ -359,7 +378,24 @@ class Routines(
         return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, routine.windowEnd(occurrence, clock.zone))
     }
 
-    private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write { dao.setStatus(occurrenceId, status) }
+    private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {
+        database().withTransaction {
+            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
+            settlingGoal(occurrence.routineId) { dao.setStatus(occurrenceId, status) }
+        }
+    }
+
+    /**
+     * Runs [change] to an occurrence of the routine [routineId], then settles the goal it is part of (SPEC.md §6), as
+     * reaching its target, or no more, may finish that goal or open it again.
+     */
+    private suspend fun settlingGoal(routineId: Long, change: suspend () -> Unit) {
+        val part = database().goalPartOfRoutine(routineId)
+        change()
+        settleGoals(part, database().goalPartOfRoutine(routineId))
+    }
+
+    private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 
     /** Opens the [routine]'s occurrence again, as [reopen] describes. */
     private suspend fun reopen(occurrence: Occurrence, routine: Routine) {

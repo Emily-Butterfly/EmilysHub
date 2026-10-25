@@ -5,6 +5,7 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
@@ -107,6 +108,24 @@ class Converters {
     private fun weekdaysText(days: Set<DayOfWeek>) = days.sorted().joinToString(",") { it.value.toString() }
 
     private fun weekdaysOf(text: String): Set<DayOfWeek> = text.split(",").map { DayOfWeek.of(it.toInt()) }.toSet()
+
+    /** "streak:30" for so many days done in a row, "done:100" for done so many times; any other is refused. */
+    @TypeConverter
+    fun fromRoutineTarget(target: RoutineTarget): String = when (target) {
+        is RoutineTarget.Streak -> "streak:${target.count}"
+        is RoutineTarget.TimesDone -> "done:${target.count}"
+    }
+
+    @TypeConverter
+    fun toRoutineTarget(text: String): RoutineTarget {
+        val (kind, count) = text.split(":").also { require(it.size == 2) { "Unknown routine target: $text" } }
+        val number = count.toInt().also { require(it in RoutineTarget.COUNTS) { "Routine target out of range: $text" } }
+        return when (kind) {
+            "streak" -> RoutineTarget.Streak(number)
+            "done" -> RoutineTarget.TimesDone(number)
+            else -> error("Unknown routine target: $text")
+        }
+    }
 
     @TypeConverter
     fun fromPriority(priority: Priority): String = priority.stored

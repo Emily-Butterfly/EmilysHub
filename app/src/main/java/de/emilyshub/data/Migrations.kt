@@ -276,3 +276,15 @@ val MIGRATION_18_19 = object : Migration(18, 19) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_next_id` ON `todos` (`next_id`)")
     }
 }
+
+/** Version 20: routines under goals (#21), with what they aim at. Every routine is part of none and aims at nothing yet. */
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `routines` ADD COLUMN `goal_id` INTEGER " +
+                "REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        )
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `target` TEXT")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routines_goal_id` ON `routines` (`goal_id`)")
+    }
+}

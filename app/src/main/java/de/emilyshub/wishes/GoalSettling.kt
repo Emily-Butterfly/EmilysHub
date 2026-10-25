@@ -1,9 +1,10 @@
 package de.emilyshub.wishes
 
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.routines.Routine
 import java.time.LocalDate
 
-/** A to-do or subgoal as a part of the goal [goalId], if any, and whether it is [open]: not done. */
+/** A to-do, subgoal or routine as a part of the goal [goalId], if any, and whether it is [open]: not done. */
 internal data class GoalPart(val goalId: Long?, val open: Boolean) {
     companion object {
         /** Not a part of any goal: not there yet, or gone. */
@@ -62,6 +63,25 @@ private suspend fun HubDatabase.settleGoal(goalId: Long?, change: PartChange?, t
     }
 }
 
-/** Whether the goal has parts and all of them are done: each subgoal and each to-do. */
+/** Whether the goal has parts that count and all of them are done. */
 private suspend fun HubDatabase.allPartsDone(goalId: Long): Boolean =
-    wishes().partsDone(goalId).let { it.isNotEmpty() && it.all { done -> done } }
+    partsDoneOf(goalId).let { it.isNotEmpty() && it.all { done -> done } }
+
+/**
+ * Whether each part of the goal that counts is done (SPEC.md §6): its subgoals, its to-dos, and its routines with a
+ * target, done once they reached it; routines without one only show.
+ */
+internal suspend fun HubDatabase.partsDoneOf(goalId: Long): List<Boolean> {
+    val routinesDone = routines().withGoal(goalId).mapNotNull { goalRoutineOf(it)?.takeIf { part -> part.target != null }?.reached }
+    return wishes().partsDone(goalId) + routinesDone
+}
+
+/** The routine as a part of its goal: open while it has a target not reached yet; without one it holds nothing open. */
+internal suspend fun HubDatabase.goalPartOfRoutine(routineId: Long): GoalPart {
+    val routine = routines().get(routineId) ?: return GoalPart.None
+    val part = goalRoutineOf(routine) ?: return GoalPart.None
+    return GoalPart(part.goalId, open = part.target != null && !part.reached)
+}
+
+private suspend fun HubDatabase.goalRoutineOf(routine: Routine): GoalRoutine? =
+    GoalRoutine.of(routine, routines().outcomesOf(routine.id))

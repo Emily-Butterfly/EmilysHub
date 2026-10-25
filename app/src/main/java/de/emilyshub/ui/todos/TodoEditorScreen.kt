@@ -211,8 +211,8 @@ fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, t
             GoalField(
                 wishes = wishes,
                 selected = draft.goalId,
-                label = R.string.todo_goal,
-                none = R.string.todo_goal_none,
+                label = R.string.goal_field,
+                none = R.string.goal_field_none,
                 onChange = { draft = draft.copy(goalId = it) },
             )
         }

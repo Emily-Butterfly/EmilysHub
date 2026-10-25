@@ -2,6 +2,10 @@ package de.emilyshub.wishes
 
 import androidx.room.ColumnInfo
 import de.emilyshub.data.InputText
+import de.emilyshub.routines.OccurrenceOutcome
+import de.emilyshub.routines.Routine
+import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.stats.RoutineHistory
 import kotlin.math.roundToInt
 
 /**
@@ -21,23 +25,66 @@ data class GoalTodo(
 }
 
 /**
- * A goal (SPEC.md §6): a wish with the [subgoals] and [todos] hanging under it, its parts. How far it has come, its
- * [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a goal done has
- * come all the way.
+ * A routine hanging at a goal (SPEC.md §2, §6), with what it aims at, its [target], if any, and how far its history has
+ * come towards that. Without a target it only shows with the goal and counts towards nothing.
  */
-class Goal(private val withTags: WishWithTags, val subgoals: List<Goal>, val todos: List<GoalTodo>) {
+class GoalRoutine(val id: Long, val name: String, val goalId: Long, val target: RoutineTarget?, history: RoutineHistory) {
+    private val streaks = history.streaks()
+    private val timesDone = history.timesDone
+
+    /** Towards its target, the days done in a row up to now, or the times done; none without a target. */
+    val count: Int? = when (target) {
+        is RoutineTarget.Streak -> streaks.current
+        is RoutineTarget.TimesDone -> timesDone
+        null -> null
+    }
+
+    /** Whether it reached its target: so many days done in a row once, though broken since, or done so many times. */
+    val reached: Boolean = when (target) {
+        is RoutineTarget.Streak -> streaks.longest >= target.count
+        is RoutineTarget.TimesDone -> timesDone >= target.count
+        null -> false
+    }
+
+    /** From 0 to 1, how far it has come towards its target, all of it once reached; none without a target. */
+    val progress: Double? = target?.let { if (reached) 1.0 else (count ?: 0).toDouble() / it.count }
+
+    companion object {
+        /** The [routine] at its goal, with the [outcomes] of its occurrences; none if it hangs under none. */
+        fun of(routine: Routine, outcomes: List<OccurrenceOutcome>): GoalRoutine? = routine.goalId?.let { goalId ->
+            GoalRoutine(routine.id, routine.name, goalId, routine.target, RoutineHistory(outcomes))
+        }
+    }
+}
+
+/**
+ * A goal (SPEC.md §6): a wish with the [subgoals], [todos] and [routines] hanging under it, its parts. How far it has
+ * come, its [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a goal
+ * done has come all the way. A routine counts only with a target.
+ */
+class Goal(
+    private val withTags: WishWithTags,
+    val subgoals: List<Goal>,
+    val todos: List<GoalTodo>,
+    val routines: List<GoalRoutine>,
+) {
 
     val wish: Wish get() = withTags.wish
 
     val tagIds: Set<Long> get() = withTags.tagIds
 
-    val hasParts: Boolean get() = subgoals.isNotEmpty() || todos.isNotEmpty()
+    /** Whether anything hangs under it, to show below it. */
+    val hasParts: Boolean get() = subgoals.isNotEmpty() || todos.isNotEmpty() || routines.isNotEmpty()
 
-    /** From 0 to 1, the mean of its parts' progress; nothing without parts. */
-    val automaticProgress: Double by lazy {
-        val parts = subgoals.map { it.progress } + todos.map { it.progress }
-        if (parts.isEmpty()) 0.0 else parts.average()
+    /** Whether anything under it counts towards its progress: all but routines without a target. */
+    val hasCountingParts: Boolean get() = countingProgress.isNotEmpty()
+
+    private val countingProgress: List<Double> by lazy {
+        subgoals.map { it.progress } + todos.map { it.progress } + routines.mapNotNull { it.progress }
     }
+
+    /** From 0 to 1, the mean of the progress of the parts that count; nothing without such. */
+    val automaticProgress: Double by lazy { if (countingProgress.isEmpty()) 0.0 else countingProgress.average() }
 
     /** From 0 to 1: all of it once done, else as set by hand, else [automaticProgress]. */
     val progress: Double by lazy {
@@ -68,13 +115,15 @@ data class FulfilledWish(val wish: Wish, val partOf: String?)
 object GoalTree {
 
     /**
-     * The goals at the top, each with its parts below it, subgoals by title and then to-dos by title. A goal whose parent
-     * is gone, or that is caught in a cycle, which the app never makes, is at the top too, so that each shows once.
+     * The goals at the top, each with its parts below it, subgoals by title, then to-dos by title, then routines by name.
+     * A goal whose parent is gone, or that is caught in a cycle, which the app never makes, is at the top too, so that
+     * each shows once.
      */
-    fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>): List<Goal> {
+    fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>, routines: List<GoalRoutine> = emptyList()): List<Goal> {
         val byId = wishes.associateBy { it.wish.id }
         val subgoalsOf = wishes.groupBy { it.wish.parentId }
         val todosOf = todos.groupBy { it.goalId }
+        val routinesOf = routines.groupBy { it.goalId }
         val placed = mutableSetOf<Long>()
 
         fun goal(details: WishWithTags): Goal {
@@ -83,8 +132,9 @@ object GoalTree {
                 .filter { it.wish.id !in placed }
                 .sortedWith(compareBy(InputText.byName) { it.wish.title })
                 .map(::goal)
-            val parts = todosOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.title })
-            return Goal(details, subgoals, parts)
+            val todos = todosOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.title })
+            val routines = routinesOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.name })
+            return Goal(details, subgoals, todos, routines)
         }
 
         val tops = wishes.filter { it.wish.parentId == null || it.wish.parentId !in byId }.map(::goal)

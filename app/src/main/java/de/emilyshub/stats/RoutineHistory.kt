@@ -82,6 +82,9 @@ class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
         return Streaks(current, longest)
     }
 
+    /** How many times it was done: each occurrence done, however many a day. */
+    val timesDone: Int get() = occurrences.count { it.status == OccurrenceStatus.Done }
+
     /** The done rate of the occurrences in the last [period] days up to [today], today included. */
     fun doneRate(today: LocalDate, period: Int): DoneRate {
         val from = today.minusDays(period - 1L)
