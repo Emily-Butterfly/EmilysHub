@@ -21,6 +21,7 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
+import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
@@ -431,6 +432,29 @@ class HubDatabaseMigrationTest {
             database.wishes().delete(1)
             assertEquals(null, database.wishes().get(a1))
             assertEquals(null, database.todos().get(1)?.goalId)
+        }
+    }
+
+    @Test
+    fun `version 18 moves to version 19 where no to-do comes again yet and then one can`() {
+        createAtVersion(18) {
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away) " +
+                    "VALUES (1, 'Miete überweisen', '', '2026-11-01', 'normal', 0, 0, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val rent = checkNotNull(database.todos().get(1))
+            assertEquals(null to null, rent.recurrence to rent.nextId)
+
+            val next = database.todos().insert(rent.copy(id = 0, dueDate = LocalDate.parse("2026-12-01")))
+            database.todos().update(rent.copy(recurrence = Recurrence.Monthly(1), nextId = next))
+            assertEquals(Recurrence.Monthly(1) to next, database.todos().get(1)?.let { it.recurrence to it.nextId })
+
+            // The next deleted, the one before came next for none.
+            database.todos().delete(next)
+            assertEquals(null, database.todos().get(1)?.nextId)
         }
     }
 

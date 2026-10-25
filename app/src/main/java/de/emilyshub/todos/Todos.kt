@@ -59,7 +59,7 @@ class Todos(
             val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo.due, now)
             val waitingFor = if (waiting) details.placeNames else emptyList()
             val done = todo.doneAt != null
-            DueTodo(todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor)
+            DueTodo(todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor, todo.recurrence)
         }
     }
 
@@ -103,38 +103,35 @@ class Todos(
             val todo = dao.get(id) ?: return@withTransaction
             val placesBefore = dao.placeIdsOf(id).toSet()
             val goalId = database().wishes().stillThere(cleaned.goalId)
-            dao.update(cleaned.copy(goalId = goalId).toTodo(id, doneAt = todo.doneAt, reminding = todo.reminding))
+            dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId))
+            settleGoals(todo.asPart(), todo.copy(goalId = goalId).asPart())
             saveChecklist(id, cleaned.checklist)
             saveTags(id, cleaned.tagIds)
             savePlaces(id, cleaned.placeIds)
             if (cleaned.due != todo.due || dao.placeIdsOf(id).toSet() != placesBefore) rearm(id, cleaned.due)
-            settleGoals(todo)
         }
     }
 
     /**
-     * Ticks the to-do off, into the archive (SPEC.md §5); its checklist counts as ticked off with it, and its goal is
-     * done if that was the last part open.
+     * Ticks the to-do off, into the archive (SPEC.md §5), as [finish] has it; its checklist counts as ticked off with it.
+     * One ticked off already stays as it is.
      */
     suspend fun markDone(id: Long) = write {
         database().withTransaction {
-            val todo = dao.get(id) ?: return@withTransaction
-            dao.setDoneAt(id, clock.instant())
-            settleGoals(todo)
+            val todo = dao.get(id)?.takeIf { it.doneAt == null } ?: return@withTransaction
+            finish(todo)
         }
     }
 
     /**
-     * Opens the to-do again, out of the archive. What of its checklist was ticked off stays so, unless all of it was,
-     * as that made it done. It reminds anew, as one just saved.
+     * Opens the to-do again, out of the archive, as [open] has it. What of its checklist was ticked off stays so, unless
+     * all of it was, as that made it done.
      */
     suspend fun reopen(id: Long) = write {
         database().withTransaction {
             val todo = dao.get(id) ?: return@withTransaction
             if (dao.checklist(id).allTicked()) dao.setAllTicked(id, ticked = false)
-            dao.setDoneAt(id, null)
-            rearm(id, todo.due)
-            settleGoals(todo)
+            open(todo)
         }
     }
 
@@ -262,15 +259,13 @@ class Todos(
             when {
                 ticked && !done -> {
                     dao.setTicked(itemId, ticked = true)
-                    doneIfAllTicked(todoId).also { settleGoals(todo) }
+                    doneIfAllTicked(todoId)
                 }
                 // Done as a whole, every item counts as ticked off until one is unticked.
                 !ticked && done -> {
                     dao.setAllTicked(todoId, ticked = true)
                     dao.setTicked(itemId, ticked = false)
-                    dao.setDoneAt(todoId, null)
-                    rearm(todoId, todo.due)
-                    settleGoals(todo)
+                    open(todo)
                     false
                 }
                 !ticked -> {
@@ -334,9 +329,50 @@ class Todos(
         dao.rearm(id, remindsAtDueTime, waiting = dao.placeIdsOf(id).isNotEmpty())
     }
 
-    /** Ticks the to-do off if all of its checklist is, and tells whether it did. */
+    /** Ticks the to-do off if all of its checklist is, as [finish] has it, and tells whether it did. */
     private suspend fun doneIfAllTicked(todoId: Long): Boolean =
-        dao.checklist(todoId).allTicked().also { allTicked -> if (allTicked) dao.setDoneAt(todoId, clock.instant()) }
+        dao.checklist(todoId).allTicked().also { allTicked -> if (allTicked) dao.get(todoId)?.let { finish(it) } }
+
+    /**
+     * Ticks the to-do, open, off now, and settles its goal (SPEC.md §6): done if that was the last part open. One coming
+     * again (SPEC.md §5) comes again at once as the next, due as its recurrence says, with all of it but the ticks of its
+     * checklist, reminding as one just saved; the next takes its place in its goal, which stays as it is.
+     */
+    private suspend fun finish(todo: Todo) {
+        val doneAt = now()
+        val recurrence = todo.recurrence
+        val due = todo.dueDate
+        if (recurrence == null || due == null) {
+            dao.setDoneAt(todo.id, doneAt)
+            settleGoals(todo.asPart(), todo.copy(doneAt = doneAt).asPart())
+            return
+        }
+        val next = todo.copy(id = 0, dueDate = recurrence.nextDue(due, dayOf(doneAt)), doneAt = null, reminding = Reminding())
+        val nextId = dao.insert(next)
+        dao.insertChecklistItems(dao.checklist(todo.id).map { it.copy(id = 0, todoId = nextId, ticked = false) })
+        dao.tag(nextId, dao.tagIdsOf(todo.id))
+        dao.bind(nextId, dao.placeIdsOf(todo.id))
+        rearm(nextId, next.due)
+        dao.update(todo.copy(doneAt = doneAt, goalId = null, nextId = nextId))
+    }
+
+    /**
+     * Opens the to-do, ticked off, again, to remind anew as one just saved, and settles its goal (SPEC.md §6). If the
+     * next came in its place and is still open, that one goes again, and it takes back its place in its goal; if the
+     * next was ticked off too, it opens as a to-do of its own, coming again no more.
+     */
+    private suspend fun open(todo: Todo) {
+        val next = todo.nextId?.let { dao.get(it) }
+        val reopened = when {
+            next == null -> todo
+            next.doneAt == null -> todo.copy(goalId = next.goalId).also { dao.delete(next.id) }
+            else -> todo.copy(recurrence = null)
+        }.copy(doneAt = null, nextId = null)
+        dao.update(reopened)
+        rearm(todo.id, todo.due)
+        val before = if (next != null && next.doneAt == null) next else todo
+        settleGoals(before.asPart(), reopened.asPart())
+    }
 
     /**
      * Saves the to-do's checklist as [items] has it, in that order: an item with the id of one saved changes it and

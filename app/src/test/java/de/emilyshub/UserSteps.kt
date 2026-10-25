@@ -20,6 +20,7 @@ import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.todos.Due
+import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishStatus
@@ -70,7 +71,10 @@ fun TestApplication.place(name: String, vararg wifis: String, area: Area? = null
     places.create(area?.let { draft.withCenter(it.center).copy(radius = it.radius) } ?: draft)
 }
 
-/** A to-do, open and [due] whenever unless given, under a [goal] if given, set up before the test opens the app. */
+/**
+ * A to-do, open and [due] whenever unless given, under a [goal] and coming again by a [recurrence] if given, set up
+ * before the test opens the app.
+ */
 fun TestApplication.todo(
     title: String,
     due: Due = Due.None,
@@ -79,9 +83,11 @@ fun TestApplication.todo(
     tags: Set<Long> = emptySet(),
     places: Set<Long> = emptySet(),
     goal: Long? = null,
+    recurrence: Recurrence? = null,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
-    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal))
+    val draft = TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal)
+    todos.create(draft.copy(recurrence = recurrence))
 }
 
 /** A tag, set up before the test opens the app. */

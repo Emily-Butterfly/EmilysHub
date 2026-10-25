@@ -74,8 +74,8 @@ sealed interface TodoEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a to-do with its title, description, due, places, priority, checklist, tags and the goal it is part
- * of (SPEC.md §5, §6), or deletes it. Leaving without saving drops the changes.
+ * Creates or changes a to-do with its title, description, due, how it comes again once due, places, priority, checklist,
+ * tags and the goal it is part of (SPEC.md §5, §6), or deletes it. Leaving without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,8 +184,15 @@ fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, t
                 due = draft.due,
                 today = todos.today(),
                 start = todos.nextFullHour(),
-                onChange = { draft = draft.copy(due = it) },
+                onChange = { due ->
+                    // On another day, one coming again monthly or yearly comes again on that one.
+                    val moved = due.date?.takeIf { it != draft.due.date }
+                    draft = draft.copy(due = due, recurrence = moved?.let { draft.recurrence?.anchoredTo(it) } ?: draft.recurrence)
+                },
             )
+            draft.due.date?.let { day ->
+                RecurrenceFields(draft.recurrence, due = day, onChange = { draft = draft.copy(recurrence = it) })
+            }
             PlacesField(
                 places = places,
                 selected = draft.placeIds,

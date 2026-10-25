@@ -199,8 +199,8 @@ private fun OrderChoice(order: TodoOrder, onChange: (TodoOrder) -> Unit) {
 }
 
 /**
- * A to-do with a box to tick it off, when it is due, said in red once it is overdue, its priority, the places it reminds
- * at, its tags and description.
+ * A to-do with a box to tick it off, when it is due, said in red once it is overdue, how it comes again, its priority,
+ * the places it reminds at, its tags and description.
  */
 @Composable
 private fun TodoRow(
@@ -227,6 +227,7 @@ private fun TodoRow(
                         Text(stringResource(R.string.todo_due_label, due))
                     }
                 }
+                todo.recurrence?.let { Text(recurrenceText(it)) }
                 PriorityNote(todo.priority)
                 LocalResources.current.placesLabel(details.placeNames)?.let { Text(it) }
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))

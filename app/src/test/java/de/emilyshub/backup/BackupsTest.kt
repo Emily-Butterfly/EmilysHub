@@ -19,6 +19,8 @@ import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.wish
+import de.emilyshub.todos.Due
+import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,7 +75,7 @@ class BackupsTest {
 
         assertEquals(changed, everything())
         assertEquals(Instant.parse("2026-10-23T05:00:00Z"), backup.created.toInstant())
-        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 3, places = 2, tags = 2), backup.summary)
+        assertEquals(Backup.Summary(routines = 2, todos = 4, wishes = 3, places = 2, tags = 2), backup.summary)
     }
 
     @Test
@@ -117,7 +119,7 @@ class BackupsTest {
 
     @Test
     fun `a backup of an older app version is brought up to this one, as an update of the app would`() {
-        val made = someOfEverything()
+        val made = someOfEverything(comingAgain = false)
         val file = sealed(asOfVersion16(contentOf(exported())))
         changeEverything()
 
@@ -133,7 +135,7 @@ class BackupsTest {
 
     @Test
     fun `a backup several versions old goes through each migration on the way`() {
-        val made = someOfEverything()
+        val made = someOfEverything(comingAgain = false)
         val file = sealed(asOfVersion14(contentOf(exported())))
         changeEverything()
 
@@ -263,8 +265,11 @@ class BackupsTest {
         assertEquals(listOf(Instant.parse("2026-10-23T05:30:00Z")), reminderAlarms())
     }
 
-    /** Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them. */
-    private fun someOfEverything(): Map<String, List<List<Any?>>> {
+    /**
+     * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, and,
+     * unless the data are to be as before version 19, a to-do coming again, ticked off once.
+     */
+    private fun someOfEverything(comingAgain: Boolean = true): Map<String, List<List<Any?>>> {
         val home = app.place("Zuhause", "FRITZ!Box 7590")
         val shop = app.place("Supermarkt", area = Area(Coordinates(52.52, 13.405), radius = 150))
         val health = app.tag("Gesundheit")
@@ -278,6 +283,10 @@ class BackupsTest {
         }
         app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
+        if (comingAgain) {
+            val rent = app.todo("Miete überweisen", due = Due.On(LocalDate.parse("2026-10-01")), recurrence = Recurrence.Monthly(1))
+            runBlocking { app.todos.markDone(rent) }
+        }
         app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
         val northernLights = app.wish("Nordlichter sehen", period = "Winter 2027")
         app.wish("Flüge buchen", parent = northernLights)
@@ -342,9 +351,13 @@ class BackupsTest {
 
     /** [content] as version 17 made it: without goals, which came with 18. */
     private fun asOfVersion17(content: JSONObject): JSONObject {
-        val older = content.withoutColumns("wishes", "parent_id", "manual_progress").withoutColumns("todos", "goal_id")
+        val older = asOfVersion18(content).withoutColumns("wishes", "parent_id", "manual_progress").withoutColumns("todos", "goal_id")
         return older.put("schema", 17)
     }
+
+    /** [content] as version 18 made it: without to-dos coming again, which came with 19. */
+    private fun asOfVersion18(content: JSONObject): JSONObject =
+        content.withoutColumns("todos", "recurrence", "next_id").put("schema", 18)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

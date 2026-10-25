@@ -39,6 +39,7 @@ Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHu
 |---|---|---|---|
 | 17 | [To-dos](17-todos.md) | 🤖 | 11, 12 |
 | 18 | [To-do-Erinnerungen zur Uhrzeit & am Ort](18-todo-erinnerungen.md) | 🤖 | 15, 17 |
+| 30 | [Wiederkehrende To-dos](30-wiederkehrende-todos.md) | 🤖 | 17, 18, 20 |
 
 ## Etappe 5 – Wunschliste / Ziele
 

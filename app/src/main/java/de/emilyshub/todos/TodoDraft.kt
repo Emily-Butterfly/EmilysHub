@@ -4,6 +4,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Checklists
 import de.emilyshub.routines.Priority
+import de.emilyshub.routines.RoutineDraft
 import java.io.Serializable
 import java.time.Instant
 
@@ -14,6 +15,8 @@ enum class TodoProblem {
     DescriptionTooLong,
     ChecklistTooLong,
     ChecklistItemTooLong,
+    WeekdaysMissing,
+    IntervalOutOfRange,
 }
 
 /**
@@ -34,6 +37,8 @@ data class TodoDraft(
     val placeIds: Set<Long> = emptySet(),
     /** The goal it is part of (SPEC.md §6), if any; one deleted meanwhile is left out on saving. */
     val goalId: Long? = null,
+    /** How it comes again once ticked off, if it does; only with a [due] day, left out without. */
+    val recurrence: Recurrence? = null,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -44,19 +49,31 @@ data class TodoDraft(
                 if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(TodoProblem.DescriptionTooLong)
                 if (checklist.size > Checklists.ITEMS_MAX) add(TodoProblem.ChecklistTooLong)
                 if (checklist.any { InputText.lengthOf(it.text) > Checklists.ITEM_LENGTH_MAX }) add(TodoProblem.ChecklistItemTooLong)
+                when (recurrence) {
+                    is Recurrence.Weekdays -> if (recurrence.days.isEmpty()) add(TodoProblem.WeekdaysMissing)
+                    is Recurrence.EveryNDays -> if (recurrence.days !in RoutineDraft.INTERVAL_DAYS) add(TodoProblem.IntervalOutOfRange)
+                    else -> Unit
+                }
             }
         }
 
-    /** Without surrounding spaces; the title and each checklist item on a single line, empty items left out. */
+    /**
+     * Without surrounding spaces; the title and each checklist item on a single line, empty items left out; without a
+     * recurrence unless due.
+     */
     fun cleaned() = copy(
         title = InputText.singleLine(title),
         description = description.trim(),
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
+        recurrence = recurrence.takeIf { due != Due.None },
     )
 
-    /** The to-do this draft makes: [id] if saved already, ticked off [doneAt] then if it is, its reminder as [reminding]. */
-    fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding()) =
-        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding, goalId)
+    /**
+     * The to-do this draft makes: [id] if saved already, ticked off [doneAt] then if it is, its reminder as [reminding],
+     * followed by [nextId] if it came again.
+     */
+    fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding(), nextId: Long? = null) =
+        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding, goalId, recurrence, nextId)
 
     companion object {
         const val TITLE_MAX = 80
@@ -66,5 +83,5 @@ data class TodoDraft(
 
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
-    title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId,
+    title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
 )

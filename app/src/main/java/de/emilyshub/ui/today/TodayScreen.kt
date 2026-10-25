@@ -58,6 +58,7 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
+import de.emilyshub.ui.todos.recurrenceText
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -137,8 +138,8 @@ private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos) {
 }
 
 /**
- * A to-do's row on Heute: when it is due, in red while it is overdue, its title, crossed out once done, and the places it
- * waits for.
+ * A to-do's row on Heute: when it is due, in red while it is overdue, its title, crossed out once done, how it comes
+ * again, and the places it waits for.
  */
 @Composable
 private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) -> Unit) {
@@ -172,6 +173,7 @@ private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) 
                 style = priorityNameStyle(todo.priority),
                 textDecoration = if (todo.done) TextDecoration.LineThrough else null,
             )
+            todo.recurrence?.let { Hint(recurrenceText(it)) }
             PriorityNote(todo.priority)
             // It pops up on arrival at one of its places (SPEC.md §4).
             if (todo.waitingFor.isNotEmpty()) {

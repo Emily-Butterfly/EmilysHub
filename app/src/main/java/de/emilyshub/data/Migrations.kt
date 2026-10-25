@@ -264,3 +264,15 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_goal_id` ON `todos` (`goal_id`)")
     }
 }
+
+/** Version 19: to-dos that come again (#30). None does yet, and none came next for another. */
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `recurrence` TEXT")
+        db.execSQL(
+            "ALTER TABLE `todos` ADD COLUMN `next_id` INTEGER " +
+                "REFERENCES `todos`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_next_id` ON `todos` (`next_id`)")
+    }
+}

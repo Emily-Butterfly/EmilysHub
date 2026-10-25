@@ -16,6 +16,11 @@ private val NUMERIC_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM
 /** A date as Germans write it in short: 30.10.2026. */
 fun LocalDate.numericDate(): String = NUMERIC_DATE.format(this)
 
+private val NUMERIC_DAY_AND_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("d.M.")
+
+/** A day of the year as Germans write it in short: 31.5. */
+fun TemporalAccessor.numericDayAndMonth(): String = NUMERIC_DAY_AND_MONTH.format(this)
+
 private val DAY_AND_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("d. MMMM", Locale.GERMAN)
 
 /** A day of the year, as Germans say it: 21. Oktober. */

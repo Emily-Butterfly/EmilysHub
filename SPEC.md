@@ -83,6 +83,7 @@ Ankommen erkennt die App beim Verbinden mit einem WLAN. Solange ein To-do auf ei
 | Titel | Pflicht |
 | Beschreibung | Optional |
 | Fälligkeit | Ohne / Datum / Datum + Uhrzeit |
+| Wiederholung | Optional, nur mit Fälligkeit: täglich, bestimmte Wochentage, alle X Tage, monatlich, jährlich; nächster Termin nach Plan oder ab Erledigung |
 | Ort | Optional; Erinnerung beim Ankommen, auch ohne Uhrzeit |
 | Priorität | Niedrig / Normal / Hoch |
 | Checkliste | Unterpunkte |
@@ -90,6 +91,7 @@ Ankommen erkennt die App beim Verbinden mit einem WLAN. Solange ein To-do auf ei
 
 - Erinnerungen nutzen dasselbe System wie Routinen.
 - Erledigte To-dos wandern ins **Archiv** (wiederherstellen oder endgültig löschen).
+- Ein **wiederkehrendes** To-do wandert abgehakt ebenso ins Archiv; zugleich erscheint das nächste mit der nächsten Fälligkeit.
 - Überfällige To-dos stehen oben in der Heute-Übersicht.
 
 ## 6. Wunschliste / Ziele

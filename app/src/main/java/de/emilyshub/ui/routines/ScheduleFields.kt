@@ -337,7 +337,7 @@ fun TimeWindowFields(window: TimeWindow, onChange: (TimeWindow) -> Unit) {
  * the [number] is retyped; empty counts as 0. Red while [number] is out of [range].
  */
 @Composable
-private fun NumberField(text: String, number: Int, range: IntRange, label: String, onChange: (String, Int) -> Unit) {
+internal fun NumberField(text: String, number: Int, range: IntRange, label: String, onChange: (String, Int) -> Unit) {
     OutlinedTextField(
         value = text,
         onValueChange = { typed ->
@@ -355,8 +355,9 @@ private fun NumberField(text: String, number: Int, range: IntRange, label: Strin
     )
 }
 
+/** One of a choice, with its radio button. */
 @Composable
-private fun RepetitionOption(label: String, selected: Boolean, onSelect: () -> Unit) {
+internal fun RepetitionOption(label: String, selected: Boolean, onSelect: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -371,7 +372,7 @@ private fun RepetitionOption(label: String, selected: Boolean, onSelect: () -> U
 
 /** One chip per weekday, Monday first; a hint while none is chosen. */
 @Composable
-private fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
+internal fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
     val names = stringArrayResource(R.array.weekdays_short)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         DayOfWeek.entries.forEach { day ->
@@ -385,9 +386,9 @@ private fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Uni
     if (days.isEmpty()) Problem(stringResource(R.string.routine_weekdays_missing))
 }
 
-/** What keeps the routine from being saved, under the field it is about. */
+/** What keeps the routine or to-do from being saved, under the field it is about. */
 @Composable
-private fun Problem(text: String) {
+internal fun Problem(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
 }
 

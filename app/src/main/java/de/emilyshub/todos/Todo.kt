@@ -34,17 +34,19 @@ sealed interface Due : Serializable {
 }
 
 /**
- * A to-do (SPEC.md §5): a task done once, [due] or not. Ticked off, it is [doneAt] then and in the archive, from where
- * it can be brought back. Its checklist is kept apart, as [TodoChecklistItem]s, its tags as [TodoTag]s, and the places
- * it reminds at as [TodoPlace]s; how far it has reminded is its [reminding]. It can hang under a goal, its [goalId]
- * (SPEC.md §6), and count towards it.
+ * A to-do (SPEC.md §5): a task done once, [due] or not, or coming again as its [recurrence] says. Ticked off, it is
+ * [doneAt] then and in the archive, from where it can be brought back; one coming again is followed at once by the next,
+ * its [nextId]. Its checklist is kept apart, as [TodoChecklistItem]s, its tags as [TodoTag]s, and the places it reminds
+ * at as [TodoPlace]s; how far it has reminded is its [reminding]. It can hang under a goal, its [goalId] (SPEC.md §6),
+ * and count towards it.
  */
 @Entity(
     tableName = "todos",
     foreignKeys = [
         ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
+        ForeignKey(entity = Todo::class, parentColumns = ["id"], childColumns = ["next_id"], onDelete = ForeignKey.SET_NULL),
     ],
-    indices = [Index(value = ["goal_id"])],
+    indices = [Index(value = ["goal_id"]), Index(value = ["next_id"])],
 )
 data class Todo(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -58,6 +60,10 @@ data class Todo(
     @Embedded val reminding: Reminding = Reminding(),
     /** The goal it is part of, if any; deleting that goal leaves it hanging at none. */
     @ColumnInfo(name = "goal_id") val goalId: Long? = null,
+    /** How it comes again once ticked off, if it does; only with a [dueDate]. */
+    val recurrence: Recurrence? = null,
+    /** Ticked off, the to-do that came next in its place, if it came again; deleting that one leaves none. */
+    @ColumnInfo(name = "next_id") val nextId: Long? = null,
 ) {
     /** [dueDate] and [dueTime] as one. */
     val due: Due
@@ -169,8 +175,8 @@ data class TodoWithDetails(
 }
 
 /**
- * A to-do on Heute: due by then, open or ticked off that day, [overdue] while still open after its time, and with the
- * names of the places it waits for, if it waits.
+ * A to-do on Heute: due by then, open or ticked off that day, [overdue] while still open after its time, with the names
+ * of the places it waits for, if it waits, and how it comes again, if it does.
  */
 data class DueTodo(
     val todoId: Long,
@@ -181,6 +187,7 @@ data class DueTodo(
     val overdue: Boolean,
     val checklist: List<ChecklistEntry> = emptyList(),
     val waitingFor: List<String> = emptyList(),
+    val recurrence: Recurrence? = null,
 )
 
 /** A to-do to remind of (SPEC.md §3): its [title], when it is [due], and the names of the [places] it reminds at. */

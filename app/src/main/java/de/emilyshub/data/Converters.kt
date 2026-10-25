@@ -5,11 +5,13 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.MonthDay
 
 /**
  * Dates and times are stored as ISO text ("2026-10-23", "08:00", "2026-10-23T06:00:00Z"); dates and times
@@ -62,6 +64,36 @@ class Converters {
         }
     }
 
+    /**
+     * "daily", "weekdays:1,4" (ISO day numbers, Monday is 1), "every:14", "monthly:31" or "yearly:--02-29", each but the
+     * first two with ":from-done" if it comes again from the day it was done.
+     */
+    @TypeConverter
+    fun fromRecurrence(recurrence: Recurrence): String {
+        val rule = when (recurrence) {
+            Recurrence.Daily -> "daily"
+            is Recurrence.Weekdays -> "weekdays:" + recurrence.days.sorted().joinToString(",") { it.value.toString() }
+            is Recurrence.EveryNDays -> "every:${recurrence.days}"
+            is Recurrence.Monthly -> "monthly:${recurrence.day}"
+            is Recurrence.Yearly -> "yearly:${recurrence.date}"
+        }
+        return if (recurrence.fromDone) "$rule:$FROM_DONE" else rule
+    }
+
+    @TypeConverter
+    fun toRecurrence(text: String): Recurrence {
+        val parts = text.split(":")
+        val fromDone = parts.getOrNull(2) == FROM_DONE
+        return when (parts.first()) {
+            "daily" -> Recurrence.Daily
+            "weekdays" -> Recurrence.Weekdays(parts[1].split(",").map { DayOfWeek.of(it.toInt()) }.toSet())
+            "every" -> Recurrence.EveryNDays(parts[1].toInt(), fromDone)
+            "monthly" -> Recurrence.Monthly(parts[1].toInt(), fromDone)
+            "yearly" -> Recurrence.Yearly(MonthDay.parse(parts[1]), fromDone)
+            else -> error("Unknown recurrence: $text")
+        }
+    }
+
     @TypeConverter
     fun fromPriority(priority: Priority): String = priority.stored
 
@@ -86,3 +118,5 @@ class Converters {
     @TypeConverter
     fun toWishStatus(text: String): WishStatus = WishStatus.entries.first { it.stored == text }
 }
+
+private const val FROM_DONE = "from-done"
