@@ -25,19 +25,22 @@ interface WishDao {
     @Query("SELECT id FROM wishes WHERE id = :id")
     suspend fun stillThere(id: Long?): Long?
 
-    /** The to-dos hanging under goals, each with how much of its checklist is ticked off. */
+    /**
+     * The to-dos hanging under goals, each with how much of its checklist is ticked off; but those ticked off that came
+     * again, whose next is in their place.
+     */
     @Query(
         "SELECT t.id, t.title, t.goal_id, t.done_at IS NOT NULL AS done, " +
             "(SELECT COUNT(*) FROM todo_checklist_items c WHERE c.todo_id = t.id) AS items, " +
             "(SELECT COUNT(*) FROM todo_checklist_items c WHERE c.todo_id = t.id AND c.ticked) AS ticked " +
-            "FROM todos t WHERE t.goal_id IS NOT NULL",
+            "FROM todos t WHERE t.goal_id IS NOT NULL AND t.next_id IS NULL",
     )
     fun observeGoalTodos(): Flow<List<GoalTodo>>
 
-    /** Whether each part of the goal is done: its subgoals, then its to-dos. */
+    /** Whether each part of the goal is done: its subgoals, then its to-dos, as [observeGoalTodos] has them. */
     @Query(
         "SELECT status = :done FROM wishes WHERE parent_id = :goalId " +
-            "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId",
+            "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL",
     )
     suspend fun partsDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
 

@@ -9,6 +9,7 @@ import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Priority
 import de.emilyshub.tags.Tags
 import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -111,9 +112,9 @@ class RecurringTodosTest {
 
         todos.markDone(trash)
         val next = todos.open().first().single().todo
-        assertEquals("The next takes over the goal", goal, next.goalId)
-        assertNull(todos.get(trash)?.goalId)
-        assertEquals(listOf(next.id), wishes.goal(goal).first()?.todos?.map { it.id })
+        assertEquals("The next hangs under the goal too", goal, next.goalId)
+        assertEquals("The one done stays in the goal, as before", goal, todos.get(trash)?.goalId)
+        assertEquals("The goal shows the one to do now only", listOf(next.id), wishes.goal(goal).first()?.todos?.map { it.id })
 
         todos.reopen(trash)
 
@@ -125,6 +126,77 @@ class RecurringTodosTest {
 
         todos.markDone(trash)
         assertEquals(listOf(Due.On(day("2026-11-02"))), todos.open().first().map { it.todo.due })
+    }
+
+    @Test
+    fun `opened again after the next was changed, it is a to-do of its own, and the next stays as changed`() = runBlocking {
+        val trash = todos.create(TodoDraft("Müll", due = Due.On(day("2026-10-19")), recurrence = mondays))
+        todos.markDone(trash)
+        val next = todos.open().first().single().todo.id
+        todos.update(next, TodoDraft("Müll und Altpapier", due = Due.On(day("2026-10-26")), recurrence = mondays))
+
+        todos.reopen(trash)
+
+        assertNull(todos.get(trash)?.recurrence)
+        assertEquals("Müll und Altpapier", todos.get(next)?.title)
+        assertEquals(setOf(trash, next), todos.open().first().map { it.todo.id }.toSet())
+    }
+
+    @Test
+    fun `opened again after the next was deleted, it comes again as before, under its goal`() = runBlocking {
+        val goal = wishes.create(WishDraft("Ordentliche Wohnung"))
+        val trash = todos.create(TodoDraft("Müll", due = Due.On(day("2026-10-19")), goalId = goal, recurrence = mondays))
+        todos.markDone(trash)
+        todos.delete(todos.open().first().single().todo.id)
+
+        todos.reopen(trash)
+
+        val reopened = checkNotNull(todos.get(trash))
+        assertEquals(goal to mondays, reopened.goalId to reopened.recurrence)
+        assertEquals(listOf(trash), wishes.goal(goal).first()?.todos?.map { it.id })
+    }
+
+    @Test
+    fun `a goal with a to-do coming again is done once the series is ended by deleting the next, its last one done`() =
+        runBlocking {
+            val goal = wishes.create(WishDraft("Kurs abschließen"))
+            val lesson = todos.create(TodoDraft("Lektion", due = Due.On(day("2026-10-19")), goalId = goal, recurrence = mondays))
+
+            todos.markDone(lesson)
+            assertEquals(WishStatus.Open, wishes.get(goal)?.status)
+
+            todos.delete(todos.open().first().single().todo.id)
+            assertEquals(WishStatus.Done, wishes.get(goal)?.status)
+        }
+
+    @Test
+    fun `ticked off by an edit of its checklist, it brings the next with the tags and places of that edit`() = runBlocking {
+        val home = tags.create("Zuhause")
+        val house = places.create(PlaceDraft("Haus", listOf("FritzBox")))
+        val bags = listOf(ChecklistDraftItem(text = "Gelber Sack"), ChecklistDraftItem(text = "Restmüll"))
+        val trash = todos.create(TodoDraft("Müll", due = Due.On(day("2026-10-26")), checklist = bags, recurrence = mondays))
+        val items = todos.checklist(trash)
+        todos.tick(trash, items.first().id, ticked = true)
+
+        val kept = listOf(ChecklistDraftItem(items.first().id, "Gelber Sack"))
+        val edited = TodoDraft("Müll", due = Due.On(day("2026-10-26")), checklist = kept, recurrence = mondays)
+        todos.update(trash, edited.copy(tagIds = setOf(home), placeIds = setOf(house)))
+
+        val next = todos.open().first().single()
+        assertEquals(setOf(home) to setOf(house), next.tagIds to next.placeIds)
+    }
+
+    @Test
+    fun `chosen in the editor, a recurrence follows the day the to-do is due, and one saved keeps its day when put off`() {
+        val due = Due.On(day("2026-11-01"))
+        val rent = TodoDraft("Miete", due = due, recurrence = Recurrence.Monthly(1))
+        val putOff = Due.On(day("2026-11-03"))
+
+        assertEquals(Recurrence.Monthly(3), rent.dueOn(putOff, recurrenceFollows = true).recurrence)
+        assertEquals(Recurrence.Monthly(1), rent.dueOn(putOff, recurrenceFollows = false).recurrence)
+        assertEquals(putOff, rent.dueOn(putOff, recurrenceFollows = false).due)
+        val sameDayAtNoon = Due.At(day("2026-11-01"), LocalTime.NOON)
+        assertEquals("Due on the same day", Recurrence.Monthly(1), rent.dueOn(sameDayAtNoon, recurrenceFollows = true).recurrence)
     }
 
     @Test

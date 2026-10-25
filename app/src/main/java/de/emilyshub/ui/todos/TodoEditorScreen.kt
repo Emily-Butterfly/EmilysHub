@@ -82,6 +82,8 @@ sealed interface TodoEditorTarget : Serializable {
 fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, target: TodoEditorTarget, onClose: () -> Unit) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
+    // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
+    var recurrenceChosen by rememberSaveable { mutableStateOf(false) }
     var loaded by rememberSaveable { mutableStateOf(todoId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -184,14 +186,17 @@ fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, t
                 due = draft.due,
                 today = todos.today(),
                 start = todos.nextFullHour(),
-                onChange = { due ->
-                    // On another day, one coming again monthly or yearly comes again on that one.
-                    val moved = due.date?.takeIf { it != draft.due.date }
-                    draft = draft.copy(due = due, recurrence = moved?.let { draft.recurrence?.anchoredTo(it) } ?: draft.recurrence)
-                },
+                onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
             )
             draft.due.date?.let { day ->
-                RecurrenceFields(draft.recurrence, due = day, onChange = { draft = draft.copy(recurrence = it) })
+                RecurrenceFields(
+                    recurrence = draft.recurrence,
+                    due = day,
+                    onChange = {
+                        draft = draft.copy(recurrence = it)
+                        recurrenceChosen = true
+                    },
+                )
             }
             PlacesField(
                 places = places,

@@ -17,7 +17,7 @@ Ein To-do mit Fälligkeit kann sich wiederholen, z. B. „Miete überweisen“ a
 - [ ] Abgehakt wandert das To-do ins Archiv; das nächste erscheint mit der nächsten Fälligkeit (gleiche Uhrzeit), mit Titel, Beschreibung, Priorität, Tags, Orten, Ziel und Wiederholung, die Checkliste wieder offen
 - [ ] Pro To-do wählbar, ab wann der nächste Termin zählt (bei „alle X Tage“, monatlich und jährlich): **nach Plan** (der nächste Termin laut Regel nach der bisherigen Fälligkeit und nach heute; verpasste Termine entfallen) oder **ab Erledigung** (der Abstand zählt ab dem Tag des Abhakens)
 - [ ] Monatlich am 29.–31.: in kürzeren Monaten am Monatsletzten, danach wieder am gewählten Tag; jährlich am 29.2. in anderen Jahren am 28.2.
-- [ ] Rückgängig machen oder wieder öffnen nimmt das gerade angelegte nächste To-do wieder weg, solange es offen ist
+- [ ] Rückgängig machen oder wieder öffnen nimmt das gerade angelegte nächste To-do wieder weg, solange es offen und unverändert ist; sonst bleibt es, und das wieder geöffnete wiederholt sich nicht mehr
 - [ ] Wiederholung entfernen beendet die Reihe
 - [ ] Liste, Heute und Editor zeigen, dass und wie sich ein To-do wiederholt
 - [ ] Unit-Tests für die nächste Fälligkeit (Wochentage, Monatsende, Schaltjahr, zu spät und zu früh erledigt, nach Plan und ab Erledigung)
@@ -27,3 +27,5 @@ Ein To-do mit Fälligkeit kann sich wiederholen, z. B. „Miete überweisen“ a
 - Abgehakt: neues To-do, das alte bleibt als Verlauf im Archiv (nicht dasselbe To-do weiterspringen lassen).
 - Regeln wie bei Routinen (täglich, Wochentage, alle X Tage) plus monatlich und jährlich.
 - „Nach Plan“ oder „ab Erledigung“ ist pro To-do wählbar.
+- Ein einzelner Termin lässt sich verschieben, ohne die Reihe zu verschieben; monatlich und jährlich bieten dann den neuen Tag als eigene Wahl für die Reihe an.
+- Am Ziel zählt nur das aktuelle To-do einer Reihe; die erledigten bleiben als Verlauf am Ziel.

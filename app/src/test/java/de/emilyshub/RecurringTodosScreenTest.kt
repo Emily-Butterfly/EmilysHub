@@ -2,6 +2,7 @@ package de.emilyshub
 
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -77,20 +78,34 @@ class RecurringTodosScreenTest {
     }
 
     @Test
-    fun `moved to another day, a to-do coming yearly comes again on that day`() {
+    fun `put off to another day, a to-do coming yearly keeps its date, unless the new one is chosen for the series`() {
         app.todo("Geburtstag Oma", due = Due.On(LocalDate.parse("2026-10-30")), recurrence = Recurrence.Yearly(MonthDay.of(10, 30)))
 
         launchApp().use {
             openTodos()
             compose.onNodeWithText("Jährlich am 30.10.").assertIsDisplayed()
             compose.onNodeWithText("Geburtstag Oma").performClick()
-            compose.onNode(hasText("Am") and hasClickAction()).tap()
-            // Each day in the calendar reads as a whole date, such as "Mittwoch, 28. Oktober 2026".
-            compose.onNode(hasText("28", substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
-            compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+            pickDay("28")
+            option("Jährlich am 30.10.").performScrollTo().assertIsSelected()
+            option("Jährlich am 28.10.").tap()
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Jährlich am 28.10.").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `chosen for a new to-do, monthly follows the day it is then put on`() {
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextReplacement("Miete überweisen")
+            option("Datum").performClick()
+            option("Monatlich am 23.").tap()
+            pickDay("28")
+
+            option("Monatlich am 28.").performScrollTo().assertIsSelected()
+            option("Monatlich am 23.").assertDoesNotExist()
         }
     }
 
@@ -126,6 +141,13 @@ class RecurringTodosScreenTest {
     }
 
     private fun openTodos() = compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
+
+    /** Picks the day in the calendar, where each day reads as a whole date, such as "Mittwoch, 28. Oktober 2026". */
+    private fun pickDay(day: String) {
+        compose.onNode(hasText("Am") and hasClickAction()).tap()
+        compose.onNode(hasText(day, substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+        compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+    }
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 

@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
+import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
@@ -47,7 +48,7 @@ class Converters {
     @TypeConverter
     fun fromRepetition(repetition: Repetition): String = when (repetition) {
         Repetition.Daily -> "daily"
-        is Repetition.Weekdays -> "weekdays:" + repetition.days.sorted().joinToString(",") { it.value.toString() }
+        is Repetition.Weekdays -> "weekdays:" + weekdaysText(repetition.days)
         is Repetition.EveryNDays -> "every:${repetition.days}:${repetition.from}"
         is Repetition.Once -> "once:${repetition.date}"
     }
@@ -57,7 +58,7 @@ class Converters {
         val parts = text.split(":")
         return when (parts.first()) {
             "daily" -> Repetition.Daily
-            "weekdays" -> Repetition.Weekdays(parts[1].split(",").map { DayOfWeek.of(it.toInt()) }.toSet())
+            "weekdays" -> Repetition.Weekdays(weekdaysOf(parts[1]))
             "every" -> Repetition.EveryNDays(days = parts[1].toInt(), from = LocalDate.parse(parts[2]))
             "once" -> Repetition.Once(LocalDate.parse(parts[1]))
             else -> error("Unknown repetition: $text")
@@ -65,34 +66,47 @@ class Converters {
     }
 
     /**
-     * "daily", "weekdays:1,4" (ISO day numbers, Monday is 1), "every:14", "monthly:31" or "yearly:--02-29", each but the
-     * first two with ":from-done" if it comes again from the day it was done.
+     * "daily", "weekdays:1,4" (ISO day numbers, Monday is 1), "every:14", "monthly:31" or "yearly:--02-29", the last
+     * three with ":from-done" if it comes again counting from the day it was done. Anything else, or a number out of its
+     * range, is refused, such as from a damaged backup (SPEC.md §9).
      */
     @TypeConverter
     fun fromRecurrence(recurrence: Recurrence): String {
         val rule = when (recurrence) {
             Recurrence.Daily -> "daily"
-            is Recurrence.Weekdays -> "weekdays:" + recurrence.days.sorted().joinToString(",") { it.value.toString() }
+            is Recurrence.Weekdays -> "weekdays:" + weekdaysText(recurrence.days)
             is Recurrence.EveryNDays -> "every:${recurrence.days}"
             is Recurrence.Monthly -> "monthly:${recurrence.day}"
             is Recurrence.Yearly -> "yearly:${recurrence.date}"
         }
-        return if (recurrence.fromDone) "$rule:$FROM_DONE" else rule
+        return if (recurrence is Recurrence.WithInterval && recurrence.fromDone) "$rule:$FROM_DONE" else rule
     }
 
     @TypeConverter
     fun toRecurrence(text: String): Recurrence {
         val parts = text.split(":")
-        val fromDone = parts.getOrNull(2) == FROM_DONE
-        return when (parts.first()) {
+        val kind = parts.first()
+        val fromDone = kind in WITH_INTERVAL && parts.size == 3 && parts[2] == FROM_DONE
+        val size = when {
+            kind == "daily" -> 1
+            fromDone -> 3
+            else -> 2
+        }
+        require(parts.size == size) { "Unknown recurrence: $text" }
+        return when (kind) {
             "daily" -> Recurrence.Daily
-            "weekdays" -> Recurrence.Weekdays(parts[1].split(",").map { DayOfWeek.of(it.toInt()) }.toSet())
-            "every" -> Recurrence.EveryNDays(parts[1].toInt(), fromDone)
-            "monthly" -> Recurrence.Monthly(parts[1].toInt(), fromDone)
+            "weekdays" -> Recurrence.Weekdays(weekdaysOf(parts[1]))
+            "every" -> Recurrence.EveryNDays(parts[1].toInt().also { require(it in RoutineDraft.INTERVAL_DAYS) }, fromDone)
+            "monthly" -> Recurrence.Monthly(parts[1].toInt().also { require(it in 1..MAX_DAY_OF_MONTH) }, fromDone)
             "yearly" -> Recurrence.Yearly(MonthDay.parse(parts[1]), fromDone)
             else -> error("Unknown recurrence: $text")
         }
     }
+
+    /** "1,3,5": ISO day numbers, Monday is 1. */
+    private fun weekdaysText(days: Set<DayOfWeek>) = days.sorted().joinToString(",") { it.value.toString() }
+
+    private fun weekdaysOf(text: String): Set<DayOfWeek> = text.split(",").map { DayOfWeek.of(it.toInt()) }.toSet()
 
     @TypeConverter
     fun fromPriority(priority: Priority): String = priority.stored
@@ -120,3 +134,5 @@ class Converters {
 }
 
 private const val FROM_DONE = "from-done"
+private const val MAX_DAY_OF_MONTH = 31
+private val WITH_INTERVAL = setOf("every", "monthly", "yearly")

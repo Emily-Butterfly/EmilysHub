@@ -266,11 +266,11 @@
     <string name="todo_due_date">Am</string>
     <string name="todo_due_time">Um</string>
     <string name="todo_due_label">Fällig: %1$s</string>
-    <string name="todo_repeat_none">Keine</string>
-    <string name="todo_repeat_month_end">In kürzeren Monaten am Monatsletzten.</string>
-    <string name="todo_repeat_leap_day">In Jahren ohne 29. Februar am 28. Februar.</string>
-    <string name="todo_repeat_from_done">Ab Erledigung zählen</string>
-    <string name="todo_repeat_from_done_summary">Der nächste Termin zählt ab dem Tag, an dem du abhakst, statt nach Plan.</string>
+    <string name="todo_recurrence_none">Keine</string>
+    <string name="todo_recurrence_month_end">In kürzeren Monaten am Monatsletzten.</string>
+    <string name="todo_recurrence_leap_day">In Jahren ohne 29. Februar am 28. Februar.</string>
+    <string name="todo_recurrence_counting_from_done">Ab Erledigung zählen</string>
+    <string name="todo_recurrence_counting_from_done_summary">Der nächste Termin zählt ab dem Tag, an dem du abhakst, statt nach Plan.</string>
     <string name="todo_recurrence_daily">Täglich</string>
     <string name="todo_recurrence_weekdays">Jede Woche %1$s</string>
     <string name="todo_recurrence_every_n_days">Alle %1$d Tage</string>

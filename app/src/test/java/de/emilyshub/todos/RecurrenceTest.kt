@@ -8,7 +8,8 @@ import java.time.MonthDay
 
 /**
  * When a to-do that comes again is due next (SPEC.md §5): by plan, the next day of its rule after it was due and after
- * the day it was done, those missed in between left out; or from the day it was done.
+ * the day it was done, those missed in between left out; or an interval after the day it was done, even if that is
+ * before the day the one done was due.
  */
 class RecurrenceTest {
 
@@ -49,6 +50,7 @@ class RecurrenceTest {
 
         val fortnightFromDone = Recurrence.EveryNDays(14, fromDone = true)
         assertEquals(day("2026-11-04"), fortnightFromDone.nextDue(due = day("2026-10-19"), doneOn = day("2026-10-21")))
+        assertEquals("Done early", day("2026-11-08"), fortnightFromDone.nextDue(due = day("2026-11-20"), doneOn = day("2026-10-25")))
     }
 
     @Test
@@ -68,8 +70,13 @@ class RecurrenceTest {
             onThe1st.nextDue(due = day("2026-10-01"), doneOn = day("2026-11-01")),
         )
 
+        val onThe30th = Recurrence.Monthly(30)
+        assertEquals(day("2027-02-28"), onThe30th.nextDue(due = day("2027-01-30"), doneOn = day("2027-01-30")))
+        assertEquals(day("2027-03-30"), onThe30th.nextDue(due = day("2027-02-28"), doneOn = day("2027-02-28")))
+
         val fromDone = Recurrence.Monthly(1, fromDone = true)
         assertEquals(day("2026-11-17"), fromDone.nextDue(due = day("2026-10-01"), doneOn = day("2026-10-17")))
+        assertEquals("Done early", day("2026-11-25"), fromDone.nextDue(due = day("2026-11-30"), doneOn = day("2026-10-25")))
     }
 
     @Test
@@ -82,7 +89,9 @@ class RecurrenceTest {
 
         val taxes = Recurrence.Yearly(MonthDay.of(5, 31))
         assertEquals("Done late", day("2027-05-31"), taxes.nextDue(due = day("2026-05-31"), doneOn = day("2026-07-20")))
-        assertEquals(day("2027-07-20"), taxes.copy(fromDone = true).nextDue(due = day("2026-05-31"), doneOn = day("2026-07-20")))
+        val taxesFromDone = taxes.copy(fromDone = true)
+        assertEquals(day("2027-07-20"), taxesFromDone.nextDue(due = day("2026-05-31"), doneOn = day("2026-07-20")))
+        assertEquals("Done early", day("2027-03-01"), taxesFromDone.nextDue(due = day("2026-05-31"), doneOn = day("2026-03-01")))
     }
 
     @Test

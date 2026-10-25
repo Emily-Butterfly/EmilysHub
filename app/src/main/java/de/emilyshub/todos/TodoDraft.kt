@@ -52,7 +52,8 @@ data class TodoDraft(
                 when (recurrence) {
                     is Recurrence.Weekdays -> if (recurrence.days.isEmpty()) add(TodoProblem.WeekdaysMissing)
                     is Recurrence.EveryNDays -> if (recurrence.days !in RoutineDraft.INTERVAL_DAYS) add(TodoProblem.IntervalOutOfRange)
-                    else -> Unit
+                    // Their day comes from the day the to-do is due.
+                    null, Recurrence.Daily, is Recurrence.Monthly, is Recurrence.Yearly -> Unit
                 }
             }
         }
@@ -67,6 +68,16 @@ data class TodoDraft(
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
         recurrence = recurrence.takeIf { due != Due.None },
     )
+
+    /**
+     * The draft due [due] instead. If [recurrenceFollows], one coming again monthly or yearly comes again on the day of
+     * the month or of the year it is due on now, as when a recurrence is just chosen; otherwise it keeps its day, as when
+     * one of a series is put off.
+     */
+    fun dueOn(due: Due, recurrenceFollows: Boolean): TodoDraft {
+        val moved = due.date?.takeIf { recurrenceFollows && it != this.due.date }
+        return copy(due = due, recurrence = moved?.let { recurrence?.anchoredTo(it) } ?: recurrence)
+    }
 
     /**
      * The to-do this draft makes: [id] if saved already, ticked off [doneAt] then if it is, its reminder as [reminding],

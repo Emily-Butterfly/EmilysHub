@@ -2,28 +2,21 @@ package de.emilyshub.ui.routines
 
 import android.os.Build
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -39,10 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
@@ -56,7 +47,11 @@ import de.emilyshub.ui.SystemSettings
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.NumberField
+import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.fields.TimeDialog
+import de.emilyshub.ui.fields.WeekdayChips
 import de.emilyshub.ui.openSettings
 import de.emilyshub.ui.reminders.FullScreenAlarmPermission
 import java.io.Serializable
@@ -144,16 +139,16 @@ fun RepetitionFields(repetition: Repetition, today: LocalDate, goneBy: Boolean, 
 
     Column(Modifier.selectableGroup()) {
         SectionTitle(stringResource(R.string.routine_repeat))
-        RepetitionOption(stringResource(R.string.routine_repeat_daily), selected = repetition == Repetition.Daily) {
+        RadioOption(stringResource(R.string.routine_repeat_daily), selected = repetition == Repetition.Daily) {
             onChange(Repetition.Daily)
         }
-        RepetitionOption(stringResource(R.string.routine_repeat_weekdays), selected = repetition is Repetition.Weekdays) {
+        RadioOption(stringResource(R.string.routine_repeat_weekdays), selected = repetition is Repetition.Weekdays) {
             if (repetition !is Repetition.Weekdays) onChange(Repetition.Weekdays(WORKDAYS))
         }
         if (repetition is Repetition.Weekdays) {
             WeekdayChips(repetition.days, onChange = { onChange(Repetition.Weekdays(it)) })
         }
-        RepetitionOption(stringResource(R.string.routine_repeat_every_n_days), selected = repetition is Repetition.EveryNDays) {
+        RadioOption(stringResource(R.string.routine_repeat_every_n_days), selected = repetition is Repetition.EveryNDays) {
             if (repetition !is Repetition.EveryNDays) {
                 onChange(Repetition.EveryNDays(days = intervalText.toIntOrNull() ?: 0, from = today))
             }
@@ -166,7 +161,7 @@ fun RepetitionFields(repetition: Repetition, today: LocalDate, goneBy: Boolean, 
             }
             DateValue(stringResource(R.string.routine_starting), repetition.from, onClick = { choosingDate = true })
         }
-        RepetitionOption(stringResource(R.string.routine_repeat_once), selected = repetition is Repetition.Once) {
+        RadioOption(stringResource(R.string.routine_repeat_once), selected = repetition is Repetition.Once) {
             if (repetition !is Repetition.Once) onChange(Repetition.Once(today))
         }
         if (repetition is Repetition.Once) {
@@ -332,66 +327,5 @@ fun TimeWindowFields(window: TimeWindow, onChange: (TimeWindow) -> Unit) {
     }
 }
 
-/**
- * A whole number from [range]: [text] is kept as typed, so that the field can be empty for a moment while
- * the [number] is retyped; empty counts as 0. Red while [number] is out of [range].
- */
-@Composable
-internal fun NumberField(text: String, number: Int, range: IntRange, label: String, onChange: (String, Int) -> Unit) {
-    OutlinedTextField(
-        value = text,
-        onValueChange = { typed ->
-            val digits = typed.filter(Char::isDigit).take(NUMBER_DIGITS)
-            onChange(digits, digits.toIntOrNull() ?: 0)
-        },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        isError = number !in range,
-        supportingText = { Text(stringResource(R.string.routine_interval_range, range.first, range.last)) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    )
-}
-
-/** One of a choice, with its radio button. */
-@Composable
-internal fun RepetitionOption(label: String, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 16.dp))
-    }
-}
-
-/** One chip per weekday, Monday first; a hint while none is chosen. */
-@Composable
-internal fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
-    val names = stringArrayResource(R.array.weekdays_short)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DayOfWeek.entries.forEach { day ->
-            FilterChip(
-                selected = day in days,
-                onClick = { onChange(if (day in days) days - day else days + day) },
-                label = { Text(names[day.ordinal]) },
-            )
-        }
-    }
-    if (days.isEmpty()) Problem(stringResource(R.string.routine_weekdays_missing))
-}
-
-/** What keeps the routine or to-do from being saved, under the field it is about. */
-@Composable
-internal fun Problem(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-}
-
 private val WORKDAYS: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet()
 private const val DEFAULT_INTERVAL = 2
-private const val NUMBER_DIGITS = 3

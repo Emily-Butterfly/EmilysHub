@@ -182,6 +182,7 @@ class BackupsTest {
             "a key unknown" to { it.put("passwords", JSONObject()) },
             "a key unknown in a table" to { it.table("tags").put("colour", "lila") },
             "a repetition the app cannot read" to { it.setFirst("routines", "repetition", "jede Woche") },
+            "a recurrence the app cannot read" to { it.setFirst("todos", "recurrence", "monthly:32") },
             "a status the app cannot read" to { it.setFirst("occurrences", "status", "vielleicht") },
             "a time the app cannot read" to { it.setFirst("routines", "times", "halb acht") },
             "a date the app cannot read" to { it.setFirst("occurrences", "date", "2026-02-30") },
