@@ -1,5 +1,6 @@
 package de.emilyshub.ui.wishes
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,16 +16,19 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -40,9 +45,12 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.GoalField
+import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
@@ -51,25 +59,39 @@ import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
 import de.emilyshub.wishes.toDraft
+import kotlinx.coroutines.flow.flowOf
 import java.io.Serializable
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** Which wish the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface WishEditorTarget : Serializable {
-    data object New : WishEditorTarget
+    /** A new wish, or a new subgoal of the goal [parentId]. */
+    data class New(val parentId: Long? = null) : WishEditorTarget
 
     data class Edit(val wishId: Long) : WishEditorTarget
 }
 
 /**
- * Creates or changes a wish with its title, description, period, status and tags (SPEC.md §6), or deletes it. Done, it
- * came true today unless another day gone by is chosen. Leaving without saving drops the changes.
+ * Creates or changes a wish with its title, description, period, status, tags, the goal it is part of and its progress
+ * (SPEC.md §6), or deletes it. Done, it came true today unless another day gone by is chosen. A wish saved can have a
+ * subgoal added, [onOpenWish], or be made into a to-do hanging under it, [onOpenTodo]; both save it first. Leaving
+ * without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WishEditorScreen(wishes: Wishes, tags: Tags, target: WishEditorTarget, onClose: () -> Unit) {
+fun WishEditorScreen(
+    wishes: Wishes,
+    todos: Todos,
+    tags: Tags,
+    target: WishEditorTarget,
+    onClose: () -> Unit,
+    onOpenWish: (WishEditorTarget) -> Unit,
+    onOpenTodo: (Long) -> Unit,
+) {
     val wishId = (target as? WishEditorTarget.Edit)?.wishId
-    var draft by rememberSaveable { mutableStateOf(WishDraft(title = "")) }
+    val parentId = (target as? WishEditorTarget.New)?.parentId
+    var draft by rememberSaveable { mutableStateOf(WishDraft(title = "", parentId = parentId)) }
     var loaded by rememberSaveable { mutableStateOf(wishId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -109,12 +131,33 @@ fun WishEditorScreen(wishes: Wishes, tags: Tags, target: WishEditorTarget, onClo
         }
     }
 
+    /** Saves the wish, if it can be, and then goes on with [next], which leaves the editor. */
+    fun saveAndThen(next: suspend (wishId: Long) -> Unit) {
+        if (wishId == null || closing) return
+        if (problems.isNotEmpty()) {
+            showMissingTitle = true
+            return
+        }
+        closing = true
+        val saved = draft
+        scope.launchNow {
+            wishes.update(wishId, saved)
+            next(wishId)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        stringResource(if (wishId == null) R.string.wish_new else R.string.wish_edit),
+                        stringResource(
+                            when {
+                                wishId != null -> R.string.wish_edit
+                                parentId != null -> R.string.wish_subgoal_new
+                                else -> R.string.wish_new
+                            },
+                        ),
                         modifier = Modifier.semantics { heading() },
                     )
                 },
@@ -192,6 +235,29 @@ fun WishEditorScreen(wishes: Wishes, tags: Tags, target: WishEditorTarget, onClo
                 onChange = { status, doneOn -> draft = draft.copy(status = status, doneOn = doneOn) },
             )
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
+            GoalField(
+                wishes = wishes,
+                selected = draft.parentId,
+                label = R.string.wish_parent,
+                none = R.string.wish_parent_none,
+                onChange = { draft = draft.copy(parentId = it) },
+                excluding = wishId,
+            )
+            ProgressField(
+                wishes = wishes,
+                wishId = wishId,
+                status = draft.status,
+                manual = draft.manualProgress,
+                onChange = { draft = draft.copy(manualProgress = it) },
+            )
+            if (wishId != null) {
+                OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
+                    Text(stringResource(R.string.wish_add_subgoal))
+                }
+                OutlinedButton(onClick = { saveAndThen { onOpenTodo(todos.create(wishes.asTodo(it))) } }) {
+                    Text(stringResource(R.string.wish_to_todo))
+                }
+            }
         }
     }
 
@@ -209,6 +275,56 @@ fun WishEditorScreen(wishes: Wishes, tags: Tags, target: WishEditorTarget, onClo
         )
     }
 }
+
+/**
+ * How far the wish has come (SPEC.md §6): worked out from its parts, or set by hand in steps of 5 % until reset; all of
+ * it once done.
+ */
+@Composable
+private fun ProgressField(wishes: Wishes, wishId: Long?, status: WishStatus, manual: Int?, onChange: (Int?) -> Unit) {
+    val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
+    val automatic = goal?.automaticPercent ?: 0
+    Column {
+        SectionTitle(stringResource(R.string.wish_progress))
+        when {
+            status == WishStatus.Done -> ProgressValue(FULL, R.string.wish_progress_done)
+            manual != null -> {
+                ProgressValue(manual, R.string.wish_progress_manual)
+                val label = stringResource(R.string.wish_progress)
+                Slider(
+                    value = manual.toFloat(),
+                    onValueChange = { onChange((it / STEP).roundToInt() * STEP) },
+                    valueRange = 0f..FULL.toFloat(),
+                    steps = FULL / STEP - 1,
+                    modifier = Modifier.semantics { contentDescription = label },
+                )
+                TextButton(onClick = { onChange(null) }) {
+                    Text(
+                        if (goal?.hasParts == true) {
+                            stringResource(R.string.wish_progress_reset_to, automatic)
+                        } else {
+                            stringResource(R.string.wish_progress_reset)
+                        },
+                    )
+                }
+            }
+            else -> {
+                val source = if (goal?.hasParts == true) R.string.wish_progress_automatic else R.string.wish_progress_no_parts
+                ProgressValue(automatic, source)
+                TextButton(onClick = { onChange(automatic) }) { Text(stringResource(R.string.wish_progress_set)) }
+            }
+        }
+    }
+}
+
+/** "40 %" and where it comes from, as [source] says. */
+@Composable
+private fun ProgressValue(percent: Int, @StringRes source: Int) {
+    LabelledValue(stringResource(source), stringResource(R.string.statistics_percent, percent))
+}
+
+private const val FULL = 100
+private const val STEP = 5
 
 /**
  * Open, in progress or done (SPEC.md §6); done, on the day it came true, [doneOn], which can be any day up to [today].

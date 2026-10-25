@@ -53,6 +53,7 @@ import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.PlacesField
@@ -60,6 +61,7 @@ import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
+import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -72,12 +74,12 @@ sealed interface TodoEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a to-do with its title, description, due, places, priority, checklist and tags (SPEC.md §5), or
- * deletes it. Leaving without saving drops the changes.
+ * Creates or changes a to-do with its title, description, due, places, priority, checklist, tags and the goal it is part
+ * of (SPEC.md §5, §6), or deletes it. Leaving without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoEditorScreen(todos: Todos, tags: Tags, places: Places, target: TodoEditorTarget, onClose: () -> Unit) {
+fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, target: TodoEditorTarget, onClose: () -> Unit) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
     var loaded by rememberSaveable { mutableStateOf(todoId == null) }
@@ -194,6 +196,13 @@ fun TodoEditorScreen(todos: Todos, tags: Tags, places: Places, target: TodoEdito
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
+            GoalField(
+                wishes = wishes,
+                selected = draft.goalId,
+                label = R.string.todo_goal,
+                none = R.string.todo_goal_none,
+                onChange = { draft = draft.copy(goalId = it) },
+            )
         }
     }
 

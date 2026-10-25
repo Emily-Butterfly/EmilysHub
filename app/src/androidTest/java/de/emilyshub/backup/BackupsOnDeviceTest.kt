@@ -101,7 +101,15 @@ class BackupsOnDeviceTest {
 
     /** [content] as version 16 made it, the first that made backups: without the wishes, which came with 17. */
     private fun asOfVersion16(content: JSONObject): JSONObject {
-        listOf("wishes", "wish_tags").forEach { content.getJSONObject("tables").remove(it) }
+        val tables = content.getJSONObject("tables")
+        listOf("wishes", "wish_tags").forEach { tables.remove(it) }
+        // Nor the goals to-dos hang under, which came with 18.
+        val todos = tables.getJSONObject("todos")
+        val columns = todos.getJSONArray("columns")
+        val goal = (0 until columns.length()).first { columns.getString(it) == "goal_id" }
+        columns.remove(goal)
+        val rows = todos.getJSONArray("rows")
+        for (row in 0 until rows.length()) rows.getJSONArray(row).remove(goal)
         return content.put("schema", 16)
     }
 

@@ -8,6 +8,7 @@ import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.dueAt
 import de.emilyshub.routines.today
+import de.emilyshub.wishes.settleGoal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -73,15 +74,20 @@ class Todos(
     /** The places the to-do reminds at (SPEC.md §4); none: by its time only. */
     suspend fun placeIdsOf(id: Long): Set<Long> = withContext(io) { dao.placeIdsOf(id).toSet() }
 
-    /** A new to-do, open, reminding as [Reminding] describes; refuses a draft with problems, which the editor shows before. */
+    /**
+     * A new to-do, open, reminding as [Reminding] describes; refuses a draft with problems, which the editor shows
+     * before. Under a goal, it is a part of it, which opens that goal again if it was done.
+     */
     suspend fun create(draft: TodoDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            dao.insert(cleaned.toTodo()).also { id ->
+            val goalId = goalStillThere(cleaned.goalId)
+            dao.insert(cleaned.copy(goalId = goalId).toTodo()).also { id ->
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
                 savePlaces(id, cleaned.placeIds)
                 rearm(id, cleaned.due)
+                database().settleGoal(goalId, today())
             }
         }
     }
@@ -95,16 +101,26 @@ class Todos(
         database().withTransaction {
             val todo = dao.get(id) ?: return@withTransaction
             val placesBefore = dao.placeIdsOf(id).toSet()
-            dao.update(cleaned.toTodo(id, doneAt = todo.doneAt, reminding = todo.reminding))
+            val goalId = goalStillThere(cleaned.goalId)
+            dao.update(cleaned.copy(goalId = goalId).toTodo(id, doneAt = todo.doneAt, reminding = todo.reminding))
             saveChecklist(id, cleaned.checklist)
             saveTags(id, cleaned.tagIds)
             savePlaces(id, cleaned.placeIds)
             if (cleaned.due != todo.due || dao.placeIdsOf(id).toSet() != placesBefore) rearm(id, cleaned.due)
+            settleGoals(todo.goalId, goalId)
         }
     }
 
-    /** Ticks the to-do off, into the archive (SPEC.md §5); its checklist counts as ticked off with it. */
-    suspend fun markDone(id: Long) = write { dao.setDoneAt(id, clock.instant()) }
+    /**
+     * Ticks the to-do off, into the archive (SPEC.md §5); its checklist counts as ticked off with it, and its goal is
+     * done if that was the last part open.
+     */
+    suspend fun markDone(id: Long) = write {
+        database().withTransaction {
+            dao.setDoneAt(id, clock.instant())
+            settleGoals(dao.get(id)?.goalId)
+        }
+    }
 
     /**
      * Opens the to-do again, out of the archive. What of its checklist was ticked off stays so, unless all of it was,
@@ -116,11 +132,18 @@ class Todos(
             if (dao.checklist(id).allTicked()) dao.setAllTicked(id, ticked = false)
             dao.setDoneAt(id, null)
             rearm(id, todo.due)
+            settleGoals(todo.goalId)
         }
     }
 
-    /** Deletes the to-do for good, with its checklist, tags and places. */
-    suspend fun delete(id: Long) = write { dao.delete(id) }
+    /** Deletes the to-do for good, with its checklist, tags and places; its goal is settled without it. */
+    suspend fun delete(id: Long) = write {
+        database().withTransaction {
+            val todo = dao.get(id) ?: return@withTransaction
+            dao.delete(id)
+            settleGoals(todo.goalId)
+        }
+    }
 
     /** Puts the to-do's reminder off ("Später"): it pops up again at [until], anywhere. */
     suspend fun putOff(id: Long, until: Instant) = write { dao.putOff(id, until) }
@@ -237,7 +260,7 @@ class Todos(
             when {
                 ticked && !done -> {
                     dao.setTicked(itemId, ticked = true)
-                    doneIfAllTicked(todoId)
+                    doneIfAllTicked(todoId).also { settleGoals(todo.goalId) }
                 }
                 // Done as a whole, every item counts as ticked off until one is unticked.
                 !ticked && done -> {
@@ -245,6 +268,7 @@ class Todos(
                     dao.setTicked(itemId, ticked = false)
                     dao.setDoneAt(todoId, null)
                     rearm(todoId, todo.due)
+                    settleGoals(todo.goalId)
                     false
                 }
                 !ticked -> {
@@ -328,6 +352,14 @@ class Todos(
         dao.updateChecklistItems(keeping)
         dao.insertChecklistItems(new)
         if (dao.get(todoId)?.doneAt == null) doneIfAllTicked(todoId)
+    }
+
+    /** [goalId], unless that goal was deleted meanwhile. */
+    private suspend fun goalStillThere(goalId: Long?): Long? = goalId?.takeIf { database().wishes().get(it) != null }
+
+    /** Settles the goals the to-do is or was part of (SPEC.md §6), as a change to it may finish or reopen them. */
+    private suspend fun settleGoals(vararg goalIds: Long?) {
+        goalIds.filterNotNull().distinct().forEach { database().settleGoal(it, today()) }
     }
 
     private suspend fun saveTags(todoId: Long, tagIds: Set<Long>) {

@@ -410,6 +410,30 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 17 moves to version 18 where wishes and to-dos hang under no goal yet and then can`() {
+        createAtVersion(17) {
+            it.execSQL("INSERT INTO wishes (id, title, description, period, status) VALUES (1, 'Arabisch A2', '', '', 'open')")
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, reminds_at_due_time, waiting, away) " +
+                    "VALUES (1, 'Lehrbuch', '', 'normal', 0, 0, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(null, database.wishes().get(1)?.parentId)
+            assertEquals(null, database.todos().get(1)?.goalId)
+
+            val a1 = database.wishes().insert(Wish(title = "A1 abschließen", description = "", period = "", parentId = 1))
+            database.todos().update(checkNotNull(database.todos().get(1)).copy(goalId = a1))
+
+            // A goal deleted takes its subgoals with it, and its to-dos hang under none.
+            database.wishes().delete(1)
+            assertEquals(null, database.wishes().get(a1))
+            assertEquals(null, database.todos().get(1)?.goalId)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

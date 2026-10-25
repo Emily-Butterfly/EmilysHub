@@ -10,6 +10,7 @@ enum class WishProblem {
     TitleTooLong,
     DescriptionTooLong,
     PeriodTooLong,
+    ProgressOutOfRange,
 }
 
 /**
@@ -27,6 +28,10 @@ data class WishDraft(
     val doneOn: LocalDate? = null,
     /** Its tags; one deleted meanwhile is left out on saving. */
     val tagIds: Set<Long> = emptySet(),
+    /** The goal it is part of; none: at the top. One deleted meanwhile is left out on saving. */
+    val parentId: Long? = null,
+    /** How far it has come in percent, set by hand; none: worked out from its parts. */
+    val manualProgress: Int? = null,
 ) : Serializable {
 
     val problems: Set<WishProblem>
@@ -36,6 +41,7 @@ data class WishDraft(
                 if (InputText.lengthOf(title) > TITLE_MAX) add(WishProblem.TitleTooLong)
                 if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(WishProblem.DescriptionTooLong)
                 if (InputText.lengthOf(period) > PERIOD_MAX) add(WishProblem.PeriodTooLong)
+                if (manualProgress != null && manualProgress !in 0..100) add(WishProblem.ProgressOutOfRange)
             }
         }
 
@@ -50,7 +56,8 @@ data class WishDraft(
         if (status == WishStatus.Done) minOf(doneOn ?: today, today) else null
 
     /** The wish this draft makes as of [today], [id] if saved already. */
-    fun toWish(today: LocalDate, id: Long = 0) = Wish(id, title, description, period, status, cameTrueOn(today))
+    fun toWish(today: LocalDate, id: Long = 0) =
+        Wish(id, title, description, period, status, cameTrueOn(today), parentId, manualProgress)
 
     companion object {
         const val TITLE_MAX = 80
@@ -62,4 +69,4 @@ data class WishDraft(
 }
 
 /** The wish with its [tagIds] as the editor starts out with it. */
-fun Wish.toDraft(tagIds: Set<Long>) = WishDraft(title, description, period, status, doneOn, tagIds)
+fun Wish.toDraft(tagIds: Set<Long>) = WishDraft(title, description, period, status, doneOn, tagIds, parentId, manualProgress)

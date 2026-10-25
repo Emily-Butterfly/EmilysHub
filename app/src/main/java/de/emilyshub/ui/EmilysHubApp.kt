@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -210,7 +211,7 @@ private fun AppShell(
     when {
         todoTarget != null -> {
             BackHandler { todoEditor = null }
-            TodoEditorScreen(todos, tags, places, todoTarget, onClose = { todoEditor = null })
+            TodoEditorScreen(todos, wishes, tags, places, todoTarget, onClose = { todoEditor = null })
         }
         todoArchiveOpen -> {
             BackHandler { todoArchiveOpen = false }
@@ -219,7 +220,21 @@ private fun AppShell(
         // Opened from the list or the review, the editor goes back there.
         wishTarget != null -> {
             BackHandler { wishEditor = null }
-            WishEditorScreen(wishes, tags, wishTarget, onClose = { wishEditor = null })
+            // A new editor for each wish, so that one opened from another starts afresh.
+            key(wishTarget) {
+                WishEditorScreen(
+                    wishes = wishes,
+                    todos = todos,
+                    tags = tags,
+                    target = wishTarget,
+                    onClose = { wishEditor = null },
+                    onOpenWish = { wishEditor = it },
+                    onOpenTodo = {
+                        wishEditor = null
+                        todoEditor = TodoEditorTarget.Edit(it)
+                    },
+                )
+            }
         }
         wishReviewOpen -> {
             BackHandler { wishReviewOpen = false }
@@ -405,12 +420,14 @@ private fun TopLevelScaffold(
             )
             TopLevelDestination.Wishlist -> WishlistScreen(
                 wishes = wishes,
+                todos = todos,
                 tags = tags,
                 tagFilter = wishTagFilter,
                 onTagFilterChange = onWishTagFilterChange,
                 contentPadding = contentPadding,
                 onOpen = { onOpenWish(WishEditorTarget.Edit(it)) },
-                onCreate = { onOpenWish(WishEditorTarget.New) },
+                onOpenTodo = { onOpenTodo(TodoEditorTarget.Edit(it)) },
+                onCreate = { onOpenWish(WishEditorTarget.New()) },
                 onOpenReview = onOpenWishReview,
             )
             TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)

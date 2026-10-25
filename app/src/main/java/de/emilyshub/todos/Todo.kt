@@ -13,6 +13,7 @@ import de.emilyshub.places.Place
 import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.Priority
 import de.emilyshub.tags.Tag
+import de.emilyshub.wishes.Wish
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
@@ -35,9 +36,16 @@ sealed interface Due : Serializable {
 /**
  * A to-do (SPEC.md §5): a task done once, [due] or not. Ticked off, it is [doneAt] then and in the archive, from where
  * it can be brought back. Its checklist is kept apart, as [TodoChecklistItem]s, its tags as [TodoTag]s, and the places
- * it reminds at as [TodoPlace]s; how far it has reminded is its [reminding].
+ * it reminds at as [TodoPlace]s; how far it has reminded is its [reminding]. It can hang under a goal, its [goalId]
+ * (SPEC.md §6), and count towards it.
  */
-@Entity(tableName = "todos")
+@Entity(
+    tableName = "todos",
+    foreignKeys = [
+        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index(value = ["goal_id"])],
+)
 data class Todo(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
@@ -48,6 +56,8 @@ data class Todo(
     val priority: Priority = Priority.Normal,
     @ColumnInfo(name = "done_at") val doneAt: Instant? = null,
     @Embedded val reminding: Reminding = Reminding(),
+    /** The goal it is part of, if any; deleting that goal leaves it hanging at none. */
+    @ColumnInfo(name = "goal_id") val goalId: Long? = null,
 ) {
     /** [dueDate] and [dueTime] as one. */
     val due: Due

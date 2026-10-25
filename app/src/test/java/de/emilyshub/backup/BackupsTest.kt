@@ -73,7 +73,7 @@ class BackupsTest {
 
         assertEquals(changed, everything())
         assertEquals(Instant.parse("2026-10-23T05:00:00Z"), backup.created.toInstant())
-        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 2, places = 2, tags = 2), backup.summary)
+        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 3, places = 2, tags = 2), backup.summary)
     }
 
     @Test
@@ -279,7 +279,8 @@ class BackupsTest {
         app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
         app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
-        app.wish("Nordlichter sehen", period = "Winter 2027")
+        val northernLights = app.wish("Nordlichter sehen", period = "Winter 2027")
+        app.wish("Flüge buchen", parent = northernLights)
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
 
@@ -334,8 +335,15 @@ class BackupsTest {
 
     /** [content] as version 16 made it, the first that made backups: without the wishes, which came with 17. */
     private fun asOfVersion16(content: JSONObject): JSONObject {
-        WISH_TABLES.forEach { content.tables().remove(it) }
-        return content.put("schema", 16)
+        val older = asOfVersion17(content)
+        WISH_TABLES.forEach { older.tables().remove(it) }
+        return older.put("schema", 16)
+    }
+
+    /** [content] as version 17 made it: without goals, which came with 18. */
+    private fun asOfVersion17(content: JSONObject): JSONObject {
+        val older = content.withoutColumns("wishes", "parent_id", "manual_progress").withoutColumns("todos", "goal_id")
+        return older.put("schema", 17)
     }
 
     /**

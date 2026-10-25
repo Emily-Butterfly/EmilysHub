@@ -66,7 +66,7 @@ class WishlistTest {
         val saved = runBlocking { app.wishes.current().first().single() }
         assertEquals("In Tromsø", saved.wish.description)
         assertEquals(WishStatus.Open, saved.wish.status)
-        assertEquals(1, saved.tagIds.size)
+        assertEquals(1, saved.details.tagIds.size)
     }
 
     @Test

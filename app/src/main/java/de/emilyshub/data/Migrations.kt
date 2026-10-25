@@ -244,3 +244,23 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_wish_tags_tag_id` ON `wish_tags` (`tag_id`)")
     }
 }
+
+/**
+ * Version 18: goals (#20). A wish can be part of another, to any depth, and have a progress set by hand; a to-do can be
+ * part of a goal. Every wish is at the top and every to-do part of none, as before.
+ */
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `wishes` ADD COLUMN `parent_id` INTEGER " +
+                "REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE",
+        )
+        db.execSQL("ALTER TABLE `wishes` ADD COLUMN `manual_progress` INTEGER")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_wishes_parent_id` ON `wishes` (`parent_id`)")
+        db.execSQL(
+            "ALTER TABLE `todos` ADD COLUMN `goal_id` INTEGER " +
+                "REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_goal_id` ON `todos` (`goal_id`)")
+    }
+}

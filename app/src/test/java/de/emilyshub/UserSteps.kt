@@ -70,7 +70,7 @@ fun TestApplication.place(name: String, vararg wifis: String, area: Area? = null
     places.create(area?.let { draft.withCenter(it.center).copy(radius = it.radius) } ?: draft)
 }
 
-/** A to-do, open and [due] whenever unless given, set up before the test opens the app. */
+/** A to-do, open and [due] whenever unless given, under a [goal] if given, set up before the test opens the app. */
 fun TestApplication.todo(
     title: String,
     due: Due = Due.None,
@@ -78,22 +78,26 @@ fun TestApplication.todo(
     checklist: List<String> = emptyList(),
     tags: Set<Long> = emptySet(),
     places: Set<Long> = emptySet(),
+    goal: Long? = null,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
-    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places))
+    todos.create(TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal))
 }
 
 /** A tag, set up before the test opens the app. */
 fun TestApplication.tag(name: String): Long = runBlocking { tags.create(name) }
 
-/** A wish, open unless given another [status], set up before the test opens the app. */
+/** A wish, open unless given another [status], under a [parent] goal if given, set up before the test opens the app. */
 fun TestApplication.wish(
     title: String,
     period: String = "",
     status: WishStatus = WishStatus.Open,
     doneOn: LocalDate? = null,
     tags: Set<Long> = emptySet(),
-): Long = runBlocking { wishes.create(WishDraft(title, period = period, status = status, doneOn = doneOn, tagIds = tags)) }
+    parent: Long? = null,
+): Long = runBlocking {
+    wishes.create(WishDraft(title, period = period, status = status, doneOn = doneOn, tagIds = tags, parentId = parent))
+}
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */
 fun ComposeTestRule.unlockWithFingerprint(authenticator: FakeAuthenticator) {
