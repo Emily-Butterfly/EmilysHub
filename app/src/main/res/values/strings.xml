@@ -303,7 +303,11 @@
     <string name="wishes_review_title">Rückblick</string>
     <string name="wishes_review_empty">Noch kein Wunsch erledigt.</string>
     <string name="wish_delete_title">Wunsch löschen?</string>
-    <string name="wish_delete_text">„%1$s“ wird mit allen Unterzielen gelöscht. To-dos daran bleiben erhalten.</string>
+    <string name="wish_delete_text">„%1$s“ wird gelöscht. To-dos daran bleiben erhalten.</string>
+    <string name="wish_delete_parts_text">„%1$s“ wird gelöscht. Seine Unterziele und To-dos können eine Ebene höher rücken, oder die Unterziele werden mitgelöscht. To-dos bleiben in jedem Fall erhalten.</string>
+    <string name="wish_delete_moving_up">Eine Ebene höher</string>
+    <string name="wish_delete_with_subgoals">Mitlöschen</string>
+    <string name="wish_part_of">Teil von „%1$s“</string>
     <string name="wish_subgoal_new">Neues Unterziel</string>
     <string name="wish_parent">Teil von</string>
     <string name="wish_parent_none">Keinem Ziel</string>
@@ -311,7 +315,6 @@
     <string name="wish_progress_automatic">Aus den Unterpunkten</string>
     <string name="wish_progress_no_parts">Noch ohne Unterpunkte</string>
     <string name="wish_progress_manual">Selbst festgelegt</string>
-    <string name="wish_progress_done">Erledigt</string>
     <string name="wish_progress_set">Selbst festlegen</string>
     <string name="wish_progress_reset_to">Zurücksetzen auf %1$d %% aus den Unterpunkten</string>
     <string name="wish_progress_reset">Zurücksetzen</string>
@@ -324,7 +327,7 @@
     <string name="goal_todo_reopen">„%1$s“ wieder öffnen</string>
     <string name="goal_choose">Ziel wählen</string>
     <string name="todo_goal">Ziel</string>
-    <string name="todo_goal_none">Keinem Ziel</string>
+    <string name="todo_goal_none">Kein Ziel</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>

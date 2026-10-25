@@ -43,6 +43,7 @@ import de.emilyshub.todos.Todos
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.fields.TagFilter
+import de.emilyshub.ui.fields.goalIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.wishes.Goal
@@ -53,9 +54,9 @@ import kotlinx.coroutines.flow.map
 
 /**
  * The wishes not yet done (SPEC.md §6): those in progress, then the open ones, each with its period, tags, description
- * and progress; above them, once there are tags, the choice of one to show only the wishes that have it. A goal with
- * parts opens up to show them, indented below it: its subgoals, which open up in turn, and its to-dos, ticked off right
- * there. Nothing here reminds. Tapping a goal or a to-do opens it in its editor, "+" starts a new wish. Below them, the
+ * and progress; above them, once there are tags, the choice of one to show only the goals that have it, at any depth. A
+ * goal with parts opens up to show them, indented below it: its subgoals, which open up in turn, and its to-dos, ticked
+ * off right there. Nothing here reminds. Tapping a goal or a to-do opens it in its editor, "+" starts a new wish. Below them, the
  * way to the review of the wishes come true, once there is one.
  */
 @Composable
@@ -81,8 +82,8 @@ fun WishlistScreen(
     val scope = rememberCoroutineScope()
 
     /** The goal and, if opened up, its parts below it, each subgoal in turn the same way. */
-    fun lines(goal: Goal, depth: Int): List<GoalLine> = listOf(GoalLine.Of(goal, depth)) + if (goal.wish.id in opened) {
-        goal.subgoals.flatMap { lines(it, depth + 1) } + goal.todos.map { GoalLine.Part(it, depth + 1) }
+    fun lines(goal: Goal, depth: Int): List<TreeLine> = listOf(TreeLine.OfGoal(goal, depth)) + if (goal.wish.id in opened) {
+        goal.subgoals.flatMap { lines(it, depth + 1) } + goal.todos.map { TreeLine.OfTodo(it, depth + 1) }
     } else {
         emptyList()
     }
@@ -93,7 +94,7 @@ fun WishlistScreen(
             list == null -> Unit
             list.isEmpty() && fulfilledCount == 0 -> PlaceholderScreen(stringResource(R.string.wishes_empty), contentPadding)
             else -> LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
-                val shown = list.filter { filter == null || filter.id in it.details.tagIds }
+                val shown = if (filter == null) list else wishes.withTag(list, filter.id)
                 if (allTags.isNotEmpty()) {
                     item(key = "filter") { TagFilter(allTags, filter, onChoose = { onTagFilterChange(it?.id) }) }
                 }
@@ -111,12 +112,12 @@ fun WishlistScreen(
                     item(key = status.stored) {
                         Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(status.label)) }
                     }
-                    items(inStatus.flatMap { lines(it, depth = 0) }, key = GoalLine::key) { line ->
+                    items(inStatus.flatMap { lines(it, depth = 0) }, key = TreeLine::key) { line ->
                         when (line) {
-                            is GoalLine.Of -> GoalRow(
+                            is TreeLine.OfGoal -> GoalRow(
                                 goal = line.goal,
                                 depth = line.depth,
-                                tagNames = allTags.filter { it.id in line.goal.details.tagIds }.map(Tag::name),
+                                tagNames = allTags.filter { it.id in line.goal.tagIds }.map(Tag::name),
                                 opened = line.goal.wish.id in opened,
                                 onToggle = {
                                     val id = line.goal.wish.id
@@ -124,7 +125,7 @@ fun WishlistScreen(
                                 },
                                 onClick = { onOpen(line.goal.wish.id) },
                             )
-                            is GoalLine.Part -> TodoPartRow(
+                            is TreeLine.OfTodo -> TodoPartRow(
                                 todo = line.todo,
                                 depth = line.depth,
                                 onTick = { done ->
@@ -157,14 +158,14 @@ fun WishlistScreen(
 }
 
 /** A line of the tree: a goal, or a to-do that is part of one, at its depth. */
-private sealed interface GoalLine {
+private sealed interface TreeLine {
     val key: String
 
-    data class Of(val goal: Goal, val depth: Int) : GoalLine {
+    data class OfGoal(val goal: Goal, val depth: Int) : TreeLine {
         override val key get() = "goal ${goal.wish.id}"
     }
 
-    data class Part(val todo: GoalTodo, val depth: Int) : GoalLine {
+    data class OfTodo(val todo: GoalTodo, val depth: Int) : TreeLine {
         override val key get() = "todo ${todo.id}"
     }
 }
@@ -201,7 +202,7 @@ private fun GoalRow(goal: Goal, depth: Int, tagNames: List<String>, opened: Bool
         },
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = indentOf(depth)),
+            .padding(start = goalIndent(depth, INDENT)),
     )
 }
 
@@ -217,15 +218,11 @@ private fun TodoPartRow(todo: GoalTodo, depth: Int, onTick: (Boolean) -> Unit, o
         supportingContent = { Text(stringResource(R.string.goal_todo)) },
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = indentOf(depth)),
+            .padding(start = goalIndent(depth, INDENT)),
     )
 }
 
-/** Indented by depth, the deepest no further than four steps in, so that the title still fits. */
-private fun indentOf(depth: Int) = (depth.coerceAtMost(MAX_INDENT) * INDENT).dp
-
-private const val INDENT = 24
-private const val MAX_INDENT = 4
+private val INDENT = 24.dp
 
 /** "Offen", "In Arbeit", "Erledigt", as the editor offers them and the list heads them. */
 internal val WishStatus.label: Int

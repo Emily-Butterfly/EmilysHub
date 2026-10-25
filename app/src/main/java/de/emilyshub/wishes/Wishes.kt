@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -32,9 +34,20 @@ class Wishes(
     fun current(): Flow<List<Goal>> =
         tree().map { all -> all.filter { it.wish.status != WishStatus.Done }.sortedWith(inProgressFirst) }
 
-    /** The review (SPEC.md §6): the goals at the top come true, the last first, then by title. */
-    fun fulfilled(): Flow<List<Wish>> =
-        tree().map { all -> all.filter { it.wish.status == WishStatus.Done }.sortedWith(lastDoneFirst).map { it.wish } }
+    /**
+     * Of the goals [current] has, those with the tag [tagId], at any depth, each with its parts, ordered as [current]
+     * orders them; one below another with the tag shows with that one only.
+     */
+    fun withTag(current: List<Goal>, tagId: Long): List<Goal> =
+        GoalTree.highest(current) { it.wish.status != WishStatus.Done && tagId in it.tagIds }.sortedWith(inProgressFirst)
+
+    /** The review (SPEC.md §6): the goals come true, at any depth, the last first, then by title. */
+    fun fulfilled(): Flow<List<FulfilledWish>> = tree().map { all ->
+        GoalTree.withParents(all)
+            .filter { (goal, _) -> goal.wish.status == WishStatus.Done }
+            .sortedWith(compareBy(lastDoneFirst) { (goal, _) -> goal })
+            .map { (goal, parent) -> FulfilledWish(goal.wish, partOf = parent?.wish?.title) }
+    }
 
     /** The goal with its parts, or null once it is deleted. */
     fun goal(id: Long): Flow<Goal?> = tree().map { all -> all.firstNotNullOfOrNull { it.find(id) } }
@@ -61,10 +74,10 @@ class Wishes(
     suspend fun create(draft: WishDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            val parentId = cleaned.parentId?.takeIf { dao.get(it) != null }
+            val parentId = dao.stillThere(cleaned.parentId)
             val id = dao.insert(cleaned.copy(parentId = parentId).toWish(today()))
             saveTags(id, cleaned.tagIds)
-            database().settleGoal(parentId, today())
+            settleGoals(GoalPart.None, GoalPart(parentId, open = cleaned.status != WishStatus.Done))
             id
         }
     }
@@ -77,29 +90,44 @@ class Wishes(
         val cleaned = checked(draft)
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
-            val parentId = cleaned.parentId?.takeIf { dao.get(it) != null }
+            val parentId = dao.stillThere(cleaned.parentId)
             if (parentId != null) {
                 val parents = dao.all().associate { it.id to it.parentId }
                 require(GoalTree.canHangUnder(id, parentId, parents::get)) { "A goal cannot hang under itself" }
             }
             dao.update(cleaned.copy(parentId = parentId).toWish(today(), id))
             saveTags(id, cleaned.tagIds)
-            database().settleGoal(wish.parentId, today())
-            if (parentId != wish.parentId) database().settleGoal(parentId, today())
+            settleGoals(wish.asPart(), GoalPart(parentId, open = cleaned.status != WishStatus.Done))
         }
     }
 
-    /** Deletes the wish for good, with its tags and its subgoals; its to-dos stay, hanging at no goal. */
+    /** Deletes the wish for good, with its tags and its subgoals; the to-dos of all of them stay, hanging at no goal. */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
             dao.delete(id)
-            database().settleGoal(wish.parentId, today())
+            settleGoals(wish.asPart(), GoalPart.None)
+        }
+    }
+
+    /**
+     * Deletes the wish for good, with its tags, but not its parts: its subgoals and to-dos move up a level, to the goal it
+     * was part of, or to the top and to no goal.
+     */
+    suspend fun deleteMovingPartsUp(id: Long) = write {
+        database().withTransaction {
+            val wish = dao.get(id) ?: return@withTransaction
+            val partsOpen = dao.partsDone(id).any { !it }
+            dao.moveSubgoals(from = id, to = wish.parentId)
+            dao.moveTodos(from = id, to = wish.parentId)
+            dao.delete(id)
+            // In its place, its parts: open if one of them is.
+            settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen))
         }
     }
 
     /** A to-do made of the wish (SPEC.md §6), to be saved as one: with its title, description and tags, hanging under it. */
-    suspend fun asTodo(id: Long): TodoDraft = withContext(io) {
+    suspend fun todoDraftOf(id: Long): TodoDraft = withContext(io) {
         val wish = checkNotNull(dao.get(id)) { "No wish $id" }
         TodoDraft(wish.title, wish.description, tagIds = dao.tagIdsOf(id).toSet(), goalId = id)
     }
@@ -107,7 +135,12 @@ class Wishes(
     /** The day it is now, which a wish done comes true on unless another is chosen, and none after. */
     fun today(): LocalDate = LocalDate.now(clock)
 
-    private fun tree(): Flow<List<Goal>> = combine(dao.observeAll(), dao.observeGoalTodos(), GoalTree::build).flowOn(io)
+    private fun tree(): Flow<List<Goal>> =
+        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), GoalTree::build)) }.flowOn(io)
+
+    private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
+
+    private fun Wish.asPart() = GoalPart(parentId, open = status != WishStatus.Done)
 
     private suspend fun saveTags(wishId: Long, tagIds: Set<Long>) {
         dao.untagAll(wishId)

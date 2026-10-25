@@ -110,7 +110,7 @@ class WishesTest {
         wishes.create(WishDraft("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03")))
         wishes.create(WishDraft("Arabisch lernen", status = WishStatus.InProgress))
 
-        val review = wishes.fulfilled().first().map { it.title to it.doneOn }
+        val review = wishes.fulfilled().first().map { it.wish.title to it.wish.doneOn }
 
         assertEquals(
             listOf("Marathon laufen" to LocalDate.parse("2026-10-03"), "Bergtour" to LocalDate.parse("2026-08-01")),

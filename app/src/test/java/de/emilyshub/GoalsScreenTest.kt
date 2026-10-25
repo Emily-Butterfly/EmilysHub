@@ -1,6 +1,9 @@
 package de.emilyshub
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
@@ -18,6 +21,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -69,7 +73,7 @@ class GoalsScreenTest {
         launchApp().use {
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Belege sammeln").performClick()
-            compose.onNode(hasText("Ziel") and hasText("Keinem Ziel")).tap()
+            compose.onNode(hasText("Ziel") and hasText("Kein Ziel")).tap()
             compose.onNode(isSelectable() and hasText("Steuererklärung") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Speichern").performClick()
 
@@ -145,7 +149,7 @@ class GoalsScreenTest {
     }
 
     @Test
-    fun `deleting a goal says its subgoals go with it and its to-dos stay`() {
+    fun `deleting a goal with subgoals asks whether they move up a level or go with it`() {
         val arabic = app.wish("Arabisch A2")
         app.wish("Wortschatz", parent = arabic)
 
@@ -154,8 +158,31 @@ class GoalsScreenTest {
             compose.onNodeWithText("Arabisch A2").performClick()
             compose.onNodeWithContentDescription("Löschen").performClick()
 
-            compose.onNodeWithText("„Arabisch A2“ wird mit allen Unterzielen gelöscht.", substring = true).assertIsDisplayed()
-            compose.onNodeWithText("To-dos daran bleiben erhalten.", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("To-dos bleiben in jedem Fall erhalten.", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Mitlöschen").assertIsDisplayed()
+            compose.onNodeWithText("Eine Ebene höher").performClick()
+
+            compose.onNodeWithText("Arabisch A2").assertDoesNotExist()
+            compose.onNodeWithText("Wortschatz").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a subgoal done shows in the review with the goal it is part of, and filtered by its tag in the list`() {
+        val travel = app.tag("Reisen")
+        val arabic = app.wish("Arabisch A2")
+        app.wish("A1 abschließen", parent = arabic, status = WishStatus.Done)
+        app.wish("Reisesätze", parent = arabic, tags = setOf(travel))
+
+        launchApp().use {
+            openWishlist()
+            compose.onNode(hasText("Reisen") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox)).performClick()
+            compose.onNodeWithText("Reisesätze").assertIsDisplayed()
+            compose.onNodeWithText("Arabisch A2").assertDoesNotExist()
+
+            compose.onNodeWithText("Rückblick (1)").performClick()
+            compose.onNodeWithText("A1 abschließen").assertIsDisplayed()
+            compose.onNodeWithText("Teil von „Arabisch A2“").assertIsDisplayed()
         }
     }
 

@@ -3,6 +3,7 @@ package de.emilyshub.ui.wishes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -54,6 +55,7 @@ import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
+import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
@@ -74,9 +76,10 @@ sealed interface WishEditorTarget : Serializable {
 
 /**
  * Creates or changes a wish with its title, description, period, status, tags, the goal it is part of and its progress
- * (SPEC.md §6), or deletes it. Done, it came true today unless another day gone by is chosen. A wish saved can have a
- * subgoal added, [onOpenWish], or be made into a to-do hanging under it, [onOpenTodo]; both save it first. Leaving
- * without saving drops the changes.
+ * (SPEC.md §6), or deletes it: one with subgoals with them, or with its parts moved up a level, as the user chooses.
+ * Done, it came true today unless another day gone by is chosen. A wish saved can have a subgoal added, [onOpenWish], or
+ * be made into a to-do hanging under it with a tap, [onOpenTodo]; both save it first. Leaving without saving drops the
+ * changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +102,8 @@ fun WishEditorScreen(
     // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    // As saved, with its parts.
+    val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
 
     if (!loaded && wishId != null) {
         LaunchedEffect(wishId) {
@@ -244,8 +249,7 @@ fun WishEditorScreen(
                 excluding = wishId,
             )
             ProgressField(
-                wishes = wishes,
-                wishId = wishId,
+                goal = goal,
                 status = draft.status,
                 manual = draft.manualProgress,
                 onChange = { draft = draft.copy(manualProgress = it) },
@@ -254,7 +258,7 @@ fun WishEditorScreen(
                 OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
                     Text(stringResource(R.string.wish_add_subgoal))
                 }
-                OutlinedButton(onClick = { saveAndThen { onOpenTodo(todos.create(wishes.asTodo(it))) } }) {
+                OutlinedButton(onClick = { saveAndThen { onOpenTodo(todos.create(wishes.todoDraftOf(it))) } }) {
                     Text(stringResource(R.string.wish_to_todo))
                 }
             }
@@ -262,12 +266,24 @@ fun WishEditorScreen(
     }
 
     if (confirmingDelete && wishId != null) {
+        val withSubgoals = goal?.subgoals?.isNotEmpty() == true
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
             title = { Text(stringResource(R.string.wish_delete_title)) },
-            text = { Text(stringResource(R.string.wish_delete_text, cleaned.title)) },
+            text = {
+                Text(stringResource(if (withSubgoals) R.string.wish_delete_parts_text else R.string.wish_delete_text, cleaned.title))
+            },
             confirmButton = {
-                TextButton(onClick = { closeWith { wishes.delete(wishId) } }) { Text(stringResource(R.string.delete)) }
+                Row {
+                    if (withSubgoals) {
+                        TextButton(onClick = { closeWith { wishes.delete(wishId) } }) {
+                            Text(stringResource(R.string.wish_delete_with_subgoals))
+                        }
+                    }
+                    TextButton(onClick = { closeWith { wishes.deleteMovingPartsUp(wishId) } }) {
+                        Text(stringResource(if (withSubgoals) R.string.wish_delete_moving_up else R.string.delete))
+                    }
+                }
             },
             dismissButton = {
                 TextButton(onClick = { confirmingDelete = false }) { Text(stringResource(R.string.cancel)) }
@@ -277,17 +293,16 @@ fun WishEditorScreen(
 }
 
 /**
- * How far the wish has come (SPEC.md §6): worked out from its parts, or set by hand in steps of 5 % until reset; all of
- * it once done.
+ * How far the wish has come (SPEC.md §6): worked out from the parts of its [goal] as saved, none for one new, or set by
+ * hand in steps of 5 % until reset; all of it once done.
  */
 @Composable
-private fun ProgressField(wishes: Wishes, wishId: Long?, status: WishStatus, manual: Int?, onChange: (Int?) -> Unit) {
-    val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
+private fun ProgressField(goal: Goal?, status: WishStatus, manual: Int?, onChange: (Int?) -> Unit) {
     val automatic = goal?.automaticPercent ?: 0
     Column {
         SectionTitle(stringResource(R.string.wish_progress))
         when {
-            status == WishStatus.Done -> ProgressValue(FULL, R.string.wish_progress_done)
+            status == WishStatus.Done -> ProgressValue(FULL, R.string.wish_status_done)
             manual != null -> {
                 ProgressValue(manual, R.string.wish_progress_manual)
                 val label = stringResource(R.string.wish_progress)
@@ -323,7 +338,7 @@ private fun ProgressValue(percent: Int, @StringRes source: Int) {
     LabelledValue(stringResource(source), stringResource(R.string.statistics_percent, percent))
 }
 
-private const val FULL = 100
+private const val FULL = WishDraft.PROGRESS_MAX
 private const val STEP = 5
 
 /**

@@ -21,6 +21,10 @@ interface WishDao {
     @Query("SELECT * FROM wishes")
     suspend fun all(): List<Wish>
 
+    /** [id], unless that wish was deleted meanwhile, or none. */
+    @Query("SELECT id FROM wishes WHERE id = :id")
+    suspend fun stillThere(id: Long?): Long?
+
     /** The to-dos hanging under goals, each with how much of its checklist is ticked off. */
     @Query(
         "SELECT t.id, t.title, t.goal_id, t.done_at IS NOT NULL AS done, " +
@@ -48,6 +52,14 @@ interface WishDao {
 
     @Query("DELETE FROM wishes WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** Hangs the subgoals of the goal [from] under the goal [to]; none: at the top. */
+    @Query("UPDATE wishes SET parent_id = :to WHERE parent_id = :from")
+    suspend fun moveSubgoals(from: Long, to: Long?)
+
+    /** Hangs the to-dos of the goal [from] under the goal [to]; none: at no goal. */
+    @Query("UPDATE todos SET goal_id = :to WHERE goal_id = :from")
+    suspend fun moveTodos(from: Long, to: Long?)
 
     @Query("SELECT tag_id FROM wish_tags WHERE wish_id = :wishId")
     suspend fun tagIdsOf(wishId: Long): List<Long>

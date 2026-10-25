@@ -28,7 +28,8 @@ class GoalTreeTest {
 
     @Test
     fun `a goal's progress is the mean of its parts, worked out the same way all the way down`() {
-        // As in SPEC.md §6: A1 done by its to-dos, the vocabulary set to 60 % by hand, the exam not yet registered.
+        // The example of SPEC.md §6: A1 done by its to-dos, the vocabulary set to 60 % by hand, the exam not yet registered.
+        // Its 40 % at the top only shows the idea; by the mean of the three parts it comes to 53 %.
         val tree = GoalTree.build(
             listOf(
                 wish(1, "Arabisch A2"),
@@ -82,17 +83,6 @@ class GoalTreeTest {
 
         assertEquals(99, almost.percent)
         assertEquals(1, barely.percent)
-    }
-
-    @Test
-    fun `a goal with parts has them all done once each subgoal and each to-do is`() {
-        val tree = GoalTree.build(
-            listOf(wish(1, "Arabisch A2"), wish(2, "A1 abschließen", parent = 1, status = WishStatus.Done), wish(3, "Leer")),
-            listOf(todo(10, "A2-Prüfung", goal = 1, done = true)),
-        )
-
-        assertTrue(tree.single { it.wish.id == 1L }.allPartsDone)
-        assertFalse("Without parts, none are done", tree.single { it.wish.id == 3L }.allPartsDone)
     }
 
     @Test

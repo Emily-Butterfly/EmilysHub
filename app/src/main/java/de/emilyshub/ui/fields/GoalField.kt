@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.wishes.GoalChoice
@@ -84,14 +85,14 @@ fun GoalField(
 private fun ChoiceRow(choice: GoalChoice, chosen: Boolean, onClick: () -> Unit) =
     ChoiceRow(choice.title, choice.depth, chosen, onClick)
 
-/** One to choose, indented by its [depth], the deepest ones no further than four steps in, so that the title still fits. */
+/** One to choose, indented by its [depth]. */
 @Composable
 private fun ChoiceRow(title: String, depth: Int, chosen: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = chosen, role = Role.RadioButton, onClick = onClick)
-            .padding(start = (depth.coerceAtMost(MAX_INDENT) * INDENT).dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = goalIndent(depth, step = 16.dp), top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = chosen, onClick = null)
@@ -99,5 +100,10 @@ private fun ChoiceRow(title: String, depth: Int, chosen: Boolean, onClick: () ->
     }
 }
 
-private const val INDENT = 16
-private const val MAX_INDENT = 4
+/**
+ * How far in a goal at [depth] in the tree shows: [step] for each of the first levels, half of it for each one deeper, so
+ * that each level still shows deeper while the title still fits.
+ */
+internal fun goalIndent(depth: Int, step: Dp): Dp = step * minOf(depth, FULL_STEPS) + step / 2 * maxOf(depth - FULL_STEPS, 0)
+
+private const val FULL_STEPS = 4

@@ -25,15 +25,13 @@ data class GoalTodo(
  * [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a goal done has
  * come all the way.
  */
-class Goal(val details: WishWithTags, val subgoals: List<Goal>, val todos: List<GoalTodo>) {
+class Goal(private val withTags: WishWithTags, val subgoals: List<Goal>, val todos: List<GoalTodo>) {
 
-    val wish: Wish get() = details.wish
+    val wish: Wish get() = withTags.wish
+
+    val tagIds: Set<Long> get() = withTags.tagIds
 
     val hasParts: Boolean get() = subgoals.isNotEmpty() || todos.isNotEmpty()
-
-    /** Whether it has parts and all of them are done: each subgoal and each to-do. */
-    val allPartsDone: Boolean
-        get() = hasParts && subgoals.all { it.wish.status == WishStatus.Done } && todos.all { it.done }
 
     /** From 0 to 1, the mean of its parts' progress; nothing without parts. */
     val automaticProgress: Double by lazy {
@@ -43,7 +41,7 @@ class Goal(val details: WishWithTags, val subgoals: List<Goal>, val todos: List<
 
     /** From 0 to 1: all of it once done, else as set by hand, else [automaticProgress]. */
     val progress: Double by lazy {
-        if (wish.status == WishStatus.Done) 1.0 else wish.manualProgress?.let { it / PERCENT.toDouble() } ?: automaticProgress
+        if (wish.status == WishStatus.Done) 1.0 else wish.manualProgress?.let { it / FULL.toDouble() } ?: automaticProgress
     }
 
     /** [progress] in whole percent: 100 only when all of it is done and 0 only when nothing is, so rounding hides neither. */
@@ -51,18 +49,21 @@ class Goal(val details: WishWithTags, val subgoals: List<Goal>, val todos: List<
 
     val automaticPercent: Int get() = percentOf(automaticProgress)
 
-    private fun percentOf(fraction: Double): Int = (fraction * PERCENT).roundToInt().coerceIn(
+    private fun percentOf(fraction: Double): Int = (fraction * FULL).roundToInt().coerceIn(
         minimumValue = if (fraction > 0) 1 else 0,
-        maximumValue = if (fraction < 1) PERCENT - 1 else PERCENT,
+        maximumValue = if (fraction < 1) FULL - 1 else FULL,
     )
 
     private companion object {
-        const val PERCENT = 100
+        const val FULL = WishDraft.PROGRESS_MAX
     }
 }
 
 /** A goal to choose, such as the one a to-do hangs under, at its [depth] in the tree, for it to show indented. */
 data class GoalChoice(val id: Long, val title: String, val depth: Int)
+
+/** A wish come true, for the review (SPEC.md §6), with the title of the goal it is part of, if any. */
+data class FulfilledWish(val wish: Wish, val partOf: String?)
 
 object GoalTree {
 
@@ -102,6 +103,17 @@ object GoalTree {
             }
         return tree.flatMap { choicesFrom(it, 0) }
     }
+
+    /** Each goal of [tree] with the goal it is part of, if any, in the order of the tree. */
+    fun withParents(tree: List<Goal>): List<Pair<Goal, Goal?>> {
+        fun from(goal: Goal, parent: Goal?): List<Pair<Goal, Goal?>> =
+            listOf(goal to parent) + goal.subgoals.flatMap { from(it, parent = goal) }
+        return tree.flatMap { from(it, parent = null) }
+    }
+
+    /** The goals of [tree] that [match], each with its parts, in the order of the tree; those below one of them not again. */
+    fun highest(tree: List<Goal>, match: (Goal) -> Boolean): List<Goal> =
+        tree.flatMap { if (match(it)) listOf(it) else highest(it.subgoals, match) }
 
     /** Whether [goal] may hang under [parent]: not under itself, nor under any goal below it, as [parentOf] says. */
     fun canHangUnder(goal: Long, parent: Long, parentOf: (Long) -> Long?): Boolean {

@@ -15,9 +15,9 @@ enum class WishStatus(val stored: String) { Open("open"), InProgress("in_progres
 
 /**
  * A wish (SPEC.md §6): something to do some day, as its [period] says in the user's words ("2027", "Sommer"), and never
- * reminded of. Done, it came true [doneOn] that day; one at the top then shows in the review. A wish is a goal, which
- * can hang under another one, its [parentId], to any depth, and have to-dos hang under it; how far it has come is worked
- * out from those, unless set by hand as [manualProgress]. Its tags are kept apart, as [WishTag]s.
+ * reminded of. Done, it came true [doneOn] that day, and shows in the review. A wish is a goal, which can hang under
+ * another one, its [parentId], to any depth, and have to-dos hang under it; how far it has come is worked out from those,
+ * unless set by hand as [manualProgress]. Its tags are kept apart, as [WishTag]s.
  */
 @Entity(
     tableName = "wishes",

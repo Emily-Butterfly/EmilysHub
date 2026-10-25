@@ -41,7 +41,7 @@ data class WishDraft(
                 if (InputText.lengthOf(title) > TITLE_MAX) add(WishProblem.TitleTooLong)
                 if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(WishProblem.DescriptionTooLong)
                 if (InputText.lengthOf(period) > PERIOD_MAX) add(WishProblem.PeriodTooLong)
-                if (manualProgress != null && manualProgress !in 0..100) add(WishProblem.ProgressOutOfRange)
+                if (manualProgress != null && manualProgress !in 0..PROGRESS_MAX) add(WishProblem.ProgressOutOfRange)
             }
         }
 
@@ -65,6 +65,9 @@ data class WishDraft(
 
         /** Enough for "Sommer 2027" or "irgendwann im Ruhestand". */
         const val PERIOD_MAX = 40
+
+        /** All of it, in percent. */
+        const val PROGRESS_MAX = 100
     }
 }
 

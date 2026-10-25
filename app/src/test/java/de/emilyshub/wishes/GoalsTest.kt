@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -22,7 +23,7 @@ import java.time.ZoneId
 
 /**
  * Goals (SPEC.md §6): wishes with subgoals to any depth and to-dos hanging under them, done once all of those are, and
- * then in the review if at the top.
+ * then in the review.
  */
 @RunWith(AndroidJUnit4::class)
 class GoalsTest {
@@ -83,20 +84,25 @@ class GoalsTest {
     }
 
     @Test
-    fun `a goal is done today once all its parts are, up to the top, and then in the review`() = runBlocking {
-        val arabic = wishes.create(WishDraft("Arabisch A2"))
-        val a1 = wishes.create(WishDraft("A1 abschließen", parentId = arabic))
-        val book = todos.create(TodoDraft("Lehrbuch Kapitel 1–6", goalId = a1))
-        val exam = todos.create(TodoDraft("A2-Prüfung anmelden", goalId = arabic))
+    fun `a goal is done today once all its parts are, up to the top, and then in the review with the goal it is part of`() =
+        runBlocking {
+            val arabic = wishes.create(WishDraft("Arabisch A2"))
+            val a1 = wishes.create(WishDraft("A1 abschließen", parentId = arabic))
+            val book = todos.create(TodoDraft("Lehrbuch Kapitel 1–6", goalId = a1))
+            val exam = todos.create(TodoDraft("A2-Prüfung anmelden", goalId = arabic))
 
-        todos.markDone(book)
-        assertEquals(WishStatus.Done to today, wishes.get(a1)?.let { it.status to it.doneOn })
-        assertEquals(WishStatus.Open, wishes.get(arabic)?.status)
+            todos.markDone(book)
+            assertEquals(WishStatus.Done to today, wishes.get(a1)?.let { it.status to it.doneOn })
+            assertEquals(WishStatus.Open, wishes.get(arabic)?.status)
+            assertEquals(listOf("A1 abschließen" to "Arabisch A2"), wishes.fulfilled().first().map { it.wish.title to it.partOf })
 
-        todos.markDone(exam)
-        assertEquals(WishStatus.Done to today, wishes.get(arabic)?.let { it.status to it.doneOn })
-        assertEquals(listOf("Arabisch A2"), wishes.fulfilled().first().map { it.title })
-    }
+            todos.markDone(exam)
+            assertEquals(WishStatus.Done to today, wishes.get(arabic)?.let { it.status to it.doneOn })
+            assertEquals(
+                listOf("A1 abschließen" to "Arabisch A2", "Arabisch A2" to null),
+                wishes.fulfilled().first().map { it.wish.title to it.partOf },
+            )
+        }
 
     @Test
     fun `a part open again opens its goals again, up to the top, out of the review`() = runBlocking {
@@ -111,7 +117,7 @@ class GoalsTest {
         assertEquals(WishStatus.InProgress, wishes.get(a1)?.status)
         assertEquals(WishStatus.InProgress, wishes.get(arabic)?.status)
         assertNull(wishes.get(arabic)?.doneOn)
-        assertEquals(emptyList<Wish>(), wishes.fulfilled().first())
+        assertEquals(emptyList<FulfilledWish>(), wishes.fulfilled().first())
     }
 
     @Test
@@ -144,17 +150,42 @@ class GoalsTest {
     }
 
     @Test
-    fun `a goal set done by hand stays so until one of its parts changes`() = runBlocking {
+    fun `a goal set done by hand stays so while its parts are ticked off, and opens again once one is opened again`() =
+        runBlocking {
+            val move = wishes.create(WishDraft("Umzug"))
+            val packing = todos.create(TodoDraft("Kisten packen", goalId = move))
+            val tape = listOf(ChecklistDraftItem(text = "Klebeband"))
+            val boxes = todos.create(TodoDraft("Kartons kaufen", checklist = tape, goalId = move))
+            val doneOn = today.minusDays(3)
+            wishes.update(move, WishDraft("Umzug", status = WishStatus.Done, doneOn = doneOn))
+
+            todos.markDone(packing)
+            todos.tick(boxes, todos.checklist(boxes).single().id, ticked = true)
+            todos.update(packing, TodoDraft("Kisten gepackt", goalId = move))
+            assertEquals(WishStatus.Done to doneOn, wishes.get(move)?.let { it.status to it.doneOn })
+
+            todos.reopen(packing)
+            assertEquals(WishStatus.InProgress, wishes.get(move)?.status)
+        }
+
+    @Test
+    fun `a goal set open again by hand with all of its parts done stays so until one of them is done anew`() = runBlocking {
         val move = wishes.create(WishDraft("Umzug"))
-        todos.create(TodoDraft("Kisten packen", goalId = move))
+        val packing = todos.create(TodoDraft("Kisten packen", goalId = move))
+        todos.markDone(packing)
+        wishes.update(move, WishDraft("Umzug", status = WishStatus.InProgress))
 
-        wishes.update(move, WishDraft("Umzug", status = WishStatus.Done))
+        todos.update(packing, TodoDraft("Kisten gepackt", goalId = move))
+        todos.markDone(packing)
+        assertEquals(WishStatus.InProgress, wishes.get(move)?.status)
 
+        todos.reopen(packing)
+        todos.markDone(packing)
         assertEquals(WishStatus.Done, wishes.get(move)?.status)
     }
 
     @Test
-    fun `deleting a goal deletes its subgoals, and its to-dos stay, hanging at no goal`() = runBlocking {
+    fun `deleting a goal with its subgoals deletes them too, and the to-dos below stay, hanging at no goal`() = runBlocking {
         val arabic = wishes.create(WishDraft("Arabisch A2"))
         val a1 = wishes.create(WishDraft("A1 abschließen", parentId = arabic))
         val book = todos.create(TodoDraft("Lehrbuch", goalId = a1))
@@ -167,15 +198,80 @@ class GoalsTest {
     }
 
     @Test
-    fun `deleting a part settles its goal`() = runBlocking {
+    fun `deleting a goal but not its parts moves them up a level, to the goal it was part of or to the top`() = runBlocking {
+        val arabic = wishes.create(WishDraft("Arabisch A2"))
+        val a1 = wishes.create(WishDraft("A1 abschließen", parentId = arabic))
+        val grammar = wishes.create(WishDraft("Grammatik", parentId = a1))
+        val book = todos.create(TodoDraft("Lehrbuch", goalId = a1))
+
+        wishes.deleteMovingPartsUp(a1)
+        assertNull(wishes.get(a1))
+        assertEquals(arabic, wishes.get(grammar)?.parentId)
+        assertEquals(arabic, todos.get(book)?.goalId)
+
+        wishes.deleteMovingPartsUp(arabic)
+        assertNull(wishes.get(grammar)?.parentId)
+        assertNull(todos.get(book)?.goalId)
+        assertEquals(listOf("Grammatik"), wishes.current().first().map { it.wish.title })
+    }
+
+    @Test
+    fun `parts moving up in place of a goal open settle the goal they move to`() = runBlocking {
+        val move = wishes.create(WishDraft("Umzug"))
+        val boxes = wishes.create(WishDraft("Kartons", parentId = move))
+        val buying = todos.create(TodoDraft("Kartons kaufen", goalId = boxes))
+        todos.markDone(buying)
+        wishes.update(boxes, WishDraft("Kartons", parentId = move, status = WishStatus.InProgress))
+        assertEquals(WishStatus.InProgress, wishes.get(move)?.status)
+
+        wishes.deleteMovingPartsUp(boxes)
+
+        assertEquals(WishStatus.Done, wishes.get(move)?.status)
+    }
+
+    @Test
+    fun `deleting the last part open of a goal makes it done, and deleting its only part leaves it as it was`() = runBlocking {
         val move = wishes.create(WishDraft("Umzug"))
         val packing = todos.create(TodoDraft("Kisten packen", goalId = move))
         val boxes = todos.create(TodoDraft("Kartons kaufen", goalId = move))
         todos.markDone(packing)
+        val trip = wishes.create(WishDraft("Reise"))
+        val flights = todos.create(TodoDraft("Flüge buchen", goalId = trip))
 
         todos.delete(boxes)
+        todos.delete(flights)
 
         assertEquals(WishStatus.Done, wishes.get(move)?.status)
+        assertEquals(WishStatus.Open, wishes.get(trip)?.status)
+    }
+
+    @Test
+    fun `filtered by a tag, the wishlist shows the goals not done with it at any depth, those in progress first`() = runBlocking {
+        val travel = tags.create("Reisen")
+        val arabic = wishes.create(WishDraft("Arabisch A2"))
+        val phrases = wishes.create(WishDraft("Reisesätze", parentId = arabic, tagIds = setOf(travel)))
+        wishes.create(WishDraft("Am Flughafen", parentId = phrases, tagIds = setOf(travel)))
+        wishes.create(WishDraft("Japan", status = WishStatus.InProgress, tagIds = setOf(travel)))
+        wishes.create(WishDraft("Bergtour", status = WishStatus.Done, tagIds = setOf(travel)))
+        wishes.create(WishDraft("Steuern"))
+
+        val shown = wishes.withTag(wishes.current().first(), travel)
+
+        assertEquals(listOf("Japan", "Reisesätze"), shown.map { it.wish.title })
+        assertEquals(listOf("Am Flughafen"), shown[1].subgoals.map { it.wish.title })
+    }
+
+    @Test
+    fun `watching the goals opens the database only once collected, on io`() {
+        var opened = false
+        val unopened = Wishes({ opened = true; database }, clock, Dispatchers.Unconfined)
+
+        unopened.current()
+        unopened.fulfilled()
+        unopened.goal(1)
+        unopened.goalChoices()
+
+        assertFalse(opened)
     }
 
     @Test
@@ -214,7 +310,7 @@ class GoalsTest {
         val taxes = tags.create("Steuern")
         val wish = wishes.create(WishDraft("Steuererklärung", description = "Belege sammeln", tagIds = setOf(taxes)))
 
-        val todo = todos.create(wishes.asTodo(wish))
+        val todo = todos.create(wishes.todoDraftOf(wish))
 
         val saved = checkNotNull(todos.get(todo))
         assertEquals("Steuererklärung" to "Belege sammeln", saved.title to saved.description)

@@ -3,25 +3,65 @@ package de.emilyshub.wishes
 import de.emilyshub.data.HubDatabase
 import java.time.LocalDate
 
+/** A to-do or subgoal as a part of the goal [goalId], if any, and whether it is [open]: not done. */
+internal data class GoalPart(val goalId: Long?, val open: Boolean) {
+    companion object {
+        /** Not a part of any goal: not there yet, or gone. */
+        val None = GoalPart(goalId = null, open = false)
+    }
+}
+
 /**
- * Keeps goals done exactly while all their parts are (SPEC.md §6), after a part of [goalId] changed: done [today] once
- * the last one is, and in progress again once one is open again; and so on up the tree, as far as that changes a goal.
- * A goal without parts stays as the user set it; so does one set done by hand until one of its parts changes. To run in
- * the transaction that changed the part.
+ * Settles the goals (SPEC.md §6) of a part that changed from [before] to [after], in the transaction that changed it:
+ * a part open that was not makes its goal, if done, in progress again; the last part open closed, done or gone, makes it
+ * done [today]. So on up the tree, as far as that changes a goal. Anything else leaves a goal as the user set it: one
+ * without parts, one set done by hand while parts are still open, and one set open again with all of them done, until
+ * one of them is done anew.
  */
-internal suspend fun HubDatabase.settleGoal(goalId: Long?, today: LocalDate) {
+internal suspend fun HubDatabase.settleGoals(before: GoalPart, after: GoalPart, today: LocalDate) {
+    if (before.goalId == after.goalId) {
+        settleGoal(after.goalId, PartChange.of(before.open, after.open), today)
+    } else {
+        settleGoal(before.goalId, PartChange.of(before.open, isOpen = false), today)
+        settleGoal(after.goalId, PartChange.of(wasOpen = false, after.open), today)
+    }
+}
+
+/** How a part of a goal changed, as far as the goal being done goes. */
+private enum class PartChange {
+    /** Open, and it was not. */
+    Opened,
+
+    /** Not open anymore. */
+    Closed,
+    ;
+
+    companion object {
+        fun of(wasOpen: Boolean, isOpen: Boolean): PartChange? = when {
+            wasOpen == isOpen -> null
+            isOpen -> Opened
+            else -> Closed
+        }
+    }
+}
+
+/** Settles the goal [goalId] after [change] to one of its parts, and then those above it, as far as that changes them. */
+private suspend fun HubDatabase.settleGoal(goalId: Long?, change: PartChange?, today: LocalDate) {
+    if (change == null) return
     val seen = mutableSetOf<Long>()
     var id = goalId
     while (id != null && seen.add(id)) {
         val goal = wishes().get(id) ?: return
-        val parts = wishes().partsDone(id)
-        if (parts.isEmpty()) return
-        val allDone = parts.all { it }
+        val done = goal.status == WishStatus.Done
         when {
-            allDone && goal.status != WishStatus.Done -> wishes().setStatus(id, WishStatus.Done, today)
-            !allDone && goal.status == WishStatus.Done -> wishes().setStatus(id, WishStatus.InProgress, doneOn = null)
+            change == PartChange.Opened && done -> wishes().setStatus(id, WishStatus.InProgress, doneOn = null)
+            change == PartChange.Closed && !done && allPartsDone(id) -> wishes().setStatus(id, WishStatus.Done, today)
             else -> return
         }
         id = goal.parentId
     }
 }
+
+/** Whether the goal has parts and all of them are done: each subgoal and each to-do. */
+private suspend fun HubDatabase.allPartsDone(goalId: Long): Boolean =
+    wishes().partsDone(goalId).let { it.isNotEmpty() && it.all { done -> done } }
