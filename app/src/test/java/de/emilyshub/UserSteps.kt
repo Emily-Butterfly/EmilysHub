@@ -12,6 +12,8 @@ import de.emilyshub.places.Area
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.FollowUps
+import de.emilyshub.routines.Occurrence
+import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -23,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
+import java.time.LocalDate
 import java.time.LocalTime
 
 /** What a user does with the whole app, shared by the Robolectric tests that drive [MainActivity]. */
@@ -104,3 +107,11 @@ fun ComposeTestRule.assertNamesStandOutByPriority(low: String, normal: String, h
 /** The alarms set for [action] of the reminders' receiver, such as the next reminder or looking around. */
 fun ShadowAlarmManager.alarmsFor(action: String): List<ShadowAlarmManager.ScheduledAlarm> =
     scheduledAlarms.filter { shadowOf(it.operation).savedIntent.action == action }
+
+/** The routine's occurrences on [days] gone by, ended as given, at its first time, set up before the test opens the app. */
+fun TestApplication.history(routineId: Long, vararg days: Pair<String, OccurrenceStatus>) = runBlocking {
+    val time = checkNotNull(routines.get(routineId)).times.first()
+    testDatabase.routines().insertOccurrences(
+        days.map { (date, status) -> Occurrence(routineId = routineId, date = LocalDate.parse(date), time = time, status = status) },
+    )
+}

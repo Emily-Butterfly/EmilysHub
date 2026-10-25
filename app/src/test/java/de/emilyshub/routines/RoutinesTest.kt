@@ -580,6 +580,21 @@ class RoutinesTest {
     }
 
     @Test
+    fun `the history has every routine's occurrences as they ended, an archived one's too, but not a deleted one's`() = runBlocking {
+        val pills = routines.create(draft("Tabletten", "08:00"))
+        val reading = routines.create(draft("Lesen", "21:00"))
+        routines.markDone(occurrenceAt("08:00"))
+        routines.skip(occurrenceAt("21:00"))
+        routines.archive(reading)
+
+        val history = routines.history().first().map { it.routineId to it.status }
+        assertEquals(setOf(pills to OccurrenceStatus.Done, reading to OccurrenceStatus.Skipped), history.toSet())
+
+        routines.delete(reading)
+        assertEquals(listOf(pills to OccurrenceStatus.Done), routines.history().first().map { it.routineId to it.status })
+    }
+
+    @Test
     fun `a routine is saved with its checklist, whose items keep their ticks while it is changed`() = runBlocking {
         val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide", "Spülen")))
         val (brush, floss, rinse) = routines.checklist(teeth)

@@ -39,6 +39,12 @@ class Routines(
         return observe(order) { it.status != RoutineStatus.Archived }
     }
 
+    /**
+     * Every occurrence of every routine, active, paused or archived, as it ended or is still open, for the statistics
+     * (SPEC.md §8); those of a routine deleted go with it.
+     */
+    fun history(): Flow<List<Occurrence>> = flow { emitAll(dao.observeAllOccurrences()) }.flowOn(io)
+
     /** The archived routines (SPEC.md §2), by name. */
     fun archived(): Flow<List<Routine>> = observe(compareBy(InputText.byName, Routine::name)) { it.status == RoutineStatus.Archived }
 

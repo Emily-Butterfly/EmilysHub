@@ -32,7 +32,8 @@ class TestApplication : EmilysHubApplication() {
 
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
-    private val testDatabase by lazy { inMemoryDatabase() }
+    /** In memory, open to the tests, such as for the history of days gone by. */
+    val testDatabase by lazy { inMemoryDatabase() }
     override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
     override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)

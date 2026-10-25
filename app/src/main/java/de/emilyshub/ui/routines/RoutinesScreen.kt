@@ -31,16 +31,16 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.priorityNameStyle
+import de.emilyshub.ui.plusFabSpace
 import kotlinx.coroutines.flow.map
 
 /**
  * The routines in use, by their first time, each with its tags; above them, once there are tags, a choice of one
  * to show only the routines that have it (SPEC.md §8). Tapping a routine opens it in the editor, "+" starts a new
- * one. Below them, the way to the archived ones, if there are any.
+ * one. Below them, the way to the statistics, and to the archived ones, if there are any.
  */
 @Composable
 fun RoutinesScreen(
@@ -52,6 +52,7 @@ fun RoutinesScreen(
     onOpen: (Long) -> Unit,
     onCreate: () -> Unit,
     onOpenArchive: () -> Unit,
+    onOpenStatistics: () -> Unit,
 ) {
     val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
     val archivedCount by remember(routines) { routines.archived().map { it.size } }.collectAsState(initial = 0)
@@ -85,8 +86,13 @@ fun RoutinesScreen(
                     val tagNames = allTags.filter { it.id in tagIds }.map { it.name }
                     RoutineRow(routine, tagNames, onClick = { onOpen(routine.id) })
                 }
+                item(key = "statistics") {
+                    TextButton(onClick = onOpenStatistics, modifier = Modifier.padding(horizontal = 8.dp)) {
+                        Text(stringResource(R.string.statistics_open))
+                    }
+                }
                 if (archivedCount > 0) {
-                    item {
+                    item(key = "archive") {
                         TextButton(onClick = onOpenArchive, modifier = Modifier.padding(horizontal = 8.dp)) {
                             Text(stringResource(R.string.archive_open, archivedCount))
                         }

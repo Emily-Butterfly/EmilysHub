@@ -54,6 +54,8 @@ import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.settings.SettingsScreen
+import de.emilyshub.ui.stats.RoutineStatisticsScreen
+import de.emilyshub.ui.stats.StatisticsScreen
 import de.emilyshub.ui.status.StatusScreen
 import de.emilyshub.ui.status.rememberUse
 import de.emilyshub.ui.tags.TagsScreen
@@ -169,6 +171,8 @@ private fun AppShell(
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
+    var statisticsOpen by rememberSaveable { mutableStateOf(false) }
+    var routineStatistics by rememberSaveable { mutableStateOf<Long?>(null) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var statusOpen by rememberSaveable { mutableStateOf(false) }
@@ -184,6 +188,7 @@ private fun AppShell(
     val editor = routineEditor
     val placeTarget = placeEditor
     val todoTarget = todoEditor
+    val statisticsRoutine = routineStatistics
     when {
         todoTarget != null -> {
             BackHandler { todoEditor = null }
@@ -239,6 +244,15 @@ private fun AppShell(
             BackHandler { archiveOpen = false }
             ArchiveScreen(routines, onBack = { archiveOpen = false })
         }
+        // A routine's statistics go back to those of all routines.
+        statisticsRoutine != null -> {
+            BackHandler { routineStatistics = null }
+            RoutineStatisticsScreen(routines, statisticsRoutine, onBack = { routineStatistics = null })
+        }
+        statisticsOpen -> {
+            BackHandler { statisticsOpen = false }
+            StatisticsScreen(routines, onOpenRoutine = { routineStatistics = it }, onBack = { statisticsOpen = false })
+        }
         else -> {
             // Heute is the start screen: back from any other area returns there before leaving the app.
             BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
@@ -259,6 +273,7 @@ private fun AppShell(
                 onOpenSettings = { settingsOpen = true },
                 onOpenRoutine = { routineEditor = it },
                 onOpenArchive = { archiveOpen = true },
+                onOpenStatistics = { statisticsOpen = true },
                 onOpenStatus = { statusOpen = true },
             )
             if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
@@ -291,6 +306,7 @@ private fun TopLevelScaffold(
     onOpenSettings: () -> Unit,
     onOpenRoutine: (RoutineEditorTarget) -> Unit,
     onOpenArchive: () -> Unit,
+    onOpenStatistics: () -> Unit,
     onOpenStatus: () -> Unit,
 ) {
     Scaffold(
@@ -331,6 +347,7 @@ private fun TopLevelScaffold(
                 onOpen = { onOpenRoutine(RoutineEditorTarget.Edit(it)) },
                 onCreate = { onOpenRoutine(RoutineEditorTarget.New) },
                 onOpenArchive = onOpenArchive,
+                onOpenStatistics = onOpenStatistics,
             )
             TopLevelDestination.Todos -> TodosScreen(
                 todos = todos,
