@@ -80,6 +80,13 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+androidComponents {
+    onVariants { variant ->
+        // A backup of an older app version is brought up to date in a database laid out as the app's was then.
+        variant.sources.assets?.addStaticSourceDirectory("schemas")
+    }
+}
+
 manifestPolicy {
     launcherActivity = "de.emilyshub.MainActivity"
 }

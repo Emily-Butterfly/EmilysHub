@@ -2,6 +2,7 @@ package de.emilyshub
 
 import android.app.Application
 import android.util.Log
+import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
@@ -71,6 +72,7 @@ open class EmilysHubApplication : Application() {
             settings = { database.settings() },
             wrappingKey = { KeystoreKeys.getOrCreateAesGcmKey("backup-key") },
             clock = DeviceClock,
+            migration = BackupMigration(this),
             onRestore = ::updateReminders,
         )
     }

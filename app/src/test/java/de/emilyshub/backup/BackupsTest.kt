@@ -105,12 +105,37 @@ class BackupsTest {
     }
 
     @Test
-    fun `a backup of the data of an older or newer app version is refused as such`() {
+    fun `a backup of a newer app version, or of one before any the app knows, is refused as such`() {
         someOfEverything()
         val content = contentOf(exported())
 
-        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", HubDatabase.VERSION - 1))) }
         assertProblem(BackupProblem.NewerVersion) { open(sealed(content.put("schema", HubDatabase.VERSION + 1))) }
+        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", 0))) }
+    }
+
+    @Test
+    fun `a backup of an older app version is brought up to this one, as an update of the app would`() {
+        val made = someOfEverything()
+        val file = sealed(asOfVersion15(contentOf(exported())))
+        changeEverything()
+
+        val backup = open(file)
+        runBlocking { backups.restore(backup) }
+
+        assertEquals(Backup.Summary(routines = 2, todos = 2, places = 2, tags = 2), backup.summary)
+        assertEquals(made, everything())
+    }
+
+    @Test
+    fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
+        someOfEverything()
+        // The data of this version, said to be of the one before: the to-dos have a column too many for then.
+        val content = contentOf(exported()).put("schema", 15)
+        changeEverything()
+        val changed = everything()
+
+        assertProblem(BackupProblem.Damaged) { open(sealed(content)) }
+        assertEquals(changed, everything())
     }
 
     @Test
@@ -283,6 +308,20 @@ class BackupsTest {
     private fun sealed(content: JSONObject) = BackupFile.seal(content.toString().toByteArray(), key())
 
     private fun key() = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
+
+    /**
+     * [content] as version 15 of the app would have made it: its to-dos without the column `away`, which came with 16.
+     * A test of the migration of a backup for as long as this is the version that has backups first.
+     */
+    private fun asOfVersion15(content: JSONObject): JSONObject {
+        val todos = content.table("todos")
+        val columns = todos.getJSONArray("columns")
+        val away = (0 until columns.length()).first { columns.getString(it) == "away" }
+        columns.remove(away)
+        val rows = todos.getJSONArray("rows")
+        for (row in 0 until rows.length()) rows.getJSONArray(row).remove(away)
+        return content.put("schema", 15)
+    }
 
     private fun JSONObject.tables() = getJSONObject("tables")
 

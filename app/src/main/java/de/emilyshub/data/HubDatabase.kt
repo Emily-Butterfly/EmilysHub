@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import de.emilyshub.backup.BackupDao
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceDao
@@ -28,7 +29,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 /**
  * The app's only database, encrypted with SQLCipher (SPEC.md §9).
  *
- * Every schema change bumps [version] and adds a hand-written migration to [open]. There is
+ * Every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]. There is
  * deliberately no destructive fallback: a missing migration fails loudly instead of wiping data.
  */
 @Database(
@@ -64,13 +65,16 @@ abstract class HubDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, HubDatabase::class.java, name)
                 .openHelperFactory(SupportOpenHelperFactory(rawKey(key)))
-                .addMigrations(
-                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
-                )
+                .addMigrations(*MIGRATIONS.toTypedArray())
                 .build()
         }
+
+        /** From each version to the next; also for backups of older versions (SPEC.md §10). */
+        val MIGRATIONS: List<Migration> = listOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+        )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */
         internal fun rawKey(key: ByteArray): ByteArray =

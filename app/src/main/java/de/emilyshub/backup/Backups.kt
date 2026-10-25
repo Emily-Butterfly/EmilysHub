@@ -38,16 +38,17 @@ class Backup internal constructor(internal val content: BackupContent, internal 
 /**
  * The backups of all data (SPEC.md §10). The backup password is set once, and only the key derived from it is kept, in
  * the settings, sealed with the Keystore key [wrappingKey]; backups are made with it, without asking for the password.
- * A backup opens with the password it was made with, on this device or another, and is checked strictly before it can
- * be restored: only one of the same version of the data as the app's. Restoring puts it in place of all data but the
- * settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to follow. [database]
- * and [settings] are only called on [io].
+ * A backup opens with the password it was made with, on this device or another; one of an older version of the app is
+ * brought up to this one by [migration]. It is checked strictly before it can be restored. Restoring puts it in place of
+ * all data but the settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to
+ * follow. [database] and [settings] are only called on [io].
  */
 class Backups(
     private val database: () -> HubDatabase,
     private val settings: () -> SettingsDao,
     private val wrappingKey: () -> SecretKey,
     private val clock: Clock,
+    private val migration: BackupMigration,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,
     private val onRestore: suspend () -> Unit = {},
@@ -77,10 +78,11 @@ class Backups(
      */
     suspend fun open(input: () -> InputStream, password: String): Backup = withContext(io) {
         val decrypted = BackupFile.open(input().use(BackupFile::read), password)
-        val content = BackupContent.fromJson(decrypted.plaintext)
-        when {
-            content.schema < HubDatabase.VERSION -> throw BackupException(BackupProblem.OlderVersion)
-            content.schema > HubDatabase.VERSION -> throw BackupException(BackupProblem.NewerVersion)
+        val found = BackupContent.fromJson(decrypted.plaintext)
+        val content = when {
+            found.schema > HubDatabase.VERSION -> throw BackupException(BackupProblem.NewerVersion)
+            found.schema < HubDatabase.VERSION -> migration.upToDate(found)
+            else -> found
         }
         replaceAllWith(content, keep = false)
         Backup(content, decrypted.key, clock.zone)

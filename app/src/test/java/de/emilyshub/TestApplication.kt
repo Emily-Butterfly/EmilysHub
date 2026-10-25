@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
@@ -55,6 +56,7 @@ class TestApplication : EmilysHubApplication() {
         settings = { settingsDao },
         wrappingKey = { backupWrappingKey },
         clock = clock,
+        migration = BackupMigration(this),
         io = Dispatchers.Unconfined,
         // Enough for the tests, which would take seconds with the real count.
         iterations = 1_000,
