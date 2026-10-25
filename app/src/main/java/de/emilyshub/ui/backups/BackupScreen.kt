@@ -295,6 +295,7 @@ private fun ConfirmReplacing(backup: Backup, takesPassword: Boolean, onReplace: 
                     listOf(
                         pluralStringResource(R.plurals.backup_routines, summary.routines, summary.routines),
                         pluralStringResource(R.plurals.backup_todos, summary.todos, summary.todos),
+                        pluralStringResource(R.plurals.backup_wishes, summary.wishes, summary.wishes),
                         pluralStringResource(R.plurals.backup_places, summary.places, summary.places),
                         pluralStringResource(R.plurals.backup_tags, summary.tags, summary.tags),
                     ),

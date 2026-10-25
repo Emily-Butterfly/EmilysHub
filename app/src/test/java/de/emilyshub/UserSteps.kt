@@ -21,6 +21,8 @@ import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
+import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.robolectric.Shadows.shadowOf
@@ -83,6 +85,15 @@ fun TestApplication.todo(
 
 /** A tag, set up before the test opens the app. */
 fun TestApplication.tag(name: String): Long = runBlocking { tags.create(name) }
+
+/** A wish, open unless given another [status], set up before the test opens the app. */
+fun TestApplication.wish(
+    title: String,
+    period: String = "",
+    status: WishStatus = WishStatus.Open,
+    doneOn: LocalDate? = null,
+    tags: Set<Long> = emptySet(),
+): Long = runBlocking { wishes.create(WishDraft(title, period = period, status = status, doneOn = doneOn, tagIds = tags)) }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */
 fun ComposeTestRule.unlockWithFingerprint(authenticator: FakeAuthenticator) {

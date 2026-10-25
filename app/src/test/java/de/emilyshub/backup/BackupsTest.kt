@@ -18,6 +18,8 @@ import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.tag
 import de.emilyshub.todo
+import de.emilyshub.wish
+import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -71,7 +73,7 @@ class BackupsTest {
 
         assertEquals(changed, everything())
         assertEquals(Instant.parse("2026-10-23T05:00:00Z"), backup.created.toInstant())
-        assertEquals(Backup.Summary(routines = 2, todos = 2, places = 2, tags = 2), backup.summary)
+        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 2, places = 2, tags = 2), backup.summary)
     }
 
     @Test
@@ -116,14 +118,17 @@ class BackupsTest {
     @Test
     fun `a backup of an older app version is brought up to this one, as an update of the app would`() {
         val made = someOfEverything()
-        val file = sealed(asOfVersion15(contentOf(exported())))
+        val file = sealed(asOfVersion16(contentOf(exported())))
         changeEverything()
 
         val backup = open(file)
         runBlocking { backups.restore(backup) }
 
-        assertEquals(Backup.Summary(routines = 2, todos = 2, places = 2, tags = 2), backup.summary)
-        assertEquals(made, everything())
+        // Version 16 had no wishes yet, so there are none after the update either.
+        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 0, places = 2, tags = 2), backup.summary)
+        val restored = everything()
+        assertEquals(made - WISH_TABLES, restored - WISH_TABLES)
+        assertEquals(listOf(emptyList<Any>(), emptyList()), WISH_TABLES.map(restored::getValue))
     }
 
     @Test
@@ -136,7 +141,7 @@ class BackupsTest {
 
         // Version 14 had no places for to-dos, nor their reminders: they start as an update would have left them.
         val restored = everything()
-        assertEquals(made - TODO_TABLES, restored - TODO_TABLES)
+        assertEquals(made - TODO_TABLES - WISH_TABLES, restored - TODO_TABLES - WISH_TABLES)
         assertEquals(emptyList<Any>(), restored.getValue("todo_places"))
         assertEquals(listOf("Milch kaufen", "Steuer machen"), runBlocking { app.todos.open().first() }.map { it.todo.title }.sorted())
     }
@@ -144,8 +149,8 @@ class BackupsTest {
     @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
-        // The data of this version, said to be of the one before: the to-dos have a column too many for then.
-        val content = contentOf(exported()).put("schema", 15)
+        // The data of this version, said to be of the one before: the wishes are tables too many for then.
+        val content = contentOf(exported()).put("schema", 16)
         changeEverything()
         val changed = everything()
 
@@ -273,6 +278,8 @@ class BackupsTest {
         }
         app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
+        app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
+        app.wish("Nordlichter sehen", period = "Winter 2027")
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
 
@@ -280,6 +287,7 @@ class BackupsTest {
         app.routines.inUse().first().forEach { app.routines.delete(it.id) }
         app.tags.all().first().forEach { app.tags.delete(it.id) }
         app.todo("Neues To-do")
+        app.wish("Neuer Wunsch")
     }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */
@@ -324,15 +332,19 @@ class BackupsTest {
 
     private fun key() = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
 
-    /**
-     * [content] as version 15 of the app would have made it: its to-dos without the column `away`, which came with 16.
-     * A test of the migration of a backup for as long as this is the version that has backups first.
-     */
-    private fun asOfVersion15(content: JSONObject) = content.withoutColumns("todos", "away").put("schema", 15)
+    /** [content] as version 16 made it, the first that made backups: without the wishes, which came with 17. */
+    private fun asOfVersion16(content: JSONObject): JSONObject {
+        WISH_TABLES.forEach { content.tables().remove(it) }
+        return content.put("schema", 16)
+    }
 
-    /** [content] as version 14 made it: the to-dos also without their reminders and places, which came with 15. */
+    /**
+     * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and
+     * places, which came with 15 and 16. A test of a migration over several versions.
+     */
     private fun asOfVersion14(content: JSONObject): JSONObject {
-        content.withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting").tables().remove("todo_places")
+        asOfVersion16(content).withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting")
+        content.tables().remove("todo_places")
         return content.put("schema", 14)
     }
 
@@ -368,6 +380,7 @@ class BackupsTest {
     private companion object {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
+        val WISH_TABLES = listOf("wishes", "wish_tags")
         const val FEW_ITERATIONS = 1_000
     }
 }

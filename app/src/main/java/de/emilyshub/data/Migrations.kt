@@ -227,3 +227,20 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `away` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/** Version 17: the wishlist (#19), wishes with their tags. */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `wishes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, " +
+                "`description` TEXT NOT NULL, `period` TEXT NOT NULL, `status` TEXT NOT NULL, `done_on` TEXT)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `wish_tags` (`wish_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`wish_id`, `tag_id`), " +
+                "FOREIGN KEY(`wish_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`tag_id`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_wish_tags_tag_id` ON `wish_tags` (`tag_id`)")
+    }
+}

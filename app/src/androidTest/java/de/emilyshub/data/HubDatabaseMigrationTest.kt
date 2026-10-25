@@ -25,6 +25,9 @@ import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
+import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.WishWithTags
+import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -33,6 +36,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -388,6 +392,18 @@ class HubDatabaseMigrationTest {
             val post = database.todos().observeAll().first().single()
             assertEquals(Reminding(waiting = true), post.todo.reminding)
             assertEquals(setOf(1L), post.placeIds)
+        }
+    }
+
+    @Test
+    fun `version 16 moves to version 17 with no wishes that can then be saved with tags`() {
+        createAtVersion(16) { it.execSQL("INSERT INTO tags (id, name) VALUES (1, 'Reisen')") }
+
+        withMigratedDatabase { database ->
+            val wishes = Wishes({ database }, Clock.systemDefaultZone())
+            assertEquals(emptyList<WishWithTags>(), wishes.current().first())
+            val id = wishes.create(WishDraft("Nordlichter sehen", period = "Winter 2027", tagIds = setOf(1L)))
+            assertEquals(setOf(1L), wishes.tagIdsOf(id))
         }
     }
 

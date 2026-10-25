@@ -25,6 +25,9 @@ import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoDao
 import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
+import de.emilyshub.wishes.Wish
+import de.emilyshub.wishes.WishDao
+import de.emilyshub.wishes.WishTag
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -38,6 +41,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         Setting::class, Routine::class, Occurrence::class, ChecklistItem::class, ChecklistTick::class, Tag::class, RoutineTag::class,
         Place::class, PlaceWifi::class, RoutinePlace::class,
         Todo::class, TodoChecklistItem::class, TodoTag::class, TodoPlace::class,
+        Wish::class, WishTag::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -53,10 +57,12 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun todos(): TodoDao
 
+    abstract fun wishes(): WishDao
+
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 16
+        const val VERSION = 17
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -79,6 +85,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
             MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
             MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_16_17,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

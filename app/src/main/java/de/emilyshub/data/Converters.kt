@@ -5,6 +5,7 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.wishes.WishStatus
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -78,4 +79,10 @@ class Converters {
 
     @TypeConverter
     fun toStatus(text: String): OccurrenceStatus = OccurrenceStatus.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromWishStatus(status: WishStatus): String = status.stored
+
+    @TypeConverter
+    fun toWishStatus(text: String): WishStatus = WishStatus.entries.first { it.stored == text }
 }

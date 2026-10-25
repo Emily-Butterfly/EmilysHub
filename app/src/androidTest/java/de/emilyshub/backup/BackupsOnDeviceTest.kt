@@ -87,7 +87,7 @@ class BackupsOnDeviceTest {
                 val file = ByteArrayOutputStream().also { out -> backups.export { out } }.toByteArray()
                 JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
             }
-            val file = BackupFile.seal(asOfVersion15(content).toString().toByteArray(), key)
+            val file = BackupFile.seal(asOfVersion16(content).toString().toByteArray(), key)
 
             val backups = backupsOf(new)
             runBlocking { backups.restore(backups.open({ ByteArrayInputStream(file) }, PASSWORD)) }
@@ -99,15 +99,10 @@ class BackupsOnDeviceTest {
         }
     }
 
-    /** [content] as version 15 of the app would have made it: its to-dos without the column `away`, which came with 16. */
-    private fun asOfVersion15(content: JSONObject): JSONObject {
-        val todos = content.getJSONObject("tables").getJSONObject("todos")
-        val columns = todos.getJSONArray("columns")
-        val away = (0 until columns.length()).first { columns.getString(it) == "away" }
-        columns.remove(away)
-        val rows = todos.getJSONArray("rows")
-        for (row in 0 until rows.length()) rows.getJSONArray(row).remove(away)
-        return content.put("schema", 15)
+    /** [content] as version 16 made it, the first that made backups: without the wishes, which came with 17. */
+    private fun asOfVersion16(content: JSONObject): JSONObject {
+        listOf("wishes", "wish_tags").forEach { content.getJSONObject("tables").remove(it) }
+        return content.put("schema", 16)
     }
 
     /** A routine with a tag and a place with a WLAN and a GPS area, and a to-do. */

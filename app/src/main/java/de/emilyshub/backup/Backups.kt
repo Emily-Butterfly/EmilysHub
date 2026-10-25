@@ -24,13 +24,13 @@ enum class PasswordProblem { TooShort, NotRepeated }
 /** A backup opened with its password and checked against the tables of the app, to be restored once confirmed. */
 class Backup internal constructor(internal val content: BackupContent, internal val key: BackupKey, private val zone: ZoneId) {
 
-    /** How many routines, to-dos, places and tags a backup holds, for the user to see what it would bring back. */
-    data class Summary(val routines: Int, val todos: Int, val places: Int, val tags: Int)
+    /** How many routines, to-dos, wishes, places and tags a backup holds, for the user to see what it would bring back. */
+    data class Summary(val routines: Int, val todos: Int, val wishes: Int, val places: Int, val tags: Int)
 
     /** When it was made, in the time zone here. */
     val created: ZonedDateTime get() = content.created.atZone(zone)
 
-    val summary: Summary get() = Summary(count("routines"), count("todos"), count("places"), count("tags"))
+    val summary: Summary get() = Summary(count("routines"), count("todos"), count("wishes"), count("places"), count("tags"))
 
     private fun count(table: String) = content.tables[table]?.rows?.size ?: 0
 }
@@ -133,7 +133,7 @@ class Backups(
             "checklist_ticks" to dao::checklistTicks, "tags" to dao::tags, "routine_tags" to dao::routineTags,
             "places" to dao::places, "place_wifis" to dao::placeWifis, "routine_places" to dao::routinePlaces,
             "todos" to dao::todos, "todo_checklist_items" to dao::todoChecklistItems, "todo_tags" to dao::todoTags,
-            "todo_places" to dao::todoPlaces,
+            "todo_places" to dao::todoPlaces, "wishes" to dao::wishes, "wish_tags" to dao::wishTags,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {

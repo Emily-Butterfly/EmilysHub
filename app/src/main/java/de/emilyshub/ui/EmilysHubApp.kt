@@ -45,6 +45,7 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
+import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.places.PlaceEditorScreen
 import de.emilyshub.ui.places.PlaceEditorTarget
@@ -54,7 +55,6 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
-import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
 import de.emilyshub.ui.stats.StatisticsScreen
@@ -68,6 +68,11 @@ import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.todos.TodosScreen
+import de.emilyshub.ui.wishes.WishEditorScreen
+import de.emilyshub.ui.wishes.WishEditorTarget
+import de.emilyshub.ui.wishes.WishReviewScreen
+import de.emilyshub.ui.wishes.WishlistScreen
+import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.launch
 
 /**
@@ -81,6 +86,7 @@ fun EmilysHubApp(
     authenticator: DeviceAuthenticator,
     routines: Routines,
     todos: Todos,
+    wishes: Wishes,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -107,6 +113,7 @@ fun EmilysHubApp(
                 AppShell(
                     routines = routines,
                     todos = todos,
+                    wishes = wishes,
                     tags = tags,
                     places = places,
                     wifi = wifi,
@@ -159,6 +166,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 private fun AppShell(
     routines: Routines,
     todos: Todos,
+    wishes: Wishes,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -184,6 +192,9 @@ private fun AppShell(
     var backupsOpen by rememberSaveable { mutableStateOf(false) }
     var todoEditor by rememberSaveable { mutableStateOf<TodoEditorTarget?>(null) }
     var todoArchiveOpen by rememberSaveable { mutableStateOf(false) }
+    var wishEditor by rememberSaveable { mutableStateOf<WishEditorTarget?>(null) }
+    var wishReviewOpen by rememberSaveable { mutableStateOf(false) }
+    var wishTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     // Here, so that they stay while a to-do is open and while another tab shows.
     var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -194,6 +205,7 @@ private fun AppShell(
     val editor = routineEditor
     val placeTarget = placeEditor
     val todoTarget = todoEditor
+    val wishTarget = wishEditor
     val statisticsRoutine = statisticsRoutineId
     when {
         todoTarget != null -> {
@@ -203,6 +215,15 @@ private fun AppShell(
         todoArchiveOpen -> {
             BackHandler { todoArchiveOpen = false }
             TodoArchiveScreen(todos, onBack = { todoArchiveOpen = false })
+        }
+        // Opened from the list or the review, the editor goes back there.
+        wishTarget != null -> {
+            BackHandler { wishEditor = null }
+            WishEditorScreen(wishes, tags, wishTarget, onClose = { wishEditor = null })
+        }
+        wishReviewOpen -> {
+            BackHandler { wishReviewOpen = false }
+            WishReviewScreen(wishes, onOpen = { wishEditor = WishEditorTarget.Edit(it) }, onBack = { wishReviewOpen = false })
         }
         // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
         placeTarget != null -> {
@@ -270,6 +291,7 @@ private fun AppShell(
             TopLevelScaffold(
                 routines = routines,
                 todos = todos,
+                wishes = wishes,
                 tags = tags,
                 routineTagFilter = routineTagFilter,
                 onRoutineTagFilterChange = { routineTagFilter = it },
@@ -279,6 +301,10 @@ private fun AppShell(
                 onTodoTagFilterChange = { todoTagFilter = it },
                 onOpenTodo = { todoEditor = it },
                 onOpenTodoArchive = { todoArchiveOpen = true },
+                wishTagFilter = wishTagFilter,
+                onWishTagFilterChange = { wishTagFilter = it },
+                onOpenWish = { wishEditor = it },
+                onOpenWishReview = { wishReviewOpen = true },
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -303,6 +329,7 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: (
 private fun TopLevelScaffold(
     routines: Routines,
     todos: Todos,
+    wishes: Wishes,
     tags: Tags,
     routineTagFilter: Long?,
     onRoutineTagFilterChange: (Long?) -> Unit,
@@ -312,6 +339,10 @@ private fun TopLevelScaffold(
     onTodoTagFilterChange: (Long?) -> Unit,
     onOpenTodo: (TodoEditorTarget) -> Unit,
     onOpenTodoArchive: () -> Unit,
+    wishTagFilter: Long?,
+    onWishTagFilterChange: (Long?) -> Unit,
+    onOpenWish: (WishEditorTarget) -> Unit,
+    onOpenWishReview: () -> Unit,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -372,7 +403,16 @@ private fun TopLevelScaffold(
                 onCreate = { onOpenTodo(TodoEditorTarget.New) },
                 onOpenArchive = onOpenTodoArchive,
             )
-            TopLevelDestination.Wishlist -> PlaceholderScreen(stringResource(R.string.placeholder_wishlist), contentPadding)
+            TopLevelDestination.Wishlist -> WishlistScreen(
+                wishes = wishes,
+                tags = tags,
+                tagFilter = wishTagFilter,
+                onTagFilterChange = onWishTagFilterChange,
+                contentPadding = contentPadding,
+                onOpen = { onOpenWish(WishEditorTarget.Edit(it)) },
+                onCreate = { onOpenWish(WishEditorTarget.New) },
+                onOpenReview = onOpenWishReview,
+            )
             TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)
         }
     }

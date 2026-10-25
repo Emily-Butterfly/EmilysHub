@@ -283,7 +283,27 @@
     <string name="todo_delete_for_good">„%1$s“ endgültig löschen</string>
     <string name="todo_delete_for_good_title">Endgültig löschen?</string>
     <string name="todo_delete_for_good_text">„%1$s“ wird mit seiner Checkliste gelöscht und lässt sich nicht wiederherstellen.</string>
-    <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
+    <string name="wishes_empty">Noch keine Wünsche. Hier sammelst du, was du irgendwann machen möchtest, ganz ohne Erinnerungen. Mit „+“ legst du einen an.</string>
+    <string name="wish_create">Wunsch anlegen</string>
+    <string name="wish_new">Neuer Wunsch</string>
+    <string name="wish_edit">Wunsch bearbeiten</string>
+    <string name="wish_title">Titel</string>
+    <string name="wish_title_missing">Bitte gib einen Titel ein.</string>
+    <string name="wish_description">Beschreibung (optional)</string>
+    <string name="wish_period">Zeitraum (optional)</string>
+    <string name="wish_period_hint">Zum Beispiel „2027“ oder „Sommer“. Erinnert wird daran nicht.</string>
+    <string name="wish_status">Status</string>
+    <string name="wish_status_open">Offen</string>
+    <string name="wish_status_in_progress">In Arbeit</string>
+    <string name="wish_status_done">Erledigt</string>
+    <string name="wish_done_on">Erledigt am</string>
+    <string name="wish_done_on_date">Erledigt am %1$s</string>
+    <string name="wishes_filter_empty">Kein Wunsch mit dem Tag „%1$s“.</string>
+    <string name="wishes_review_open">Rückblick (%1$d)</string>
+    <string name="wishes_review_title">Rückblick</string>
+    <string name="wishes_review_empty">Noch kein Wunsch erledigt.</string>
+    <string name="wish_delete_title">Wunsch löschen?</string>
+    <string name="wish_delete_text">„%1$s“ wird gelöscht.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>
@@ -375,6 +395,10 @@
     <plurals name="backup_todos">
         <item quantity="one">%d To-do</item>
         <item quantity="other">%d To-dos</item>
+    </plurals>
+    <plurals name="backup_wishes">
+        <item quantity="one">%d Wunsch</item>
+        <item quantity="other">%d Wünsche</item>
     </plurals>
     <plurals name="backup_places">
         <item quantity="one">%d Ort</item>

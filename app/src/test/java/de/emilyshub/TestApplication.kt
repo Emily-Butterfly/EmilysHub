@@ -16,6 +16,7 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
+import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -42,6 +43,7 @@ class TestApplication : EmilysHubApplication() {
     override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
     override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
+    override val wishes = Wishes({ testDatabase }, clock, Dispatchers.Unconfined)
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)

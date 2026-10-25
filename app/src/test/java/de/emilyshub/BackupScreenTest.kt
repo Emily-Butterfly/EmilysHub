@@ -100,7 +100,7 @@ class BackupScreenTest {
 
             compose.onNodeWithText("Backup laden?").assertIsDisplayed()
             compose.onNodeWithText("Das Backup vom 23.10.2026, 07:00 ersetzt alle Daten", substring = true).assertIsDisplayed()
-            compose.onNodeWithText("Im Backup: 1 Routine, 0 To-dos, 0 Orte und 1 Tag.").assertIsDisplayed()
+            compose.onNodeWithText("Im Backup: 1 Routine, 0 To-dos, 0 Wünsche, 0 Orte und 1 Tag.").assertIsDisplayed()
             compose.onNodeWithText("Sein Passwort wird dann auch dein Backup-Passwort auf diesem Gerät.").assertIsDisplayed()
             assertEquals(listOf("Yoga"), routineNames())
             compose.onNodeWithText("Ersetzen").performClick()

@@ -15,6 +15,8 @@ import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
+import de.emilyshub.wishes.Wish
+import de.emilyshub.wishes.WishTag
 
 /**
  * Every row of every data table, read as the app reads them, through its type converters: whatever a backup brings
@@ -61,4 +63,10 @@ interface BackupDao {
 
     @Query("SELECT * FROM todo_places")
     fun todoPlaces(): List<TodoPlace>
+
+    @Query("SELECT * FROM wishes")
+    fun wishes(): List<Wish>
+
+    @Query("SELECT * FROM wish_tags")
+    fun wishTags(): List<WishTag>
 }

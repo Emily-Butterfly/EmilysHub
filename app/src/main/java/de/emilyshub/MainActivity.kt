@@ -13,8 +13,8 @@ class MainActivity : ComponentActivity() {
         val app = application as EmilysHubApplication
         setContent {
             EmilysHubApp(
-                app.settings, app.appLock, app.authenticator, app.routines, app.todos, app.tags, app.places, app.wifi, app.location,
-                app.backups,
+                app.settings, app.appLock, app.authenticator, app.routines, app.todos, app.wishes, app.tags, app.places, app.wifi,
+                app.location, app.backups,
                 onProbe = app.reminders::probe,
             )
         }

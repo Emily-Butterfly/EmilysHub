@@ -25,6 +25,7 @@ import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
+import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,9 @@ open class EmilysHubApplication : Application() {
     open val tags: Tags by lazy { Tags({ database }) }
 
     open val todos: Todos by lazy { Todos({ database }, DeviceClock, onChange = ::updateReminders) }
+
+    /** Never reminds of anything (SPEC.md §6), so no change to it reaches the reminders. */
+    open val wishes: Wishes by lazy { Wishes({ database }, DeviceClock) }
 
     open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 
