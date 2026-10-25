@@ -36,15 +36,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.stats.DayOutcome
+import de.emilyshub.ui.dayAndMonth
+import de.emilyshub.ui.monthAndYear
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * A month of a routine's [days] as a calendar (SPEC.md §8), starting with the month of [today]: each day it was due on
  * marked by how it ended, done, skipped or missed, in color and with a sign, so that it does not rest on color alone,
- * and read out as such; other days plain. The arrows go to the month before and after. Below, what the colors mean.
+ * and read out as such; other days plain. The arrows go to the month before and after. Below, what the marks mean.
  */
 @Composable
 fun HistoryCalendar(days: Map<LocalDate, DayOutcome>, today: LocalDate) {
@@ -52,10 +52,11 @@ fun HistoryCalendar(days: Map<LocalDate, DayOutcome>, today: LocalDate) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { month = month.minusMonths(1) }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.statistics_month_previous))
+                val previous = stringResource(R.string.statistics_month_previous)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previous)
             }
             Text(
-                text = MONTH.format(month),
+                text = month.monthAndYear(),
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -100,7 +101,7 @@ fun HistoryCalendar(days: Map<LocalDate, DayOutcome>, today: LocalDate) {
 @Composable
 private fun DayCell(date: LocalDate, outcome: DayOutcome?) {
     val marking = outcome?.marking()
-    val description = marking?.let { stringResource(R.string.statistics_day, DAY.format(date), stringResource(it.label)) }
+    val description = marking?.let { stringResource(R.string.statistics_day, date.dayAndMonth(), stringResource(it.label)) }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -125,7 +126,7 @@ private fun DayCell(date: LocalDate, outcome: DayOutcome?) {
 @Composable
 private fun Legend() {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 8.dp)) {
-        listOf(DayOutcome.Done, DayOutcome.Skipped, DayOutcome.Missed).forEach { outcome ->
+        DayOutcome.entries.forEach { outcome ->
             val marking = outcome.marking()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -157,6 +158,4 @@ private fun DayOutcome.marking(): Marking {
     }
 }
 
-private val MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.GERMAN)
-private val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("d. MMMM", Locale.GERMAN)
 private const val DAYS_A_WEEK = 7

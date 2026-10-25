@@ -81,16 +81,16 @@ class RoutineHistoryTest {
             "2026-10-20" to Done, "2026-10-21" to Skipped, "2026-10-22" to Done, "2026-10-23" to Open,
         )
 
-        assertEquals(DoneRate(done = 3, counted = 4), history.doneRate(today, days = 7))
-        assertEquals(75, history.doneRate(today, days = 7).percent)
-        assertEquals(DoneRate(done = 3, counted = 5), history.doneRate(today, days = 30))
+        assertEquals(DoneRate(done = 3, counted = 4), history.doneRate(today, period = 7))
+        assertEquals(75, history.doneRate(today, period = 7).percent)
+        assertEquals(DoneRate(done = 3, counted = 5), history.doneRate(today, period = 30))
     }
 
     @Test
     fun `with nothing done or missed in the days, there is no done rate`() {
         val history = history("2026-10-22" to Skipped, "2026-10-23" to Open)
 
-        assertEquals(null, history.doneRate(today, days = 7).percent)
+        assertEquals(null, history.doneRate(today, period = 7).percent)
     }
 
     @Test
@@ -117,7 +117,8 @@ class RoutineHistoryTest {
     /** The occurrences of a routine on the days given, at times one after another, as they ended. */
     private fun history(vararg days: Pair<String, OccurrenceStatus>) = RoutineHistory(
         days.mapIndexed { index, (date, status) ->
-            Occurrence(routineId = 1, date = LocalDate.parse(date), time = LocalTime.of(8, 0).plusMinutes(index.toLong()), status = status)
+            val time = LocalTime.of(8, 0).plusMinutes(index.toLong())
+            Occurrence(routineId = 1, date = LocalDate.parse(date), time = time, status = status)
         },
     )
 }

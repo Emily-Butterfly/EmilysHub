@@ -172,7 +172,7 @@ private fun AppShell(
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var statisticsOpen by rememberSaveable { mutableStateOf(false) }
-    var routineStatistics by rememberSaveable { mutableStateOf<Long?>(null) }
+    var statisticsRoutineId by rememberSaveable { mutableStateOf<Long?>(null) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var statusOpen by rememberSaveable { mutableStateOf(false) }
@@ -188,7 +188,7 @@ private fun AppShell(
     val editor = routineEditor
     val placeTarget = placeEditor
     val todoTarget = todoEditor
-    val statisticsRoutine = routineStatistics
+    val statisticsRoutine = statisticsRoutineId
     when {
         todoTarget != null -> {
             BackHandler { todoEditor = null }
@@ -246,12 +246,12 @@ private fun AppShell(
         }
         // A routine's statistics go back to those of all routines.
         statisticsRoutine != null -> {
-            BackHandler { routineStatistics = null }
-            RoutineStatisticsScreen(routines, statisticsRoutine, onBack = { routineStatistics = null })
+            BackHandler { statisticsRoutineId = null }
+            RoutineStatisticsScreen(routines, statisticsRoutine, onBack = { statisticsRoutineId = null })
         }
         statisticsOpen -> {
             BackHandler { statisticsOpen = false }
-            StatisticsScreen(routines, onOpenRoutine = { routineStatistics = it }, onBack = { statisticsOpen = false })
+            StatisticsScreen(routines, onOpenRoutine = { statisticsRoutineId = it }, onBack = { statisticsOpen = false })
         }
         else -> {
             // Heute is the start screen: back from any other area returns there before leaving the app.

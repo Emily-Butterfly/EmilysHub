@@ -7,6 +7,7 @@ import de.emilyshub.places.Whereabouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -44,6 +45,12 @@ class Routines(
      * (SPEC.md §8); those of a routine deleted go with it.
      */
     fun history(): Flow<List<Occurrence>> = flow { emitAll(dao.observeAllOccurrences()) }.flowOn(io)
+
+    /** The routine's occurrences, as [history] has them. */
+    fun history(routineId: Long): Flow<List<Occurrence>> = flow { emitAll(dao.observeOccurrencesOf(routineId)) }.flowOn(io)
+
+    /** Every routine: those in use, as [inUse] orders them, then the archived ones, as [archived] does. */
+    fun all(): Flow<List<Routine>> = combine(inUse(), archived()) { inUse, archived -> inUse + archived }
 
     /** The archived routines (SPEC.md §2), by name. */
     fun archived(): Flow<List<Routine>> = observe(compareBy(InputText.byName, Routine::name)) { it.status == RoutineStatus.Archived }

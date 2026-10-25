@@ -42,12 +42,11 @@ import java.time.LocalDate
 @Composable
 fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: () -> Unit) {
     val history by remember(routines) { routines.history() }.collectAsState(initial = null)
-    val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
-    val archived by remember(routines) { routines.archived() }.collectAsState(initial = null)
+    val allRoutines by remember(routines) { routines.all() }.collectAsState(initial = null)
     StatisticsScaffold(stringResource(R.string.statistics_title), onBack) { contentPadding ->
         val all = history ?: return@StatisticsScaffold
-        val list = (inUse ?: return@StatisticsScaffold) + (archived ?: return@StatisticsScaffold)
-        if (list.isEmpty()) {
+        val everyRoutine = allRoutines ?: return@StatisticsScaffold
+        if (everyRoutine.isEmpty()) {
             PlaceholderScreen(stringResource(R.string.statistics_empty), contentPadding)
             return@StatisticsScaffold
         }
@@ -64,7 +63,7 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
                 Summary(RoutineHistory(all), today)
             }
             Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.statistics_each)) }
-            list.forEach { routine ->
+            everyRoutine.forEach { routine ->
                 val routineHistory = RoutineHistory(byRoutine[routine.id].orEmpty())
                 ListItem(
                     headlineContent = { Text(routine.name) },
@@ -74,7 +73,8 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
                                 stringResource(
                                     R.string.statistics_routine_summary,
                                     days(routineHistory.streaks().current),
-                                    percent(routineHistory.doneRate(today, days = SUMMARY_DAYS)),
+                                    SUMMARY_DAYS,
+                                    percent(routineHistory.doneRate(today, period = SUMMARY_DAYS)),
                                 ),
                             )
                             if (routine.status == RoutineStatus.Archived) Text(stringResource(R.string.statistics_archived))
@@ -90,15 +90,14 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
 /** The statistics of one routine (SPEC.md §8): its streaks, its done rates, and a calendar of how its due days ended. */
 @Composable
 fun RoutineStatisticsScreen(routines: Routines, routineId: Long, onBack: () -> Unit) {
-    val history by remember(routines) { routines.history() }.collectAsState(initial = null)
-    val inUse by remember(routines) { routines.inUse() }.collectAsState(initial = null)
-    val archived by remember(routines) { routines.archived() }.collectAsState(initial = null)
-    val routine = (inUse.orEmpty() + archived.orEmpty()).find { it.id == routineId }
+    val history by remember(routines, routineId) { routines.history(routineId) }.collectAsState(initial = null)
+    val allRoutines by remember(routines) { routines.all() }.collectAsState(initial = null)
+    val routine = allRoutines?.find { it.id == routineId }
     StatisticsScaffold(routine?.name.orEmpty(), onBack) { contentPadding ->
-        val all = history ?: return@StatisticsScaffold
+        val occurrences = history ?: return@StatisticsScaffold
         if (routine == null) return@StatisticsScaffold
         val today = routines.today()
-        val routineHistory = RoutineHistory(all.filter { it.routineId == routineId })
+        val routineHistory = RoutineHistory(occurrences)
         Column(
             Modifier
                 .fillMaxSize()
@@ -120,8 +119,8 @@ private fun Summary(history: RoutineHistory, today: LocalDate) {
     Text(stringResource(R.string.statistics_streak_current, days(streaks.current)))
     Text(stringResource(R.string.statistics_streak_longest, days(streaks.longest)))
     SectionTitle(stringResource(R.string.statistics_rate_title))
-    RoutineHistory.PERIODS.forEach { days ->
-        Text(stringResource(R.string.statistics_rate, days, percent(history.doneRate(today, days))))
+    RoutineHistory.PERIODS.forEach { period ->
+        Text(stringResource(R.string.statistics_rate, period, percent(history.doneRate(today, period))))
     }
 }
 
