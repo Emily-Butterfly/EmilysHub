@@ -14,8 +14,10 @@ enum class BackupProblem { NotABackup, Damaged, WrongPassword, TooLarge, NewerVe
 
 class BackupException(val problem: BackupProblem, cause: Throwable? = null) : Exception("Backup: $problem", cause)
 
-/** The content of a backup file, and the key it was made with, derived from the password it was opened with. */
-class OpenedBackup(val content: ByteArray, val key: BackupKey)
+internal fun damaged(): Nothing = throw BackupException(BackupProblem.Damaged)
+
+/** What a backup file holds, decrypted, and the key it was made with, derived from the password it was opened with. */
+class DecryptedBackup(val plaintext: ByteArray, val key: BackupKey)
 
 /**
  * A backup file (SPEC.md §10): a header, then the content encrypted with AES-256-GCM, which authenticates the header too.
@@ -33,36 +35,36 @@ object BackupFile {
     /** Far beyond any the app sets, but not so far that opening a file could take minutes. */
     private val ACCEPTED_ITERATIONS = 1_000..5_000_000
 
-    fun seal(content: ByteArray, key: BackupKey): ByteArray {
+    fun seal(plaintext: ByteArray, key: BackupKey): ByteArray {
         // Not to be read back, so not to be written either.
-        if (HEADER_BYTES + content.size + TAG_BITS / 8 > MAX_BYTES) throw BackupException(BackupProblem.TooLarge)
+        if (HEADER_BYTES + plaintext.size + TAG_BITS / 8 > MAX_BYTES) throw BackupException(BackupProblem.TooLarge)
         val nonce = ByteArray(NONCE_BYTES).also(SecureRandom()::nextBytes)
         val header = ByteBuffer.allocate(HEADER_BYTES)
             .put(MAGIC).put(FORMAT.toByte()).putInt(key.iterations).put(key.salt).put(key.passwordCheck()).put(nonce)
             .array()
-        return header + cipher(Cipher.ENCRYPT_MODE, key, nonce, header).doFinal(content)
+        return header + cipher(Cipher.ENCRYPT_MODE, key, nonce, header).doFinal(plaintext)
     }
 
-    fun open(file: ByteArray, password: String): OpenedBackup {
+    fun open(file: ByteArray, password: String): DecryptedBackup {
         if (file.size < MAGIC.size || !file.copyOf(MAGIC.size).contentEquals(MAGIC)) throw BackupException(BackupProblem.NotABackup)
         val format = file.getOrNull(MAGIC.size)?.toUByte()?.toInt()
         if (format != null && format > FORMAT) throw BackupException(BackupProblem.NewerVersion)
-        if (format != FORMAT || file.size < HEADER_BYTES + TAG_BITS / 8) throw BackupException(BackupProblem.Damaged)
+        if (format != FORMAT || file.size < HEADER_BYTES + TAG_BITS / 8) damaged()
         val header = ByteBuffer.wrap(file, MAGIC.size + 1, HEADER_BYTES - MAGIC.size - 1)
         val iterations = header.int
-        if (iterations !in ACCEPTED_ITERATIONS) throw BackupException(BackupProblem.Damaged)
+        if (iterations !in ACCEPTED_ITERATIONS) damaged()
         val salt = ByteArray(BackupKey.SALT_BYTES).also(header::get)
         val check = ByteArray(BackupKey.CHECK_BYTES).also(header::get)
         val nonce = ByteArray(NONCE_BYTES).also(header::get)
 
         val key = BackupKey.derive(password, salt, iterations)
         if (!MessageDigest.isEqual(key.passwordCheck(), check)) throw BackupException(BackupProblem.WrongPassword)
-        val content = try {
+        val plaintext = try {
             cipher(Cipher.DECRYPT_MODE, key, nonce, file.copyOf(HEADER_BYTES)).doFinal(file, HEADER_BYTES, file.size - HEADER_BYTES)
         } catch (e: GeneralSecurityException) {
             throw BackupException(BackupProblem.Damaged, e)
         }
-        return OpenedBackup(content, key)
+        return DecryptedBackup(plaintext, key)
     }
 
     /** All of [input], unless it is larger than a backup can be. */

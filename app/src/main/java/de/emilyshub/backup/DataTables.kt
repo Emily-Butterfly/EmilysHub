@@ -30,7 +30,7 @@ internal class DataTables(private val db: SupportSQLiteDatabase) {
             // The rows go in table by table, so a reference may come before the row it refers to.
             db.execSQL("PRAGMA defer_foreign_keys = ON")
             schema.keys.forEach { db.execSQL("DELETE FROM `$it`") }
-            checked.forEach { (table, rows) -> insert(table, rows) }
+            checked.forEach { (name, table) -> insert(name, table) }
         } catch (e: SQLException) {
             throw BackupException(BackupProblem.Damaged, e)
         }
@@ -57,11 +57,11 @@ internal class DataTables(private val db: SupportSQLiteDatabase) {
         else -> damaged()
     }
 
-    private fun insert(table: String, rows: TableRows) {
-        val columns = rows.columns.joinToString { "`$it`" }
-        val values = rows.columns.joinToString { "?" }
-        db.compileStatement("INSERT INTO `$table` ($columns) VALUES ($values)").use { statement ->
-            rows.rows.forEach { row ->
+    private fun insert(name: String, table: TableRows) {
+        val columns = table.columns.joinToString { "`$it`" }
+        val values = table.columns.joinToString { "?" }
+        db.compileStatement("INSERT INTO `$name` ($columns) VALUES ($values)").use { statement ->
+            table.rows.forEach { row ->
                 statement.clearBindings()
                 row.forEachIndexed { index, value -> statement.bind(index + 1, value) }
                 statement.executeInsert()

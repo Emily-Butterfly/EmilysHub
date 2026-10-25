@@ -39,8 +39,9 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  * The backups of all data (SPEC.md §10). The backup password is set once, and only the key derived from it is kept, in
  * the settings, sealed with the Keystore key [wrappingKey]; backups are made with it, without asking for the password.
  * A backup opens with the password it was made with, on this device or another, and is checked strictly before it can
- * be restored. Restoring puts it in place of all data but the settings of the device, all in one or nothing at all; then
- * [onRestore] runs, for the reminders to follow. [database] and [settings] are only called on [io].
+ * be restored: only one of the same version of the data as the app's. Restoring puts it in place of all data but the
+ * settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to follow. [database]
+ * and [settings] are only called on [io].
  */
 class Backups(
     private val database: () -> HubDatabase,
@@ -71,51 +72,81 @@ class Backups(
 
     /**
      * The backup in the stream [input] opens, opened with its [password] and checked: by putting it in place of all data
-     * in a transaction that is then rolled back. Fails with a [BackupException] that says why it cannot be restored.
+     * and reading it back, in a transaction that is then rolled back. Fails with a [BackupException] that says why it
+     * cannot be restored.
      */
     suspend fun open(input: () -> InputStream, password: String): Backup = withContext(io) {
-        val opened = BackupFile.open(input().use(BackupFile::read), password)
-        val content = BackupContent.fromJson(opened.content)
+        val decrypted = BackupFile.open(input().use(BackupFile::read), password)
+        val content = BackupContent.fromJson(decrypted.plaintext)
         when {
             content.schema < HubDatabase.VERSION -> throw BackupException(BackupProblem.OlderVersion)
             content.schema > HubDatabase.VERSION -> throw BackupException(BackupProblem.NewerVersion)
         }
         replaceAllWith(content, keep = false)
-        Backup(content, opened.key, clock.zone)
+        Backup(content, decrypted.key, clock.zone)
     }
 
-    /** Puts [backup] in place of all data; its backup password becomes the one here, unless one is set already. */
-    suspend fun restore(backup: Backup) {
-        withContext(io + NonCancellable) {
-            replaceAllWith(backup.content, keep = true)
-            if (settings().get(KEY) == null) store(backup.key)
-        }
+    /**
+     * Puts [backup] in place of all data. Its backup password becomes the one here first, unless one is set already: so
+     * that a failure leaves the data as they were, as the user is then told.
+     */
+    suspend fun restore(backup: Backup) = withContext(io + NonCancellable) {
+        if (settings().get(KEY) == null) store(backup.key)
+        replaceAllWith(backup.content, keep = true)
         onRestore()
     }
 
     /** The name a backup made today is offered to be saved under: "EmilysHub-Backup-2026-10-23.emhb". */
     fun fileName(): String = "EmilysHub-Backup-${LocalDate.now(clock)}.emhb"
 
-    /** In one transaction, kept only if [keep]: otherwise rolled back, as a check that it would work. */
+    /**
+     * Puts [content] in place of all data and reads it back as the app would, in one transaction: kept only if [keep],
+     * otherwise rolled back, as a check that it would work.
+     */
     private fun replaceAllWith(content: BackupContent, keep: Boolean) {
         val database = database()
-        try {
-            database.runInTransaction {
-                DataTables(database.openHelper.writableDatabase).replaceWith(content.tables)
-                if (!keep) throw RolledBack()
+        val replace = {
+            DataTables(database.openHelper.writableDatabase).replaceWith(content.tables)
+            database.readBack(content.tables.keys)
+        }
+        if (keep) {
+            database.runInTransaction(replace)
+        } else {
+            // Never marked successful, so rolled back; and nothing the app shows has changed meanwhile.
+            val db = database.openHelper.writableDatabase
+            db.beginTransaction()
+            try {
+                replace()
+            } finally {
+                db.endTransaction()
             }
-        } catch (_: RolledBack) {
-            // As it was meant to be.
         }
     }
 
-    private class RolledBack : RuntimeException()
+    /** Every one of the [tables] read as the app reads it; a value it cannot read makes the backup damaged. */
+    private fun HubDatabase.readBack(tables: Set<String>) {
+        val dao = backup()
+        val reads: Map<String, () -> List<Any>> = mapOf(
+            "routines" to dao::routines, "occurrences" to dao::occurrences, "checklist_items" to dao::checklistItems,
+            "checklist_ticks" to dao::checklistTicks, "tags" to dao::tags, "routine_tags" to dao::routineTags,
+            "places" to dao::places, "place_wifis" to dao::placeWifis, "routine_places" to dao::routinePlaces,
+            "todos" to dao::todos, "todo_checklist_items" to dao::todoChecklistItems, "todo_tags" to dao::todoTags,
+            "todo_places" to dao::todoPlaces,
+        )
+        check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
+        try {
+            reads.values.forEach { it() }
+        } catch (e: RuntimeException) {
+            // What the type converters throw on what they cannot read, such as an unknown status or a date that is none.
+            throw BackupException(BackupProblem.Damaged, e)
+        }
+    }
 
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->
         val parts = stored.split(SEPARATOR)
         check(parts.size == 3) { "The stored backup key is damaged" }
         val (iterations, salt, wrapped) = parts
-        val secret = KeyWrap.unwrap(Base64.getDecoder().decode(wrapped), wrappingKey(), BackupKey.SECRET_BYTES)
+        val secret = KeyWrap.unwrap(Base64.getDecoder().decode(wrapped), wrappingKey(), BackupKey.SECRET_BYTES, name = "backup key")
         BackupKey(Base64.getDecoder().decode(salt), iterations.toInt(), secret)
     }
 

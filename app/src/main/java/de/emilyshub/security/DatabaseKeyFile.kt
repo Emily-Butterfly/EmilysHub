@@ -14,7 +14,8 @@ import javax.crypto.SecretKey
 class DatabaseKeyFile(private val file: File, private val wrappingKey: SecretKey) {
 
     /** Fails when an existing file cannot be decrypted: a new key would lock the database for good. */
-    fun readOrCreate(): ByteArray = if (file.exists()) KeyWrap.unwrap(file.readBytes(), wrappingKey, KEY_BYTES) else create()
+    fun readOrCreate(): ByteArray =
+        if (file.exists()) KeyWrap.unwrap(file.readBytes(), wrappingKey, KEY_BYTES, name = "database key file") else create()
 
     private fun create(): ByteArray {
         val key = ByteArray(KEY_BYTES).also(SecureRandom()::nextBytes)

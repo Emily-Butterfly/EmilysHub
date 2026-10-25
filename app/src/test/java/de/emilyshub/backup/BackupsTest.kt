@@ -18,7 +18,10 @@ import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.tag
 import de.emilyshub.todo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -72,6 +75,22 @@ class BackupsTest {
     }
 
     @Test
+    fun `what shows the data sees those restored`() {
+        someOfEverything()
+        val file = exported()
+        changeEverything()
+        val shown = mutableListOf<List<String>>()
+        val showing = CoroutineScope(Dispatchers.Unconfined).launch {
+            app.routines.inUse().collect { all -> shown += all.map { it.name } }
+        }
+
+        restore(file)
+
+        showing.cancel()
+        assertEquals(listOf("Vitamine", "Yoga"), shown.last())
+    }
+
+    @Test
     fun `a wrong password, a changed file or a cut one is refused, and the data stay as they are`() {
         someOfEverything()
         val file = exported()
@@ -113,6 +132,12 @@ class BackupsTest {
             "a tag on no to-do" to { it.rowsOf("todo_tags").getJSONArray(0).put(0, 999) },
             "a time not a time" to { it.put("created", "gestern") },
             "a list for a value" to { it.rowsOf("tags").getJSONArray(0).put(1, JSONArray()) },
+            "a key unknown" to { it.put("passwords", JSONObject()) },
+            "a key unknown in a table" to { it.table("tags").put("colour", "lila") },
+            "a repetition the app cannot read" to { it.setFirst("routines", "repetition", "jede Woche") },
+            "a status the app cannot read" to { it.setFirst("occurrences", "status", "vielleicht") },
+            "a time the app cannot read" to { it.setFirst("routines", "times", "halb acht") },
+            "a date the app cannot read" to { it.setFirst("occurrences", "date", "2026-02-30") },
         )
 
         for ((what, change) in unfitting) {
@@ -253,7 +278,7 @@ class BackupsTest {
 
     private fun restore(file: ByteArray, password: String = PASSWORD) = runBlocking { backups.restore(open(file, password)) }
 
-    private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).content))
+    private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
 
     private fun sealed(content: JSONObject) = BackupFile.seal(content.toString().toByteArray(), key())
 
@@ -264,6 +289,12 @@ class BackupsTest {
     private fun JSONObject.table(name: String) = tables().getJSONObject(name)
 
     private fun JSONObject.rowsOf(table: String) = table(table).getJSONArray("rows")
+
+    /** Sets the [column] of the first row of [table] to [value]. */
+    private fun JSONObject.setFirst(table: String, column: String, value: Any) {
+        val columns = table(table).getJSONArray("columns")
+        rowsOf(table).getJSONArray(0).put((0 until columns.length()).first { columns.getString(it) == column }, value)
+    }
 
     private fun reminderAlarms() = shadowOf(app.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
         .alarmsFor(ReminderReceiver.ACTION_REMIND).map { Instant.ofEpochMilli(it.triggerAtMs) }

@@ -54,7 +54,7 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
-import de.emilyshub.ui.settings.BackupScreen
+import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
 import de.emilyshub.ui.stats.StatisticsScreen

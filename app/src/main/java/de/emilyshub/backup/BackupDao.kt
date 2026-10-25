@@ -1,0 +1,64 @@
+package de.emilyshub.backup
+
+import androidx.room.Dao
+import androidx.room.Query
+import de.emilyshub.places.Place
+import de.emilyshub.places.PlaceWifi
+import de.emilyshub.routines.ChecklistItem
+import de.emilyshub.routines.ChecklistTick
+import de.emilyshub.routines.Occurrence
+import de.emilyshub.routines.Routine
+import de.emilyshub.routines.RoutinePlace
+import de.emilyshub.routines.RoutineTag
+import de.emilyshub.tags.Tag
+import de.emilyshub.todos.Todo
+import de.emilyshub.todos.TodoChecklistItem
+import de.emilyshub.todos.TodoPlace
+import de.emilyshub.todos.TodoTag
+
+/**
+ * Every row of every data table, read as the app reads them, through its type converters: whatever a backup brings
+ * that the app could not read fails here, before the backup counts as fit to restore. Blocking, to run within the
+ * transaction that puts the backup in place.
+ */
+@Dao
+interface BackupDao {
+    @Query("SELECT * FROM routines")
+    fun routines(): List<Routine>
+
+    @Query("SELECT * FROM occurrences")
+    fun occurrences(): List<Occurrence>
+
+    @Query("SELECT * FROM checklist_items")
+    fun checklistItems(): List<ChecklistItem>
+
+    @Query("SELECT * FROM checklist_ticks")
+    fun checklistTicks(): List<ChecklistTick>
+
+    @Query("SELECT * FROM tags")
+    fun tags(): List<Tag>
+
+    @Query("SELECT * FROM routine_tags")
+    fun routineTags(): List<RoutineTag>
+
+    @Query("SELECT * FROM places")
+    fun places(): List<Place>
+
+    @Query("SELECT * FROM place_wifis")
+    fun placeWifis(): List<PlaceWifi>
+
+    @Query("SELECT * FROM routine_places")
+    fun routinePlaces(): List<RoutinePlace>
+
+    @Query("SELECT * FROM todos")
+    fun todos(): List<Todo>
+
+    @Query("SELECT * FROM todo_checklist_items")
+    fun todoChecklistItems(): List<TodoChecklistItem>
+
+    @Query("SELECT * FROM todo_tags")
+    fun todoTags(): List<TodoTag>
+
+    @Query("SELECT * FROM todo_places")
+    fun todoPlaces(): List<TodoPlace>
+}

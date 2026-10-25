@@ -33,14 +33,15 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         private const val COLUMNS = "columns"
         private const val ROWS = "rows"
 
-        /** Read strictly: anything [toJson] would not have written counts as damage. */
+        /** Read strictly: a key missing or unknown, or a value of another type, counts as damage. */
         fun fromJson(json: ByteArray): BackupContent = try {
             val root = JSONObject(String(json, Charsets.UTF_8))
+            if (root.keySet() != setOf(SCHEMA, CREATED, TABLES)) damaged()
             val tables = root.getJSONObject(TABLES)
             BackupContent(
                 schema = root.get(SCHEMA) as? Int ?: damaged(),
                 created = Instant.parse(root.get(CREATED) as? String ?: damaged()),
-                tables = tables.keys().asSequence().associateWith { tableRows(tables.getJSONObject(it)) },
+                tables = tables.keySet().associateWith { tableRows(tables.getJSONObject(it)) },
             )
         } catch (e: JSONException) {
             throw BackupException(BackupProblem.Damaged, e)
@@ -49,6 +50,7 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         }
 
         private fun tableRows(table: JSONObject): TableRows {
+            if (table.keySet() != setOf(COLUMNS, ROWS)) damaged()
             val columns = table.getJSONArray(COLUMNS)
             val rows = table.getJSONArray(ROWS)
             return TableRows(
@@ -66,7 +68,6 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
             is Long, is Double, is String -> json
             else -> damaged()
         }
+        private fun JSONObject.keySet(): Set<String> = keys().asSequence().toSet()
     }
 }
-
-internal fun damaged(): Nothing = throw BackupException(BackupProblem.Damaged)

@@ -84,6 +84,8 @@ class BackupScreenTest {
     @Test
     fun `a backup is loaded with its password, and replaces all data once that is confirmed`() {
         aBackupOfVitaminsThenYoga()
+        // As on a new device, where no backup password is set yet.
+        app.settingsDao.values.clear()
 
         launchApp().use { scenario ->
             openBackups()
@@ -99,10 +101,12 @@ class BackupScreenTest {
             compose.onNodeWithText("Backup laden?").assertIsDisplayed()
             compose.onNodeWithText("Das Backup vom 23.10.2026, 07:00 ersetzt alle Daten", substring = true).assertIsDisplayed()
             compose.onNodeWithText("Im Backup: 1 Routine, 0 To-dos, 0 Orte und 1 Tag.").assertIsDisplayed()
+            compose.onNodeWithText("Sein Passwort wird dann auch dein Backup-Passwort auf diesem Gerät.").assertIsDisplayed()
             assertEquals(listOf("Yoga"), routineNames())
             compose.onNodeWithText("Ersetzen").performClick()
 
             compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Das Backup-Passwort ist festgelegt.", substring = true).performScrollTo().assertIsDisplayed()
             assertEquals(listOf("Vitamine"), routineNames())
         }
     }
@@ -116,6 +120,7 @@ class BackupScreenTest {
             compose.onNodeWithText("Backup laden").performScrollTo().performClick()
             scenario.answer(scenario.documentRequest(), FILE)
             enterBackupPassword(PASSWORD)
+            compose.onNodeWithText("Sein Passwort wird", substring = true).assertDoesNotExist()
 
             compose.onNodeWithText("Abbrechen").performClick()
 
@@ -164,7 +169,7 @@ class BackupScreenTest {
 
     private fun openBackups() {
         compose.onNodeWithContentDescription("Einstellungen").performClick()
-        compose.onNode(hasText("Backups") and hasText("Alle Daten", substring = true)).performScrollTo().performClick()
+        compose.onNodeWithText("Backups verwalten").performScrollTo().performClick()
     }
 
     private fun setPassword(password: String, repeated: String) {

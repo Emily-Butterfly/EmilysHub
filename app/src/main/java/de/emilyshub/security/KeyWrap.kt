@@ -20,16 +20,19 @@ object KeyWrap {
         return cipher.iv + cipher.doFinal(secret)
     }
 
-    /** The secret of [secretBytes] bytes sealed in [wrapped]; fails if it is damaged or was sealed under another key. */
-    fun unwrap(wrapped: ByteArray, wrappingKey: SecretKey, secretBytes: Int): ByteArray {
-        check(wrapped.size == IV_BYTES + secretBytes + TAG_BITS / 8) { "The wrapped key is damaged" }
+    /**
+     * The secret of [secretBytes] bytes sealed in [wrapped]; fails if it is damaged or was sealed under another key,
+     * saying what it is by its [name].
+     */
+    fun unwrap(wrapped: ByteArray, wrappingKey: SecretKey, secretBytes: Int, name: String): ByteArray {
+        check(wrapped.size == IV_BYTES + secretBytes + TAG_BITS / 8) { "The $name is damaged" }
         return try {
             val cipher = Cipher.getInstance(TRANSFORMATION).apply {
                 init(Cipher.DECRYPT_MODE, wrappingKey, GCMParameterSpec(TAG_BITS, wrapped, 0, IV_BYTES))
             }
             cipher.doFinal(wrapped, IV_BYTES, wrapped.size - IV_BYTES)
         } catch (e: GeneralSecurityException) {
-            throw IllegalStateException("The wrapped key cannot be decrypted", e)
+            throw IllegalStateException("The $name cannot be decrypted", e)
         }
     }
 }

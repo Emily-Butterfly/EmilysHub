@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import de.emilyshub.backup.BackupDao
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceDao
 import de.emilyshub.places.PlaceWifi
@@ -49,6 +50,8 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun places(): PlaceDao
 
     abstract fun todos(): TodoDao
+
+    abstract fun backup(): BackupDao
 
     companion object {
         const val VERSION = 16

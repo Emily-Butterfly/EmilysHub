@@ -329,7 +329,7 @@
     <string name="reminder_probe">Probe-Erinnerung</string>
     <string name="reminder_probe_text">So erinnert dich EmilysHub.</string>
     <string name="settings_backups">Backups</string>
-    <string name="backups_manage">Backups</string>
+    <string name="backups_manage">Backups verwalten</string>
     <string name="backups_manage_summary">Alle Daten verschlüsselt sichern und wieder laden</string>
     <string name="backups_title">Backups</string>
     <string name="backup_password_title">Backup-Passwort</string>
@@ -362,7 +362,8 @@
     <string name="backup_unreadable">Die Datei konnte nicht gelesen werden.</string>
     <string name="backup_replace_title">Backup laden?</string>
     <string name="backup_replace_text">Das Backup vom %1$s ersetzt alle Daten in der App. Was jetzt in der App ist, geht dabei verloren.</string>
-    <string name="backup_replace_contents">Im Backup: %1$s, %2$s, %3$s und %4$s.</string>
+    <string name="backup_replace_contents">Im Backup: %1$s.</string>
+    <string name="backup_replace_takes_password">Sein Passwort wird dann auch dein Backup-Passwort auf diesem Gerät.</string>
     <string name="backup_replace">Ersetzen</string>
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>

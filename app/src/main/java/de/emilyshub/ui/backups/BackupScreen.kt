@@ -1,4 +1,4 @@
-package de.emilyshub.ui.settings
+package de.emilyshub.ui.backups
 
 import android.net.Uri
 import android.util.Log
@@ -21,7 +21,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -53,8 +52,10 @@ import de.emilyshub.backup.BackupException
 import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.PasswordProblem
+import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.numericDate
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -167,16 +168,14 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
             onEdit = { openProblem = null },
             onOpen = { password ->
                 work {
-                    try {
-                        opened = backups.open({ checkNotNull(resolver.openInputStream(file)) }, password)
-                        picked = null
-                    } catch (e: BackupException) {
-                        openProblem = e.problem.message
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not read the backup", e)
-                        openProblem = R.string.backup_unreadable
+                    openProblem = failingWith(R.string.backup_unreadable) {
+                        try {
+                            opened = backups.open({ checkNotNull(resolver.openInputStream(file)) }, password)
+                            picked = null
+                            null
+                        } catch (e: BackupException) {
+                            e.problem.message
+                        }
                     }
                 }
             },
@@ -190,6 +189,7 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
     opened?.let { backup ->
         ConfirmReplacing(
             backup = backup,
+            takesPassword = hasPassword == false,
             onReplace = {
                 opened = null
                 work {
@@ -250,7 +250,7 @@ private fun PasswordOfBackup(
 ) {
     var password by remember { mutableStateOf("") }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.backup_open_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -272,13 +272,17 @@ private fun PasswordOfBackup(
                 Text(stringResource(R.string.backup_open))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        // Not while it opens: the backup would ask to be restored once open.
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
-/** Asks whether the [backup] is to replace all data, saying when it was made and what it holds. */
+/**
+ * Asks whether the [backup] is to replace all data, saying when it was made and what it holds, and whether its password
+ * [takesPassword] over as the backup password here, there being none yet.
+ */
 @Composable
-private fun ConfirmReplacing(backup: Backup, onReplace: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmReplacing(backup: Backup, takesPassword: Boolean, onReplace: () -> Unit, onDismiss: () -> Unit) {
     val created = backup.created
     val summary = backup.summary
     AlertDialog(
@@ -287,15 +291,16 @@ private fun ConfirmReplacing(backup: Backup, onReplace: () -> Unit, onDismiss: (
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.backup_replace_text, "${created.toLocalDate().numericDate()}, ${created.clockTime()}"))
-                Text(
-                    stringResource(
-                        R.string.backup_replace_contents,
+                val contents = enumeration(
+                    listOf(
                         pluralStringResource(R.plurals.backup_routines, summary.routines, summary.routines),
                         pluralStringResource(R.plurals.backup_todos, summary.todos, summary.todos),
                         pluralStringResource(R.plurals.backup_places, summary.places, summary.places),
                         pluralStringResource(R.plurals.backup_tags, summary.tags, summary.tags),
                     ),
                 )
+                Text(stringResource(R.string.backup_replace_contents, contents))
+                if (takesPassword) Text(stringResource(R.string.backup_replace_takes_password))
             }
         },
         confirmButton = { TextButton(onClick = onReplace) { Text(stringResource(R.string.backup_replace)) } },
@@ -316,11 +321,6 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, label: Stri
         supportingText = problem?.let { { Text(it) } },
         modifier = Modifier.fillMaxWidth(),
     )
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /**

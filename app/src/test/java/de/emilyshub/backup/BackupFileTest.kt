@@ -18,7 +18,7 @@ class BackupFileTest {
     fun `a backup opens with its password, as it was, and with the key it was made with`() {
         val opened = BackupFile.open(BackupFile.seal(content, key), PASSWORD)
 
-        assertArrayEquals(content, opened.content)
+        assertArrayEquals(content, opened.plaintext)
         assertArrayEquals(key.salt, opened.key.salt)
         assertEquals(key.iterations, opened.key.iterations)
     }
@@ -30,7 +30,7 @@ class BackupFileTest {
 
         assertFalse(first.containsSequence(content))
         assertFalse(first.contentEquals(second))
-        assertArrayEquals(content, BackupFile.open(second, PASSWORD).content)
+        assertArrayEquals(content, BackupFile.open(second, PASSWORD).plaintext)
     }
 
     @Test
@@ -46,7 +46,7 @@ class BackupFileTest {
         val file = BackupFile.seal(content, composed)
 
         // "ü" as "u" and a combining umlaut, as some keyboards type it.
-        assertArrayEquals(content, BackupFile.open(file, "Müllabfuhr-Plan").content)
+        assertArrayEquals(content, BackupFile.open(file, "Müllabfuhr-Plan").plaintext)
     }
 
     @Test
