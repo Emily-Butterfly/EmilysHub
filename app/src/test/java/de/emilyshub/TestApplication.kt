@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
@@ -17,12 +18,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
 import java.time.ZoneId
+import javax.crypto.KeyGenerator
 
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
  * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, a WLAN
- * the test connects to, and a position the test sets.
+ * the test connects to, a position the test sets, and backups with a key derived quickly.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
@@ -45,6 +47,19 @@ class TestApplication : EmilysHubApplication() {
         Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround) { settingsDao }
     }
     override val background = CoroutineScope(Dispatchers.Unconfined)
+
+    /** Stands in for the Android Keystore key, which only exists on a device. */
+    private val backupWrappingKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    override val backups = Backups(
+        database = { testDatabase },
+        settings = { settingsDao },
+        wrappingKey = { backupWrappingKey },
+        clock = clock,
+        io = Dispatchers.Unconfined,
+        // Enough for the tests, which would take seconds with the real count.
+        iterations = 1_000,
+        onRestore = ::updateReminders,
+    )
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
     var fullScreenAlarmsAllowed = false

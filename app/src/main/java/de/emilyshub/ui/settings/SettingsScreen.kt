@@ -52,6 +52,7 @@ fun SettingsScreen(
     onOpenStatus: () -> Unit,
     onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
+    onOpenBackups: () -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -107,11 +108,11 @@ fun SettingsScreen(
                 modifier = Modifier.clickable(onClick = onOpenStatus),
             )
 
-            Text(
-                text = stringResource(R.string.placeholder_settings),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(16.dp),
+            SectionHeader(R.string.settings_backups)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.backups_manage)) },
+                supportingContent = { Text(stringResource(R.string.backups_manage_summary)) },
+                modifier = Modifier.clickable(onClick = onOpenBackups),
             )
         }
     }

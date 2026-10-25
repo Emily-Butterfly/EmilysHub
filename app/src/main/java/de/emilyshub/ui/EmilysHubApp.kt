@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import de.emilyshub.R
+import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
@@ -53,6 +54,7 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
+import de.emilyshub.ui.settings.BackupScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
 import de.emilyshub.ui.stats.StatisticsScreen
@@ -83,6 +85,7 @@ fun EmilysHubApp(
     places: Places,
     wifi: CurrentWifi,
     location: CurrentLocation,
+    backups: Backups,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -108,6 +111,7 @@ fun EmilysHubApp(
                     places = places,
                     wifi = wifi,
                     location = location,
+                    backups = backups,
                     onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
@@ -159,6 +163,7 @@ private fun AppShell(
     places: Places,
     wifi: CurrentWifi,
     location: CurrentLocation,
+    backups: Backups,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
@@ -176,6 +181,7 @@ private fun AppShell(
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var statusOpen by rememberSaveable { mutableStateOf(false) }
+    var backupsOpen by rememberSaveable { mutableStateOf(false) }
     var todoEditor by rememberSaveable { mutableStateOf<TodoEditorTarget?>(null) }
     var todoArchiveOpen by rememberSaveable { mutableStateOf(false) }
     // Here, so that they stay while a to-do is open and while another tab shows.
@@ -222,6 +228,10 @@ private fun AppShell(
             BackHandler { tagsOpen = false }
             TagsScreen(tags, onBack = { tagsOpen = false })
         }
+        backupsOpen -> {
+            BackHandler { backupsOpen = false }
+            BackupScreen(backups, onBack = { backupsOpen = false })
+        }
         settingsOpen -> {
             BackHandler { settingsOpen = false }
             SettingsScreen(
@@ -233,6 +243,7 @@ private fun AppShell(
                 onOpenStatus = { statusOpen = true },
                 onOpenPlaces = { placesOpen = true },
                 onOpenTags = { tagsOpen = true },
+                onOpenBackups = { backupsOpen = true },
                 onBack = { settingsOpen = false },
             )
         }

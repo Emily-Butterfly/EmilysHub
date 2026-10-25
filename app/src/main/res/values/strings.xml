@@ -285,7 +285,6 @@
     <string name="todo_delete_for_good_text">„%1$s“ wird mit seiner Checkliste gelöscht und lässt sich nicht wiederherstellen.</string>
     <string name="placeholder_wishlist">Hier planst du bald deine Wünsche und Ziele.</string>
     <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
-    <string name="placeholder_settings">Backups folgen hier.</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>
     <string name="checkup_summary">Berechtigungen prüfen und eine Probe-Erinnerung schicken</string>
@@ -329,4 +328,59 @@
     <string name="setup_warning_check">Jetzt prüfen</string>
     <string name="reminder_probe">Probe-Erinnerung</string>
     <string name="reminder_probe_text">So erinnert dich EmilysHub.</string>
+    <string name="settings_backups">Backups</string>
+    <string name="backups_manage">Backups</string>
+    <string name="backups_manage_summary">Alle Daten verschlüsselt sichern und wieder laden</string>
+    <string name="backups_title">Backups</string>
+    <string name="backup_password_title">Backup-Passwort</string>
+    <string name="backup_password_explanation">Das Backup-Passwort verschlüsselt deine Backups. Du legst es einmal fest; danach lässt es sich weder ändern noch zurücksetzen. Ohne das Passwort kann niemand ein Backup öffnen, auch du nicht. Bewahre es gut auf.</string>
+    <string name="backup_password">Passwort</string>
+    <string name="backup_password_repeat">Passwort wiederholen</string>
+    <string name="backup_password_too_short">Mindestens %1$d Zeichen</string>
+    <string name="backup_password_not_repeated">Die beiden Passwörter sind nicht gleich</string>
+    <string name="backup_password_set">Passwort festlegen</string>
+    <string name="backup_password_failed">Das Backup-Passwort konnte nicht festgelegt werden.</string>
+    <string name="backup_password_is_set">Das Backup-Passwort ist festgelegt. Jedes Backup wird damit verschlüsselt.</string>
+    <string name="backup_save_title">Sichern</string>
+    <string name="backup_save_summary">Speichert alle Daten verschlüsselt in eine Datei, die du wählst. Die Einstellungen bleiben auf diesem Gerät.</string>
+    <string name="backup_save_needs_password">Lege dafür zuerst ein Backup-Passwort fest.</string>
+    <string name="backup_save">Backup speichern</string>
+    <string name="backup_saved">Backup gespeichert.</string>
+    <string name="backup_save_failed">Das Backup konnte nicht gespeichert werden.</string>
+    <string name="backup_load_title">Laden</string>
+    <string name="backup_load_summary">Ersetzt alle Daten durch die eines Backups, erst nach einer Rückfrage. Das geht auch auf einem neuen Gerät, mit dem Passwort des Backups.</string>
+    <string name="backup_load">Backup laden</string>
+    <string name="backup_open_title">Passwort des Backups</string>
+    <string name="backup_open_text">Das Backup-Passwort, mit dem dieses Backup gespeichert wurde.</string>
+    <string name="backup_open">Öffnen</string>
+    <string name="backup_not_a_backup">Diese Datei ist kein Backup von EmilysHub.</string>
+    <string name="backup_damaged">Das Backup ist beschädigt, unvollständig oder wurde verändert.</string>
+    <string name="backup_wrong_password">Das Passwort passt nicht zu diesem Backup.</string>
+    <string name="backup_too_large">Die Datei ist zu groß für ein Backup.</string>
+    <string name="backup_newer_version">Das Backup stammt aus einer neueren Version der App. Aktualisiere die App, um es zu laden.</string>
+    <string name="backup_older_version">Das Backup stammt aus einer älteren Version der App und lässt sich hier nicht laden.</string>
+    <string name="backup_unreadable">Die Datei konnte nicht gelesen werden.</string>
+    <string name="backup_replace_title">Backup laden?</string>
+    <string name="backup_replace_text">Das Backup vom %1$s ersetzt alle Daten in der App. Was jetzt in der App ist, geht dabei verloren.</string>
+    <string name="backup_replace_contents">Im Backup: %1$s, %2$s, %3$s und %4$s.</string>
+    <string name="backup_replace">Ersetzen</string>
+    <string name="backup_restored">Backup geladen.</string>
+    <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
+    <string name="backup_copy_hint">Kopiere deine Backups regelmäßig vom Handy weg, etwa auf einen PC oder einen USB-Stick. Geht das Handy verloren oder kaputt, sind sonst auch die Backups weg.</string>
+    <plurals name="backup_routines">
+        <item quantity="one">%d Routine</item>
+        <item quantity="other">%d Routinen</item>
+    </plurals>
+    <plurals name="backup_todos">
+        <item quantity="one">%d To-do</item>
+        <item quantity="other">%d To-dos</item>
+    </plurals>
+    <plurals name="backup_places">
+        <item quantity="one">%d Ort</item>
+        <item quantity="other">%d Orte</item>
+    </plurals>
+    <plurals name="backup_tags">
+        <item quantity="one">%d Tag</item>
+        <item quantity="other">%d Tags</item>
+    </plurals>
 </resources>

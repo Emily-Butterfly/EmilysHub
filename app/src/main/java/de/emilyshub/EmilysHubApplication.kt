@@ -2,6 +2,7 @@ package de.emilyshub
 
 import android.app.Application
 import android.util.Log
+import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.places.CurrentLocation
@@ -64,6 +65,16 @@ open class EmilysHubApplication : Application() {
     /** Where the device is, by the WLAN connected to, the position, and the places that have them. */
     open val locator: Locator by lazy { Locator(wifi, location, places) }
 
+    open val backups: Backups by lazy {
+        Backups(
+            database = { database },
+            settings = { database.settings() },
+            wrappingKey = { KeystoreKeys.getOrCreateAesGcmKey("backup-key") },
+            clock = DeviceClock,
+            onRestore = ::updateReminders,
+        )
+    }
+
     open val reminders: Reminders by lazy {
         Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::mayLookAround) { database.settings() }
     }
@@ -85,8 +96,8 @@ open class EmilysHubApplication : Application() {
     }
 
     /**
-     * After every change to the routines, to-dos, places or to looking around. The change stands even if this fails; the
-     * next one tries again.
+     * After every change to the routines, to-dos, places or to looking around, and after a backup is restored. The change
+     * stands even if this fails; the next one tries again.
      */
     protected suspend fun updateReminders() {
         try {
