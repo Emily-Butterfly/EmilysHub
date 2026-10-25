@@ -50,7 +50,7 @@ class Wishes(
     suspend fun create(draft: WishDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            dao.insert(cleaned.toWish(doneOn = doneOn(cleaned))).also { id -> saveTags(id, cleaned.tagIds) }
+            dao.insert(cleaned.toWish(today())).also { id -> saveTags(id, cleaned.tagIds) }
         }
     }
 
@@ -59,7 +59,7 @@ class Wishes(
         val cleaned = checked(draft)
         database().withTransaction {
             if (dao.get(id) == null) return@withTransaction
-            dao.update(cleaned.toWish(id, doneOn(cleaned)))
+            dao.update(cleaned.toWish(today(), id))
             saveTags(id, cleaned.tagIds)
         }
     }
@@ -69,10 +69,6 @@ class Wishes(
 
     /** The day it is now, which a wish done comes true on unless another is chosen, and none after. */
     fun today(): LocalDate = LocalDate.now(clock)
-
-    /** The day a wish saved as [draft] came true: the one chosen, or today; none while it is not done. */
-    private fun doneOn(draft: WishDraft): LocalDate? =
-        if (draft.status == WishStatus.Done) draft.doneOn ?: today() else null
 
     private suspend fun saveTags(wishId: Long, tagIds: Set<Long>) {
         dao.untagAll(wishId)
@@ -85,7 +81,6 @@ class Wishes(
 
     private fun checked(draft: WishDraft): WishDraft {
         require(draft.problems.isEmpty()) { "Invalid wish: ${draft.problems}" }
-        require(draft.status != WishStatus.Done || draft.doneOn?.isAfter(today()) != true) { "A wish cannot come true on a day ahead" }
         return draft.cleaned()
     }
 }

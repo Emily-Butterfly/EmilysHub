@@ -25,9 +25,8 @@ import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
-import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
-import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -36,7 +35,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -400,10 +398,15 @@ class HubDatabaseMigrationTest {
         createAtVersion(16) { it.execSQL("INSERT INTO tags (id, name) VALUES (1, 'Reisen')") }
 
         withMigratedDatabase { database ->
-            val wishes = Wishes({ database }, Clock.systemDefaultZone())
-            assertEquals(emptyList<WishWithTags>(), wishes.current().first())
-            val id = wishes.create(WishDraft("Nordlichter sehen", period = "Winter 2027", tagIds = setOf(1L)))
-            assertEquals(setOf(1L), wishes.tagIdsOf(id))
+            assertEquals(emptyList<WishWithTags>(), database.wishes().observeAll().first())
+
+            val id = database.wishes().insert(Wish(title = "Nordlichter sehen", description = "", period = "Winter 2027"))
+            database.wishes().tag(id, listOf(1L))
+            assertEquals(setOf(1L), database.wishes().observeAll().first().single().tagIds)
+
+            // A tag deleted is taken off the wishes.
+            database.tags().delete(1)
+            assertEquals(emptySet<Long>(), database.wishes().observeAll().first().single().tagIds)
         }
     }
 

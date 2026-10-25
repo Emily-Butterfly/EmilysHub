@@ -184,10 +184,11 @@ fun WishEditorScreen(wishes: Wishes, tags: Tags, target: WishEditorTarget, onClo
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+            val today = wishes.today()
             StatusField(
                 status = draft.status,
-                doneOn = draft.doneOn ?: wishes.today(),
-                today = wishes.today(),
+                doneOn = draft.copy(status = WishStatus.Done).cameTrueOn(today) ?: today,
+                today = today,
                 onChange = { status, doneOn -> draft = draft.copy(status = status, doneOn = doneOn) },
             )
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
@@ -234,7 +235,6 @@ private fun StatusField(status: WishStatus, doneOn: LocalDate, today: LocalDate,
     if (choosingDate) {
         DateDialog(
             initial = doneOn,
-            earliest = null,
             latest = today,
             onConfirm = { picked ->
                 choosingDate = false

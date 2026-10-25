@@ -343,9 +343,9 @@ class BackupsTest {
      * places, which came with 15 and 16. A test of a migration over several versions.
      */
     private fun asOfVersion14(content: JSONObject): JSONObject {
-        asOfVersion16(content).withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting")
-        content.tables().remove("todo_places")
-        return content.put("schema", 14)
+        val older = asOfVersion16(content).withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting")
+        older.tables().remove("todo_places")
+        return older.put("schema", 14)
     }
 
     private fun JSONObject.withoutColumns(table: String, vararg names: String) = apply {

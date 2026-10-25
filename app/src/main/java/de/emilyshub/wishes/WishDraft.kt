@@ -14,8 +14,8 @@ enum class WishProblem {
 
 /**
  * A wish as typed into the editor, before it is checked. The checks apply to the [cleaned] draft, and saving refuses a
- * draft with [problems] (SPEC.md §9: strict input checks). The day it came true counts only once it is done, today if
- * none is given. Serializable, so that the editor keeps it across rotation and the app lock.
+ * draft with [problems] (SPEC.md §9: strict input checks). Serializable, so that the editor keeps it across rotation and
+ * the app lock.
  */
 data class WishDraft(
     val title: String,
@@ -23,6 +23,7 @@ data class WishDraft(
     /** When, in the user's words ("2027", "Sommer"): no date, so nothing reminds of it. */
     val period: String = "",
     val status: WishStatus = WishStatus.Open,
+    /** The day chosen that it came true; see [cameTrueOn]. */
     val doneOn: LocalDate? = null,
     /** Its tags; one deleted meanwhile is left out on saving. */
     val tagIds: Set<Long> = emptySet(),
@@ -41,8 +42,15 @@ data class WishDraft(
     /** Without surrounding spaces; the title and the period on a single line. */
     fun cleaned() = copy(title = InputText.singleLine(title), description = description.trim(), period = InputText.singleLine(period))
 
-    /** The wish this draft makes, [id] if saved already, done on [doneOn] if it is done. */
-    fun toWish(id: Long = 0, doneOn: LocalDate?) = Wish(id, title, description, period, status, doneOn)
+    /**
+     * The day it came true, if it is done, as of [today]: the one chosen, or today. A day still ahead counts as today, as
+     * it may be after a move to a time zone further west, or in a backup from one further east.
+     */
+    fun cameTrueOn(today: LocalDate): LocalDate? =
+        if (status == WishStatus.Done) minOf(doneOn ?: today, today) else null
+
+    /** The wish this draft makes as of [today], [id] if saved already. */
+    fun toWish(today: LocalDate, id: Long = 0) = Wish(id, title, description, period, status, cameTrueOn(today))
 
     companion object {
         const val TITLE_MAX = 80

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.wishes
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,9 +85,9 @@ fun WishlistScreen(
                     item(key = status.stored) {
                         Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(status.label)) }
                     }
-                    items(inStatus, key = { it.wish.id }) { wish ->
-                        val tagNames = allTags.filter { it.id in wish.tagIds }.map(Tag::name)
-                        WishRow(wish, tagNames, onClick = { onOpen(wish.wish.id) })
+                    items(inStatus, key = { it.wish.id }) { details ->
+                        val tagNames = allTags.filter { it.id in details.tagIds }.map(Tag::name)
+                        WishRow(details, tagNames, onClick = { onOpen(details.wish.id) })
                     }
                 }
                 if (fulfilledCount > 0) {
@@ -129,7 +130,7 @@ private fun WishRow(details: WishWithTags, tagNames: List<String>, onClick: () -
 
 /** "Offen", "In Arbeit", "Erledigt", as the editor offers them and the list heads them. */
 internal val WishStatus.label: Int
-    get() = when (this) {
+    @StringRes get() = when (this) {
         WishStatus.Open -> R.string.wish_status_open
         WishStatus.InProgress -> R.string.wish_status_in_progress
         WishStatus.Done -> R.string.wish_status_done

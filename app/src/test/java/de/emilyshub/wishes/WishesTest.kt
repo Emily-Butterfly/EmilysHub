@@ -97,10 +97,11 @@ class WishesTest {
     }
 
     @Test
-    fun `a wish cannot have come true on a day still ahead`() {
-        val tomorrow = WishDraft("Bergtour", status = WishStatus.Done, doneOn = today.plusDays(1))
+    fun `a wish cannot have come true on a day still ahead, which counts as today`() = runBlocking {
+        // As after a move west, or in a backup from further east.
+        val id = wishes.create(WishDraft("Bergtour", status = WishStatus.Done, doneOn = today.plusDays(1)))
 
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { wishes.create(tomorrow) } }
+        assertEquals(today, wishes.get(id)?.doneOn)
     }
 
     @Test

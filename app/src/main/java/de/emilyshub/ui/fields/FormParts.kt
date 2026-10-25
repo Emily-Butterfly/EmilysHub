@@ -84,10 +84,10 @@ internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDi
 @Composable
 internal fun DateDialog(
     initial: LocalDate,
-    earliest: LocalDate?,
+    earliest: LocalDate? = null,
+    latest: LocalDate? = null,
     onConfirm: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
-    latest: LocalDate? = null,
 ) {
     val state = rememberDatePickerState(
         initialSelectedDateMillis = initial.utcMillis(),
