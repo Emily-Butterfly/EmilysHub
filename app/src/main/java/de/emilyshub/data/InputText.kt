@@ -23,8 +23,29 @@ object InputText {
 
     private fun isFormat(char: Char) = Character.getType(char) == Character.FORMAT.toInt()
 
+    /**
+     * What keeps [name], on a single line, from naming something of which no two may read the same, such as a tag: one
+     * of the names [taken], or more than [max] characters; none if it can.
+     */
+    fun nameProblem(name: String, max: Int, taken: Collection<String>): NameProblem? {
+        val cleaned = singleLine(name)
+        return when {
+            !isVisible(cleaned) -> NameProblem.Missing
+            lengthOf(cleaned) > max -> NameProblem.TooLong
+            taken.any { readTheSame(it, cleaned) } -> NameProblem.Taken
+            else -> null
+        }
+    }
+
     /** German alphabetical order, with umlauts next to their base letters. */
     val byName: Collator = Collator.getInstance(Locale.GERMAN)
 
     private val WHITESPACE = Regex("\\s+")
+}
+
+/** What keeps a name from being given, as [InputText.nameProblem] finds it. */
+enum class NameProblem {
+    Missing,
+    TooLong,
+    Taken,
 }

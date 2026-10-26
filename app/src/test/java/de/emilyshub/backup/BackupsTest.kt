@@ -9,6 +9,7 @@ import de.emilyshub.alarmsFor
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.notes.NoteDraft
 import de.emilyshub.place
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
@@ -16,12 +17,12 @@ import de.emilyshub.reminders.ReminderReceiver
 import de.emilyshub.routine
 import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.tag
 import de.emilyshub.todo
-import de.emilyshub.wish
-import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.wish
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +77,7 @@ class BackupsTest {
 
         assertEquals(changed, everything())
         assertEquals(Instant.parse("2026-10-23T05:00:00Z"), backup.created.toInstant())
-        assertEquals(Backup.Summary(routines = 3, todos = 4, wishes = 3, places = 2, tags = 2), backup.summary)
+        assertEquals(Backup.Summary(routines = 3, todos = 4, wishes = 3, notes = 2, places = 2, tags = 2), backup.summary)
     }
 
     @Test
@@ -127,11 +128,11 @@ class BackupsTest {
         val backup = open(file)
         runBlocking { backups.restore(backup) }
 
-        // Version 16 had no wishes yet, so there are none after the update either.
-        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 0, places = 2, tags = 2), backup.summary)
+        // Version 16 had no wishes yet, nor notes, so there are none after the update either.
+        assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 0, notes = 0, places = 2, tags = 2), backup.summary)
         val restored = everything()
-        assertEquals(made - WISH_TABLES, restored - WISH_TABLES)
-        assertEquals(listOf(emptyList<Any>(), emptyList()), WISH_TABLES.map(restored::getValue))
+        assertEquals(made - WISH_TABLES - NOTE_TABLES, restored - WISH_TABLES - NOTE_TABLES)
+        assertEquals((WISH_TABLES + NOTE_TABLES).map { emptyList<Any>() }, (WISH_TABLES + NOTE_TABLES).map(restored::getValue))
     }
 
     @Test
@@ -144,7 +145,7 @@ class BackupsTest {
 
         // Version 14 had no places for to-dos, nor their reminders: they start as an update would have left them.
         val restored = everything()
-        assertEquals(made - TODO_TABLES - WISH_TABLES, restored - TODO_TABLES - WISH_TABLES)
+        assertEquals(made - TODO_TABLES - WISH_TABLES - NOTE_TABLES, restored - TODO_TABLES - WISH_TABLES - NOTE_TABLES)
         assertEquals(emptyList<Any>(), restored.getValue("todo_places"))
         assertEquals(listOf("Milch kaufen", "Steuer machen"), runBlocking { app.todos.open().first() }.map { it.todo.title }.sorted())
     }
@@ -269,9 +270,9 @@ class BackupsTest {
     }
 
     /**
-     * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, and,
-     * unless the data are to be as an app [before19] made them, a to-do coming again, ticked off once, and a routine
-     * under a goal, aiming at a streak.
+     * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, notes
+     * in a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
+     * off once, and a routine under a goal, aiming at a streak.
      */
     private fun someOfEverything(before19: Boolean = false): Map<String, List<List<Any?>>> {
         val home = app.place("Zuhause", "FRITZ!Box 7590")
@@ -295,6 +296,10 @@ class BackupsTest {
         }
         app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
         app.wish("Flüge buchen", parent = northernLights)
+        runBlocking {
+            app.notes.create(NoteDraft("Einkauf", "- [ ] Hafermilch"))
+            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", tabId = app.notes.createTab("Arabisch")))
+        }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
 
@@ -303,6 +308,7 @@ class BackupsTest {
         app.tags.all().first().forEach { app.tags.delete(it.id) }
         app.todo("Neues To-do")
         app.wish("Neuer Wunsch")
+        app.notes.create(NoteDraft("Neue Notiz"))
     }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */
@@ -366,7 +372,13 @@ class BackupsTest {
 
     /** [content] as version 19 made it: without routines under goals, which came with 20. */
     private fun asOfVersion19(content: JSONObject): JSONObject =
-        content.withoutColumns("routines", "goal_id", "target").put("schema", 19)
+        asOfVersion20(content).withoutColumns("routines", "goal_id", "target").put("schema", 19)
+
+    /** [content] as version 20 made it: without notes, which came with 21. */
+    private fun asOfVersion20(content: JSONObject): JSONObject {
+        NOTE_TABLES.forEach { content.tables().remove(it) }
+        return content.put("schema", 20)
+    }
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and
@@ -411,6 +423,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
+        val NOTE_TABLES = listOf("note_tabs", "notes")
         const val FEW_ITERATIONS = 1_000
     }
 }

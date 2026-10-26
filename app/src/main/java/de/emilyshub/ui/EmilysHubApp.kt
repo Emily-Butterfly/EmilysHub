@@ -37,6 +37,8 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.notes.Notes
+import de.emilyshub.notes.TabSelection
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
@@ -48,6 +50,10 @@ import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.lock.LockScreen
+import de.emilyshub.ui.notes.NoteEditorScreen
+import de.emilyshub.ui.notes.NoteEditorTarget
+import de.emilyshub.ui.notes.NoteTabsScreen
+import de.emilyshub.ui.notes.NotesScreen
 import de.emilyshub.ui.places.PlaceEditorScreen
 import de.emilyshub.ui.places.PlaceEditorTarget
 import de.emilyshub.ui.places.PlacesScreen
@@ -88,6 +94,7 @@ fun EmilysHubApp(
     routines: Routines,
     todos: Todos,
     wishes: Wishes,
+    notes: Notes,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -115,6 +122,7 @@ fun EmilysHubApp(
                     routines = routines,
                     todos = todos,
                     wishes = wishes,
+                    notes = notes,
                     tags = tags,
                     places = places,
                     wifi = wifi,
@@ -168,6 +176,7 @@ private fun AppShell(
     routines: Routines,
     todos: Todos,
     wishes: Wishes,
+    notes: Notes,
     tags: Tags,
     places: Places,
     wifi: CurrentWifi,
@@ -196,6 +205,10 @@ private fun AppShell(
     var wishEditor by rememberSaveable { mutableStateOf<WishEditorTarget?>(null) }
     var wishReviewOpen by rememberSaveable { mutableStateOf(false) }
     var wishTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
+    var noteEditor by rememberSaveable { mutableStateOf<NoteEditorTarget?>(null) }
+    var noteTabsOpen by rememberSaveable { mutableStateOf(false) }
+    // Here, so that it stays while a note is open and while another area shows.
+    var noteTab by rememberSaveable { mutableStateOf<TabSelection>(TabSelection.All) }
     // Here, so that they stay while a to-do is open and while another tab shows.
     var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -207,6 +220,7 @@ private fun AppShell(
     val placeTarget = placeEditor
     val todoTarget = todoEditor
     val wishTarget = wishEditor
+    val noteTarget = noteEditor
     val statisticsRoutine = statisticsRoutineId
     when {
         todoTarget != null -> {
@@ -239,6 +253,14 @@ private fun AppShell(
         wishReviewOpen -> {
             BackHandler { wishReviewOpen = false }
             WishReviewScreen(wishes, onOpen = { wishEditor = WishEditorTarget.Edit(it) }, onBack = { wishReviewOpen = false })
+        }
+        noteTarget != null -> {
+            BackHandler { noteEditor = null }
+            NoteEditorScreen(notes, noteTarget, onClose = { noteEditor = null })
+        }
+        noteTabsOpen -> {
+            BackHandler { noteTabsOpen = false }
+            NoteTabsScreen(notes, onBack = { noteTabsOpen = false })
         }
         // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
         placeTarget != null -> {
@@ -320,6 +342,11 @@ private fun AppShell(
                 onWishTagFilterChange = { wishTagFilter = it },
                 onOpenWish = { wishEditor = it },
                 onOpenWishReview = { wishReviewOpen = true },
+                notes = notes,
+                noteTab = noteTab,
+                onNoteTabChange = { noteTab = it },
+                onOpenNote = { noteEditor = it },
+                onOpenNoteTabs = { noteTabsOpen = true },
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -358,6 +385,11 @@ private fun TopLevelScaffold(
     onWishTagFilterChange: (Long?) -> Unit,
     onOpenWish: (WishEditorTarget) -> Unit,
     onOpenWishReview: () -> Unit,
+    notes: Notes,
+    noteTab: TabSelection,
+    onNoteTabChange: (TabSelection) -> Unit,
+    onOpenNote: (NoteEditorTarget) -> Unit,
+    onOpenNoteTabs: () -> Unit,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -392,7 +424,6 @@ private fun TopLevelScaffold(
             }
         },
     ) { contentPadding ->
-        // Each later slice swaps its placeholder for the real screen.
         when (current) {
             TopLevelDestination.Today -> TodayScreen(routines, todos, contentPadding, onOpenStatus)
             TopLevelDestination.Routines -> RoutinesScreen(
@@ -431,7 +462,15 @@ private fun TopLevelScaffold(
                 onCreate = { onOpenWish(WishEditorTarget.New()) },
                 onOpenReview = onOpenWishReview,
             )
-            TopLevelDestination.Notes -> PlaceholderScreen(stringResource(R.string.placeholder_notes), contentPadding)
+            TopLevelDestination.Notes -> NotesScreen(
+                notes = notes,
+                selected = noteTab,
+                onSelect = onNoteTabChange,
+                contentPadding = contentPadding,
+                onOpen = { onOpenNote(NoteEditorTarget.Edit(it)) },
+                onCreate = { onOpenNote(NoteEditorTarget.New(it)) },
+                onManageTabs = onOpenNoteTabs,
+            )
         }
     }
 }

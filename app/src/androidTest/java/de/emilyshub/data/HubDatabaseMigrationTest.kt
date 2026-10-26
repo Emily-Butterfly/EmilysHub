@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.notes.Note
+import de.emilyshub.notes.NoteTab
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.Place
@@ -480,6 +482,24 @@ class HubDatabaseMigrationTest {
             // A goal deleted leaves its routines at none.
             database.wishes().delete(1)
             assertEquals(null, database.routines().get(1)?.goalId)
+        }
+    }
+
+    @Test
+    fun `version 20 moves to version 21 where there are no notes yet and then notes in tabs`() {
+        createAtVersion(20) {}
+
+        withMigratedDatabase { database ->
+            val notes = database.notes()
+            assertEquals(emptyList<Any>(), notes.tabs())
+
+            val arabic = notes.insertTab(NoteTab(name = "Arabisch", position = 0))
+            val verbs = notes.insert(Note(title = "Verben", text = "**kataba**", tabId = arabic, changedAt = Instant.EPOCH))
+            assertEquals(arabic, notes.get(verbs)?.tabId)
+
+            // A tab deleted on its own leaves its notes in none, in "Allgemein".
+            notes.deleteTab(arabic)
+            assertEquals(null, notes.get(verbs)?.tabId)
         }
     }
 

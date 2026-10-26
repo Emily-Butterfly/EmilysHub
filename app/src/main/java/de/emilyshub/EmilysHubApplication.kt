@@ -6,6 +6,7 @@ import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Locator
@@ -59,6 +60,8 @@ open class EmilysHubApplication : Application() {
 
     /** Never reminds of anything (SPEC.md §6), so no change to it reaches the reminders. */
     open val wishes: Wishes by lazy { Wishes({ database }, DeviceClock) }
+
+    open val notes: Notes by lazy { Notes({ database }, DeviceClock) }
 
     open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 

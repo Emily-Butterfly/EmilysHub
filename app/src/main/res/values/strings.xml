@@ -352,7 +352,41 @@
     <string name="goal_routine_times_done">%1$d von %2$d Mal erledigt</string>
     <string name="goal_routine_streak_reached">Erreicht: %1$d Tage am Stück</string>
     <string name="goal_routine_times_done_reached">Erreicht: %1$d Mal erledigt</string>
-    <string name="placeholder_notes">Hier schreibst du bald deine Notizen.</string>
+    <string name="notes_empty">Noch keine Notizen. Mit „+“ schreibst du eine.</string>
+    <string name="notes_tab_empty">In diesem Tab gibt es noch keine Notizen.</string>
+    <string name="notes_tab_all">Alle</string>
+    <string name="notes_tab_general">Allgemein</string>
+    <string name="note_create">Notiz anlegen</string>
+    <string name="note_new">Neue Notiz</string>
+    <string name="note_edit">Notiz bearbeiten</string>
+    <string name="note_title">Titel</string>
+    <string name="note_title_missing">Gib der Notiz einen Titel.</string>
+    <string name="note_text">Text in Markdown</string>
+    <string name="note_text_hint">Zum Beispiel # Überschrift, **fett**, *kursiv*, `Code`, - Liste, - [ ] Aufgabe, &gt; Zitat</string>
+    <string name="note_writing">Bearbeiten</string>
+    <string name="note_preview">Vorschau</string>
+    <string name="note_preview_empty">Noch kein Text.</string>
+    <string name="note_tab">Tab</string>
+    <string name="note_tab_choose">Tab wählen</string>
+    <string name="note_delete_title">Notiz löschen?</string>
+    <string name="note_delete_text">„%1$s“ wird endgültig gelöscht.</string>
+    <string name="note_tabs_manage">Tabs verwalten</string>
+    <string name="note_tabs_title">Tabs</string>
+    <string name="note_tabs_hint">„Alle“ zeigt alle Notizen, „Allgemein“ die in keinem eigenen Tab. Beide gibt es immer.</string>
+    <string name="note_tabs_empty">Noch keine eigenen Tabs.</string>
+    <string name="note_tab_create">Tab anlegen</string>
+    <string name="note_tab_create_confirm">Anlegen</string>
+    <string name="note_tab_name">Name des Tabs</string>
+    <string name="note_tab_name_taken">Diesen Namen hat schon ein Tab.</string>
+    <string name="note_tab_rename">Tab umbenennen</string>
+    <string name="note_tab_rename_confirm">Umbenennen</string>
+    <string name="note_tab_up">„%1$s“ nach oben</string>
+    <string name="note_tab_down">„%1$s“ nach unten</string>
+    <string name="note_tab_delete">%1$s löschen</string>
+    <string name="note_tab_delete_title">Tab löschen?</string>
+    <string name="note_tab_delete_text">„%1$s“ wird gelöscht.</string>
+    <string name="note_tab_delete_moving">Nach „Allgemein“</string>
+    <string name="note_tab_delete_with_notes">Mitlöschen</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>
     <string name="checkup_summary">Berechtigungen prüfen und eine Probe-Erinnerung schicken</string>
@@ -436,6 +470,10 @@
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_copy_hint">Kopiere deine Backups regelmäßig vom Handy weg, etwa auf einen PC oder einen USB-Stick. Geht das Handy verloren oder kaputt, sind sonst auch die Backups weg.</string>
+    <plurals name="note_tab_delete_notes_text">
+        <item quantity="one">„%2$s“ wird gelöscht. Seine Notiz kann nach „Allgemein“ wandern oder mitgelöscht werden.</item>
+        <item quantity="other">„%2$s“ wird gelöscht. Seine %1$d Notizen können nach „Allgemein“ wandern oder mitgelöscht werden.</item>
+    </plurals>
     <plurals name="backup_routines">
         <item quantity="one">%d Routine</item>
         <item quantity="other">%d Routinen</item>
@@ -451,6 +489,10 @@
     <plurals name="backup_places">
         <item quantity="one">%d Ort</item>
         <item quantity="other">%d Orte</item>
+    </plurals>
+    <plurals name="backup_notes">
+        <item quantity="one">%d Notiz</item>
+        <item quantity="other">%d Notizen</item>
     </plurals>
     <plurals name="backup_tags">
         <item quantity="one">%d Tag</item>

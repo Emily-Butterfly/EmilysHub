@@ -2,6 +2,8 @@ package de.emilyshub.backup
 
 import androidx.room.Dao
 import androidx.room.Query
+import de.emilyshub.notes.Note
+import de.emilyshub.notes.NoteTab
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
 import de.emilyshub.routines.ChecklistItem
@@ -69,4 +71,10 @@ interface BackupDao {
 
     @Query("SELECT * FROM wish_tags")
     fun wishTags(): List<WishTag>
+
+    @Query("SELECT * FROM note_tabs")
+    fun noteTabs(): List<NoteTab>
+
+    @Query("SELECT * FROM notes")
+    fun notes(): List<Note>
 }

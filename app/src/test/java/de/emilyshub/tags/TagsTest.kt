@@ -2,6 +2,7 @@ package de.emilyshub.tags
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.NameProblem
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -42,10 +43,10 @@ class TagsTest {
     fun `a tag needs a name of up to 30 characters that differs from the others in more than upper and lower case`() {
         val others = listOf(Tag(id = 1, name = "Arbeit"))
 
-        assertEquals(TagProblem.NameMissing, tagNameProblem(" ​ ", others))
-        assertEquals(TagProblem.NameTooLong, tagNameProblem("a".repeat(31), others))
+        assertEquals(NameProblem.Missing, tagNameProblem(" ​ ", others))
+        assertEquals(NameProblem.TooLong, tagNameProblem("a".repeat(31), others))
         assertEquals(null, tagNameProblem("🌱".repeat(30), others))
-        assertEquals(TagProblem.NameTaken, tagNameProblem(" ARBEIT ", others))
+        assertEquals(NameProblem.Taken, tagNameProblem(" ARBEIT ", others))
         assertEquals(null, tagNameProblem("Arbeit", others = emptyList()))
     }
 
@@ -55,8 +56,8 @@ class TagsTest {
         val doctors = tags.create("A\u0308rzte")
 
         assertEquals(listOf("\u00C4rzte"), names())
-        assertEquals(TagProblem.NameTaken, tagNameProblem("\u00C4rzte", listOf(Tag(doctors, "\u00C4rzte"))))
-        assertEquals(TagProblem.NameTaken, tagNameProblem("Ar\u200Bbeit", listOf(Tag(1, "Arbeit"))))
+        assertEquals(NameProblem.Taken, tagNameProblem("\u00C4rzte", listOf(Tag(doctors, "\u00C4rzte"))))
+        assertEquals(NameProblem.Taken, tagNameProblem("Ar\u200Bbeit", listOf(Tag(1, "Arbeit"))))
     }
 
     @Test

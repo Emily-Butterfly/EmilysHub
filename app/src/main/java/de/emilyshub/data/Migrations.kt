@@ -288,3 +288,19 @@ val MIGRATION_19_20 = object : Migration(19, 20) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_routines_goal_id` ON `routines` (`goal_id`)")
     }
 }
+
+/** Version 21: notes (#22), in "Allgemein" or in tabs of their own. There are none yet. */
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note_tabs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`position` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `notes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, " +
+                "`text` TEXT NOT NULL, `tab_id` INTEGER, `changed_at` TEXT NOT NULL, " +
+                "FOREIGN KEY(`tab_id`) REFERENCES `note_tabs`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_tab_id` ON `notes` (`tab_id`)")
+    }
+}

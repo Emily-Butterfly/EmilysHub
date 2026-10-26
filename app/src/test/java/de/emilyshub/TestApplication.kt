@@ -6,6 +6,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.notes.Notes
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.places.Locator
@@ -44,6 +45,7 @@ class TestApplication : EmilysHubApplication() {
     override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wishes = Wishes({ testDatabase }, clock, Dispatchers.Unconfined)
+    override val notes = Notes({ testDatabase }, clock, Dispatchers.Unconfined)
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
