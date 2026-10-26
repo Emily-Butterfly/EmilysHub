@@ -19,13 +19,9 @@ enum class NoteProblem {
 data class NoteDraft(
     val title: String,
     val text: String = "",
-    /** The tab it is in; none: "Allgemein". One deleted meanwhile is left out on saving. */
-    val tabId: Long? = null,
-    /** The folder it is in, in that tab; none: at the top of it. One deleted meanwhile is left out on saving. */
-    val folderId: Long? = null,
+    /** Where it lies; a tab or folder deleted meanwhile is left out on saving, for the top of the tab or "Allgemein". */
+    val container: Container = Container(),
 ) : Serializable {
-
-    val container: Container get() = Container(tabId, folderId)
 
     val problems: Set<NoteProblem>
         get() = with(cleaned()) {
@@ -52,4 +48,4 @@ data class NoteDraft(
 }
 
 /** The note as the editor starts out with it. */
-fun Note.toDraft() = NoteDraft(title, text, tabId, folderId)
+fun Note.toDraft() = NoteDraft(title, text, Container(tabId, folderId))

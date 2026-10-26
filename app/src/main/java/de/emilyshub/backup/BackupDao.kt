@@ -2,6 +2,7 @@ package de.emilyshub.backup
 
 import androidx.room.Dao
 import androidx.room.Query
+import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
 import de.emilyshub.notes.NoteTab
@@ -81,4 +82,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM note_folders")
     fun noteFolders(): List<NoteFolder>
+
+    @Query("SELECT * FROM note_general_tab")
+    fun noteGeneralTab(): List<GeneralTab>
 }

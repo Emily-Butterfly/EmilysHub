@@ -306,7 +306,8 @@ class BackupsTest {
             val arabic = app.notes.createTab("Arabisch")
             val grammar = app.notes.createFolder("Grammatik", Container(arabic))
             app.notes.sort(Container(arabic, grammar), NoteSort.Manual)
-            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", tabId = arabic, folderId = grammar))
+            app.notes.sort(Container(), NoteSort.Name)
+            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", container = Container(arabic, grammar)))
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -389,9 +390,10 @@ class BackupsTest {
         return older.put("schema", 20)
     }
 
-    /** [content] as version 21 made it: without folders of notes, nor the order in them, which came with 22. */
+    /** [content] as version 21 made it: without folders of notes, nor the order in them and in tabs, which came with 22. */
     private fun asOfVersion21(content: JSONObject): JSONObject {
         content.tables().remove("note_folders")
+        content.tables().remove("note_general_tab")
         return content.withoutColumns("notes", "folder_id", "position").withoutColumns("note_tabs", "sort").put("schema", 21)
     }
 
@@ -438,7 +440,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val NOTE_TABLES = listOf("note_folders", "note_tabs", "notes")
+        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "notes")
         const val FEW_ITERATIONS = 1_000
     }
 }

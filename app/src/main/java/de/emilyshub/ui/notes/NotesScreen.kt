@@ -1,7 +1,6 @@
 package de.emilyshub.ui.notes
 
 import androidx.activity.compose.BackHandler
-import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -15,14 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -59,18 +56,22 @@ import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.Notebook
 import de.emilyshub.notes.Notes
 import de.emilyshub.notes.TabSelection
-import de.emilyshub.notes.folderNameProblem
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.fields.NameDialog
-import de.emilyshub.ui.fields.RadioOption
-import de.emilyshub.ui.fields.goalIndent
+import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import java.io.Serializable
 
 /**
- * The notes (SPEC.md §7) of the tab [selected]: "Alle", "Allgemein", then the user's own, in their order; a tab deleted
- * meanwhile shows "Alle". "Alle" shows every note with where it lies, the one changed last first. Any other tab shows
- * what lies in its folder [openFolder], or at its top: the folders first, each opening up to show what is in it, then
+ * Which tab the notes show, and which folder in it is open; none: its top. Serializable, so that it survives rotation
+ * and the lock.
+ */
+data class NotesView(val tab: TabSelection = TabSelection.All, val folderId: Long? = null) : Serializable
+
+/**
+ * The notes (SPEC.md §7) as [view] has them: the tab "Alle", "Allgemein", then the user's own, in their order; a tab
+ * deleted meanwhile shows "Alle". "Alle" shows every note with where it lies, the one changed last first. Any other tab
+ * shows what lies in its open folder, or at its top: the folders first, each opening up to show what is in it, then
  * the notes, as the folder is sorted. Above them, the path down to the folder leads back to any level, as does going
  * back, a level at a time. Tapping a folder opens it, tapping a note opens it in its editor, "+" starts a note where the
  * list is, and the tabs are managed apart.
@@ -78,29 +79,27 @@ import de.emilyshub.ui.plusFabSpace
 @Composable
 fun NotesScreen(
     notes: Notes,
-    selected: TabSelection,
-    openFolder: Long?,
-    onSelect: (TabSelection) -> Unit,
-    onOpenFolder: (Long?) -> Unit,
+    view: NotesView,
+    onViewChange: (NotesView) -> Unit,
     contentPadding: PaddingValues,
     onOpenNote: (Long) -> Unit,
     onCreateNote: (Container) -> Unit,
     onManageTabs: () -> Unit,
 ) {
-    val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
-    val notebook = book ?: return
-    val shown = if (selected is TabSelection.Own && notebook.tabs.none { it.id == selected.tabId }) TabSelection.All else selected
+    val loaded by remember(notes) { notes.notebook() }.collectAsState(initial = null)
+    val notebook = loaded ?: return
+    val tab = view.tab
+    val shown = if (tab is TabSelection.Own && notebook.tabs.none { it.id == tab.tabId }) TabSelection.All else tab
     // A folder deleted, or moved to another tab, meanwhile leaves the top of the tab shown.
-    val here = shown.top?.let { top ->
-        openFolder?.let(notebook::folder)?.takeIf { it.tabId == top.tabId }?.let { Container(top.tabId, it.id) } ?: top
-    }
+    val here = shown.top?.let { top -> notebook.stillThere(top.copy(folderId = view.folderId)) }
+    val onOpenFolder = { folderId: Long? -> onViewChange(view.copy(folderId = folderId)) }
 
     val openedFolder = here?.folderId?.let(notebook::folder)
     BackHandler(enabled = openedFolder != null) { openedFolder?.let { onOpenFolder(notebook.containerOf(it).folderId) } }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(top = contentPadding.calculateTopPadding())) {
-            TabBar(notebook.tabs, shown, onSelect, onManageTabs)
+            TabBar(notebook.tabs, shown, onSelect = { onViewChange(NotesView(it)) }, onManageTabs)
             val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding())
             if (here == null) {
                 AllNotes(notebook, bottom, onOpenNote)
@@ -206,20 +205,19 @@ private fun ContainerContents(
 
     /** The entries of [container] at [depth], each folder opened up followed by what is in it, the same way. */
     fun lines(container: Container, depth: Int): List<Line> = notebook.foldersIn(container).flatMap { folder ->
-        val inside = Container(folder.tabId, folder.id)
-        listOf(Line.OfFolder(folder, depth, container)) + if (folder.id in expanded) lines(inside, depth + 1) else emptyList()
+        listOf(Line.OfFolder(folder, depth, container)) + if (folder.id in expanded) lines(folder.inside, depth + 1) else emptyList()
     } + notebook.notesIn(container).map { Line.OfNote(it, depth, container) }
 
-    val up = stringResource(R.string.note_up)
-    val down = stringResource(R.string.note_down)
+    val upLabel = stringResource(R.string.note_up)
+    val downLabel = stringResource(R.string.note_down)
 
     /** "Nach oben" and "Nach unten" for [id] among [ids], which [arrange] puts in their new order. */
     fun moves(id: Long, ids: List<Long>, arrange: suspend (List<Long>) -> Unit): List<MenuEntry> {
         val index = ids.indexOf(id)
         val move = { by: Int -> scope.launchNow { arrange(ids.toMutableList().apply { add(index + by, removeAt(index)) }) } }
         return listOf(
-            MenuEntry(up, enabled = index > 0) { move(-1) },
-            MenuEntry(down, enabled = index < ids.lastIndex) { move(1) },
+            MenuEntry(upLabel, enabled = index > 0) { move(-1) },
+            MenuEntry(downLabel, enabled = index < ids.lastIndex) { move(1) },
         )
     }
 
@@ -245,16 +243,16 @@ private fun ContainerContents(
                 when (line) {
                     is Line.OfFolder -> {
                         val folder = line.folder
-                        val inside = Container(folder.tabId, folder.id)
                         val siblings = notebook.foldersIn(line.container).map { it.id }
-                        val order = when {
-                            byHand -> moves(folder.id, siblings) { notes.arrangeFolders(line.container, it) }
-                            else -> emptyList()
+                        val order = if (byHand) {
+                            moves(folder.id, siblings) { notes.arrangeFolders(line.container, it) }
+                        } else {
+                            emptyList()
                         }
                         FolderRow(
                             folder = folder,
                             depth = line.depth,
-                            hasContents = notebook.foldersIn(inside).isNotEmpty() || notebook.notesIn(inside).isNotEmpty(),
+                            hasContents = !notebook.isEmpty(folder.inside),
                             expanded = folder.id in expanded,
                             onToggle = { expanded = if (folder.id in expanded) expanded - folder.id else expanded + folder.id },
                             menu = listOf(
@@ -267,9 +265,10 @@ private fun ContainerContents(
                     is Line.OfNote -> {
                         val note = line.note
                         val siblings = notebook.notesIn(line.container).map { it.id }
-                        val order = when {
-                            byHand -> moves(note.id, siblings) { notes.arrangeNotes(line.container, it) }
-                            else -> emptyList()
+                        val order = if (byHand) {
+                            moves(note.id, siblings) { notes.arrangeNotes(line.container, it) }
+                        } else {
+                            emptyList()
                         }
                         NoteRow(
                             note = note,
@@ -330,7 +329,7 @@ private fun ContainerContents(
             onDismiss = { movingFolder = null },
         )
     }
-    movingNote?.let { id -> notebook.all().find { it.id == id } }?.let { note ->
+    movingNote?.let(notebook::note)?.let { note ->
         ContainerChoiceDialog(
             notebook = notebook,
             current = notebook.containerOf(note),
@@ -342,10 +341,9 @@ private fun ContainerContents(
         )
     }
     deleting?.let(notebook::folder)?.let { folder ->
-        val inside = Container(folder.tabId, folder.id)
         DeleteFolderDialog(
             folder = folder,
-            hasContents = notebook.foldersIn(inside).isNotEmpty() || notebook.notesIn(inside).isNotEmpty(),
+            hasContents = !notebook.isEmpty(folder.inside),
             onDelete = { withContents ->
                 deleting = null
                 scope.launchNow {
@@ -405,7 +403,7 @@ private fun FolderRow(
         },
         modifier = Modifier
             .clickable(onClickLabel = stringResource(R.string.note_folder_open), onClick = onClick)
-            .padding(start = goalIndent(depth, INDENT)),
+            .padding(start = treeIndent(depth, INDENT)),
     )
 }
 
@@ -420,7 +418,7 @@ private fun NoteRow(note: Note, depth: Int, lyingIn: String?, menu: List<MenuEnt
         trailingContent = if (menu.isEmpty()) null else ({ MoreMenu(note.title, menu) }),
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = goalIndent(depth, INDENT)),
+            .padding(start = treeIndent(depth, INDENT)),
     )
 }
 
@@ -446,81 +444,6 @@ private fun MoreMenu(name: String, entries: List<MenuEntry>) {
         }
     }
 }
-
-/** Asks for a folder's name, starting out with [initial]; one with a problem cannot be confirmed. */
-@Composable
-private fun FolderNameDialog(
-    @StringRes title: Int,
-    @StringRes confirm: Int,
-    initial: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) = NameDialog(
-    title = title,
-    confirm = confirm,
-    label = R.string.note_folder_name,
-    max = NoteFolder.NAME_MAX,
-    initial = initial,
-    problemOf = ::folderNameProblem,
-    onConfirm = onConfirm,
-    onDismiss = onDismiss,
-)
-
-/** Name, last change or by hand, [sort] chosen. */
-@Composable
-private fun SortDialog(sort: NoteSort, onChoose: (NoteSort) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.note_sort_title)) },
-        text = {
-            Column(Modifier.selectableGroup()) {
-                NoteSort.entries.forEach { choice ->
-                    RadioOption(sortName(choice), selected = choice == sort, onSelect = { onChoose(choice) })
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-/** Deleting a folder asks first; one with something in it, whether that moves up a level or goes with it. */
-@Composable
-private fun DeleteFolderDialog(
-    folder: NoteFolder,
-    hasContents: Boolean,
-    onDelete: (withContents: Boolean) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.note_folder_delete_title)) },
-        text = {
-            val text = if (hasContents) R.string.note_folder_delete_contents_text else R.string.note_folder_delete_text
-            Text(stringResource(text, folder.name))
-        },
-        confirmButton = {
-            Row {
-                if (hasContents) {
-                    TextButton(onClick = { onDelete(true) }) { Text(stringResource(R.string.note_folder_delete_with_contents)) }
-                }
-                TextButton(onClick = { onDelete(false) }) {
-                    Text(stringResource(if (hasContents) R.string.note_folder_delete_moving_up else R.string.delete))
-                }
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
-private fun sortName(sort: NoteSort): String = stringResource(
-    when (sort) {
-        NoteSort.Name -> R.string.note_sort_name
-        NoteSort.Changed -> R.string.note_sort_changed
-        NoteSort.Manual -> R.string.note_sort_manual
-    },
-)
 
 @Composable
 private fun nameOf(choice: TabSelection, own: List<NoteTab>): String = when (choice) {

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import java.time.Instant
 
 /** The notes, their tabs and folders in the database; [Notes] is the way to them. */
@@ -37,10 +38,16 @@ interface NoteDao {
     suspend fun delete(id: Long)
 
     @Query("DELETE FROM notes WHERE tab_id = :tabId")
-    suspend fun deleteInTab(tabId: Long)
+    suspend fun deleteNotesInTab(tabId: Long)
 
     @Query("UPDATE note_tabs SET sort = :sort WHERE id = :id")
     suspend fun sortTab(id: Long, sort: NoteSort)
+
+    @Query("SELECT * FROM note_general_tab WHERE id = ${GeneralTab.ID}")
+    suspend fun generalTab(): GeneralTab?
+
+    @Upsert
+    suspend fun putGeneralTab(tab: GeneralTab)
 
     @Query("SELECT * FROM notes")
     suspend fun notes(): List<Note>
@@ -80,9 +87,9 @@ interface NoteDao {
     @Query("DELETE FROM notes WHERE folder_id IN (:folderIds)")
     suspend fun deleteNotesIn(folderIds: List<Long>)
 
-    /** Takes the folders [ids], all deleted next, out of each other first, so that the order they go in does not matter. */
+    /** Takes the folders in the folders [ids] out of them, as all are deleted next: so that the order they go in does not matter. */
     @Query("UPDATE note_folders SET parent_id = NULL WHERE parent_id IN (:ids)")
-    suspend fun takeOutOf(ids: List<Long>)
+    suspend fun detachChildrenOf(ids: List<Long>)
 
     @Query("DELETE FROM note_folders WHERE id IN (:ids)")
     suspend fun deleteFolders(ids: List<Long>)

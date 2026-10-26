@@ -36,6 +36,9 @@ data class NoteFolder(
     val sort: NoteSort = NoteSort.Changed,
     @ColumnInfo(name = "changed_at") val changedAt: Instant,
 ) {
+    /** What lies in this folder. */
+    val inside: Container get() = Container(tabId, id)
+
     companion object {
         /** Long enough for a name of a few words, short enough for a path of several of them. */
         const val NAME_MAX = 50
@@ -48,14 +51,25 @@ data class NoteFolder(
  */
 data class Container(val tabId: Long? = null, val folderId: Long? = null) : Serializable
 
+/**
+ * How the top of "Allgemein" is sorted, as a tab of the user's keeps it in its row: "Allgemein" has none among them. A
+ * single row, [ID], once sorted otherwise than by last change.
+ */
+@Entity(tableName = "note_general_tab")
+data class GeneralTab(@PrimaryKey val id: Int = ID, val sort: NoteSort) {
+    companion object {
+        const val ID = 1
+    }
+}
+
 /** What keeps [name], on a single line, from naming a folder; none if it can. Two folders may have the same name. */
 fun folderNameProblem(name: String): NameProblem? = InputText.nameProblem(name, NoteFolder.NAME_MAX, taken = emptyList())
 
 /**
- * Whether [folders] and [notes] lie as the app keeps them, as a backup is checked strictly (SPEC.md §10): each in the tab
- * of the folder it is in, and no folder within itself, however deep.
+ * Whether [folders] and [notes] hold together as the app keeps them, as a backup is checked strictly (SPEC.md §10):
+ * each in the tab of the folder it is in, and no folder within itself, however deep.
  */
-fun liesInOrder(folders: List<NoteFolder>, notes: List<Note>): Boolean {
+fun notesHoldTogether(folders: List<NoteFolder>, notes: List<Note>): Boolean {
     val byId = folders.associateBy { it.id }
     fun inTabOf(folderId: Long?, tabId: Long?) = folderId == null || byId[folderId]?.tabId == tabId
     if (!folders.all { inTabOf(it.parentId, it.tabId) } || !notes.all { inTabOf(it.folderId, it.tabId) }) return false

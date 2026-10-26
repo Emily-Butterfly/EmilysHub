@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
 import de.emilyshub.notes.NoteSort
@@ -524,6 +525,8 @@ class HubDatabaseMigrationTest {
             notes.sortFolder(grammar, NoteSort.Manual)
             assertEquals(grammar, notes.get(1)?.folderId)
             assertEquals(NoteSort.Manual, notes.folders().single().sort)
+            notes.putGeneralTab(GeneralTab(sort = NoteSort.Name))
+            assertEquals(NoteSort.Name, notes.generalTab()?.sort)
 
             // A tab deleted leaves its folders in none, in "Allgemein".
             notes.deleteTab(1)

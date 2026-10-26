@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
+import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteDao
 import de.emilyshub.notes.NoteFolder
@@ -46,7 +47,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         Place::class, PlaceWifi::class, RoutinePlace::class,
         Todo::class, TodoChecklistItem::class, TodoTag::class, TodoPlace::class,
         Wish::class, WishTag::class,
-        NoteTab::class, Note::class, NoteFolder::class,
+        NoteTab::class, Note::class, NoteFolder::class, GeneralTab::class,
     ],
     version = HubDatabase.VERSION,
 )

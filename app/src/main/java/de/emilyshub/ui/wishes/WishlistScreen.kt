@@ -38,17 +38,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.fields.TagFilter
-import de.emilyshub.ui.fields.goalIndent
+import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
-import de.emilyshub.routines.RoutineStatus
-import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.GoalTodo
@@ -216,7 +216,7 @@ private fun GoalRow(goal: Goal, depth: Int, tagNames: List<String>, opened: Bool
         },
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = goalIndent(depth, INDENT)),
+            .padding(start = treeIndent(depth, INDENT)),
     )
 }
 
@@ -232,7 +232,7 @@ private fun TodoPartRow(todo: GoalTodo, depth: Int, onTick: (Boolean) -> Unit, o
         supportingContent = { Text(stringResource(R.string.goal_todo)) },
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = goalIndent(depth, INDENT)),
+            .padding(start = treeIndent(depth, INDENT)),
     )
 }
 
@@ -248,7 +248,7 @@ private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit
         supportingContent = { Text(routineProgressText(routine)) },
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = goalIndent(depth, INDENT)),
+            .padding(start = treeIndent(depth, INDENT)),
     )
 }
 

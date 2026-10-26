@@ -86,7 +86,7 @@ class NoteFoldersScreenTest {
         val (arabic, travel) = runBlocking { app.notes.createTab("Arabisch") to app.notes.createTab("Reisen") }
         val grammar = runBlocking { app.notes.createFolder("Grammatik", Container(arabic)) }
         runBlocking { app.notes.createFolder("Verben", Container(arabic, grammar)) }
-        val alphabet = runBlocking { app.notes.create(NoteDraft("Alphabet", tabId = arabic)) }
+        val alphabet = runBlocking { app.notes.create(NoteDraft("Alphabet", container = Container(arabic))) }
 
         launchApp().use {
             openNotes()
@@ -114,7 +114,7 @@ class NoteFoldersScreenTest {
     fun `deleting a folder asks whether what is in it moves up a level or goes along`() {
         val recipes = runBlocking { app.notes.createFolder("Rezepte", Container()) }
         val baking = runBlocking { app.notes.createFolder("Backen", Container(folderId = recipes)) }
-        val bread = runBlocking { app.notes.create(NoteDraft("Brot", folderId = baking)) }
+        val bread = runBlocking { app.notes.create(NoteDraft("Brot", container = Container(folderId = baking))) }
         runBlocking { app.notes.createFolder("Leer", Container()) }
 
         launchApp().use {
@@ -146,9 +146,9 @@ class NoteFoldersScreenTest {
     fun `each folder is sorted as chosen, by last change, by name or by hand`() {
         val shop = runBlocking { app.notes.createFolder("Einkauf", Container()) }
         val inShop = Container(folderId = shop)
-        runBlocking { app.notes.create(NoteDraft("Apfel", folderId = shop)) }
+        runBlocking { app.notes.create(NoteDraft("Apfel", container = Container(folderId = shop))) }
         app.clock.now += Duration.ofMinutes(1)
-        runBlocking { app.notes.create(NoteDraft("Brot", folderId = shop)) }
+        runBlocking { app.notes.create(NoteDraft("Brot", container = Container(folderId = shop))) }
 
         launchApp().use {
             openNotes()

@@ -54,7 +54,7 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
-    val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
+    val loaded by remember(notes) { notes.notebook() }.collectAsState(initial = null)
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -77,7 +77,7 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             }
         },
     ) { contentPadding ->
-        val list = book?.tabs ?: return@Scaffold
+        val list = loaded?.tabs ?: return@Scaffold
         LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
             item(key = "hint") {
                 Text(
@@ -116,7 +116,7 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
         }
     }
 
-    val notebook = book ?: return
+    val notebook = loaded ?: return
     val list = notebook.tabs
     if (creating) {
         TabNameDialog(
@@ -145,8 +145,7 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
         )
     }
     list.find { it.id == deleting }?.let { tab ->
-        val top = Container(tab.id)
-        val hasContents = notebook.foldersIn(top).isNotEmpty() || notebook.notesIn(top).isNotEmpty()
+        val hasContents = !notebook.isEmpty(Container(tab.id))
         val delete = { work: suspend () -> Unit ->
             deleting = null
             scope.launchNow { work() }
@@ -161,14 +160,14 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             confirmButton = {
                 Row {
                     if (!hasContents) {
-                        TextButton(onClick = { delete { notes.deleteTabMovingNotes(tab.id) } }) {
+                        TextButton(onClick = { delete { notes.deleteTabMovingContents(tab.id) } }) {
                             Text(stringResource(R.string.delete))
                         }
                     } else {
-                        TextButton(onClick = { delete { notes.deleteTabWithNotes(tab.id) } }) {
+                        TextButton(onClick = { delete { notes.deleteTabWithContents(tab.id) } }) {
                             Text(stringResource(R.string.note_tab_delete_with_notes))
                         }
-                        TextButton(onClick = { delete { notes.deleteTabMovingNotes(tab.id) } }) {
+                        TextButton(onClick = { delete { notes.deleteTabMovingContents(tab.id) } }) {
                             Text(stringResource(R.string.note_tab_delete_moving))
                         }
                     }

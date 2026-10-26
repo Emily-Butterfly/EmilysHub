@@ -53,7 +53,7 @@ class NotesTest {
         val arabic = notes.createTab("Arabisch")
         val shopping = notes.create(NoteDraft("Einkauf"))
         clock.now += Duration.ofMinutes(1)
-        val verbs = notes.create(NoteDraft("Verben", tabId = arabic))
+        val verbs = notes.create(NoteDraft("Verben", container = Container(arabic)))
         clock.now += Duration.ofMinutes(1)
         notes.update(shopping, NoteDraft("Einkauf", "- Milch"))
 
@@ -90,11 +90,11 @@ class NotesTest {
     fun `a tab deleted moves its notes to Allgemein, or takes them along`() = runBlocking {
         val arabic = notes.createTab("Arabisch")
         val recipes = notes.createTab("Rezepte")
-        val verbs = notes.create(NoteDraft("Verben", tabId = arabic))
-        val soup = notes.create(NoteDraft("Linsensuppe", tabId = recipes))
+        val verbs = notes.create(NoteDraft("Verben", container = Container(arabic)))
+        val soup = notes.create(NoteDraft("Linsensuppe", container = Container(recipes)))
 
-        notes.deleteTabMovingNotes(arabic)
-        notes.deleteTabWithNotes(recipes)
+        notes.deleteTabMovingContents(arabic)
+        notes.deleteTabWithContents(recipes)
 
         assertEquals(emptyList<NoteTab>(), notes.notebook().first().tabs)
         assertNull(notes.get(verbs)?.tabId)
@@ -105,9 +105,9 @@ class NotesTest {
     @Test
     fun `a note in a tab deleted meanwhile is saved in Allgemein`() = runBlocking {
         val gone = notes.createTab("Weg")
-        notes.deleteTabWithNotes(gone)
+        notes.deleteTabWithContents(gone)
 
-        val id = notes.create(NoteDraft("Notiz", tabId = gone))
+        val id = notes.create(NoteDraft("Notiz", container = Container(gone)))
 
         assertNull(notes.get(id)?.tabId)
     }

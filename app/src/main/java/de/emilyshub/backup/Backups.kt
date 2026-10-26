@@ -3,7 +3,7 @@ package de.emilyshub.backup
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
-import de.emilyshub.notes.liesInOrder
+import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.security.KeyWrap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -140,6 +140,7 @@ class Backups(
             "todos" to dao::todos, "todo_checklist_items" to dao::todoChecklistItems, "todo_tags" to dao::todoTags,
             "todo_places" to dao::todoPlaces, "wishes" to dao::wishes, "wish_tags" to dao::wishTags,
             "note_tabs" to dao::noteTabs, "notes" to dao::notes, "note_folders" to dao::noteFolders,
+            "note_general_tab" to dao::noteGeneralTab,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {
@@ -148,7 +149,7 @@ class Backups(
             // What the type converters throw on what they cannot read, such as an unknown status or a date that is none.
             throw BackupException(BackupProblem.Damaged, e)
         }
-        if (!liesInOrder(dao.noteFolders(), dao.notes())) throw BackupException(BackupProblem.Damaged)
+        if (!notesHoldTogether(dao.noteFolders(), dao.notes())) throw BackupException(BackupProblem.Damaged)
     }
 
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->

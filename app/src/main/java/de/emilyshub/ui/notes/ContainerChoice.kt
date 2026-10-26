@@ -18,7 +18,7 @@ import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.Notebook
 import de.emilyshub.ui.fields.RadioOption
-import de.emilyshub.ui.fields.goalIndent
+import de.emilyshub.ui.fields.treeIndent
 
 /**
  * Where something is to lie (SPEC.md §7: "Verschieben nach…"): the top of "Allgemein" and of each tab, each with its
@@ -34,8 +34,8 @@ fun ContainerChoiceDialog(
     excluding: Set<Long> = emptySet(),
 ) {
     /** The container and those in it, each folder in turn the same way. */
-    fun choices(container: Container, depth: Int): List<Pair<Container, Int>> = listOf(container to depth) +
-        notebook.foldersIn(container).filterNot { it.id in excluding }.flatMap { choices(Container(it.tabId, it.id), depth + 1) }
+    fun choices(container: Container, depth: Int): List<Choice> = listOf(Choice(container, depth)) +
+        notebook.foldersIn(container).filterNot { it.id in excluding }.flatMap { choices(it.inside, depth + 1) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -50,7 +50,7 @@ fun ContainerChoiceDialog(
                 val tops = (listOf(null) + notebook.tabs.map { it.id }).map { Container(it) }
                 tops.flatMap { choices(it, depth = 0) }.forEach { (container, depth) ->
                     val name = container.folderId?.let { notebook.folder(it)?.name } ?: tabName(container.tabId, notebook.tabs)
-                    Column(Modifier.padding(start = goalIndent(depth, step = 16.dp))) {
+                    Column(Modifier.padding(start = treeIndent(depth, step = 16.dp))) {
                         RadioOption(name, selected = container == current, onSelect = { onChoose(container) })
                     }
                 }
@@ -60,6 +60,9 @@ fun ContainerChoiceDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+/** A container to choose, at its [depth] in the tree of its tab. */
+private data class Choice(val container: Container, val depth: Int)
 
 /** Where [container] is, from its tab down: "Arabisch › Grammatik › Verben". */
 @Composable

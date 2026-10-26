@@ -307,7 +307,7 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
 
 /**
  * Version 22: folders of notes (#23), in a tab or in each other, and the order of what lies in them, or at the top of a
- * tab. There are none yet; the notes are at the top of their tab, the one changed last first.
+ * tab, "Allgemein" too. There are none yet; the notes are at the top of their tab, the one changed last first.
  */
 val MIGRATION_21_22 = object : Migration(21, 22) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -321,6 +321,7 @@ val MIGRATION_21_22 = object : Migration(21, 22) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_folders_tab_id` ON `note_folders` (`tab_id`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_folders_parent_id` ON `note_folders` (`parent_id`)")
         db.execSQL("ALTER TABLE `note_tabs` ADD COLUMN `sort` TEXT NOT NULL DEFAULT 'changed'")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `note_general_tab` (`id` INTEGER NOT NULL, `sort` TEXT NOT NULL, PRIMARY KEY(`id`))")
         db.execSQL(
             "ALTER TABLE `notes` ADD COLUMN `folder_id` INTEGER " +
                 "REFERENCES `note_folders`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION",

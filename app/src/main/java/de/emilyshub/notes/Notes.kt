@@ -3,7 +3,6 @@ package de.emilyshub.notes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
-import de.emilyshub.data.Setting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -30,7 +29,7 @@ class Notes(
     /** All tabs, folders and notes, read together anew as any of them changes. */
     fun notebook(): Flow<Notebook> = flow {
         val database = database()
-        val changes = database.invalidationTracker.createFlow("note_tabs", "note_folders", "notes", "settings")
+        val changes = database.invalidationTracker.createFlow("note_tabs", "note_general_tab", "note_folders", "notes")
         emitAll(changes.map { database.withTransaction { read() } })
     }.flowOn(io)
 
@@ -130,21 +129,14 @@ class Notes(
     }
 
     /**
-     * Orders what lies in [container] by [sort]. Sorted by hand, it starts out in the order it had, so that nothing moves
-     * before it is moved.
+     * Orders what lies in [container] by [sort]. By hand, it is in the order last put by hand, what came there since
+     * after it, as it came; so that sorting otherwise for a while loses nothing.
      */
     suspend fun sort(container: Container, sort: NoteSort) = write {
-        database().withTransaction {
-            val book = read()
-            if (sort == NoteSort.Manual && book.sortOf(container) != NoteSort.Manual) {
-                book.foldersIn(container).forEachIndexed { position, folder -> dao.placeFolder(folder.id, position) }
-                book.notesIn(container).forEachIndexed { position, note -> dao.placeNote(note.id, position) }
-            }
-            when {
-                container.folderId != null -> dao.sortFolder(container.folderId, sort)
-                container.tabId != null -> dao.sortTab(container.tabId, sort)
-                else -> database().settings().put(Setting(GENERAL_SORT, sort.stored))
-            }
+        when {
+            container.folderId != null -> dao.sortFolder(container.folderId, sort)
+            container.tabId != null -> dao.sortTab(container.tabId, sort)
+            else -> dao.putGeneralTab(GeneralTab(sort = sort))
         }
     }
 
@@ -154,7 +146,7 @@ class Notes(
             val book = read()
             val folder = book.folder(id) ?: return@withTransaction
             val up = book.containerOf(folder)
-            val inside = Container(folder.tabId, folder.id)
+            val inside = folder.inside
             val firstFolder = book.endOfFolders(up)
             book.foldersIn(inside).forEachIndexed { index, it -> dao.moveFolder(it.id, up.tabId, up.folderId, firstFolder + index) }
             val firstNote = book.endOfNotes(up)
@@ -168,7 +160,7 @@ class Notes(
         database().withTransaction {
             val ids = read().inAndBelow(id).toList()
             ids.chunked(CHUNK).forEach { dao.deleteNotesIn(it) }
-            ids.chunked(CHUNK).forEach { dao.takeOutOf(it) }
+            ids.chunked(CHUNK).forEach { dao.detachChildrenOf(it) }
             ids.chunked(CHUNK).forEach { dao.deleteFolders(it) }
         }
     }
@@ -197,7 +189,7 @@ class Notes(
      * Deletes the tab, its folders and notes moving to "Allgemein", after what lies at its top: they are in no tab once
      * theirs is gone.
      */
-    suspend fun deleteTabMovingNotes(id: Long) = write {
+    suspend fun deleteTabMovingContents(id: Long) = write {
         database().withTransaction {
             val book = read()
             val top = Container(id)
@@ -210,9 +202,9 @@ class Notes(
     }
 
     /** Deletes the tab with its folders and notes, for good. */
-    suspend fun deleteTabWithNotes(id: Long) = write {
+    suspend fun deleteTabWithContents(id: Long) = write {
         database().withTransaction {
-            dao.deleteInTab(id)
+            dao.deleteNotesInTab(id)
             dao.deleteFoldersInTab(id)
             dao.deleteTab(id)
         }
@@ -222,21 +214,8 @@ class Notes(
         tabs = dao.tabs(),
         folders = dao.folders(),
         notes = dao.notes(),
-        generalSort = database().settings().get(GENERAL_SORT)?.let { stored -> NoteSort.entries.find { it.stored == stored } }
-            ?: NoteSort.Changed,
+        generalSort = dao.generalTab()?.sort ?: NoteSort.Changed,
     )
-
-    /** [container], or the top of its tab if the folder is gone or no longer in it, or of "Allgemein" if the tab is gone. */
-    private fun Notebook.stillThere(container: Container): Container {
-        val tabId = container.tabId?.takeIf { id -> tabs.any { it.id == id } }
-        // A folder of a tab gone is in "Allgemein" now: what is to go in it still does.
-        val folderId = container.folderId?.takeIf { folder(it)?.tabId == tabId }
-        return Container(tabId, folderId)
-    }
-
-    private fun Notebook.endOfFolders(container: Container) = (foldersIn(container).maxOfOrNull { it.position } ?: -1) + 1
-
-    private fun Notebook.endOfNotes(container: Container) = (notesIn(container).maxOfOrNull { it.position } ?: -1) + 1
 
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 
@@ -258,9 +237,6 @@ class Notes(
     }
 
     private companion object {
-        /** How "Allgemein" sorts what lies at its top, in the settings, as it has no row of its own. */
-        const val GENERAL_SORT = "notes-general-sort"
-
         /** At most so many ids in one query, well below what SQLite takes. */
         const val CHUNK = 500
 

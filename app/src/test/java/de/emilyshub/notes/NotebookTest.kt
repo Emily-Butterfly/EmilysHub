@@ -79,23 +79,16 @@ class NotebookTest {
     }
 
     @Test
-    fun `a folder or note whose folder is in another tab or none, or that hangs in a loop, shows at the top of its tab`() {
+    fun `a folder with nothing in it is empty, and so is a tab`() {
         val book = Notebook(
             tabs = listOf(arabic),
-            folders = listOf(
-                folder(10, "Verloren", parent = 99),
-                folder(11, "Im Kreis A", parent = 12),
-                folder(12, "Im Kreis B", parent = 11),
-                folder(13, "Anderswo", tab = null),
-            ),
-            notes = listOf(note(20, "Fremd", folder = 13), note(21, "Ohne", folder = 98)),
+            folders = listOf(folder(10, "Grammatik"), folder(11, "Leer")),
+            notes = listOf(note(20, "Regeln", folder = 10)),
             generalSort = NoteSort.Name,
         )
 
-        val top = Container(arabic.id)
-        assertEquals(listOf("Im Kreis A", "Im Kreis B", "Verloren"), book.foldersIn(top).map { it.name })
-        assertEquals(listOf("Fremd", "Ohne"), book.notesIn(top).map { it.title })
-        assertEquals(listOf("Im Kreis B"), book.path(12).map { it.name })
+        assertEquals(listOf(false, true), listOf(10L, 11L).map { book.isEmpty(Container(arabic.id, it)) })
+        assertEquals(false to true, book.isEmpty(Container(arabic.id)) to book.isEmpty(Container()))
     }
 
     @Test

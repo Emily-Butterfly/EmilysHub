@@ -55,8 +55,8 @@ class NoteFoldersTest {
     fun `a note made in a folder lies there, and one moved goes last where it is moved to, unchanged`() = runBlocking {
         val arabic = notes.createTab("Arabisch")
         val grammar = notes.createFolder("Grammatik", Container(arabic))
-        val verbs = notes.create(NoteDraft("Verben", tabId = arabic, folderId = grammar))
-        val alphabet = notes.create(NoteDraft("Alphabet", tabId = arabic))
+        val verbs = notes.create(NoteDraft("Verben", container = Container(arabic, grammar)))
+        val alphabet = notes.create(NoteDraft("Alphabet", container = Container(arabic)))
         clock.now += Duration.ofHours(1)
 
         notes.moveNote(alphabet, Container(arabic, grammar))
@@ -73,7 +73,7 @@ class NoteFoldersTest {
         val travel = notes.createTab("Reisen")
         val grammar = notes.createFolder("Grammatik", Container(arabic))
         val verbs = notes.createFolder("Verben", Container(arabic, grammar))
-        val kataba = notes.create(NoteDraft("kataba", tabId = arabic, folderId = verbs))
+        val kataba = notes.create(NoteDraft("kataba", container = Container(arabic, verbs)))
         notes.createFolder("Ägypten", Container(travel))
 
         notes.moveFolder(grammar, Container(travel))
@@ -103,9 +103,9 @@ class NoteFoldersTest {
         val grammar = notes.createFolder("Grammatik", Container())
         val verbs = notes.createFolder("Verben", Container(folderId = grammar))
         val present = notes.createFolder("Präsens", Container(folderId = verbs))
-        val kataba = notes.create(NoteDraft("kataba", folderId = present))
-        val rules = notes.create(NoteDraft("Regeln", folderId = verbs))
-        notes.create(NoteDraft("Übersicht", folderId = grammar))
+        val kataba = notes.create(NoteDraft("kataba", container = Container(folderId = present)))
+        val rules = notes.create(NoteDraft("Regeln", container = Container(folderId = verbs)))
+        notes.create(NoteDraft("Übersicht", container = Container(folderId = grammar)))
 
         notes.deleteFolderMovingUp(verbs)
         val book = book()
@@ -119,23 +119,24 @@ class NoteFoldersTest {
     }
 
     @Test
-    fun `sorted by hand, what lies in a folder starts in the order it had, and goes in the order put`() = runBlocking {
+    fun `sorted by hand, what lies in a folder is in the order it came there, and keeps an order put by hand`() = runBlocking {
         val recipes = notes.createFolder("Rezepte", Container())
         val inside = Container(folderId = recipes)
-        notes.sort(inside, NoteSort.Name)
-        notes.create(NoteDraft("Suppe", folderId = recipes))
-        val pizza = notes.create(NoteDraft("Pizza", folderId = recipes))
-        notes.create(NoteDraft("Brot", folderId = recipes))
+        notes.create(NoteDraft("Suppe", container = inside))
+        val pizza = notes.create(NoteDraft("Pizza", container = inside))
+        notes.create(NoteDraft("Brot", container = inside))
         notes.createFolder("Kuchen", inside)
         notes.createFolder("Getränke", inside)
 
         notes.sort(inside, NoteSort.Manual)
-        assertEquals(listOf("Brot", "Pizza", "Suppe"), book().notesIn(inside).map { it.title })
-        assertEquals(listOf("Getränke", "Kuchen"), book().foldersIn(inside).map { it.name })
+        assertEquals(listOf("Suppe", "Pizza", "Brot"), book().notesIn(inside).map { it.title })
+        assertEquals(listOf("Kuchen", "Getränke"), book().foldersIn(inside).map { it.name })
 
         notes.arrangeNotes(inside, listOf(pizza))
-        notes.create(NoteDraft("Salat", folderId = recipes))
-        assertEquals(listOf("Pizza", "Brot", "Suppe", "Salat"), book().notesIn(inside).map { it.title })
+        notes.sort(inside, NoteSort.Name)
+        notes.create(NoteDraft("Salat", container = inside))
+        notes.sort(inside, NoteSort.Manual)
+        assertEquals(listOf("Pizza", "Suppe", "Brot", "Salat"), book().notesIn(inside).map { it.title })
     }
 
     @Test
@@ -156,13 +157,13 @@ class NoteFoldersTest {
         val recipes = notes.createTab("Rezepte")
         notes.createFolder("Reisen", Container())
         val grammar = notes.createFolder("Grammatik", Container(arabic))
-        val verbs = notes.create(NoteDraft("Verben", tabId = arabic, folderId = grammar))
+        val verbs = notes.create(NoteDraft("Verben", container = Container(arabic, grammar)))
         val baking = notes.createFolder("Backen", Container(recipes))
         notes.createFolder("Kuchen", Container(recipes, baking))
-        val bread = notes.create(NoteDraft("Brot", tabId = recipes, folderId = baking))
+        val bread = notes.create(NoteDraft("Brot", container = Container(recipes, baking)))
 
-        notes.deleteTabMovingNotes(arabic)
-        notes.deleteTabWithNotes(recipes)
+        notes.deleteTabMovingContents(arabic)
+        notes.deleteTabWithContents(recipes)
 
         val book = book()
         assertEquals(1, book.folder(grammar)?.position)
@@ -178,7 +179,7 @@ class NoteFoldersTest {
         val gone = notes.createFolder("Weg", Container(arabic))
         notes.deleteFolderWithContents(gone)
 
-        val id = notes.create(NoteDraft("Notiz", tabId = arabic, folderId = gone))
+        val id = notes.create(NoteDraft("Notiz", container = Container(arabic, gone)))
 
         assertEquals(Container(arabic), notes.get(id)?.let { Container(it.tabId, it.folderId) })
     }

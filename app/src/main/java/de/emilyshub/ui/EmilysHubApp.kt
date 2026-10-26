@@ -38,7 +38,6 @@ import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
 import de.emilyshub.notes.Notes
-import de.emilyshub.notes.TabSelection
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
@@ -54,6 +53,7 @@ import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.notes.NoteTabsScreen
 import de.emilyshub.ui.notes.NotesScreen
+import de.emilyshub.ui.notes.NotesView
 import de.emilyshub.ui.places.PlaceEditorScreen
 import de.emilyshub.ui.places.PlaceEditorTarget
 import de.emilyshub.ui.places.PlacesScreen
@@ -208,8 +208,7 @@ private fun AppShell(
     var noteEditor by rememberSaveable { mutableStateOf<NoteEditorTarget?>(null) }
     var noteTabsOpen by rememberSaveable { mutableStateOf(false) }
     // Here, so that it stays while a note is open and while another area shows.
-    var noteTab by rememberSaveable { mutableStateOf<TabSelection>(TabSelection.All) }
-    var noteFolder by rememberSaveable { mutableStateOf<Long?>(null) }
+    var notesView by rememberSaveable { mutableStateOf(NotesView()) }
     // Here, so that they stay while a to-do is open and while another tab shows.
     var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -344,13 +343,8 @@ private fun AppShell(
                 onOpenWish = { wishEditor = it },
                 onOpenWishReview = { wishReviewOpen = true },
                 notes = notes,
-                noteTab = noteTab,
-                onNoteTabChange = {
-                    noteTab = it
-                    noteFolder = null
-                },
-                noteFolder = noteFolder,
-                onNoteFolderChange = { noteFolder = it },
+                notesView = notesView,
+                onNotesViewChange = { notesView = it },
                 onOpenNote = { noteEditor = it },
                 onOpenNoteTabs = { noteTabsOpen = true },
                 current = current,
@@ -392,10 +386,8 @@ private fun TopLevelScaffold(
     onOpenWish: (WishEditorTarget) -> Unit,
     onOpenWishReview: () -> Unit,
     notes: Notes,
-    noteTab: TabSelection,
-    onNoteTabChange: (TabSelection) -> Unit,
-    noteFolder: Long?,
-    onNoteFolderChange: (Long?) -> Unit,
+    notesView: NotesView,
+    onNotesViewChange: (NotesView) -> Unit,
     onOpenNote: (NoteEditorTarget) -> Unit,
     onOpenNoteTabs: () -> Unit,
     current: TopLevelDestination,
@@ -472,10 +464,8 @@ private fun TopLevelScaffold(
             )
             TopLevelDestination.Notes -> NotesScreen(
                 notes = notes,
-                selected = noteTab,
-                openFolder = noteFolder,
-                onSelect = onNoteTabChange,
-                onOpenFolder = onNoteFolderChange,
+                view = notesView,
+                onViewChange = onNotesViewChange,
                 contentPadding = contentPadding,
                 onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
                 onCreateNote = { onOpenNote(NoteEditorTarget.New(it)) },

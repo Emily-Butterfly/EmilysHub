@@ -76,8 +76,8 @@ sealed interface NoteEditorTarget : Serializable {
 @Composable
 fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
-    val startIn = (target as? NoteEditorTarget.New)?.container
-    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", tabId = startIn?.tabId, folderId = startIn?.folderId)) }
+    val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
+    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
     var loaded by rememberSaveable { mutableStateOf(noteId == null) }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
@@ -232,7 +232,7 @@ private fun Writing(
                 .fillMaxWidth()
                 .focusRequester(titleFocus),
         )
-        LocationField(notes, draft.container, onChange = { onChange(draft.copy(tabId = it.tabId, folderId = it.folderId)) })
+        LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
         OutlinedTextField(
             value = draft.text,
             onValueChange = { onChange(draft.copy(text = it)) },
@@ -269,25 +269,24 @@ private fun Preview(draft: NoteDraft) {
     }
 }
 
-/**
- * Where the note lies, "Arabisch › Grammatik": tapped, it offers the top of each tab and every folder. A folder or tab
- * deleted meanwhile is chosen no more, as the note would be saved.
- */
+/** Where the note lies, "Arabisch › Grammatik": tapped, it offers the top of each tab and every folder. */
 @Composable
 private fun LocationField(notes: Notes, container: Container, onChange: (Container) -> Unit) {
-    val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
+    val loaded by remember(notes) { notes.notebook() }.collectAsState(initial = null)
     var choosing by rememberSaveable { mutableStateOf(false) }
-    val notebook = book ?: return
+    val notebook = loaded ?: return
+    // As the note would be saved: a tab or folder deleted meanwhile, or a folder moved to another tab, is left out.
+    val shown = notebook.stillThere(container)
     LabelledValue(
         label = stringResource(R.string.note_location),
-        value = pathName(container, notebook),
+        value = pathName(shown, notebook),
         modifier = Modifier.clickable(onClickLabel = stringResource(R.string.note_move), role = Role.Button) { choosing = true },
     )
 
     if (choosing) {
         ContainerChoiceDialog(
             notebook = notebook,
-            current = container,
+            current = shown,
             onChoose = { chosen ->
                 choosing = false
                 onChange(chosen)

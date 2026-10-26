@@ -125,8 +125,8 @@ class NotesScreenTest {
     @Test
     fun `tabs are made, renamed and put in order, and deleting one moves its notes to Allgemein or deletes them, as chosen`() {
         val (arabic, recipes) = runBlocking { app.notes.createTab("Arabisch") to app.notes.createTab("Rezepte") }
-        val verbs = runBlocking { app.notes.create(NoteDraft("Verben", tabId = arabic)) }
-        runBlocking { app.notes.create(NoteDraft("Pizza", tabId = recipes)) }
+        val verbs = runBlocking { app.notes.create(NoteDraft("Verben", container = Container(arabic))) }
+        runBlocking { app.notes.create(NoteDraft("Pizza", container = Container(recipes))) }
 
         launchApp().use {
             openNotes()
@@ -170,7 +170,7 @@ class NotesScreenTest {
             val lefts = listOf("Alle", "Allgemein", "Rezepte", "Arabisch").map { tab(it).getUnclippedBoundsInRoot().left }
             assertEquals(lefts.sorted(), lefts)
             tab("Rezepte").performClick()
-            runBlocking { app.notes.deleteTabWithNotes(recipes) }
+            runBlocking { app.notes.deleteTabWithContents(recipes) }
 
             compose.onNodeWithText("Rezepte").assertDoesNotExist()
             tab("Alle").assertIsSelected()
