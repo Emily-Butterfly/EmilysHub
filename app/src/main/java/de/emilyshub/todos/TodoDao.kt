@@ -105,4 +105,8 @@ interface TodoDao {
     /** Binds the to-do to those of [placeIds] that are still there: one deleted meanwhile is left out. */
     @Query("INSERT INTO todo_places (todo_id, place_id) SELECT :todoId, id FROM places WHERE id IN (:placeIds)")
     suspend fun bind(todoId: Long, placeIds: Collection<Long>)
+
+    /** Hands the links of notes to the to-do [from] on to the to-do [to], as one coming again does to its next. */
+    @Query("UPDATE note_todos SET todo_id = :to WHERE todo_id = :from")
+    suspend fun handOnNotes(from: Long, to: Long)
 }

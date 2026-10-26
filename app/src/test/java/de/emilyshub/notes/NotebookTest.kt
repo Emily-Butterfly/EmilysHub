@@ -64,6 +64,24 @@ class NotebookTest {
     }
 
     @Test
+    fun `pinned folders come first, then pinned notes, then the other folders and notes, each as the folder is sorted`() {
+        val book = Notebook(
+            tabs = listOf(arabic),
+            folders = listOf(folder(10, "Wortschatz"), folder(11, "Grammatik").copy(pinned = true), folder(12, "Alt")),
+            notes = listOf(note(20, "Zahlen").copy(pinned = true), note(21, "Alphabet"), note(22, "Aussprache").copy(pinned = true)),
+            generalSort = NoteSort.Name,
+        )
+
+        val shown = book.entriesIn(Container(arabic.id)).map {
+            when (it) {
+                is NoteEntry.OfFolder -> it.folder.name
+                is NoteEntry.OfNote -> it.note.title
+            }
+        }
+        assertEquals(listOf("Grammatik", "Aussprache", "Zahlen", "Alt", "Wortschatz", "Alphabet"), shown)
+    }
+
+    @Test
     fun `a folder's path leads from the top of its tab down to it, and all that is in it is found at any depth`() {
         val book = Notebook(
             tabs = listOf(arabic),

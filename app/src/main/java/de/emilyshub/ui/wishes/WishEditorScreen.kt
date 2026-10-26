@@ -45,6 +45,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.notes.NoteLink
+import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
@@ -55,6 +57,7 @@ import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishProblem
@@ -87,6 +90,7 @@ fun WishEditorScreen(
     wishes: Wishes,
     todos: Todos,
     tags: Tags,
+    notes: Notes,
     target: WishEditorTarget,
     onClose: () -> Unit,
     onOpenWish: (WishEditorTarget) -> Unit,
@@ -255,6 +259,7 @@ fun WishEditorScreen(
                 onChange = { draft = draft.copy(manualProgress = it) },
             )
             if (wishId != null) {
+                LinkedNotes(notes, NoteLink.Goal(wishId))
                 OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
                     Text(stringResource(R.string.wish_add_subgoal))
                 }

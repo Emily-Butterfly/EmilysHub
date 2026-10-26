@@ -18,6 +18,7 @@ import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
@@ -92,7 +93,7 @@ class NotesScreenTest {
 
             option("Bearbeiten").performClick()
             field("Text in Markdown").performTextReplacement("Teig **48 h** gehen lassen")
-            compose.onNode(hasText("Liegt in") and hasText("Allgemein") and hasClickAction()).performClick()
+            compose.onNode(hasText("Liegt in") and hasText("Allgemein") and hasClickAction()).performScrollTo().performClick()
             compose.onNode(isSelectable() and hasText("Rezepte") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Speichern").performClick()
 

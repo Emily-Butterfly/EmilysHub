@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.Note
+import de.emilyshub.notes.NoteEntry
 import de.emilyshub.notes.NoteFolder
 import de.emilyshub.notes.NoteSort
 import de.emilyshub.notes.NoteTab
@@ -204,9 +205,13 @@ private fun ContainerContents(
     val scope = rememberCoroutineScope()
 
     /** The entries of [container] at [depth], each folder opened up followed by what is in it, the same way. */
-    fun lines(container: Container, depth: Int): List<Line> = notebook.foldersIn(container).flatMap { folder ->
-        listOf(Line.OfFolder(folder, depth, container)) + if (folder.id in expanded) lines(folder.inside, depth + 1) else emptyList()
-    } + notebook.notesIn(container).map { Line.OfNote(it, depth, container) }
+    fun lines(container: Container, depth: Int): List<Line> = notebook.entriesIn(container).flatMap { entry ->
+        when (entry) {
+            is NoteEntry.OfFolder -> listOf(Line.OfFolder(entry.folder, depth, container)) +
+                if (entry.folder.id in expanded) lines(entry.folder.inside, depth + 1) else emptyList()
+            is NoteEntry.OfNote -> listOf(Line.OfNote(entry.note, depth, container))
+        }
+    }
 
     val upLabel = stringResource(R.string.note_up)
     val downLabel = stringResource(R.string.note_down)
@@ -231,6 +236,10 @@ private fun ContainerContents(
     val rename = stringResource(R.string.note_folder_rename_confirm)
     val moveElsewhere = stringResource(R.string.note_move)
     val delete = stringResource(R.string.delete)
+    val pin = stringResource(R.string.note_pin)
+    val unpin = stringResource(R.string.note_unpin)
+    val onToday = stringResource(R.string.note_pin_today)
+    val offToday = stringResource(R.string.note_unpin_today)
     if (shownLines.isEmpty()) {
         PlaceholderScreen(
             stringResource(if (here.folderId == null) R.string.notes_tab_empty else R.string.notes_folder_empty),
@@ -238,12 +247,14 @@ private fun ContainerContents(
         )
     } else {
         LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
-            items(shownLines, key = Line::key) { line ->
+            // By place, not by key: so that one pinned, going up, does not take the list along out of sight.
+            items(shownLines) { line ->
                 val byHand = notebook.sortOf(line.container) == NoteSort.Manual
                 when (line) {
                     is Line.OfFolder -> {
                         val folder = line.folder
-                        val siblings = notebook.foldersIn(line.container).map { it.id }
+                        // Moved among those pinned, or among those not.
+                        val siblings = notebook.foldersIn(line.container).filter { it.pinned == folder.pinned }.map { it.id }
                         val order = if (byHand) {
                             moves(folder.id, siblings) { notes.arrangeFolders(line.container, it) }
                         } else {
@@ -257,6 +268,9 @@ private fun ContainerContents(
                             onToggle = { expanded = if (folder.id in expanded) expanded - folder.id else expanded + folder.id },
                             menu = listOf(
                                 MenuEntry(rename) { renaming = folder.id },
+                                MenuEntry(if (folder.pinned) unpin else pin) {
+                                    scope.launchNow { notes.pinFolder(folder.id, !folder.pinned) }
+                                },
                                 MenuEntry(moveElsewhere) { movingFolder = folder.id },
                             ) + order + MenuEntry(delete) { deleting = folder.id },
                             onClick = { onOpenFolder(folder.id) },
@@ -264,7 +278,7 @@ private fun ContainerContents(
                     }
                     is Line.OfNote -> {
                         val note = line.note
-                        val siblings = notebook.notesIn(line.container).map { it.id }
+                        val siblings = notebook.notesIn(line.container).filter { it.pinned == note.pinned }.map { it.id }
                         val order = if (byHand) {
                             moves(note.id, siblings) { notes.arrangeNotes(line.container, it) }
                         } else {
@@ -274,7 +288,15 @@ private fun ContainerContents(
                             note = note,
                             depth = line.depth,
                             lyingIn = null,
-                            menu = listOf(MenuEntry(moveElsewhere) { movingNote = note.id }) + order,
+                            menu = listOf(
+                                MenuEntry(if (note.pinned) unpin else pin) {
+                                    scope.launchNow { notes.pinNote(note.id, !note.pinned) }
+                                },
+                                MenuEntry(if (note.onToday) offToday else onToday) {
+                                    scope.launchNow { notes.putOnToday(note.id, !note.onToday) }
+                                },
+                                MenuEntry(moveElsewhere) { movingNote = note.id },
+                            ) + order,
                             onClick = { onOpenNote(note.id) },
                         )
                     }
@@ -357,17 +379,12 @@ private fun ContainerContents(
 
 /** A line of the list: a folder, or a note, at its depth, in its [container]. */
 private sealed interface Line {
-    val key: String
     val depth: Int
     val container: Container
 
-    data class OfFolder(val folder: NoteFolder, override val depth: Int, override val container: Container) : Line {
-        override val key get() = "folder ${folder.id}"
-    }
+    data class OfFolder(val folder: NoteFolder, override val depth: Int, override val container: Container) : Line
 
-    data class OfNote(val note: Note, override val depth: Int, override val container: Container) : Line {
-        override val key get() = "note ${note.id}"
-    }
+    data class OfNote(val note: Note, override val depth: Int, override val container: Container) : Line
 }
 
 /** What a menu offers: [label], done by [onClick] unless not [enabled]. */
@@ -385,7 +402,7 @@ private fun FolderRow(
     onClick: () -> Unit,
 ) {
     ListItem(
-        leadingContent = { Text(FOLDER, style = MaterialTheme.typography.titleMedium) },
+        leadingContent = { Text(if (folder.pinned) PIN + FOLDER else FOLDER, style = MaterialTheme.typography.titleMedium) },
         headlineContent = { Text(folder.name) },
         trailingContent = {
             Row {
@@ -413,6 +430,7 @@ private fun NoteRow(note: Note, depth: Int, lyingIn: String?, menu: List<MenuEnt
     val firstLine = note.text.lineSequence().map(String::trim).firstOrNull(String::isNotEmpty)
     ListItem(
         overlineContent = lyingIn?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+        leadingContent = if (note.pinned) ({ Text(PIN, style = MaterialTheme.typography.titleMedium) }) else null,
         headlineContent = { Text(note.title) },
         supportingContent = firstLine?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         trailingContent = if (menu.isEmpty()) null else ({ MoreMenu(note.title, menu) }),
@@ -453,4 +471,5 @@ private fun nameOf(choice: TabSelection, own: List<NoteTab>): String = when (cho
 }
 
 private const val FOLDER = "📁"
+internal const val PIN = "📌"
 private val INDENT = 24.dp

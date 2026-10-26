@@ -44,7 +44,9 @@ fun tabNameProblem(name: String, others: Collection<NoteTab>): NameProblem? =
 /**
  * A note (SPEC.md §7): a [title] and its [text] in Markdown, in the tab [tabId], none: in "Allgemein", and there in the
  * folder [folderId], none: at the top of the tab. When it was [changedAt] last orders the notes, unless the folder is
- * sorted by name or by hand, by its [position] among the notes there.
+ * sorted by name or by hand, by its [position] among the notes there. [pinned], it comes before the others there, but
+ * after the folders pinned; [onToday], it shows on Heute too. What it is linked to is kept apart, as [NoteWish]es,
+ * [NoteTodo]s and [NoteRoutine]s.
  */
 @Entity(
     tableName = "notes",
@@ -63,6 +65,8 @@ data class Note(
     @ColumnInfo(name = "changed_at") val changedAt: Instant,
     @ColumnInfo(name = "folder_id") val folderId: Long? = null,
     @ColumnInfo(defaultValue = "0") val position: Int = 0,
+    @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
+    @ColumnInfo(name = "on_today", defaultValue = "0") val onToday: Boolean = false,
 )
 
 /** Which notes a tab shows: all of them, those in "Allgemein", or those in a tab made by the user. */

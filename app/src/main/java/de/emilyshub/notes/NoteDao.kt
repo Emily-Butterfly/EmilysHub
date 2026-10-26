@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
 /** The notes, their tabs and folders in the database; [Notes] is the way to them. */
@@ -97,4 +98,65 @@ interface NoteDao {
     /** Deletes all folders of the tab, of which none is in another tab, at once. */
     @Query("DELETE FROM note_folders WHERE tab_id = :tabId")
     suspend fun deleteFoldersInTab(tabId: Long)
+
+    @Query("UPDATE notes SET pinned = :pinned WHERE id = :id")
+    suspend fun pinNote(id: Long, pinned: Boolean)
+
+    @Query("UPDATE note_folders SET pinned = :pinned WHERE id = :id")
+    suspend fun pinFolder(id: Long, pinned: Boolean)
+
+    @Query("UPDATE notes SET on_today = :onToday WHERE id = :id")
+    suspend fun putOnToday(id: Long, onToday: Boolean)
+
+    @Query("SELECT * FROM notes WHERE on_today ORDER BY changed_at DESC, id")
+    fun observeOnToday(): Flow<List<Note>>
+
+    @Query("SELECT wish_id FROM note_wishes WHERE note_id = :noteId")
+    suspend fun goalIdsOf(noteId: Long): List<Long>
+
+    @Query("SELECT todo_id FROM note_todos WHERE note_id = :noteId")
+    suspend fun todoIdsOf(noteId: Long): List<Long>
+
+    @Query("SELECT routine_id FROM note_routines WHERE note_id = :noteId")
+    suspend fun routineIdsOf(noteId: Long): List<Long>
+
+    @Query("DELETE FROM note_wishes WHERE note_id = :noteId")
+    suspend fun unlinkGoals(noteId: Long)
+
+    @Query("DELETE FROM note_todos WHERE note_id = :noteId")
+    suspend fun unlinkTodos(noteId: Long)
+
+    @Query("DELETE FROM note_routines WHERE note_id = :noteId")
+    suspend fun unlinkRoutines(noteId: Long)
+
+    /** Links the note to those goals of [ids] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO note_wishes (note_id, wish_id) SELECT :noteId, id FROM wishes WHERE id IN (:ids)")
+    suspend fun linkGoals(noteId: Long, ids: Collection<Long>)
+
+    /** Links the note to those to-dos of [ids] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO note_todos (note_id, todo_id) SELECT :noteId, id FROM todos WHERE id IN (:ids)")
+    suspend fun linkTodos(noteId: Long, ids: Collection<Long>)
+
+    /** Links the note to those routines of [ids] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO note_routines (note_id, routine_id) SELECT :noteId, id FROM routines WHERE id IN (:ids)")
+    suspend fun linkRoutines(noteId: Long, ids: Collection<Long>)
+
+    @Query("SELECT id, title AS name, status != 'done' AS open FROM wishes")
+    fun observeGoalTargets(): Flow<List<LinkTarget>>
+
+    /** The to-dos as they are now: of one coming again, the last, which those before it hand their links on to. */
+    @Query("SELECT id, title AS name, done_at IS NULL AS open FROM todos WHERE next_id IS NULL")
+    fun observeTodoTargets(): Flow<List<LinkTarget>>
+
+    @Query("SELECT id, name, status != 'archived' AS open FROM routines")
+    fun observeRoutineTargets(): Flow<List<LinkTarget>>
+
+    @Query("SELECT n.* FROM notes n JOIN note_wishes l ON l.note_id = n.id WHERE l.wish_id = :wishId ORDER BY n.title")
+    fun observeNotesOfGoal(wishId: Long): Flow<List<Note>>
+
+    @Query("SELECT n.* FROM notes n JOIN note_todos l ON l.note_id = n.id WHERE l.todo_id = :todoId ORDER BY n.title")
+    fun observeNotesOfTodo(todoId: Long): Flow<List<Note>>
+
+    @Query("SELECT n.* FROM notes n JOIN note_routines l ON l.note_id = n.id WHERE l.routine_id = :routineId ORDER BY n.title")
+    fun observeNotesOfRoutine(routineId: Long): Flow<List<Note>>
 }

@@ -11,6 +11,7 @@ import de.emilyshub.data.Setting
 import de.emilyshub.history
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
+import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.NoteSort
 import de.emilyshub.place
 import de.emilyshub.places.Area
@@ -291,7 +292,7 @@ class BackupsTest {
             val occurrence = app.testDatabase.routines().occurrencesOn(vitamins, LocalDate.parse("2026-10-23")).single()
             app.routines.tick(occurrence.id, app.routines.checklist(vitamins).first().id, ticked = true)
         }
-        app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
+        val milk = app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
         val northernLights = app.wish("Nordlichter sehen", period = "Winter 2027")
         if (!before19) {
@@ -302,12 +303,18 @@ class BackupsTest {
         app.wish("Marathon laufen", status = WishStatus.Done, doneOn = LocalDate.parse("2026-10-03"), tags = setOf(sport))
         app.wish("Flüge buchen", parent = northernLights)
         runBlocking {
-            app.notes.create(NoteDraft("Einkauf", "- [ ] Hafermilch"))
+            val links = setOf(NoteLink.Todo(milk), NoteLink.Routine(vitamins))
+            val shopping = app.notes.create(NoteDraft("Einkauf", "- [ ] Hafermilch", links = links))
+            app.notes.putOnToday(shopping, onToday = true)
             val arabic = app.notes.createTab("Arabisch")
             val grammar = app.notes.createFolder("Grammatik", Container(arabic))
             app.notes.sort(Container(arabic, grammar), NoteSort.Manual)
             app.notes.sort(Container(), NoteSort.Name)
-            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", container = Container(arabic, grammar)))
+            app.notes.pinFolder(grammar, pinned = true)
+            val inGrammar = Container(arabic, grammar)
+            val verbs = app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", container = inGrammar))
+            app.notes.update(verbs, NoteDraft("Verben", "## Präsens", inGrammar, setOf(NoteLink.Goal(northernLights))))
+            app.notes.pinNote(verbs, pinned = true)
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -392,9 +399,16 @@ class BackupsTest {
 
     /** [content] as version 21 made it: without folders of notes, nor the order in them and in tabs, which came with 22. */
     private fun asOfVersion21(content: JSONObject): JSONObject {
-        content.tables().remove("note_folders")
-        content.tables().remove("note_general_tab")
-        return content.withoutColumns("notes", "folder_id", "position").withoutColumns("note_tabs", "sort").put("schema", 21)
+        val older = asOfVersion22(content)
+        older.tables().remove("note_folders")
+        older.tables().remove("note_general_tab")
+        return older.withoutColumns("notes", "folder_id", "position").withoutColumns("note_tabs", "sort").put("schema", 21)
+    }
+
+    /** [content] as version 22 made it: without notes pinned, nor linked, which came with 23. */
+    private fun asOfVersion22(content: JSONObject): JSONObject {
+        LINK_TABLES.forEach { content.tables().remove(it) }
+        return content.withoutColumns("notes", "pinned", "on_today").withoutColumns("note_folders", "pinned").put("schema", 22)
     }
 
     /**
@@ -440,7 +454,8 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "notes")
+        val LINK_TABLES = listOf("note_routines", "note_todos", "note_wishes")
+        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000
     }
 }

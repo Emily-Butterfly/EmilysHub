@@ -21,6 +21,8 @@ data class NoteDraft(
     val text: String = "",
     /** Where it lies; a tab or folder deleted meanwhile is left out on saving, for the top of the tab or "Allgemein". */
     val container: Container = Container(),
+    /** What it is linked to; one deleted meanwhile is left out on saving. */
+    val links: Set<NoteLink> = emptySet(),
 ) : Serializable {
 
     val problems: Set<NoteProblem>
@@ -47,5 +49,5 @@ data class NoteDraft(
     }
 }
 
-/** The note as the editor starts out with it. */
-fun Note.toDraft() = NoteDraft(title, text, Container(tabId, folderId))
+/** The note as the editor starts out with it, with what it is linked to, its [links]. */
+fun Note.toDraft(links: Set<NoteLink>) = NoteDraft(title, text, Container(tabId, folderId), links)

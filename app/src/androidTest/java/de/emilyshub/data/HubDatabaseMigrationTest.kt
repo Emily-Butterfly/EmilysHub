@@ -534,6 +534,29 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 22 moves to version 23 where nothing is pinned nor linked yet and then a note can be`() {
+        createAtVersion(22) {
+            it.execSQL("INSERT INTO wishes (id, title, description, period, status) VALUES (1, 'Wortschatz', '', '', 'open')")
+            it.execSQL("INSERT INTO notes (id, title, text, changed_at, position) VALUES (1, 'Verben', '', '2026-10-23T05:00:00Z', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            val notes = database.notes()
+            assertEquals(false to false, notes.get(1)?.let { it.pinned to it.onToday })
+
+            notes.pinNote(1, pinned = true)
+            notes.putOnToday(1, onToday = true)
+            notes.linkGoals(1, listOf(1L))
+            assertEquals(listOf("Verben"), notes.observeOnToday().first().map { it.title })
+            assertEquals(listOf(1L), notes.goalIdsOf(1))
+
+            // A goal deleted takes its links along.
+            database.wishes().delete(1)
+            assertEquals(emptyList<Long>(), notes.goalIdsOf(1))
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

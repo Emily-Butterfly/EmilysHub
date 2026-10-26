@@ -4,10 +4,10 @@ import de.emilyshub.data.InputText
 import java.time.Instant
 
 /**
- * The tabs, folders and notes as the screens show them (SPEC.md §7): what lies in a folder or at the top of a tab, its
- * folders first, then its notes, each in the order it is sorted by; the path down to a folder; and all notes, the one
- * changed last first. The folders and notes hold together as [notesHoldTogether] checks it, as the app keeps them and
- * a backup is refused otherwise.
+ * The tabs, folders and notes as the screens show them (SPEC.md §7): what lies in a folder or at the top of a tab, the
+ * folders pinned first, then the notes pinned, the other folders and the other notes, each in the order it is sorted
+ * by; the path down to a folder; and all notes, the one changed last first. The folders and notes hold together as
+ * [notesHoldTogether] checks it, as the app keeps them and a backup is refused otherwise.
  */
 class Notebook(
     val tabs: List<NoteTab>,
@@ -35,13 +35,23 @@ class Notebook(
         else -> tabs.find { it.id == container.tabId }?.sort ?: NoteSort.Changed
     }
 
-    /** The folders in [container], in its order. */
+    /** The folders in [container], in its order, those pinned first. */
     fun foldersIn(container: Container): List<NoteFolder> = foldersByContainer[container].orEmpty()
         .inOrderOf(sortOf(container), NoteFolder::name, ::lastChange, NoteFolder::position, NoteFolder::id)
+        .sortedBy { !it.pinned }
 
-    /** The notes in [container], in its order. */
-    fun notesIn(container: Container): List<Note> =
-        notesByContainer[container].orEmpty().inOrderOf(sortOf(container), Note::title, Note::changedAt, Note::position, Note::id)
+    /** The notes in [container], in its order, those pinned first. */
+    fun notesIn(container: Container): List<Note> = notesByContainer[container].orEmpty()
+        .inOrderOf(sortOf(container), Note::title, Note::changedAt, Note::position, Note::id)
+        .sortedBy { !it.pinned }
+
+    /** What lies in [container] as shown: the folders pinned, the notes pinned, then the other folders and notes. */
+    fun entriesIn(container: Container): List<NoteEntry> {
+        val (pinnedFolders, folders) = foldersIn(container).partition { it.pinned }
+        val (pinnedNotes, notes) = notesIn(container).partition { it.pinned }
+        return pinnedFolders.map(NoteEntry::OfFolder) + pinnedNotes.map(NoteEntry::OfNote) +
+            folders.map(NoteEntry::OfFolder) + notes.map(NoteEntry::OfNote)
+    }
 
     /** Whether nothing lies in [container], neither folder nor note. */
     fun isEmpty(container: Container): Boolean = container !in foldersByContainer && container !in notesByContainer
@@ -103,4 +113,11 @@ class Notebook(
             }.thenBy(id),
         )
     }
+}
+
+/** A folder or a note, as [Notebook.entriesIn] has them. */
+sealed interface NoteEntry {
+    data class OfFolder(val folder: NoteFolder) : NoteEntry
+
+    data class OfNote(val note: Note) : NoteEntry
 }

@@ -68,9 +68,10 @@ sealed interface NoteEditorTarget : Serializable {
 }
 
 /**
- * Writes a note (SPEC.md §7): its title, its text in Markdown and where it lies, while "Bearbeiten" shows; "Vorschau"
- * shows the text as it reads, without HTML and with no link to open (SPEC.md §9). A new note starts in "Bearbeiten", one
- * saved opens in "Vorschau", to be read. Deleting one asks first; leaving without saving drops the changes.
+ * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies and what it is linked to, while
+ * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
+ * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
+ * first; leaving without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +96,7 @@ fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit
             if (note == null) {
                 onClose()
             } else {
-                draft = note.toDraft()
+                draft = note.toDraft(notes.linksOf(noteId))
                 loaded = true
             }
         }
@@ -154,7 +155,7 @@ fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit
         ) {
             ModeChoice(previewing, onChange = { previewing = it })
             if (previewing) {
-                Preview(draft)
+                Preview(notes, draft)
             } else {
                 Writing(notes, draft, problems, showMissingTitle, titleAsked, onChange = { draft = it })
             }
@@ -233,6 +234,7 @@ private fun Writing(
                 .focusRequester(titleFocus),
         )
         LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
+        LinksField(notes, draft.links, onChange = { onChange(draft.copy(links = it)) })
         OutlinedTextField(
             value = draft.text,
             onValueChange = { onChange(draft.copy(text = it)) },
@@ -253,9 +255,9 @@ private fun Writing(
     }
 }
 
-/** The title and text of [draft] as they read, the text read anew only once it changes. */
+/** The title and text of [draft] as they read, the text read anew only once it changes, and what it is linked to. */
 @Composable
-private fun Preview(draft: NoteDraft) {
+private fun Preview(notes: Notes, draft: NoteDraft) {
     val blocks = remember(draft.text) { Markdown.parse(draft.text) }
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -266,6 +268,7 @@ private fun Preview(draft: NoteDraft) {
             item { Text(stringResource(R.string.note_preview_empty), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         markdownBlocks(blocks)
+        item { LinksSummary(notes, draft.links) }
     }
 }
 

@@ -330,3 +330,28 @@ val MIGRATION_21_22 = object : Migration(21, 22) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_folder_id` ON `notes` (`folder_id`)")
     }
 }
+
+/**
+ * Version 23: notes and folders pinned (#24), notes on Heute, and notes linked to goals, to-dos and routines. None is
+ * pinned or linked yet.
+ */
+val MIGRATION_22_23 = object : Migration(22, 23) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `note_folders` ADD COLUMN `pinned` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `notes` ADD COLUMN `pinned` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `notes` ADD COLUMN `on_today` INTEGER NOT NULL DEFAULT 0")
+        for ((table, column, target) in listOf(
+            Triple("note_wishes", "wish_id", "wishes"),
+            Triple("note_todos", "todo_id", "todos"),
+            Triple("note_routines", "routine_id", "routines"),
+        )) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `$table` (`note_id` INTEGER NOT NULL, `$column` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`note_id`, `$column`), " +
+                    "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                    "FOREIGN KEY(`$column`) REFERENCES `$target`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_${table}_$column` ON `$table` (`$column`)")
+        }
+    }
+}

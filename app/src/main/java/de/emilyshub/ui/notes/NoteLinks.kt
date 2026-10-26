@@ -1,0 +1,159 @@
+package de.emilyshub.ui.notes
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import de.emilyshub.R
+import de.emilyshub.data.InputText
+import de.emilyshub.notes.LinkCandidate
+import de.emilyshub.notes.NoteLink
+import de.emilyshub.notes.Notes
+import de.emilyshub.ui.SectionTitle
+
+/**
+ * What the note is linked to (SPEC.md §7), "Ziel · Wortschatz", each to be taken off, and the way to link it to a goal,
+ * a to-do or a routine not done nor archived. One deleted meanwhile shows no more.
+ */
+@Composable
+fun LinksField(notes: Notes, links: Set<NoteLink>, onChange: (Set<NoteLink>) -> Unit) {
+    val candidates by remember(notes) { notes.linkCandidates() }.collectAsState(initial = null)
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val all = candidates ?: return
+    Column {
+        SectionTitle(stringResource(R.string.note_links))
+        linked(all, links).forEach { candidate ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(linkName(candidate), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = { onChange(links - candidate.link) }) {
+                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.note_link_remove, candidate.name))
+                }
+            }
+        }
+        TextButton(onClick = { adding = true }) { Text(stringResource(R.string.note_link_add)) }
+    }
+
+    if (adding) {
+        LinkDialog(
+            offered = all.filter { it.open && it.link !in links },
+            onChoose = { link ->
+                adding = false
+                onChange(links + link)
+            },
+            onDismiss = { adding = false },
+        )
+    }
+}
+
+/** What the note is linked to, to read: "Verknüpft mit" and each, as [LinksField] has them; nothing if none. */
+@Composable
+fun LinksSummary(notes: Notes, links: Set<NoteLink>) {
+    val candidates by remember(notes) { notes.linkCandidates() }.collectAsState(initial = null)
+    val shown = linked(candidates ?: return, links)
+    if (shown.isEmpty()) return
+    Column {
+        SectionTitle(stringResource(R.string.note_links))
+        shown.forEach { Text(linkName(it), style = MaterialTheme.typography.bodyLarge) }
+    }
+}
+
+/** The notes linked to [link], by title, as the other side of the link shows them; nothing if none. */
+@Composable
+fun LinkedNotes(notes: Notes, link: NoteLink) {
+    val linked by remember(notes, link) { notes.notesLinkedTo(link) }.collectAsState(initial = emptyList())
+    if (linked.isEmpty()) return
+    Column {
+        SectionTitle(stringResource(R.string.linked_notes))
+        linked.forEach { Text(it.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 4.dp)) }
+    }
+}
+
+/** Offers a goal, a to-do or a routine to link to, one kind at a time, each by name. */
+@Composable
+private fun LinkDialog(offered: List<LinkCandidate>, onChoose: (NoteLink) -> Unit, onDismiss: () -> Unit) {
+    var kind by rememberSaveable { mutableIntStateOf(0) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.note_link_title)) },
+        text = {
+            Column {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    KINDS.forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = kind == index,
+                            onClick = { kind = index },
+                            shape = SegmentedButtonDefaults.itemShape(index, KINDS.size),
+                            label = { Text(stringResource(label)) },
+                        )
+                    }
+                }
+                val ofKind = offered.filter { kindOf(it.link) == kind }.sortedWith(compareBy(InputText.byName) { it.name })
+                Column(
+                    Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 8.dp),
+                ) {
+                    if (ofKind.isEmpty()) Text(stringResource(R.string.note_link_none), modifier = Modifier.padding(vertical = 12.dp))
+                    ofKind.forEach { candidate ->
+                        Text(
+                            text = candidate.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(role = Role.Button) { onChoose(candidate.link) }
+                                .padding(vertical = 12.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Those of [all] that [links] has, goals first, then to-dos, then routines, each by name. */
+private fun linked(all: List<LinkCandidate>, links: Set<NoteLink>): List<LinkCandidate> =
+    all.filter { it.link in links }.sortedWith(compareBy<LinkCandidate> { kindOf(it.link) }.thenBy(InputText.byName) { it.name })
+
+/** "Ziel · Wortschatz", "To-do · Milch kaufen", "Routine · Vokabeln". */
+@Composable
+private fun linkName(candidate: LinkCandidate): String =
+    stringResource(R.string.note_link_named, stringResource(KINDS[kindOf(candidate.link)]), candidate.name)
+
+private fun kindOf(link: NoteLink): Int = when (link) {
+    is NoteLink.Goal -> 0
+    is NoteLink.Todo -> 1
+    is NoteLink.Routine -> 2
+}
+
+private val KINDS = listOf(R.string.note_link_goal, R.string.note_link_todo, R.string.note_link_routine)

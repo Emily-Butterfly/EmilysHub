@@ -6,6 +6,7 @@ import de.emilyshub.data.InputText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -36,13 +37,49 @@ class Notes(
     /** The note, or null once it is deleted. */
     suspend fun get(id: Long): Note? = withContext(io) { dao.get(id) }
 
+    /** What the note is linked to. */
+    suspend fun linksOf(id: Long): Set<NoteLink> = withContext(io) {
+        (dao.goalIdsOf(id).map(NoteLink::Goal) + dao.todoIdsOf(id).map(NoteLink::Todo) + dao.routineIdsOf(id).map(NoteLink::Routine))
+            .toSet()
+    }
+
+    /** The goals, to-dos and routines a note can be linked to, each by its name. */
+    fun linkCandidates(): Flow<List<LinkCandidate>> = flow {
+        val targets = combine(
+            dao.observeGoalTargets(),
+            dao.observeTodoTargets(),
+            dao.observeRoutineTargets(),
+        ) { goals, todos, routines ->
+            goals.map { LinkCandidate(NoteLink.Goal(it.id), it.name, it.open) } +
+                todos.map { LinkCandidate(NoteLink.Todo(it.id), it.name, it.open) } +
+                routines.map { LinkCandidate(NoteLink.Routine(it.id), it.name, it.open) }
+        }
+        emitAll(targets)
+    }.flowOn(io)
+
+    /** The notes linked to [link], by title: the other side of the link (SPEC.md §7). */
+    fun notesLinkedTo(link: NoteLink): Flow<List<Note>> = flow {
+        emitAll(
+            when (link) {
+                is NoteLink.Goal -> dao.observeNotesOfGoal(link.id)
+                is NoteLink.Todo -> dao.observeNotesOfTodo(link.id)
+                is NoteLink.Routine -> dao.observeNotesOfRoutine(link.id)
+            },
+        )
+    }.flowOn(io)
+
+    /** The notes pinned on Heute, the one changed last first. */
+    fun onToday(): Flow<List<Note>> = flow { emitAll(dao.observeOnToday()) }.flowOn(io)
+
     /** A new note, changed now, last where the draft has it; refuses a draft with problems, which the editor shows before. */
     suspend fun create(draft: NoteDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
             val book = read()
             val into = book.stillThere(cleaned.container)
-            dao.insert(cleaned.toNote(into, position = book.endOfNotes(into), changedAt = clock.instant()))
+            val id = dao.insert(cleaned.toNote(into, position = book.endOfNotes(into), changedAt = clock.instant()))
+            saveLinks(id, cleaned.links)
+            id
         }
     }
 
@@ -54,12 +91,19 @@ class Notes(
             val book = read()
             val into = book.stillThere(cleaned.container)
             val position = if (into == book.containerOf(note)) note.position else book.endOfNotes(into)
-            dao.update(cleaned.toNote(into, position, clock.instant(), id))
+            dao.update(cleaned.toNote(into, position, clock.instant(), id).copy(pinned = note.pinned, onToday = note.onToday))
+            saveLinks(id, cleaned.links)
         }
     }
 
-    /** Deletes the note for good. */
+    /** Deletes the note for good, and its links. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
+
+    /** Pins the note in what it lies in, or [pinned] not, no more. */
+    suspend fun pinNote(id: Long, pinned: Boolean) = write { dao.pinNote(id, pinned) }
+
+    /** Pins the note on Heute, or [onToday] not, no more. */
+    suspend fun putOnToday(id: Long, onToday: Boolean) = write { dao.putOnToday(id, onToday) }
 
     /** Moves the note to the end of [to], or of the top of its tab if that folder is gone. */
     suspend fun moveNote(id: Long, to: Container) = write {
@@ -95,6 +139,9 @@ class Notes(
             )
         }
     }
+
+    /** Pins the folder in what it lies in, or [pinned] not, no more. */
+    suspend fun pinFolder(id: Long, pinned: Boolean) = write { dao.pinFolder(id, pinned) }
 
     /** Renames the folder, as [createFolder] names one. */
     suspend fun renameFolder(id: Long, name: String) = write { dao.renameFolder(id, checkedFolderName(name), clock.instant()) }
@@ -208,6 +255,16 @@ class Notes(
             dao.deleteFoldersInTab(id)
             dao.deleteTab(id)
         }
+    }
+
+    /** Links the note to what [links] has, and to nothing else; one deleted meanwhile is left out. */
+    private suspend fun saveLinks(noteId: Long, links: Set<NoteLink>) {
+        dao.unlinkGoals(noteId)
+        dao.unlinkTodos(noteId)
+        dao.unlinkRoutines(noteId)
+        dao.linkGoals(noteId, links.filterIsInstance<NoteLink.Goal>().map { it.id })
+        dao.linkTodos(noteId, links.filterIsInstance<NoteLink.Todo>().map { it.id })
+        dao.linkRoutines(noteId, links.filterIsInstance<NoteLink.Routine>().map { it.id })
     }
 
     private suspend fun read() = Notebook(

@@ -41,6 +41,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.notes.NoteLink
+import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
@@ -61,6 +63,7 @@ import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
@@ -79,7 +82,15 @@ sealed interface TodoEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, target: TodoEditorTarget, onClose: () -> Unit) {
+fun TodoEditorScreen(
+    todos: Todos,
+    wishes: Wishes,
+    tags: Tags,
+    places: Places,
+    notes: Notes,
+    target: TodoEditorTarget,
+    onClose: () -> Unit,
+) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
     // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
@@ -215,6 +226,7 @@ fun TodoEditorScreen(todos: Todos, wishes: Wishes, tags: Tags, places: Places, t
                 none = R.string.goal_field_none,
                 onChange = { draft = draft.copy(goalId = it) },
             )
+            if (todoId != null) LinkedNotes(notes, NoteLink.Todo(todoId))
         }
     }
 

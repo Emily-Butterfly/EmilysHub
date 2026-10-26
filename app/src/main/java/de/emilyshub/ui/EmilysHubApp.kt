@@ -225,7 +225,7 @@ private fun AppShell(
     when {
         todoTarget != null -> {
             BackHandler { todoEditor = null }
-            TodoEditorScreen(todos, wishes, tags, places, todoTarget, onClose = { todoEditor = null })
+            TodoEditorScreen(todos, wishes, tags, places, notes, todoTarget, onClose = { todoEditor = null })
         }
         todoArchiveOpen -> {
             BackHandler { todoArchiveOpen = false }
@@ -240,6 +240,7 @@ private fun AppShell(
                     wishes = wishes,
                     todos = todos,
                     tags = tags,
+                    notes = notes,
                     target = wishTarget,
                     onClose = { wishEditor = null },
                     onOpenWish = { wishEditor = it },
@@ -307,7 +308,7 @@ private fun AppShell(
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            RoutineEditorScreen(routines, wishes, tags, places, editor, onClose = { routineEditor = null })
+            RoutineEditorScreen(routines, wishes, tags, places, notes, editor, onClose = { routineEditor = null })
         }
         archiveOpen -> {
             BackHandler { archiveOpen = false }
@@ -425,7 +426,14 @@ private fun TopLevelScaffold(
         },
     ) { contentPadding ->
         when (current) {
-            TopLevelDestination.Today -> TodayScreen(routines, todos, contentPadding, onOpenStatus)
+            TopLevelDestination.Today -> TodayScreen(
+                routines = routines,
+                todos = todos,
+                notes = notes,
+                contentPadding = contentPadding,
+                onOpenStatus = onOpenStatus,
+                onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
+            )
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = routines,
                 tags = tags,

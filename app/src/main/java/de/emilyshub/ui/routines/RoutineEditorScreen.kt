@@ -40,6 +40,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.notes.NoteLink
+import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
@@ -55,6 +57,7 @@ import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalTime
@@ -78,6 +81,7 @@ fun RoutineEditorScreen(
     wishes: Wishes,
     tags: Tags,
     places: Places,
+    notes: Notes,
     target: RoutineEditorTarget,
     onClose: () -> Unit,
 ) {
@@ -242,6 +246,7 @@ fun RoutineEditorScreen(
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
             TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
+            if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId))
         }
     }
 

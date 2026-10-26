@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
+import de.emilyshub.notes.Notes
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
@@ -55,6 +56,7 @@ import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.notes.PinnedNotes
 import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
@@ -65,10 +67,18 @@ import java.time.LocalDate
 /**
  * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
  * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
- * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]).
+ * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]), and the notes pinned here, which open with a tap
+ * ([onOpenNote]).
  */
 @Composable
-fun TodayScreen(routines: Routines, todos: Todos, contentPadding: PaddingValues, onOpenStatus: () -> Unit) {
+fun TodayScreen(
+    routines: Routines,
+    todos: Todos,
+    notes: Notes,
+    contentPadding: PaddingValues,
+    onOpenStatus: () -> Unit,
+    onOpenNote: (Long) -> Unit,
+) {
     val today = rememberToday(routines)
     // Looked at anew each minute, so that a to-do turning overdue moves to the top.
     val now = rememberNow(todos::now)
@@ -83,10 +93,12 @@ fun TodayScreen(routines: Routines, todos: Todos, contentPadding: PaddingValues,
                 .padding(contentPadding),
         ) {
             SetupWarning(routines, todos, onCheck = onOpenStatus)
+            PinnedNotes(notes, onOpenNote)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
+            item(key = "pinned-notes") { PinnedNotes(notes, onOpenNote) }
             items(list, key = { it.key }) { entry ->
                 when (entry) {
                     is TodayEntry.OfRoutine -> RoutineEntry(entry.routine, today, routines)
