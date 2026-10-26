@@ -21,7 +21,11 @@ data class NoteDraft(
     val text: String = "",
     /** The tab it is in; none: "Allgemein". One deleted meanwhile is left out on saving. */
     val tabId: Long? = null,
+    /** The folder it is in, in that tab; none: at the top of it. One deleted meanwhile is left out on saving. */
+    val folderId: Long? = null,
 ) : Serializable {
+
+    val container: Container get() = Container(tabId, folderId)
 
     val problems: Set<NoteProblem>
         get() = with(cleaned()) {
@@ -35,8 +39,9 @@ data class NoteDraft(
     /** The title on a single line without surrounding spaces; the text without trailing ones, as Markdown keeps leading ones. */
     fun cleaned() = copy(title = InputText.singleLine(title), text = text.trimEnd())
 
-    /** The note this draft makes, [changedAt] then, [id] if saved already. */
-    fun toNote(changedAt: Instant, id: Long = 0) = Note(id, title, text, tabId, changedAt)
+    /** The note this draft makes, in [container], at [position] there, [changedAt] then, [id] if saved already. */
+    fun toNote(container: Container, position: Int, changedAt: Instant, id: Long = 0) =
+        Note(id, title, text, container.tabId, changedAt, container.folderId, position)
 
     companion object {
         const val TITLE_MAX = 80
@@ -47,4 +52,4 @@ data class NoteDraft(
 }
 
 /** The note as the editor starts out with it. */
-fun Note.toDraft() = NoteDraft(title, text, tabId)
+fun Note.toDraft() = NoteDraft(title, text, tabId, folderId)

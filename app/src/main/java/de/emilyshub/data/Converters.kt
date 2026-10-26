@@ -1,12 +1,13 @@
 package de.emilyshub.data
 
 import androidx.room.TypeConverter
+import de.emilyshub.notes.NoteSort
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
-import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.wishes.WishStatus
 import java.time.DayOfWeek
@@ -150,6 +151,12 @@ class Converters {
 
     @TypeConverter
     fun toWishStatus(text: String): WishStatus = WishStatus.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromNoteSort(sort: NoteSort): String = sort.stored
+
+    @TypeConverter
+    fun toNoteSort(text: String): NoteSort = NoteSort.entries.first { it.stored == text }
 }
 
 private const val FROM_DONE = "from-done"

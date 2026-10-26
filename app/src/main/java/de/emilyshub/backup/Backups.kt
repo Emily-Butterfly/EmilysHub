@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.notes.liesInOrder
 import de.emilyshub.security.KeyWrap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -126,7 +127,10 @@ class Backups(
         }
     }
 
-    /** Every one of the [tables] read as the app reads it; a value it cannot read makes the backup damaged. */
+    /**
+     * Every one of the [tables] read as the app reads it; a value it cannot read makes the backup damaged, as do folders
+     * of notes that do not lie as the app keeps them.
+     */
     private fun HubDatabase.readBack(tables: Set<String>) {
         val dao = backup()
         val reads: Map<String, () -> List<Any>> = mapOf(
@@ -135,7 +139,7 @@ class Backups(
             "places" to dao::places, "place_wifis" to dao::placeWifis, "routine_places" to dao::routinePlaces,
             "todos" to dao::todos, "todo_checklist_items" to dao::todoChecklistItems, "todo_tags" to dao::todoTags,
             "todo_places" to dao::todoPlaces, "wishes" to dao::wishes, "wish_tags" to dao::wishTags,
-            "note_tabs" to dao::noteTabs, "notes" to dao::notes,
+            "note_tabs" to dao::noteTabs, "notes" to dao::notes, "note_folders" to dao::noteFolders,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {
@@ -144,6 +148,7 @@ class Backups(
             // What the type converters throw on what they cannot read, such as an unknown status or a date that is none.
             throw BackupException(BackupProblem.Damaged, e)
         }
+        if (!liesInOrder(dao.noteFolders(), dao.notes())) throw BackupException(BackupProblem.Damaged)
     }
 
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->

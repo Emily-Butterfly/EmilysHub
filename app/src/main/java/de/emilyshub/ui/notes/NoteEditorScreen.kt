@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,28 +48,27 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.notes.Container
 import de.emilyshub.notes.Markdown
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteProblem
-import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.Notes
 import de.emilyshub.notes.toDraft
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
-import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 
 /** Which note the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface NoteEditorTarget : Serializable {
-    /** A new note, in the tab [tabId]; none: in "Allgemein". */
-    data class New(val tabId: Long?) : NoteEditorTarget
+    /** A new note, in [container]. */
+    data class New(val container: Container) : NoteEditorTarget
 
     data class Edit(val noteId: Long) : NoteEditorTarget
 }
 
 /**
- * Writes a note (SPEC.md §7): its title, its text in Markdown and the tab it is in, while "Bearbeiten" shows; "Vorschau"
+ * Writes a note (SPEC.md §7): its title, its text in Markdown and where it lies, while "Bearbeiten" shows; "Vorschau"
  * shows the text as it reads, without HTML and with no link to open (SPEC.md §9). A new note starts in "Bearbeiten", one
  * saved opens in "Vorschau", to be read. Deleting one asks first; leaving without saving drops the changes.
  */
@@ -79,7 +76,8 @@ sealed interface NoteEditorTarget : Serializable {
 @Composable
 fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
-    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", tabId = (target as? NoteEditorTarget.New)?.tabId)) }
+    val startIn = (target as? NoteEditorTarget.New)?.container
+    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", tabId = startIn?.tabId, folderId = startIn?.folderId)) }
     var loaded by rememberSaveable { mutableStateOf(noteId == null) }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
@@ -234,7 +232,7 @@ private fun Writing(
                 .fillMaxWidth()
                 .focusRequester(titleFocus),
         )
-        TabField(notes, draft.tabId, onChange = { onChange(draft.copy(tabId = it)) })
+        LocationField(notes, draft.container, onChange = { onChange(draft.copy(tabId = it.tabId, folderId = it.folderId)) })
         OutlinedTextField(
             value = draft.text,
             onValueChange = { onChange(draft.copy(text = it)) },
@@ -271,40 +269,30 @@ private fun Preview(draft: NoteDraft) {
     }
 }
 
-/** The tab the note is in: tapped, it offers "Allgemein" and the user's tabs. One deleted meanwhile is chosen no more. */
+/**
+ * Where the note lies, "Arabisch › Grammatik": tapped, it offers the top of each tab and every folder. A folder or tab
+ * deleted meanwhile is chosen no more, as the note would be saved.
+ */
 @Composable
-private fun TabField(notes: Notes, selected: Long?, onChange: (Long?) -> Unit) {
-    val tabs by remember(notes) { notes.tabs() }.collectAsState(initial = null)
+private fun LocationField(notes: Notes, container: Container, onChange: (Container) -> Unit) {
+    val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
     var choosing by rememberSaveable { mutableStateOf(false) }
-    val list = tabs ?: return
-    val chosen = list.find { it.id == selected }
+    val notebook = book ?: return
     LabelledValue(
-        label = stringResource(R.string.note_tab),
-        value = tabName(selected, list),
-        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.note_tab_choose), role = Role.Button) { choosing = true },
+        label = stringResource(R.string.note_location),
+        value = pathName(container, notebook),
+        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.note_move), role = Role.Button) { choosing = true },
     )
 
     if (choosing) {
-        val choose = { tab: NoteTab? ->
-            choosing = false
-            onChange(tab?.id)
-        }
-        AlertDialog(
-            onDismissRequest = { choosing = false },
-            title = { Text(stringResource(R.string.note_tab_choose)) },
-            text = {
-                Column(
-                    Modifier
-                        .heightIn(max = 400.dp)
-                        .verticalScroll(rememberScrollState())
-                        .selectableGroup(),
-                ) {
-                    RadioOption(tabName(null, list), selected = chosen == null, onSelect = { choose(null) })
-                    list.forEach { tab -> RadioOption(tab.name, selected = tab == chosen, onSelect = { choose(tab) }) }
-                }
+        ContainerChoiceDialog(
+            notebook = notebook,
+            current = container,
+            onChoose = { chosen ->
+                choosing = false
+                onChange(chosen)
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.cancel)) } },
+            onDismiss = { choosing = false },
         )
     }
 }

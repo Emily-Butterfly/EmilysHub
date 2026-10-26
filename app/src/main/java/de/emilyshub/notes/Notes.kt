@@ -3,6 +3,7 @@ package de.emilyshub.notes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Setting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -15,8 +16,9 @@ import java.time.Clock
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The notes and their tabs (SPEC.md §7). [database] is only called on [io], since the first call opens it. Writes run
- * to the end once started, even if the screen that started them goes away.
+ * The notes, their tabs and their folders (SPEC.md §7). [database] is only called on [io], since the first call opens
+ * it. Writes run to the end once started, even if the screen that started them goes away. What comes to lie somewhere
+ * new comes last there; moving a note is no change of it.
  */
 class Notes(
     private val database: () -> HubDatabase,
@@ -25,67 +27,216 @@ class Notes(
 ) {
     private val dao get() = database().notes()
 
-    /** The tabs made by the user, in their order, after "Alle" and "Allgemein". */
-    fun tabs(): Flow<List<NoteTab>> = flow { emitAll(dao.observeTabs()) }.flowOn(io)
-
-    /** The notes the tab [selection] shows, the one changed last first, then by title. */
-    fun notes(selection: TabSelection): Flow<List<Note>> = flow {
-        emitAll(dao.observeNotes().map { all -> all.filter { selection.shows(it.tabId) }.sortedWith(lastChangedFirst) })
+    /** All tabs, folders and notes, read together anew as any of them changes. */
+    fun notebook(): Flow<Notebook> = flow {
+        val database = database()
+        val changes = database.invalidationTracker.createFlow("note_tabs", "note_folders", "notes", "settings")
+        emitAll(changes.map { database.withTransaction { read() } })
     }.flowOn(io)
 
     /** The note, or null once it is deleted. */
     suspend fun get(id: Long): Note? = withContext(io) { dao.get(id) }
 
-    /** A new note, changed now; refuses a draft with problems, which the editor shows before. */
+    /** A new note, changed now, last where the draft has it; refuses a draft with problems, which the editor shows before. */
     suspend fun create(draft: NoteDraft): Long = write {
         val cleaned = checked(draft)
-        database().withTransaction { dao.insert(cleaned.copy(tabId = dao.tabStillThere(cleaned.tabId)).toNote(clock.instant())) }
+        database().withTransaction {
+            val book = read()
+            val into = book.stillThere(cleaned.container)
+            dao.insert(cleaned.toNote(into, position = book.endOfNotes(into), changedAt = clock.instant()))
+        }
     }
 
-    /** Changes the note as [draft] has it, as [create] checks it; it is changed now. */
+    /** Changes the note as [draft] has it, as [create] checks it; it is changed now, and last where it is moved to. */
     suspend fun update(id: Long, draft: NoteDraft) = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            if (dao.get(id) == null) return@withTransaction
-            dao.update(cleaned.copy(tabId = dao.tabStillThere(cleaned.tabId)).toNote(clock.instant(), id))
+            val note = dao.get(id) ?: return@withTransaction
+            val book = read()
+            val into = book.stillThere(cleaned.container)
+            val position = if (into == book.containerOf(note)) note.position else book.endOfNotes(into)
+            dao.update(cleaned.toNote(into, position, clock.instant(), id))
         }
     }
 
     /** Deletes the note for good. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
+    /** Moves the note to the end of [to], or of the top of its tab if that folder is gone. */
+    suspend fun moveNote(id: Long, to: Container) = write {
+        database().withTransaction {
+            val note = dao.get(id) ?: return@withTransaction
+            val book = read()
+            val into = book.stillThere(to)
+            if (into != book.containerOf(note)) dao.moveNote(id, into.tabId, into.folderId, book.endOfNotes(into))
+        }
+    }
+
+    /** Puts the notes in [container] in the order of [ids]; those not among them follow, as they were. */
+    suspend fun arrangeNotes(container: Container, ids: List<Long>) = write {
+        database().withTransaction {
+            ordered(ids, read().notesIn(container).map { it.id }).forEachIndexed { position, id -> dao.placeNote(id, position) }
+        }
+    }
+
+    /** A new folder named [name] on a single line, last in [into]; refuses a name with a problem, which the screens show before. */
+    suspend fun createFolder(name: String, into: Container): Long = write {
+        val checked = checkedFolderName(name)
+        database().withTransaction {
+            val book = read()
+            val container = book.stillThere(into)
+            dao.insertFolder(
+                NoteFolder(
+                    name = checked,
+                    tabId = container.tabId,
+                    parentId = container.folderId,
+                    position = book.endOfFolders(container),
+                    changedAt = clock.instant(),
+                ),
+            )
+        }
+    }
+
+    /** Renames the folder, as [createFolder] names one. */
+    suspend fun renameFolder(id: Long, name: String) = write { dao.renameFolder(id, checkedFolderName(name), clock.instant()) }
+
+    /**
+     * Moves the folder with all that is in it to the end of [to], or of the top of its tab if that folder is gone, also to
+     * another tab; refuses to move it into itself or a folder in it, which the screens do not offer.
+     */
+    suspend fun moveFolder(id: Long, to: Container) = write {
+        database().withTransaction {
+            val book = read()
+            val folder = book.folder(id) ?: return@withTransaction
+            val into = book.stillThere(to)
+            val moving = book.inAndBelow(id)
+            require(into.folderId == null || into.folderId !in moving) { "A folder cannot go into itself" }
+            if (into == book.containerOf(folder)) return@withTransaction
+            dao.moveFolder(id, into.tabId, into.folderId, book.endOfFolders(into))
+            if (into.tabId != folder.tabId) {
+                moving.chunked(CHUNK).forEach { ids ->
+                    dao.putFoldersInTab(ids, into.tabId)
+                    dao.putNotesInTab(ids, into.tabId)
+                }
+            }
+        }
+    }
+
+    /** Puts the folders in [container] in the order of [ids]; those not among them follow, as they were. */
+    suspend fun arrangeFolders(container: Container, ids: List<Long>) = write {
+        database().withTransaction {
+            ordered(ids, read().foldersIn(container).map { it.id }).forEachIndexed { position, id -> dao.placeFolder(id, position) }
+        }
+    }
+
+    /**
+     * Orders what lies in [container] by [sort]. Sorted by hand, it starts out in the order it had, so that nothing moves
+     * before it is moved.
+     */
+    suspend fun sort(container: Container, sort: NoteSort) = write {
+        database().withTransaction {
+            val book = read()
+            if (sort == NoteSort.Manual && book.sortOf(container) != NoteSort.Manual) {
+                book.foldersIn(container).forEachIndexed { position, folder -> dao.placeFolder(folder.id, position) }
+                book.notesIn(container).forEachIndexed { position, note -> dao.placeNote(note.id, position) }
+            }
+            when {
+                container.folderId != null -> dao.sortFolder(container.folderId, sort)
+                container.tabId != null -> dao.sortTab(container.tabId, sort)
+                else -> database().settings().put(Setting(GENERAL_SORT, sort.stored))
+            }
+        }
+    }
+
+    /** Deletes the folder, what is in it moving up a level, to the end there. */
+    suspend fun deleteFolderMovingUp(id: Long) = write {
+        database().withTransaction {
+            val book = read()
+            val folder = book.folder(id) ?: return@withTransaction
+            val up = book.containerOf(folder)
+            val inside = Container(folder.tabId, folder.id)
+            val firstFolder = book.endOfFolders(up)
+            book.foldersIn(inside).forEachIndexed { index, it -> dao.moveFolder(it.id, up.tabId, up.folderId, firstFolder + index) }
+            val firstNote = book.endOfNotes(up)
+            book.notesIn(inside).forEachIndexed { index, it -> dao.moveNote(it.id, up.tabId, up.folderId, firstNote + index) }
+            dao.deleteFolders(listOf(id))
+        }
+    }
+
+    /** Deletes the folder with all that is in it, at any depth, for good. */
+    suspend fun deleteFolderWithContents(id: Long) = write {
+        database().withTransaction {
+            val ids = read().inAndBelow(id).toList()
+            ids.chunked(CHUNK).forEach { dao.deleteNotesIn(it) }
+            ids.chunked(CHUNK).forEach { dao.takeOutOf(it) }
+            ids.chunked(CHUNK).forEach { dao.deleteFolders(it) }
+        }
+    }
+
     /** A new tab named [name] on a single line, last of all; refuses a name with a problem, which the screens show before. */
     suspend fun createTab(name: String): Long = write {
         database().withTransaction {
             val tabs = dao.tabs()
-            dao.insertTab(NoteTab(name = checkedName(name, tabs), position = (tabs.maxOfOrNull { it.position } ?: -1) + 1))
+            dao.insertTab(NoteTab(name = checkedTabName(name, tabs), position = (tabs.maxOfOrNull { it.position } ?: -1) + 1))
         }
     }
 
     /** Renames the tab, as [createTab] names one. */
     suspend fun renameTab(id: Long, name: String) = write {
-        database().withTransaction { dao.renameTab(id, checkedName(name, dao.tabs().filter { it.id != id })) }
+        database().withTransaction { dao.renameTab(id, checkedTabName(name, dao.tabs().filter { it.id != id })) }
     }
 
     /** Puts the tabs in the order of [ids]; those not among them follow, as they were. */
     suspend fun arrangeTabs(ids: List<Long>) = write {
         database().withTransaction {
-            val tabs = dao.tabs().map { it.id }
-            val order = ids.filter { it in tabs }.distinct() + tabs.filterNot { it in ids }
-            order.forEachIndexed { position, id -> dao.placeTab(id, position) }
+            ordered(ids, dao.tabs().map { it.id }).forEachIndexed { position, id -> dao.placeTab(id, position) }
         }
     }
 
-    /** Deletes the tab, its notes moving to "Allgemein": they are in no tab once theirs is gone. */
-    suspend fun deleteTabMovingNotes(id: Long) = write { dao.deleteTab(id) }
-
-    /** Deletes the tab with its notes, for good. */
-    suspend fun deleteTabWithNotes(id: Long) = write {
+    /**
+     * Deletes the tab, its folders and notes moving to "Allgemein", after what lies at its top: they are in no tab once
+     * theirs is gone.
+     */
+    suspend fun deleteTabMovingNotes(id: Long) = write {
         database().withTransaction {
-            dao.deleteInTab(id)
+            val book = read()
+            val top = Container(id)
+            val firstFolder = book.endOfFolders(Container())
+            book.foldersIn(top).forEachIndexed { index, folder -> dao.placeFolder(folder.id, firstFolder + index) }
+            val firstNote = book.endOfNotes(Container())
+            book.notesIn(top).forEachIndexed { index, note -> dao.placeNote(note.id, firstNote + index) }
             dao.deleteTab(id)
         }
     }
+
+    /** Deletes the tab with its folders and notes, for good. */
+    suspend fun deleteTabWithNotes(id: Long) = write {
+        database().withTransaction {
+            dao.deleteInTab(id)
+            dao.deleteFoldersInTab(id)
+            dao.deleteTab(id)
+        }
+    }
+
+    private suspend fun read() = Notebook(
+        tabs = dao.tabs(),
+        folders = dao.folders(),
+        notes = dao.notes(),
+        generalSort = database().settings().get(GENERAL_SORT)?.let { stored -> NoteSort.entries.find { it.stored == stored } }
+            ?: NoteSort.Changed,
+    )
+
+    /** [container], or the top of its tab if the folder is gone or no longer in it, or of "Allgemein" if the tab is gone. */
+    private fun Notebook.stillThere(container: Container): Container {
+        val tabId = container.tabId?.takeIf { id -> tabs.any { it.id == id } }
+        // A folder of a tab gone is in "Allgemein" now: what is to go in it still does.
+        val folderId = container.folderId?.takeIf { folder(it)?.tabId == tabId }
+        return Container(tabId, folderId)
+    }
+
+    private fun Notebook.endOfFolders(container: Container) = (foldersIn(container).maxOfOrNull { it.position } ?: -1) + 1
+
+    private fun Notebook.endOfNotes(container: Container) = (notesIn(container).maxOfOrNull { it.position } ?: -1) + 1
 
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 
@@ -94,13 +245,26 @@ class Notes(
         return draft.cleaned()
     }
 
-    private fun checkedName(name: String, others: List<NoteTab>): String {
+    private fun checkedTabName(name: String, others: List<NoteTab>): String {
         val problem = tabNameProblem(name, others)
         require(problem == null) { "Invalid tab name: $problem" }
         return InputText.singleLine(name)
     }
 
+    private fun checkedFolderName(name: String): String {
+        val problem = folderNameProblem(name)
+        require(problem == null) { "Invalid folder name: $problem" }
+        return InputText.singleLine(name)
+    }
+
     private companion object {
-        val lastChangedFirst = compareByDescending<Note> { it.changedAt }.thenBy(InputText.byName) { it.title }
+        /** How "Allgemein" sorts what lies at its top, in the settings, as it has no row of its own. */
+        const val GENERAL_SORT = "notes-general-sort"
+
+        /** At most so many ids in one query, well below what SQLite takes. */
+        const val CHUNK = 500
+
+        /** [ids] that are among [all], in their order, and then the others of [all], as they were. */
+        fun ordered(ids: List<Long>, all: List<Long>): List<Long> = ids.filter { it in all }.distinct() + all.filterNot { it in ids }
     }
 }

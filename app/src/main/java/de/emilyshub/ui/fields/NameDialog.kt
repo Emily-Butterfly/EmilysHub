@@ -18,19 +18,19 @@ import de.emilyshub.data.NameProblem
 
 /**
  * Asks for a name, such as a tag's, in a field [label]led so, starting out with [initial]; one with a problem, as
- * [problemOf] finds it, cannot be confirmed: one longer than [max] or [taken] says so.
+ * [problemOf] finds it, cannot be confirmed: one longer than [max] says so, as does one [taken], if names can be.
  */
 @Composable
 fun NameDialog(
     @StringRes title: Int,
     @StringRes confirm: Int,
     @StringRes label: Int,
-    @StringRes taken: Int,
     max: Int,
     initial: String,
     problemOf: (String) -> NameProblem?,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
+    @StringRes taken: Int? = null,
 ) {
     var name by rememberSaveable { mutableStateOf(initial) }
     val problem = problemOf(name)
@@ -50,9 +50,7 @@ fun NameDialog(
                     NameProblem.TooLong -> {
                         { Text(stringResource(R.string.text_too_long, max)) }
                     }
-                    NameProblem.Taken -> {
-                        { Text(stringResource(taken)) }
-                    }
+                    NameProblem.Taken -> taken?.let { { Text(stringResource(it)) } }
                     NameProblem.Missing, null -> null
                 },
             )

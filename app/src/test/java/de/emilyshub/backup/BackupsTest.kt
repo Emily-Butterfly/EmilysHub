@@ -9,7 +9,9 @@ import de.emilyshub.alarmsFor
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
+import de.emilyshub.notes.NoteSort
 import de.emilyshub.place
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
@@ -187,6 +189,9 @@ class BackupsTest {
             "a recurrence the app cannot read" to { it.setFirst("todos", "recurrence", "monthly:32") },
             "a routine target the app cannot read" to { it.setFirst("routines", "target", "streak:0") },
             "a status the app cannot read" to { it.setFirst("occurrences", "status", "vielleicht") },
+            "a sort the app cannot read" to { it.setFirst("note_folders", "sort", "zufällig") },
+            "a folder within itself" to { it.setFirst("note_folders", "parent_id", it.rowsOf("note_folders").getJSONArray(0)[0]) },
+            "a note in another tab than its folder" to { it.setFirst("note_folders", "tab_id", JSONObject.NULL) },
             "a time the app cannot read" to { it.setFirst("routines", "times", "halb acht") },
             "a date the app cannot read" to { it.setFirst("occurrences", "date", "2026-02-30") },
         )
@@ -271,7 +276,7 @@ class BackupsTest {
 
     /**
      * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, notes
-     * in a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
+     * in a folder of a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
      * off once, and a routine under a goal, aiming at a streak.
      */
     private fun someOfEverything(before19: Boolean = false): Map<String, List<List<Any?>>> {
@@ -298,7 +303,10 @@ class BackupsTest {
         app.wish("Flüge buchen", parent = northernLights)
         runBlocking {
             app.notes.create(NoteDraft("Einkauf", "- [ ] Hafermilch"))
-            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", tabId = app.notes.createTab("Arabisch")))
+            val arabic = app.notes.createTab("Arabisch")
+            val grammar = app.notes.createFolder("Grammatik", Container(arabic))
+            app.notes.sort(Container(arabic, grammar), NoteSort.Manual)
+            app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", tabId = arabic, folderId = grammar))
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -376,8 +384,15 @@ class BackupsTest {
 
     /** [content] as version 20 made it: without notes, which came with 21. */
     private fun asOfVersion20(content: JSONObject): JSONObject {
-        NOTE_TABLES.forEach { content.tables().remove(it) }
-        return content.put("schema", 20)
+        val older = asOfVersion21(content)
+        NOTE_TABLES.forEach { older.tables().remove(it) }
+        return older.put("schema", 20)
+    }
+
+    /** [content] as version 21 made it: without folders of notes, nor the order in them, which came with 22. */
+    private fun asOfVersion21(content: JSONObject): JSONObject {
+        content.tables().remove("note_folders")
+        return content.withoutColumns("notes", "folder_id", "position").withoutColumns("note_tabs", "sort").put("schema", 21)
     }
 
     /**
@@ -423,7 +438,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val NOTE_TABLES = listOf("note_tabs", "notes")
+        val NOTE_TABLES = listOf("note_folders", "note_tabs", "notes")
         const val FEW_ITERATIONS = 1_000
     }
 }

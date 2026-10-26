@@ -32,19 +32,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.Notes
-import de.emilyshub.notes.TabSelection
 import de.emilyshub.notes.tabNameProblem
 import de.emilyshub.ui.fields.NameDialog
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import kotlinx.coroutines.flow.map
 
 /**
  * The user's own tabs of notes (SPEC.md §7), in their order, after "Alle" and "Allgemein", which are always there: "+"
@@ -54,8 +54,7 @@ import de.emilyshub.ui.plusFabSpace
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
-    val tabs by remember(notes) { notes.tabs() }.collectAsState(initial = null)
-    val all by remember(notes) { notes.notes(TabSelection.All) }.collectAsState(initial = null)
+    val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -78,7 +77,7 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             }
         },
     ) { contentPadding ->
-        val list = tabs ?: return@Scaffold
+        val list = book?.tabs ?: return@Scaffold
         LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
             item(key = "hint") {
                 Text(
@@ -117,7 +116,8 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
         }
     }
 
-    val list = tabs.orEmpty()
+    val notebook = book ?: return
+    val list = notebook.tabs
     if (creating) {
         TabNameDialog(
             title = R.string.note_tab_create,
@@ -144,9 +144,9 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             onDismiss = { renaming = null },
         )
     }
-    val allNotes = all ?: return
     list.find { it.id == deleting }?.let { tab ->
-        val count = allNotes.count { it.tabId == tab.id }
+        val top = Container(tab.id)
+        val hasContents = notebook.foldersIn(top).isNotEmpty() || notebook.notesIn(top).isNotEmpty()
         val delete = { work: suspend () -> Unit ->
             deleting = null
             scope.launchNow { work() }
@@ -155,17 +155,12 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             onDismissRequest = { deleting = null },
             title = { Text(stringResource(R.string.note_tab_delete_title)) },
             text = {
-                Text(
-                    if (count == 0) {
-                        stringResource(R.string.note_tab_delete_text, tab.name)
-                    } else {
-                        pluralStringResource(R.plurals.note_tab_delete_notes_text, count, count, tab.name)
-                    },
-                )
+                val text = if (hasContents) R.string.note_tab_delete_contents_text else R.string.note_tab_delete_text
+                Text(stringResource(text, tab.name))
             },
             confirmButton = {
                 Row {
-                    if (count == 0) {
+                    if (!hasContents) {
                         TextButton(onClick = { delete { notes.deleteTabMovingNotes(tab.id) } }) {
                             Text(stringResource(R.string.delete))
                         }

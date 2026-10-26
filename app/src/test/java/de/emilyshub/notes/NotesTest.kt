@@ -68,10 +68,10 @@ class NotesTest {
         val arabic = notes.createTab("Arabisch")
         val recipes = notes.createTab(" Rezepte ")
         notes.renameTab(recipes, "Kochen")
-        assertEquals(listOf("Arabisch", "Kochen"), notes.tabs().first().map { it.name })
+        assertEquals(listOf("Arabisch", "Kochen"), notes.notebook().first().tabs.map { it.name })
 
         notes.arrangeTabs(listOf(recipes, arabic))
-        assertEquals(listOf("Kochen", "Arabisch"), notes.tabs().first().map { it.name })
+        assertEquals(listOf("Kochen", "Arabisch"), notes.notebook().first().tabs.map { it.name })
 
         for (name in listOf("arabisch", "Allgemein", "alle", " ", "x".repeat(NoteTab.NAME_MAX + 1))) {
             assertThrows(IllegalArgumentException::class.java) { runBlocking { notes.createTab(name) } }
@@ -96,7 +96,7 @@ class NotesTest {
         notes.deleteTabMovingNotes(arabic)
         notes.deleteTabWithNotes(recipes)
 
-        assertEquals(emptyList<NoteTab>(), notes.tabs().first())
+        assertEquals(emptyList<NoteTab>(), notes.notebook().first().tabs)
         assertNull(notes.get(verbs)?.tabId)
         assertEquals("Verben", notes.get(verbs)?.title)
         assertNull(notes.get(soup))
@@ -130,5 +130,9 @@ class NotesTest {
         assertEquals(emptyList<String>(), titles(TabSelection.All))
     }
 
-    private suspend fun titles(selection: TabSelection) = notes.notes(selection).first().map { it.title }
+    /** The titles of the notes at the top of the tab [selection], or of all of them in "Alle". */
+    private suspend fun titles(selection: TabSelection): List<String> {
+        val book = notes.notebook().first()
+        return (selection.top?.let(book::notesIn) ?: book.all()).map { it.title }
+    }
 }

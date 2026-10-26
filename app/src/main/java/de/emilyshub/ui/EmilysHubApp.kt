@@ -209,6 +209,7 @@ private fun AppShell(
     var noteTabsOpen by rememberSaveable { mutableStateOf(false) }
     // Here, so that it stays while a note is open and while another area shows.
     var noteTab by rememberSaveable { mutableStateOf<TabSelection>(TabSelection.All) }
+    var noteFolder by rememberSaveable { mutableStateOf<Long?>(null) }
     // Here, so that they stay while a to-do is open and while another tab shows.
     var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -344,7 +345,12 @@ private fun AppShell(
                 onOpenWishReview = { wishReviewOpen = true },
                 notes = notes,
                 noteTab = noteTab,
-                onNoteTabChange = { noteTab = it },
+                onNoteTabChange = {
+                    noteTab = it
+                    noteFolder = null
+                },
+                noteFolder = noteFolder,
+                onNoteFolderChange = { noteFolder = it },
                 onOpenNote = { noteEditor = it },
                 onOpenNoteTabs = { noteTabsOpen = true },
                 current = current,
@@ -388,6 +394,8 @@ private fun TopLevelScaffold(
     notes: Notes,
     noteTab: TabSelection,
     onNoteTabChange: (TabSelection) -> Unit,
+    noteFolder: Long?,
+    onNoteFolderChange: (Long?) -> Unit,
     onOpenNote: (NoteEditorTarget) -> Unit,
     onOpenNoteTabs: () -> Unit,
     current: TopLevelDestination,
@@ -465,10 +473,12 @@ private fun TopLevelScaffold(
             TopLevelDestination.Notes -> NotesScreen(
                 notes = notes,
                 selected = noteTab,
+                openFolder = noteFolder,
                 onSelect = onNoteTabChange,
+                onOpenFolder = onNoteFolderChange,
                 contentPadding = contentPadding,
-                onOpen = { onOpenNote(NoteEditorTarget.Edit(it)) },
-                onCreate = { onOpenNote(NoteEditorTarget.New(it)) },
+                onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
+                onCreateNote = { onOpenNote(NoteEditorTarget.New(it)) },
                 onManageTabs = onOpenNoteTabs,
             )
         }

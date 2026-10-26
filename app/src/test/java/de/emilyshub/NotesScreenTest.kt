@@ -22,8 +22,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
-import de.emilyshub.notes.TabSelection
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -54,7 +54,7 @@ class NotesScreenTest {
             tab("Arabisch").performClick()
             compose.onNodeWithContentDescription("Notiz anlegen").performClick()
             field("Titel").performTextInput("Verben")
-            compose.onNode(hasText("Tab") and hasText("Arabisch")).assertIsDisplayed()
+            compose.onNode(hasText("Liegt in") and hasText("Arabisch")).assertIsDisplayed()
             field("Text in Markdown").performTextInput(
                 "# Präsens\n- [x] **kataba** – schreiben\n- [ ] qara'a\n\n<b>fett?</b> [Wörterbuch](javascript:alert(1))",
             )
@@ -75,7 +75,7 @@ class NotesScreenTest {
             tab("Alle").performClick()
             compose.onNodeWithText("Verben").assertIsDisplayed()
         }
-        val saved = runBlocking { app.notes.notes(TabSelection.All).first() }.single()
+        val saved = runBlocking { app.notes.notebook().first().all() }.single()
         assertEquals("Verben" to arabic, saved.title to saved.tabId)
     }
 
@@ -92,7 +92,7 @@ class NotesScreenTest {
 
             option("Bearbeiten").performClick()
             field("Text in Markdown").performTextReplacement("Teig **48 h** gehen lassen")
-            compose.onNode(hasText("Tab") and hasText("Allgemein") and hasClickAction()).performClick()
+            compose.onNode(hasText("Liegt in") and hasText("Allgemein") and hasClickAction()).performClick()
             compose.onNode(isSelectable() and hasText("Rezepte") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Speichern").performClick()
 
@@ -106,7 +106,7 @@ class NotesScreenTest {
 
             compose.onNodeWithText("Pizza").assertDoesNotExist()
         }
-        assertEquals(emptyList<Any>(), runBlocking { app.notes.notes(TabSelection.Own(recipes)).first() })
+        assertEquals(emptyList<Any>(), runBlocking { app.notes.notebook().first().notesIn(Container(recipes)) })
     }
 
     @Test
@@ -119,7 +119,7 @@ class NotesScreenTest {
 
             compose.onNodeWithText("Gib der Notiz einen Titel.").assertIsDisplayed()
         }
-        assertEquals(emptyList<Any>(), runBlocking { app.notes.notes(TabSelection.All).first() })
+        assertEquals(emptyList<Any>(), runBlocking { app.notes.notebook().first().all() })
     }
 
     @Test
@@ -153,8 +153,8 @@ class NotesScreenTest {
             compose.onNodeWithText("„Urlaub“ wird gelöscht.").assertIsDisplayed()
             compose.onNodeWithText("Abbrechen").performClick()
         }
-        assertEquals(listOf("Urlaub"), runBlocking { app.notes.tabs().first() }.map { it.name })
-        val left = runBlocking { app.notes.notes(TabSelection.All).first() }
+        assertEquals(listOf("Urlaub"), runBlocking { app.notes.notebook().first().tabs }.map { it.name })
+        val left = runBlocking { app.notes.notebook().first().all() }
         assertEquals(listOf("Verben"), left.map { it.title })
         assertNull(left.single { it.id == verbs }.tabId)
     }

@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.notes.Note
+import de.emilyshub.notes.NoteFolder
+import de.emilyshub.notes.NoteSort
 import de.emilyshub.notes.NoteTab
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
@@ -500,6 +502,32 @@ class HubDatabaseMigrationTest {
             // A tab deleted on its own leaves its notes in none, in "Allgemein".
             notes.deleteTab(arabic)
             assertEquals(null, notes.get(verbs)?.tabId)
+        }
+    }
+
+    @Test
+    fun `version 21 moves to version 22 where notes lie at the top of their tab and then can lie in folders`() {
+        createAtVersion(21) {
+            it.execSQL("INSERT INTO note_tabs (id, name, position) VALUES (1, 'Arabisch', 0)")
+            it.execSQL("INSERT INTO notes (id, title, text, tab_id, changed_at) VALUES (1, 'Verben', '', 1, '2026-10-23T05:00:00Z')")
+        }
+
+        withMigratedDatabase { database ->
+            val notes = database.notes()
+            assertEquals(null to 0, notes.get(1)?.let { it.folderId to it.position })
+            assertEquals(NoteSort.Changed, notes.tabs().single().sort)
+
+            val grammar = notes.insertFolder(
+                NoteFolder(name = "Grammatik", tabId = 1, parentId = null, position = 0, changedAt = Instant.EPOCH),
+            )
+            notes.moveNote(1, tabId = 1, folderId = grammar, position = 0)
+            notes.sortFolder(grammar, NoteSort.Manual)
+            assertEquals(grammar, notes.get(1)?.folderId)
+            assertEquals(NoteSort.Manual, notes.folders().single().sort)
+
+            // A tab deleted leaves its folders in none, in "Allgemein".
+            notes.deleteTab(1)
+            assertEquals(null, notes.folders().single().tabId)
         }
     }
 
