@@ -5,6 +5,8 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
+import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
@@ -105,22 +107,33 @@ interface NoteDao {
     @Query("UPDATE note_folders SET pinned = :pinned WHERE id = :id")
     suspend fun pinFolder(id: Long, pinned: Boolean)
 
-    @Query("UPDATE notes SET on_today = :onToday WHERE id = :id")
-    suspend fun putOnToday(id: Long, onToday: Boolean)
+    @Query("UPDATE notes SET on_today = :pinned WHERE id = :id")
+    suspend fun pinOnToday(id: Long, pinned: Boolean)
 
     @Query("SELECT * FROM notes WHERE on_today ORDER BY changed_at DESC, id")
     fun observeOnToday(): Flow<List<Note>>
 
-    @Query("SELECT wish_id FROM note_wishes WHERE note_id = :noteId")
+    @Query("SELECT goal_id FROM note_goals WHERE note_id = :noteId")
     suspend fun goalIdsOf(noteId: Long): List<Long>
 
     @Query("SELECT todo_id FROM note_todos WHERE note_id = :noteId")
     suspend fun todoIdsOf(noteId: Long): List<Long>
 
+    @Query("SELECT note_id FROM note_todos WHERE todo_id = :todoId")
+    suspend fun noteIdsOfTodo(todoId: Long): List<Long>
+
+    /** The to-do that came again after the to-do [todoId], if any. */
+    @Query("SELECT next_id FROM todos WHERE id = :todoId")
+    suspend fun nextOf(todoId: Long): Long?
+
+    /** Links the notes linked to the to-do [from] to the to-do [to] too, as one coming again does to its next. */
+    @Query("INSERT OR IGNORE INTO note_todos (note_id, todo_id) SELECT note_id, :to FROM note_todos WHERE todo_id = :from")
+    suspend fun copyTodoLinks(from: Long, to: Long)
+
     @Query("SELECT routine_id FROM note_routines WHERE note_id = :noteId")
     suspend fun routineIdsOf(noteId: Long): List<Long>
 
-    @Query("DELETE FROM note_wishes WHERE note_id = :noteId")
+    @Query("DELETE FROM note_goals WHERE note_id = :noteId")
     suspend fun unlinkGoals(noteId: Long)
 
     @Query("DELETE FROM note_todos WHERE note_id = :noteId")
@@ -130,7 +143,7 @@ interface NoteDao {
     suspend fun unlinkRoutines(noteId: Long)
 
     /** Links the note to those goals of [ids] that are still there: one deleted meanwhile is left out. */
-    @Query("INSERT INTO note_wishes (note_id, wish_id) SELECT :noteId, id FROM wishes WHERE id IN (:ids)")
+    @Query("INSERT INTO note_goals (note_id, goal_id) SELECT :noteId, id FROM wishes WHERE id IN (:ids)")
     suspend fun linkGoals(noteId: Long, ids: Collection<Long>)
 
     /** Links the note to those to-dos of [ids] that are still there: one deleted meanwhile is left out. */
@@ -141,22 +154,22 @@ interface NoteDao {
     @Query("INSERT INTO note_routines (note_id, routine_id) SELECT :noteId, id FROM routines WHERE id IN (:ids)")
     suspend fun linkRoutines(noteId: Long, ids: Collection<Long>)
 
-    @Query("SELECT id, title AS name, status != 'done' AS open FROM wishes")
-    fun observeGoalTargets(): Flow<List<LinkTarget>>
+    @Query("SELECT id, title AS name, status != :done AS open FROM wishes")
+    fun observeGoalTargets(done: WishStatus = WishStatus.Done): Flow<List<LinkTarget>>
 
     /** The to-dos as they are now: of one coming again, the last, which those before it hand their links on to. */
     @Query("SELECT id, title AS name, done_at IS NULL AS open FROM todos WHERE next_id IS NULL")
     fun observeTodoTargets(): Flow<List<LinkTarget>>
 
-    @Query("SELECT id, name, status != 'archived' AS open FROM routines")
-    fun observeRoutineTargets(): Flow<List<LinkTarget>>
+    @Query("SELECT id, name, status != :archived AS open FROM routines")
+    fun observeRoutineTargets(archived: RoutineStatus = RoutineStatus.Archived): Flow<List<LinkTarget>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_wishes l ON l.note_id = n.id WHERE l.wish_id = :wishId ORDER BY n.title")
-    fun observeNotesOfGoal(wishId: Long): Flow<List<Note>>
+    @Query("SELECT n.* FROM notes n JOIN note_goals l ON l.note_id = n.id WHERE l.goal_id = :goalId")
+    fun observeNotesOfGoal(goalId: Long): Flow<List<Note>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_todos l ON l.note_id = n.id WHERE l.todo_id = :todoId ORDER BY n.title")
+    @Query("SELECT n.* FROM notes n JOIN note_todos l ON l.note_id = n.id WHERE l.todo_id = :todoId")
     fun observeNotesOfTodo(todoId: Long): Flow<List<Note>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_routines l ON l.note_id = n.id WHERE l.routine_id = :routineId ORDER BY n.title")
+    @Query("SELECT n.* FROM notes n JOIN note_routines l ON l.note_id = n.id WHERE l.routine_id = :routineId")
     fun observeNotesOfRoutine(routineId: Long): Flow<List<Note>>
 }

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 23,
-    "identityHash": "4f589a5e7d2bfa57c7cd739960cb09d5",
+    "identityHash": "73bdfad9d08180b652ed16b8126f3aad",
     "entities": [
       {
         "tableName": "settings",
@@ -1339,8 +1339,8 @@
         }
       },
       {
-        "tableName": "note_wishes",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`note_id` INTEGER NOT NULL, `wish_id` INTEGER NOT NULL, PRIMARY KEY(`note_id`, `wish_id`), FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`wish_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "note_goals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`note_id` INTEGER NOT NULL, `goal_id` INTEGER NOT NULL, PRIMARY KEY(`note_id`, `goal_id`), FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`goal_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "noteId",
@@ -1349,8 +1349,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "wishId",
-            "columnName": "wish_id",
+            "fieldPath": "goalId",
+            "columnName": "goal_id",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -1359,18 +1359,18 @@
           "autoGenerate": false,
           "columnNames": [
             "note_id",
-            "wish_id"
+            "goal_id"
           ]
         },
         "indices": [
           {
-            "name": "index_note_wishes_wish_id",
+            "name": "index_note_goals_goal_id",
             "unique": false,
             "columnNames": [
-              "wish_id"
+              "goal_id"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_note_wishes_wish_id` ON `${TABLE_NAME}` (`wish_id`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_note_goals_goal_id` ON `${TABLE_NAME}` (`goal_id`)"
           }
         ],
         "foreignKeys": [
@@ -1390,7 +1390,7 @@
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
-              "wish_id"
+              "goal_id"
             ],
             "referencedColumns": [
               "id"
@@ -1521,7 +1521,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4f589a5e7d2bfa57c7cd739960cb09d5')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '73bdfad9d08180b652ed16b8126f3aad')"
     ]
   }
 }

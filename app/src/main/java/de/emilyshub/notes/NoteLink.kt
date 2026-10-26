@@ -15,27 +15,37 @@ import java.io.Serializable
  */
 sealed interface NoteLink : Serializable {
     val id: Long
+    val kind: LinkKind
 
-    data class Goal(override val id: Long) : NoteLink
+    data class Goal(override val id: Long) : NoteLink {
+        override val kind get() = LinkKind.Goal
+    }
 
-    data class Todo(override val id: Long) : NoteLink
+    data class Todo(override val id: Long) : NoteLink {
+        override val kind get() = LinkKind.Todo
+    }
 
-    data class Routine(override val id: Long) : NoteLink
+    data class Routine(override val id: Long) : NoteLink {
+        override val kind get() = LinkKind.Routine
+    }
 }
+
+/** What kind of thing a [NoteLink] leads to, in the order they show in. */
+enum class LinkKind { Goal, Todo, Routine }
 
 /** A note linked to a goal; either deleted takes the link along. */
 @Entity(
-    tableName = "note_wishes",
-    primaryKeys = ["note_id", "wish_id"],
+    tableName = "note_goals",
+    primaryKeys = ["note_id", "goal_id"],
     foreignKeys = [
         ForeignKey(entity = Note::class, parentColumns = ["id"], childColumns = ["note_id"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["wish_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.CASCADE),
     ],
-    indices = [Index(value = ["wish_id"])],
+    indices = [Index(value = ["goal_id"])],
 )
-data class NoteWish(
+data class NoteGoal(
     @ColumnInfo(name = "note_id") val noteId: Long,
-    @ColumnInfo(name = "wish_id") val wishId: Long,
+    @ColumnInfo(name = "goal_id") val goalId: Long,
 )
 
 /** A note linked to a to-do; either deleted takes the link along. One coming again takes it on to the next. */

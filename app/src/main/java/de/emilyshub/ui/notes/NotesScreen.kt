@@ -57,6 +57,7 @@ import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.Notebook
 import de.emilyshub.notes.Notes
 import de.emilyshub.notes.TabSelection
+import de.emilyshub.notes.firstLine
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
@@ -293,7 +294,7 @@ private fun ContainerContents(
                                     scope.launchNow { notes.pinNote(note.id, !note.pinned) }
                                 },
                                 MenuEntry(if (note.onToday) offToday else onToday) {
-                                    scope.launchNow { notes.putOnToday(note.id, !note.onToday) }
+                                    scope.launchNow { notes.pinOnToday(note.id, !note.onToday) }
                                 },
                                 MenuEntry(moveElsewhere) { movingNote = note.id },
                             ) + order,
@@ -427,12 +428,11 @@ private fun FolderRow(
 /** A note with its first line, and where it is [lyingIn], if given; and its menu, if any. */
 @Composable
 private fun NoteRow(note: Note, depth: Int, lyingIn: String?, menu: List<MenuEntry>, onClick: () -> Unit) {
-    val firstLine = note.text.lineSequence().map(String::trim).firstOrNull(String::isNotEmpty)
     ListItem(
         overlineContent = lyingIn?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         leadingContent = if (note.pinned) ({ Text(PIN, style = MaterialTheme.typography.titleMedium) }) else null,
         headlineContent = { Text(note.title) },
-        supportingContent = firstLine?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+        supportingContent = note.firstLine?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         trailingContent = if (menu.isEmpty()) null else ({ MoreMenu(note.title, menu) }),
         modifier = Modifier
             .clickable(onClick = onClick)

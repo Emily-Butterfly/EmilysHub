@@ -140,7 +140,7 @@ class Backups(
             "todos" to dao::todos, "todo_checklist_items" to dao::todoChecklistItems, "todo_tags" to dao::todoTags,
             "todo_places" to dao::todoPlaces, "wishes" to dao::wishes, "wish_tags" to dao::wishTags,
             "note_tabs" to dao::noteTabs, "notes" to dao::notes, "note_folders" to dao::noteFolders,
-            "note_general_tab" to dao::noteGeneralTab, "note_wishes" to dao::noteWishes, "note_todos" to dao::noteTodos,
+            "note_general_tab" to dao::noteGeneralTab, "note_goals" to dao::noteGoals, "note_todos" to dao::noteTodos,
             "note_routines" to dao::noteRoutines,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }

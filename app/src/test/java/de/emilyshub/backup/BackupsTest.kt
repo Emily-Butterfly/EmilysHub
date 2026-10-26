@@ -305,7 +305,7 @@ class BackupsTest {
         runBlocking {
             val links = setOf(NoteLink.Todo(milk), NoteLink.Routine(vitamins))
             val shopping = app.notes.create(NoteDraft("Einkauf", "- [ ] Hafermilch", links = links))
-            app.notes.putOnToday(shopping, onToday = true)
+            app.notes.pinOnToday(shopping, pinned = true)
             val arabic = app.notes.createTab("Arabisch")
             val grammar = app.notes.createFolder("Grammatik", Container(arabic))
             app.notes.sort(Container(arabic, grammar), NoteSort.Manual)
@@ -454,7 +454,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LINK_TABLES = listOf("note_routines", "note_todos", "note_wishes")
+        val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000
     }

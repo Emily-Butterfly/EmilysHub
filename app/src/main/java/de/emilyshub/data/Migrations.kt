@@ -340,18 +340,26 @@ val MIGRATION_22_23 = object : Migration(22, 23) {
         db.execSQL("ALTER TABLE `note_folders` ADD COLUMN `pinned` INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE `notes` ADD COLUMN `pinned` INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE `notes` ADD COLUMN `on_today` INTEGER NOT NULL DEFAULT 0")
-        for ((table, column, target) in listOf(
-            Triple("note_wishes", "wish_id", "wishes"),
-            Triple("note_todos", "todo_id", "todos"),
-            Triple("note_routines", "routine_id", "routines"),
-        )) {
-            db.execSQL(
-                "CREATE TABLE IF NOT EXISTS `$table` (`note_id` INTEGER NOT NULL, `$column` INTEGER NOT NULL, " +
-                    "PRIMARY KEY(`note_id`, `$column`), " +
-                    "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
-                    "FOREIGN KEY(`$column`) REFERENCES `$target`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
-            )
-            db.execSQL("CREATE INDEX IF NOT EXISTS `index_${table}_$column` ON `$table` (`$column`)")
-        }
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note_goals` (`note_id` INTEGER NOT NULL, `goal_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`note_id`, `goal_id`), " +
+                "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`goal_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_goals_goal_id` ON `note_goals` (`goal_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note_todos` (`note_id` INTEGER NOT NULL, `todo_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`note_id`, `todo_id`), " +
+                "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`todo_id`) REFERENCES `todos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_todos_todo_id` ON `note_todos` (`todo_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note_routines` (`note_id` INTEGER NOT NULL, `routine_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`note_id`, `routine_id`), " +
+                "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`routine_id`) REFERENCES `routines`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_routines_routine_id` ON `note_routines` (`routine_id`)")
     }
 }

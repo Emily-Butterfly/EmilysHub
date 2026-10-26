@@ -5,10 +5,10 @@ import androidx.room.Query
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
+import de.emilyshub.notes.NoteGoal
 import de.emilyshub.notes.NoteRoutine
 import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.NoteTodo
-import de.emilyshub.notes.NoteWish
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
 import de.emilyshub.routines.ChecklistItem
@@ -89,8 +89,8 @@ interface BackupDao {
     @Query("SELECT * FROM note_general_tab")
     fun noteGeneralTab(): List<GeneralTab>
 
-    @Query("SELECT * FROM note_wishes")
-    fun noteWishes(): List<NoteWish>
+    @Query("SELECT * FROM note_goals")
+    fun noteGoals(): List<NoteGoal>
 
     @Query("SELECT * FROM note_todos")
     fun noteTodos(): List<NoteTodo>

@@ -85,20 +85,34 @@ fun TodayScreen(
     val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
     val dueTodos by remember(today, now) { todos.dueOn(today, now) }.collectAsState(initial = null)
     val list = dueRoutines?.let { routinesDue -> dueTodos?.let { todosDue -> todayList(routinesDue, todosDue, today) } }
+    val pinned by remember(notes) { notes.onToday() }.collectAsState(initial = emptyList())
     when {
         list == null -> Unit
-        list.isEmpty() -> Column(
+        list.isEmpty() && pinned.isEmpty() -> Column(
             Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
             SetupWarning(routines, todos, onCheck = onOpenStatus)
-            PinnedNotes(notes, onOpenNote)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
-            item(key = "pinned-notes") { PinnedNotes(notes, onOpenNote) }
+            if (pinned.isNotEmpty()) {
+                item(key = "pinned-notes") {
+                    PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { notes.pinOnToday(it, pinned = false) })
+                }
+            }
+            if (list.isEmpty()) {
+                item(key = "nothing-due") {
+                    Text(
+                        text = stringResource(R.string.today_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
             items(list, key = { it.key }) { entry ->
                 when (entry) {
                     is TodayEntry.OfRoutine -> RoutineEntry(entry.routine, today, routines)

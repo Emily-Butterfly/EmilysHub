@@ -105,7 +105,7 @@ class BackupsOnDeviceTest {
      */
     private fun asOfVersion16(content: JSONObject): JSONObject {
         val tables = content.getJSONObject("tables")
-        val notes = listOf("note_tabs", "notes", "note_folders", "note_general_tab", "note_wishes", "note_todos", "note_routines")
+        val notes = listOf("note_tabs", "notes", "note_folders", "note_general_tab", "note_goals", "note_todos", "note_routines")
         (listOf("wishes", "wish_tags") + notes).forEach { tables.remove(it) }
         // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
         // goals routines hang under, which came with 20.

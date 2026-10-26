@@ -59,13 +59,12 @@ class Notes(
 
     /** The notes linked to [link], by title: the other side of the link (SPEC.md §7). */
     fun notesLinkedTo(link: NoteLink): Flow<List<Note>> = flow {
-        emitAll(
-            when (link) {
-                is NoteLink.Goal -> dao.observeNotesOfGoal(link.id)
-                is NoteLink.Todo -> dao.observeNotesOfTodo(link.id)
-                is NoteLink.Routine -> dao.observeNotesOfRoutine(link.id)
-            },
-        )
+        val linked = when (link) {
+            is NoteLink.Goal -> dao.observeNotesOfGoal(link.id)
+            is NoteLink.Todo -> dao.observeNotesOfTodo(link.id)
+            is NoteLink.Routine -> dao.observeNotesOfRoutine(link.id)
+        }
+        emitAll(linked.map { notes -> notes.sortedWith(compareBy(InputText.byName) { it.title }) })
     }.flowOn(io)
 
     /** The notes pinned on Heute, the one changed last first. */
@@ -77,7 +76,7 @@ class Notes(
         database().withTransaction {
             val book = read()
             val into = book.stillThere(cleaned.container)
-            val id = dao.insert(cleaned.toNote(into, position = book.endOfNotes(into), changedAt = clock.instant()))
+            val id = dao.insert(cleaned.toNote(into, book.endOfNotes(into), clock.instant(), pinned = false, onToday = false))
             saveLinks(id, cleaned.links)
             id
         }
@@ -91,7 +90,7 @@ class Notes(
             val book = read()
             val into = book.stillThere(cleaned.container)
             val position = if (into == book.containerOf(note)) note.position else book.endOfNotes(into)
-            dao.update(cleaned.toNote(into, position, clock.instant(), id).copy(pinned = note.pinned, onToday = note.onToday))
+            dao.update(cleaned.toNote(into, position, clock.instant(), note.pinned, note.onToday, id))
             saveLinks(id, cleaned.links)
         }
     }
@@ -102,8 +101,8 @@ class Notes(
     /** Pins the note in what it lies in, or [pinned] not, no more. */
     suspend fun pinNote(id: Long, pinned: Boolean) = write { dao.pinNote(id, pinned) }
 
-    /** Pins the note on Heute, or [onToday] not, no more. */
-    suspend fun putOnToday(id: Long, onToday: Boolean) = write { dao.putOnToday(id, onToday) }
+    /** Pins the note on Heute, or [pinned] not, no more. */
+    suspend fun pinOnToday(id: Long, pinned: Boolean) = write { dao.pinOnToday(id, pinned) }
 
     /** Moves the note to the end of [to], or of the top of its tab if that folder is gone. */
     suspend fun moveNote(id: Long, to: Container) = write {
@@ -263,8 +262,15 @@ class Notes(
         dao.unlinkTodos(noteId)
         dao.unlinkRoutines(noteId)
         dao.linkGoals(noteId, links.filterIsInstance<NoteLink.Goal>().map { it.id })
-        dao.linkTodos(noteId, links.filterIsInstance<NoteLink.Todo>().map { it.id })
+        // A to-do come again since the editor opened is linked as it is now, too, as the next has the links of the one before.
+        dao.linkTodos(noteId, links.filterIsInstance<NoteLink.Todo>().flatMap { series(it.id) })
         dao.linkRoutines(noteId, links.filterIsInstance<NoteLink.Routine>().map { it.id })
+    }
+
+    /** The to-do [id] and those that came again after it, one after the other. */
+    private suspend fun series(id: Long): List<Long> {
+        val ids = mutableListOf(id)
+        while (true) ids += dao.nextOf(ids.last()) ?: return ids
     }
 
     private suspend fun read() = Notebook(

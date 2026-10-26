@@ -31,7 +31,7 @@ import org.junit.runner.RunWith
  * Heute shows there and opens; a note linked to a goal, a to-do and a routine shows in their editors too.
  */
 @RunWith(AndroidJUnit4::class)
-class NotePinsScreenTest {
+class NotePinsAndLinksScreenTest {
 
     @get:Rule
     val compose = createEmptyComposeRule()

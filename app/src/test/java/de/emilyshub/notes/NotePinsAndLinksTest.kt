@@ -55,14 +55,14 @@ class NotePinsAndLinksTest {
 
             notes.pinFolder(grammar, pinned = true)
             notes.pinNote(verbs, pinned = true)
-            notes.putOnToday(verbs, onToday = true)
+            notes.pinOnToday(verbs, pinned = true)
             notes.update(verbs, NoteDraft("Verben", "- kataba"))
 
             val book = notes.notebook().first()
             assertEquals(true to true, book.folder(grammar)?.pinned to book.note(verbs)?.pinned)
             assertEquals(listOf("Verben"), notes.onToday().first().map { it.title })
 
-            notes.putOnToday(verbs, onToday = false)
+            notes.pinOnToday(verbs, pinned = false)
             notes.pinFolder(grammar, pinned = false)
             assertEquals(emptyList<Note>(), notes.onToday().first())
             assertEquals(false, notes.notebook().first().folder(grammar)?.pinned)
@@ -72,9 +72,9 @@ class NotePinsAndLinksTest {
     fun `a note is linked to goals, to-dos and routines, which show it in turn, and a link goes with either side`() =
         runBlocking {
             val vocabulary = wishes.create(WishDraft("Wortschatz"))
-            val book = todos.create(TodoDraft("Wörterbuch kaufen"))
+            val dictionary = todos.create(TodoDraft("Wörterbuch kaufen"))
             val routine = routines.create(RoutineDraft("Vokabeln", description = "", listOf(EIGHT), Repetition.Daily))
-            val links = setOf(NoteLink.Goal(vocabulary), NoteLink.Todo(book), NoteLink.Routine(routine))
+            val links = setOf(NoteLink.Goal(vocabulary), NoteLink.Todo(dictionary), NoteLink.Routine(routine))
             val verbs = notes.create(NoteDraft("Verben", links = links))
             notes.create(NoteDraft("Alphabet", links = setOf(NoteLink.Goal(vocabulary))))
 
@@ -82,8 +82,8 @@ class NotePinsAndLinksTest {
             assertEquals(listOf("Alphabet", "Verben"), notes.notesLinkedTo(NoteLink.Goal(vocabulary)).first().map { it.title })
             assertEquals(listOf("Verben"), notes.notesLinkedTo(NoteLink.Routine(routine)).first().map { it.title })
 
-            todos.delete(book)
-            assertEquals(links - NoteLink.Todo(book), notes.linksOf(verbs))
+            todos.delete(dictionary)
+            assertEquals(links - NoteLink.Todo(dictionary), notes.linksOf(verbs))
             notes.update(verbs, NoteDraft("Verben", links = setOf(NoteLink.Routine(routine))))
             assertEquals(listOf("Alphabet"), notes.notesLinkedTo(NoteLink.Goal(vocabulary)).first().map { it.title })
             notes.delete(verbs)
@@ -118,18 +118,24 @@ class NotePinsAndLinksTest {
     }
 
     @Test
-    fun `a to-do coming again hands its notes on to the next, and takes them back when ticked off by mistake`() = runBlocking {
-        val monthly = TodoDraft("Miete überweisen", due = Due.On(LocalDate.parse("2026-10-01")), recurrence = Recurrence.Monthly(1))
-        val rent = todos.create(monthly)
-        val note = notes.create(NoteDraft("Kontonummer", links = setOf(NoteLink.Todo(rent))))
+    fun `a to-do coming again links its notes to the next too, and the next goes with them when ticked off by mistake`() =
+        runBlocking {
+            val due = Due.On(LocalDate.parse("2026-10-01"))
+            val monthly = TodoDraft("Miete überweisen", due = due, recurrence = Recurrence.Monthly(1))
+            val rent = todos.create(monthly)
+            val note = notes.create(NoteDraft("Kontonummer", links = setOf(NoteLink.Todo(rent))))
 
-        todos.markDone(rent)
-        val next = checkNotNull(todos.get(rent)?.nextId)
-        assertEquals(setOf(NoteLink.Todo(next)), notes.linksOf(note))
+            todos.markDone(rent)
+            val next = checkNotNull(todos.get(rent)?.nextId)
+            assertEquals(setOf(NoteLink.Todo(rent), NoteLink.Todo(next)), notes.linksOf(note))
 
-        todos.reopen(rent)
-        assertEquals(setOf(NoteLink.Todo(rent)), notes.linksOf(note))
-    }
+            // Saved from an editor opened before, with the to-do as it was then: the next stays linked.
+            notes.update(note, NoteDraft("Kontonummer", links = setOf(NoteLink.Todo(rent))))
+            assertEquals(listOf("Kontonummer"), notes.notesLinkedTo(NoteLink.Todo(next)).first().map { it.title })
+
+            todos.reopen(rent)
+            assertEquals(setOf(NoteLink.Todo(rent)), notes.linksOf(note))
+        }
 
     private companion object {
         val EIGHT: LocalTime = LocalTime.of(8, 0)

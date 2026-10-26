@@ -1,5 +1,6 @@
 package de.emilyshub.ui.notes
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +23,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.notes.LinkCandidate
+import de.emilyshub.notes.LinkKind
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.ui.SectionTitle
@@ -99,23 +100,23 @@ fun LinkedNotes(notes: Notes, link: NoteLink) {
 /** Offers a goal, a to-do or a routine to link to, one kind at a time, each by name. */
 @Composable
 private fun LinkDialog(offered: List<LinkCandidate>, onChoose: (NoteLink) -> Unit, onDismiss: () -> Unit) {
-    var kind by rememberSaveable { mutableIntStateOf(0) }
+    var kind by rememberSaveable { mutableStateOf(LinkKind.Goal) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.note_link_title)) },
         text = {
             Column {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    KINDS.forEachIndexed { index, label ->
+                    LinkKind.entries.forEachIndexed { index, choice ->
                         SegmentedButton(
-                            selected = kind == index,
-                            onClick = { kind = index },
-                            shape = SegmentedButtonDefaults.itemShape(index, KINDS.size),
-                            label = { Text(stringResource(label)) },
+                            selected = kind == choice,
+                            onClick = { kind = choice },
+                            shape = SegmentedButtonDefaults.itemShape(index, LinkKind.entries.size),
+                            label = { Text(stringResource(choice.label)) },
                         )
                     }
                 }
-                val ofKind = offered.filter { kindOf(it.link) == kind }.sortedWith(compareBy(InputText.byName) { it.name })
+                val ofKind = offered.filter { it.link.kind == kind }.sortedWith(compareBy(InputText.byName) { it.name })
                 Column(
                     Modifier
                         .heightIn(max = 360.dp)
@@ -143,17 +144,17 @@ private fun LinkDialog(offered: List<LinkCandidate>, onChoose: (NoteLink) -> Uni
 
 /** Those of [all] that [links] has, goals first, then to-dos, then routines, each by name. */
 private fun linked(all: List<LinkCandidate>, links: Set<NoteLink>): List<LinkCandidate> =
-    all.filter { it.link in links }.sortedWith(compareBy<LinkCandidate> { kindOf(it.link) }.thenBy(InputText.byName) { it.name })
+    all.filter { it.link in links }.sortedWith(compareBy<LinkCandidate> { it.link.kind }.thenBy(InputText.byName) { it.name })
 
 /** "Ziel · Wortschatz", "To-do · Milch kaufen", "Routine · Vokabeln". */
 @Composable
 private fun linkName(candidate: LinkCandidate): String =
-    stringResource(R.string.note_link_named, stringResource(KINDS[kindOf(candidate.link)]), candidate.name)
+    stringResource(R.string.note_link_named, stringResource(candidate.link.kind.label), candidate.name)
 
-private fun kindOf(link: NoteLink): Int = when (link) {
-    is NoteLink.Goal -> 0
-    is NoteLink.Todo -> 1
-    is NoteLink.Routine -> 2
-}
-
-private val KINDS = listOf(R.string.note_link_goal, R.string.note_link_todo, R.string.note_link_routine)
+/** "Ziel", "To-do", "Routine". */
+private val LinkKind.label: Int
+    @StringRes get() = when (this) {
+        LinkKind.Goal -> R.string.note_link_goal
+        LinkKind.Todo -> R.string.note_link_todo
+        LinkKind.Routine -> R.string.note_link_routine
+    }

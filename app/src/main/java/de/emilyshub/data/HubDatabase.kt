@@ -12,10 +12,10 @@ import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteDao
 import de.emilyshub.notes.NoteFolder
+import de.emilyshub.notes.NoteGoal
 import de.emilyshub.notes.NoteRoutine
 import de.emilyshub.notes.NoteTab
 import de.emilyshub.notes.NoteTodo
-import de.emilyshub.notes.NoteWish
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceDao
 import de.emilyshub.places.PlaceWifi
@@ -51,7 +51,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         Todo::class, TodoChecklistItem::class, TodoTag::class, TodoPlace::class,
         Wish::class, WishTag::class,
         NoteTab::class, Note::class, NoteFolder::class, GeneralTab::class,
-        NoteWish::class, NoteTodo::class, NoteRoutine::class,
+        NoteGoal::class, NoteTodo::class, NoteRoutine::class,
     ],
     version = HubDatabase.VERSION,
 )

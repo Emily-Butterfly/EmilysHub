@@ -337,7 +337,7 @@ class Todos(
     /**
      * Ticks the to-do, open, off now, and settles its goal (SPEC.md §6): done if that was the last part open. One coming
      * again (SPEC.md §5) comes again at once as the next, due as its recurrence says, with all of it but the ticks of its
-     * checklist, reminding as one just saved; the notes linked to it are linked to the next instead. The next takes its
+     * checklist, reminding as one just saved; the notes linked to it are linked to the next too. The next takes its
      * place in its goal, which stays as it is: the one done stays in the goal as a part done before, no part of it any
      * more.
      */
@@ -355,33 +355,30 @@ class Todos(
         dao.insertChecklistItems(dao.checklist(todo.id).map { it.copy(id = 0, todoId = nextId, ticked = false) })
         dao.tag(nextId, dao.tagIdsOf(todo.id))
         dao.bind(nextId, dao.placeIdsOf(todo.id))
-        dao.handOnNotes(from = todo.id, to = nextId)
+        database().notes().copyTodoLinks(from = todo.id, to = nextId)
         rearm(nextId, next.due)
         dao.update(todo.copy(doneAt = doneAt, nextId = nextId))
     }
 
     /**
      * Opens the to-do, ticked off, again, to remind anew as one just saved, and settles its goal (SPEC.md §6). If the
-     * next came in its place and is still as it came, that one goes again, and this one takes its place back, with the
-     * notes linked to it. Otherwise, with the next changed or ticked off since, it opens as a to-do of its own, coming
-     * again no more, so that the series goes on once only.
+     * next came in its place and is still as it came, that one goes again, and this one takes its place back. Otherwise,
+     * with the next changed or ticked off since, it opens as a to-do of its own, coming again no more, so that the series
+     * goes on once only.
      */
     private suspend fun openAgain(todo: Todo) {
         val next = todo.nextId?.let { dao.get(it) }
         val takingBack = next != null && isAsItCame(next, todo)
         val reopened = todo.copy(doneAt = null, nextId = null, recurrence = todo.recurrence.takeIf { next == null || takingBack })
-        if (takingBack) {
-            dao.handOnNotes(from = checkNotNull(next).id, to = todo.id)
-            dao.delete(next.id)
-        }
+        if (takingBack) dao.delete(checkNotNull(next).id)
         dao.update(reopened)
         rearm(todo.id, todo.due)
         settleGoals(if (takingBack) checkNotNull(next).asPart() else todo.asPart(), reopened.asPart())
     }
 
     /**
-     * Whether [next], come in the place of [todo] when that was ticked off, is still as it came: unchanged and with nothing
-     * of its checklist ticked off.
+     * Whether [next], come in the place of [todo] when that was ticked off, is still as it came: unchanged, with nothing
+     * of its checklist ticked off, and linked to the same notes.
      */
     private suspend fun isAsItCame(next: Todo, todo: Todo): Boolean {
         val done = todo.doneAt ?: return false
@@ -393,7 +390,8 @@ class Todos(
             checklist.none { it.ticked } &&
             checklist.map { it.text } == dao.checklist(todo.id).map { it.text } &&
             dao.tagIdsOf(next.id).toSet() == dao.tagIdsOf(todo.id).toSet() &&
-            dao.placeIdsOf(next.id).toSet() == dao.placeIdsOf(todo.id).toSet()
+            dao.placeIdsOf(next.id).toSet() == dao.placeIdsOf(todo.id).toSet() &&
+            database().notes().noteIdsOfTodo(next.id).toSet() == database().notes().noteIdsOfTodo(todo.id).toSet()
     }
 
     /**

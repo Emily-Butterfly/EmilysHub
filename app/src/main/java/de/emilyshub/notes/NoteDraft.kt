@@ -37,9 +37,12 @@ data class NoteDraft(
     /** The title on a single line without surrounding spaces; the text without trailing ones, as Markdown keeps leading ones. */
     fun cleaned() = copy(title = InputText.singleLine(title), text = text.trimEnd())
 
-    /** The note this draft makes, in [container], at [position] there, [changedAt] then, [id] if saved already. */
-    fun toNote(container: Container, position: Int, changedAt: Instant, id: Long = 0) =
-        Note(id, title, text, container.tabId, changedAt, container.folderId, position)
+    /**
+     * The note this draft makes, in [container], at [position] there, [changedAt] then, [pinned] there and [onToday] or
+     * not, as the draft has nothing of either; [id] if saved already.
+     */
+    fun toNote(container: Container, position: Int, changedAt: Instant, pinned: Boolean, onToday: Boolean, id: Long = 0) =
+        Note(id, title, text, container.tabId, changedAt, container.folderId, position, pinned, onToday)
 
     companion object {
         const val TITLE_MAX = 80

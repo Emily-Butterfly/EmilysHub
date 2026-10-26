@@ -546,7 +546,7 @@ class HubDatabaseMigrationTest {
             assertEquals(false to false, notes.get(1)?.let { it.pinned to it.onToday })
 
             notes.pinNote(1, pinned = true)
-            notes.putOnToday(1, onToday = true)
+            notes.pinOnToday(1, pinned = true)
             notes.linkGoals(1, listOf(1L))
             assertEquals(listOf("Verben"), notes.observeOnToday().first().map { it.title })
             assertEquals(listOf(1L), notes.goalIdsOf(1))
