@@ -49,14 +49,14 @@ class RoutineGoalsScreenTest {
             compose.onNodeWithText("Routinen-Ziel").assertDoesNotExist()
             compose.onNode(hasText("Ziel") and hasText("Kein Ziel")).tap()
             compose.onNode(isSelectable() and hasText("Wortschatz") and hasAnyAncestor(isDialog())).performClick()
-            option("Tage in Folge").tap()
+            option("Tage am Stück").tap()
             field("Anzahl").performScrollTo().performTextReplacement("10")
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
             compose.onNodeWithText("Fortschritt: 20 %").assertIsDisplayed()
             compose.onNodeWithContentDescription("„Wortschatz“ aufklappen").performClick()
-            compose.onNodeWithText("Routine · 2 von 10 Tagen in Folge").assertIsDisplayed()
+            compose.onNodeWithText("Routine · 2 von 10 Tagen am Stück").assertIsDisplayed()
             compose.onNodeWithText("Vokabeln").performClick()
             compose.onNodeWithText("Routine bearbeiten").assertIsDisplayed()
         }
@@ -65,19 +65,20 @@ class RoutineGoalsScreenTest {
     }
 
     @Test
-    fun `aiming at times done, the goal shows the times, and once reached, that it is reached`() {
+    fun `aiming at times done, the goal shows the times, once reached that it is reached, and a routine paused as such`() {
         val yoga = app.wish("Yoga-Routine")
         val routine = app.routine("Yoga", "18:00", goal = yoga, target = RoutineTarget.TimesDone(2))
         val stretching = app.routine("Dehnen", "07:00", goal = app.wish("Gelenkig"), target = RoutineTarget.TimesDone(5))
         app.history(routine, "2026-10-21" to OccurrenceStatus.Done, "2026-10-22" to OccurrenceStatus.Done)
         app.history(stretching, "2026-10-22" to OccurrenceStatus.Done)
+        runBlocking { app.routines.pause(stretching) }
 
         launchApp().use {
             compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("„Yoga-Routine“ aufklappen").performClick()
             compose.onNodeWithText("Routine · Erreicht: 2 Mal erledigt").assertIsDisplayed()
             compose.onNodeWithContentDescription("„Gelenkig“ aufklappen").performClick()
-            compose.onNodeWithText("Routine · 1 von 5 Mal erledigt").assertIsDisplayed()
+            compose.onNodeWithText("Routine · Pausiert · 1 von 5 Mal erledigt").assertIsDisplayed()
         }
     }
 

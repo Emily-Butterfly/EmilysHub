@@ -474,7 +474,7 @@ class HubDatabaseMigrationTest {
             assertEquals(null to null, routine.goalId to routine.target)
 
             database.routines().update(routine.copy(goalId = 1, target = RoutineTarget.Streak(30)))
-            assertEquals(listOf(1L), database.routines().withGoal(1).map { it.id })
+            assertEquals(listOf(1L), database.routines().withGoal(1).map { it.routine.id })
             assertEquals(RoutineTarget.Streak(30), database.routines().get(1)?.target)
 
             // A goal deleted leaves its routines at none.

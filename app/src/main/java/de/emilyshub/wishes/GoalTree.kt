@@ -2,9 +2,9 @@ package de.emilyshub.wishes
 
 import androidx.room.ColumnInfo
 import de.emilyshub.data.InputText
-import de.emilyshub.routines.OccurrenceOutcome
-import de.emilyshub.routines.Routine
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.routines.RoutineWithOutcomes
 import de.emilyshub.stats.RoutineHistory
 import kotlin.math.roundToInt
 
@@ -26,14 +26,22 @@ data class GoalTodo(
 
 /**
  * A routine hanging at a goal (SPEC.md §2, §6), with what it aims at, its [target], if any, and how far its history has
- * come towards that. Without a target it only shows with the goal and counts towards nothing.
+ * come towards that; paused or archived, as its [status] says, it counts all the same. Without a target it only shows
+ * with the goal and counts towards nothing.
  */
-class GoalRoutine(val id: Long, val name: String, val goalId: Long, val target: RoutineTarget?, history: RoutineHistory) {
+class GoalRoutine(
+    val id: Long,
+    val name: String,
+    val goalId: Long,
+    val target: RoutineTarget?,
+    history: RoutineHistory,
+    val status: RoutineStatus,
+) {
     private val streaks = history.streaks()
     private val timesDone = history.timesDone
 
     /** Towards its target, the days done in a row up to now, or the times done; none without a target. */
-    val count: Int? = when (target) {
+    val soFar: Int? = when (target) {
         is RoutineTarget.Streak -> streaks.current
         is RoutineTarget.TimesDone -> timesDone
         null -> null
@@ -47,12 +55,12 @@ class GoalRoutine(val id: Long, val name: String, val goalId: Long, val target: 
     }
 
     /** From 0 to 1, how far it has come towards its target, all of it once reached; none without a target. */
-    val progress: Double? = target?.let { if (reached) 1.0 else (count ?: 0).toDouble() / it.count }
+    val progress: Double? = target?.let { if (reached) 1.0 else (soFar ?: 0).toDouble() / it.count }
 
     companion object {
-        /** The [routine] at its goal, with the [outcomes] of its occurrences; none if it hangs under none. */
-        fun of(routine: Routine, outcomes: List<OccurrenceOutcome>): GoalRoutine? = routine.goalId?.let { goalId ->
-            GoalRoutine(routine.id, routine.name, goalId, routine.target, RoutineHistory(outcomes))
+        /** The routine at its goal, with how far it has come by how its occurrences ended; none if it hangs under none. */
+        fun of(routine: RoutineWithOutcomes): GoalRoutine? = with(routine.routine) {
+            goalId?.let { GoalRoutine(id, name, it, target, RoutineHistory(routine.outcomes), status) }
         }
     }
 }
@@ -119,7 +127,7 @@ object GoalTree {
      * A goal whose parent is gone, or that is caught in a cycle, which the app never makes, is at the top too, so that
      * each shows once.
      */
-    fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>, routines: List<GoalRoutine> = emptyList()): List<Goal> {
+    fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>, routines: List<GoalRoutine>): List<Goal> {
         val byId = wishes.associateBy { it.wish.id }
         val subgoalsOf = wishes.groupBy { it.wish.parentId }
         val todosOf = todos.groupBy { it.goalId }

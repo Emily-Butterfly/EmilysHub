@@ -37,12 +37,15 @@ interface WishDao {
     )
     fun observeGoalTodos(): Flow<List<GoalTodo>>
 
-    /** Whether each part of the goal is done: its subgoals, then its to-dos, as [observeGoalTodos] has them. */
+    /**
+     * Whether each subgoal and to-do of the goal is done: its subgoals, then its to-dos, as [observeGoalTodos] has them.
+     * Its routines are for the routines to tell.
+     */
     @Query(
         "SELECT status = :done FROM wishes WHERE parent_id = :goalId " +
             "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL",
     )
-    suspend fun partsDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
+    suspend fun subgoalsAndTodosDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
 
     @Query("UPDATE wishes SET status = :status, done_on = :doneOn WHERE id = :id")
     suspend fun setStatus(id: Long, status: WishStatus, doneOn: LocalDate?)

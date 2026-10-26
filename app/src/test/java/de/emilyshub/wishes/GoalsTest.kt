@@ -169,6 +169,17 @@ class GoalsTest {
         }
 
     @Test
+    fun `a to-do done moved under a goal makes the goal done, if then all of its parts are`() = runBlocking {
+        val move = wishes.create(WishDraft("Umzug"))
+        val packing = todos.create(TodoDraft("Kisten packen"))
+        todos.markDone(packing)
+
+        todos.update(packing, TodoDraft("Kisten packen", goalId = move))
+
+        assertEquals(WishStatus.Done, wishes.get(move)?.status)
+    }
+
+    @Test
     fun `a goal set open again by hand with all of its parts done stays so until one of them is done anew`() = runBlocking {
         val move = wishes.create(WishDraft("Umzug"))
         val packing = todos.create(TodoDraft("Kisten packen", goalId = move))

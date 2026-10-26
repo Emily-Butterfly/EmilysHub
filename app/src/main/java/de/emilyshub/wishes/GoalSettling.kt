@@ -1,30 +1,32 @@
 package de.emilyshub.wishes
 
 import de.emilyshub.data.HubDatabase
-import de.emilyshub.routines.Routine
 import java.time.LocalDate
 
-/** A to-do, subgoal or routine as a part of the goal [goalId], if any, and whether it is [open]: not done. */
-internal data class GoalPart(val goalId: Long?, val open: Boolean) {
+/**
+ * A to-do, subgoal or routine as a part of the goal [goalId], if any: whether it [counts] towards the goal, as all do but
+ * a routine without a target and a to-do whose next came in its place, and whether it is [open]: counting and not done.
+ */
+internal data class GoalPart(val goalId: Long?, val open: Boolean, val counts: Boolean = true) {
     companion object {
         /** Not a part of any goal: not there yet, or gone. */
-        val None = GoalPart(goalId = null, open = false)
+        val None = GoalPart(goalId = null, open = false, counts = false)
     }
 }
 
 /**
  * Settles the goals (SPEC.md §6) of a part that changed from [before] to [after], in the transaction that changed it:
  * a part open that was not makes its goal, if done, in progress again; the last part open closed, done or gone, makes it
- * done [today]. So on up the tree, as far as that changes a goal. Anything else leaves a goal as the user set it: one
- * without parts, one set done by hand while parts are still open, and one set open again with all of them done, until
- * one of them is done anew.
+ * done [today], as does a part done that comes to count, if then all of them are. So on up the tree, as far as that
+ * changes a goal. Anything else leaves a goal as the user set it: one without parts, one set done by hand while parts
+ * are still open, and one set open again with all of them done, until one of them is done anew.
  */
 internal suspend fun HubDatabase.settleGoals(before: GoalPart, after: GoalPart, today: LocalDate) {
     if (before.goalId == after.goalId) {
-        settleGoal(after.goalId, PartChange.of(before.open, after.open), today)
+        settleGoal(after.goalId, PartChange.of(before, after), today)
     } else {
-        settleGoal(before.goalId, PartChange.of(before.open, isOpen = false), today)
-        settleGoal(after.goalId, PartChange.of(wasOpen = false, after.open), today)
+        settleGoal(before.goalId, PartChange.of(before, GoalPart.None), today)
+        settleGoal(after.goalId, PartChange.of(GoalPart.None, after), today)
     }
 }
 
@@ -33,15 +35,16 @@ private enum class PartChange {
     /** Open, and it was not. */
     Opened,
 
-    /** Not open anymore. */
+    /** Not open anymore, or done and counting now. */
     Closed,
     ;
 
     companion object {
-        fun of(wasOpen: Boolean, isOpen: Boolean): PartChange? = when {
-            wasOpen == isOpen -> null
-            isOpen -> Opened
-            else -> Closed
+        fun of(before: GoalPart, after: GoalPart): PartChange? = when {
+            after.open && !before.open -> Opened
+            before.open && !after.open -> Closed
+            after.counts && !after.open && !before.counts -> Closed
+            else -> null
         }
     }
 }
@@ -72,16 +75,6 @@ private suspend fun HubDatabase.allPartsDone(goalId: Long): Boolean =
  * target, done once they reached it; routines without one only show.
  */
 internal suspend fun HubDatabase.partsDoneOf(goalId: Long): List<Boolean> {
-    val routinesDone = routines().withGoal(goalId).mapNotNull { goalRoutineOf(it)?.takeIf { part -> part.target != null }?.reached }
-    return wishes().partsDone(goalId) + routinesDone
+    val routinesDone = routines().withGoal(goalId).mapNotNull { GoalRoutine.of(it)?.takeIf { part -> part.target != null }?.reached }
+    return wishes().subgoalsAndTodosDone(goalId) + routinesDone
 }
-
-/** The routine as a part of its goal: open while it has a target not reached yet; without one it holds nothing open. */
-internal suspend fun HubDatabase.goalPartOfRoutine(routineId: Long): GoalPart {
-    val routine = routines().get(routineId) ?: return GoalPart.None
-    val part = goalRoutineOf(routine) ?: return GoalPart.None
-    return GoalPart(part.goalId, open = part.target != null && !part.reached)
-}
-
-private suspend fun HubDatabase.goalRoutineOf(routine: Routine): GoalRoutine? =
-    GoalRoutine.of(routine, routines().outcomesOf(routine.id))

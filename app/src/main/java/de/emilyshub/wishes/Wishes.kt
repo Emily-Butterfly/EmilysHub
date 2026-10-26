@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -139,14 +140,12 @@ class Wishes(
     private fun tree(): Flow<List<Goal>> =
         flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), GoalTree::build)) }.flowOn(io)
 
-    /** The routines hanging under goals, each with its history towards what it aims at. */
-    private fun goalRoutines(): Flow<List<GoalRoutine>> {
-        val routines = database().routines()
-        return combine(routines.observeWithGoal(), routines.observeOutcomesWithGoal()) { withGoal, outcomes ->
-            val byRoutine = outcomes.groupBy { it.routineId }
-            withGoal.mapNotNull { GoalRoutine.of(it, byRoutine[it.id].orEmpty()) }
-        }
-    }
+    /**
+     * The routines hanging under goals, each with how far it has come towards what it aims at; anew only as that changes,
+     * not as the reminders note what they did.
+     */
+    private fun goalRoutines(): Flow<List<GoalRoutine>> =
+        database().routines().observeWithGoal().distinctUntilChanged().map { all -> all.mapNotNull(GoalRoutine::of) }
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 

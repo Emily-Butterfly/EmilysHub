@@ -116,20 +116,15 @@ interface RoutineDao {
     @Query("SELECT routine_id, date, status FROM occurrences WHERE routine_id = :routineId")
     suspend fun outcomesOf(routineId: Long): List<OccurrenceOutcome>
 
-    /** The routines hanging under goals (SPEC.md §6). */
+    /** The routines hanging under goals (SPEC.md §6), each with how its occurrences ended. */
+    @Transaction
     @Query("SELECT * FROM routines WHERE goal_id IS NOT NULL")
-    fun observeWithGoal(): Flow<List<Routine>>
+    fun observeWithGoal(): Flow<List<RoutineWithOutcomes>>
 
-    /** How the occurrences of the routines hanging under goals ended, or that they are still open. */
-    @Query(
-        "SELECT o.routine_id, o.date, o.status FROM occurrences o JOIN routines r ON r.id = o.routine_id " +
-            "WHERE r.goal_id IS NOT NULL",
-    )
-    fun observeOutcomesWithGoal(): Flow<List<OccurrenceOutcome>>
-
-    /** The routines hanging under the goal. */
+    /** The routines hanging under the goal, each with how its occurrences ended. */
+    @Transaction
     @Query("SELECT * FROM routines WHERE goal_id = :goalId")
-    suspend fun withGoal(goalId: Long): List<Routine>
+    suspend fun withGoal(goalId: Long): List<RoutineWithOutcomes>
 
     /** Every routine's occurrences on [date] and after, and those put off, whenever they were due. */
     @Query("SELECT * FROM occurrences WHERE date >= :date OR remind_at IS NOT NULL")

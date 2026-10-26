@@ -5,6 +5,7 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.OccurrenceStatus.Skipped
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.stats.RoutineHistory
 import org.junit.Assert.assertEquals
@@ -24,7 +25,7 @@ class GoalRoutineTest {
     fun `aiming at a streak, a routine has come as far as the days done in a row up to now`() {
         val vocabulary = routine(RoutineTarget.Streak(10), Done, Done, Missed, Done, Skipped, Done, Done)
 
-        assertEquals(3, vocabulary.count)
+        assertEquals(3, vocabulary.soFar)
         assertEquals(0.3, checkNotNull(vocabulary.progress), 1e-9)
         assertFalse(vocabulary.reached)
     }
@@ -36,14 +37,14 @@ class GoalRoutineTest {
 
         assertTrue(vocabulary.reached)
         assertEquals(1.0, checkNotNull(vocabulary.progress), 0.0)
-        assertEquals(1, vocabulary.count)
+        assertEquals(1, vocabulary.soFar)
     }
 
     @Test
     fun `aiming at times done, a routine has come as far as the times it was done, skipped and missed ones not counting`() {
         val yoga = routine(RoutineTarget.TimesDone(4), Done, Skipped, Missed, Done, Done)
 
-        assertEquals(3, yoga.count)
+        assertEquals(3, yoga.soFar)
         assertEquals(0.75, checkNotNull(yoga.progress), 1e-9)
         assertFalse(yoga.reached)
 
@@ -57,7 +58,7 @@ class GoalRoutineTest {
         val walk = routine(target = null, Done, Done)
 
         assertNull(walk.progress)
-        assertNull(walk.count)
+        assertNull(walk.soFar)
         assertFalse(walk.reached)
     }
 
@@ -68,8 +69,8 @@ class GoalRoutineTest {
             listOf(WishWithTags(Wish(1, "Wortschatz 1000 Wörter", "", "", WishStatus.Open), emptyList())),
             listOf(GoalTodo(10, "Anki einrichten", goalId = 1, done = true)),
             listOf(
-                GoalRoutine(20, "Täglich 20 min Vokabeln", goalId = 1, RoutineTarget.Streak(10), history(*Array(6) { Done })),
-                GoalRoutine(21, "Podcast hören", goalId = 1, target = null, history(Done)),
+                GoalRoutine(20, "Täglich 20 min Vokabeln", 1, RoutineTarget.Streak(10), history(*Array(6) { Done }), ACTIVE),
+                GoalRoutine(21, "Podcast hören", goalId = 1, target = null, history(Done), ACTIVE),
             ),
         ).single()
 
@@ -82,7 +83,7 @@ class GoalRoutineTest {
         val goal = GoalTree.build(
             listOf(WishWithTags(Wish(1, "Fit bleiben", "", "", WishStatus.Open), emptyList())),
             emptyList(),
-            listOf(GoalRoutine(20, "Spazieren", goalId = 1, target = null, history(Done))),
+            listOf(GoalRoutine(20, "Spazieren", goalId = 1, target = null, history(Done), ACTIVE)),
         ).single()
 
         assertTrue(goal.hasParts)
@@ -90,7 +91,8 @@ class GoalRoutineTest {
         assertEquals(0, goal.percent)
     }
 
-    private fun routine(target: RoutineTarget?, vararg days: OccurrenceStatus) = GoalRoutine(1, "Routine", 1, target, history(*days))
+    private fun routine(target: RoutineTarget?, vararg days: OccurrenceStatus) =
+        GoalRoutine(1, "Routine", 1, target, history(*days), ACTIVE)
 
     /** One occurrence a day, from 1 October 2026 on. */
     private fun history(vararg days: OccurrenceStatus) =
@@ -98,5 +100,6 @@ class GoalRoutineTest {
 
     private companion object {
         val START: LocalDate = LocalDate.parse("2026-10-01")
+        val ACTIVE = RoutineStatus.Active
     }
 }

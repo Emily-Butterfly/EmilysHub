@@ -10,7 +10,7 @@ class GoalTreeTest {
 
     @Test
     fun `the tree hangs each goal under its parent, to any depth, subgoals by title, then to-dos by title`() {
-        val tree = GoalTree.build(
+        val tree = build(
             listOf(
                 wish(1, "Arabisch A2"),
                 wish(2, "Wortschatz", parent = 1),
@@ -30,7 +30,7 @@ class GoalTreeTest {
     fun `a goal's progress is the mean of its parts, worked out the same way all the way down`() {
         // The example of SPEC.md §6: A1 done by its to-dos, the vocabulary set to 60 % by hand, the exam not yet registered.
         // Its 40 % at the top only shows the idea; by the mean of the three parts it comes to 53 %.
-        val tree = GoalTree.build(
+        val tree = build(
             listOf(
                 wish(1, "Arabisch A2"),
                 wish(2, "A1 abschließen", parent = 1),
@@ -51,14 +51,14 @@ class GoalTreeTest {
     @Test
     fun `a to-do not done counts by how much of its checklist is ticked off`() {
         val packing = todo(10, "Kisten packen", goal = 1, items = 4, ticked = 1)
-        val goal = GoalTree.build(listOf(wish(1, "Umzug")), listOf(packing)).single()
+        val goal = build(listOf(wish(1, "Umzug")), listOf(packing)).single()
 
         assertEquals(25, goal.percent)
     }
 
     @Test
     fun `a goal done is all done, one set by hand is as set, and without parts it is nothing until done`() {
-        val tree = GoalTree.build(
+        val tree = build(
             listOf(
                 wish(1, "Bergtour", status = WishStatus.Done),
                 wish(2, "Marathon", manualProgress = 30),
@@ -78,8 +78,8 @@ class GoalTreeTest {
     @Test
     fun `progress shows 100 only when all is done and 0 only when nothing is`() {
         val todos = (1..200L).map { todo(it, "Schritt $it", goal = 1, done = it > 1) }
-        val almost = GoalTree.build(listOf(wish(1, "Fast")), todos).single()
-        val barely = GoalTree.build(listOf(wish(1, "Kaum")), todos.map { it.copy(done = it.id == 1L) }).single()
+        val almost = build(listOf(wish(1, "Fast")), todos).single()
+        val barely = build(listOf(wish(1, "Kaum")), todos.map { it.copy(done = it.id == 1L) }).single()
 
         assertEquals(99, almost.percent)
         assertEquals(1, barely.percent)
@@ -100,7 +100,7 @@ class GoalTreeTest {
 
     @Test
     fun `goals caught in a cycle, which the app never makes, still show once each instead of hanging the app`() {
-        val tree = GoalTree.build(listOf(wish(1, "A", parent = 2), wish(2, "B", parent = 1), wish(3, "C")), emptyList())
+        val tree = build(listOf(wish(1, "A", parent = 2), wish(2, "B", parent = 1), wish(3, "C")), emptyList())
 
         assertEquals(setOf(1L, 2L, 3L), tree.flatMap { it.withAllBelow() }.map { it.wish.id }.toSet())
         assertEquals(3, tree.sumOf { it.withAllBelow().size })
@@ -116,6 +116,9 @@ class GoalTreeTest {
 
     private fun todo(id: Long, title: String, goal: Long, done: Boolean = false, items: Int = 0, ticked: Int = 0) =
         GoalTodo(id, title, goal, done, items, ticked)
+
+    /** The tree of [wishes] and [todos], without routines. */
+    private fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>) = GoalTree.build(wishes, todos, routines = emptyList())
 
     private fun Goal.withAllBelow(): List<Goal> = listOf(this) + subgoals.flatMap { it.withAllBelow() }
 }

@@ -47,6 +47,7 @@ import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.goalIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.GoalRoutine
@@ -251,25 +252,27 @@ private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit
     )
 }
 
-/** "Routine · 12 von 30 Tagen in Folge", "Routine · Erreicht: 100 Mal erledigt", or "Routine" without a target. */
+/**
+ * "Routine · 12 von 30 Tagen am Stück", "Routine · Pausiert · Erreicht: 100 Mal erledigt", or "Routine" for one without
+ * a target.
+ */
 @Composable
 private fun routineProgressText(routine: GoalRoutine): String {
-    val target = routine.target ?: return stringResource(R.string.goal_routine)
-    val count = routine.count ?: 0
-    return when (target) {
-        is RoutineTarget.Streak ->
-            if (routine.reached) {
-                stringResource(R.string.goal_routine_streak_reached, target.count)
-            } else {
-                stringResource(R.string.goal_routine_streak, count, target.count)
-            }
-        is RoutineTarget.TimesDone ->
-            if (routine.reached) {
-                stringResource(R.string.goal_routine_times_done_reached, target.count)
-            } else {
-                stringResource(R.string.goal_routine_times_done, count, target.count)
-            }
+    val target = routine.target
+    val soFar = routine.soFar ?: 0
+    val progress = when {
+        target == null -> null
+        routine.reached && target is RoutineTarget.Streak -> stringResource(R.string.goal_routine_streak_reached, target.count)
+        routine.reached -> stringResource(R.string.goal_routine_times_done_reached, target.count)
+        target is RoutineTarget.Streak -> stringResource(R.string.goal_routine_streak, soFar, target.count)
+        else -> stringResource(R.string.goal_routine_times_done, soFar, target.count)
     }
+    val status = when (routine.status) {
+        RoutineStatus.Active -> null
+        RoutineStatus.Paused -> stringResource(R.string.routine_paused)
+        RoutineStatus.Archived -> stringResource(R.string.statistics_archived)
+    }
+    return listOfNotNull(stringResource(R.string.goal_routine), status, progress).joinToString(" · ")
 }
 
 private val INDENT = 24.dp

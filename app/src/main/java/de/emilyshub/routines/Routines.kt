@@ -5,7 +5,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Whereabouts
 import de.emilyshub.wishes.GoalPart
-import de.emilyshub.wishes.goalPartOfRoutine
+import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.settleGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -72,13 +72,14 @@ class Routines(
     suspend fun create(draft: RoutineDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
+            // Under a goal deleted meanwhile, it aims at nothing either.
             val goalId = database().wishes().stillThere(cleaned.goalId)
-            dao.insert(cleaned.copy(goalId = goalId).toRoutine(plannedFrom = now())).also { id ->
+            dao.insert(cleaned.copy(goalId = goalId).cleaned().toRoutine(plannedFrom = now())).also { id ->
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
                 savePlaces(id, cleaned.placeIds)
                 plan(today())
-                settleGoals(GoalPart.None, database().goalPartOfRoutine(id))
+                settleGoals(GoalPart.None, partOf(id))
             }
         }
     }
@@ -117,7 +118,7 @@ class Routines(
         val changes = checked(draft)
         database().withTransaction {
             val routine = dao.get(id) ?: return@withTransaction
-            val part = database().goalPartOfRoutine(id)
+            val part = partOf(id)
             val today = today()
             // Today's list as it was before the change, for the change to apply to.
             plan(today)
@@ -125,12 +126,12 @@ class Routines(
             val rescheduled = changes.times != routine.times || changes.repetition != routine.repetition
             val goalId = database().wishes().stillThere(changes.goalId)
             val plannedFrom = if (rescheduled) now else routine.plannedFrom
-            val changed = changes.copy(goalId = goalId).toRoutine(id, plannedFrom, routine.status)
+            val changed = changes.copy(goalId = goalId).cleaned().toRoutine(id, plannedFrom, routine.status)
             dao.update(changed)
             saveChecklist(id, changes.checklist)
             saveTags(id, changes.tagIds)
             savePlaces(id, changes.placeIds)
-            settleGoals(part, database().goalPartOfRoutine(id))
+            settleGoals(part, partOf(id))
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
             val planned = dao.occurrencesFrom(id, today).groupBy { it.date }
@@ -166,7 +167,7 @@ class Routines(
             val routine = dao.get(id) ?: return@withTransaction
             val now = now()
             val (ended, open) = dao.openOccurrences(id).partition { routine.windowEnded(it, now, clock.zone) }
-            dao.setStatuses(ended.map { it.id }, OccurrenceStatus.Missed)
+            settlingGoal(id) { dao.setStatuses(ended.map { it.id }, OccurrenceStatus.Missed) }
             dao.deleteOccurrences(open.map { it.id })
             dao.setRoutineStatus(id, status)
         }
@@ -186,7 +187,7 @@ class Routines(
     /** Deletes the routine with all its occurrences; its goal is settled without it. */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
-            val part = database().goalPartOfRoutine(id)
+            val part = partOf(id)
             dao.delete(id)
             settleGoals(part, GoalPart.None)
         }
@@ -293,10 +294,15 @@ class Routines(
     suspend fun markMissed(since: Instant) = withContext(io + NonCancellable) {
         val now = now()
         planDays(from = today(since, clock.zone), to = today(now, clock.zone))
-        val missed = dao.allOpen(OccurrenceStatus.Open).filter { (occurrence, routine) ->
-            routine.windowEnded(occurrence, now, clock.zone)
+        database().withTransaction {
+            val missed = dao.allOpen(OccurrenceStatus.Open).filter { (occurrence, routine) ->
+                routine.windowEnded(occurrence, now, clock.zone)
+            }
+            // A day missed now may undo a streak reached by another time that day, and so open its goal again.
+            val parts = missed.map { it.routine.id }.distinct().associateWith { partOf(it) }
+            dao.setStatuses(missed.map { it.occurrence.id }, OccurrenceStatus.Missed)
+            parts.forEach { (routineId, part) -> settleGoals(part, partOf(routineId)) }
         }
-        dao.setStatuses(missed.map { it.occurrence.id }, OccurrenceStatus.Missed)
     }
 
     /**
@@ -386,13 +392,24 @@ class Routines(
     }
 
     /**
-     * Runs [change] to an occurrence of the routine [routineId], then settles the goal it is part of (SPEC.md §6), as
+     * The routine as a part of its goal (SPEC.md §6): counting with a target, and open while it has not reached that; one
+     * without a target only shows with its goal.
+     */
+    private suspend fun partOf(routineId: Long): GoalPart {
+        val routine = dao.get(routineId) ?: return GoalPart.None
+        if (routine.goalId == null || routine.target == null) return GoalPart(routine.goalId, open = false, counts = false)
+        val reached = GoalRoutine.of(RoutineWithOutcomes(routine, dao.outcomesOf(routineId)))?.reached ?: false
+        return GoalPart(routine.goalId, open = !reached)
+    }
+
+    /**
+     * Runs [change] to occurrences of the routine [routineId], then settles the goal it is part of (SPEC.md §6), as
      * reaching its target, or no more, may finish that goal or open it again.
      */
     private suspend fun settlingGoal(routineId: Long, change: suspend () -> Unit) {
-        val part = database().goalPartOfRoutine(routineId)
+        val part = partOf(routineId)
         change()
-        settleGoals(part, database().goalPartOfRoutine(routineId))
+        settleGoals(part, partOf(routineId))
     }
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())

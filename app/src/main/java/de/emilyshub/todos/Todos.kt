@@ -414,7 +414,8 @@ class Todos(
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 
-    private fun Todo.asPart() = GoalPart(goalId, open = doneAt == null)
+    /** The to-do as a part of its goal: one ticked off whose next came in its place counts no more. */
+    private fun Todo.asPart() = GoalPart(goalId, open = doneAt == null, counts = nextId == null)
 
     private suspend fun saveTags(todoId: Long, tagIds: Set<Long>) {
         dao.untagAll(todoId)

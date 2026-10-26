@@ -6,6 +6,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 import de.emilyshub.wishes.Wish
 import java.time.Instant
 import java.time.LocalDate
@@ -50,7 +51,10 @@ data class Routine(
     @ColumnInfo(defaultValue = "'active'") val status: RoutineStatus = RoutineStatus.Active,
     /** The goal it is part of, if any; deleting that goal leaves it hanging at none. */
     @ColumnInfo(name = "goal_id") val goalId: Long? = null,
-    /** What it aims at for its goal, if anything; only with a goal. Without, it only shows with the goal. */
+    /**
+     * What it aims at for its goal, if anything; saved only with a goal. One whose goal was deleted keeps it, counting
+     * for nothing, until saved again. Without, it only shows with its goal.
+     */
     val target: RoutineTarget? = null,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day. */
@@ -136,6 +140,13 @@ data class OccurrenceOutcome(
     @ColumnInfo(name = "routine_id") val routineId: Long,
     val date: LocalDate,
     val status: OccurrenceStatus,
+)
+
+/** A routine with how its occurrences ended, or that they are still open, read together so that the two always fit. */
+data class RoutineWithOutcomes(
+    @Embedded val routine: Routine,
+    @Relation(parentColumn = "id", entityColumn = "routine_id", entity = Occurrence::class)
+    val outcomes: List<OccurrenceOutcome>,
 )
 
 /**

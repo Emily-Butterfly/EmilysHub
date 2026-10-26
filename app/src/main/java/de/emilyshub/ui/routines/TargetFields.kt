@@ -39,12 +39,7 @@ fun TargetFields(target: RoutineTarget?, onChange: (RoutineTarget?) -> Unit) {
         if (target != null) {
             NumberField(countText, target.count, RoutineTarget.COUNTS, stringResource(R.string.routine_target_count)) { text, number ->
                 countText = text
-                onChange(
-                    when (target) {
-                        is RoutineTarget.Streak -> RoutineTarget.Streak(number)
-                        is RoutineTarget.TimesDone -> RoutineTarget.TimesDone(number)
-                    },
-                )
+                onChange(target.withCount(number))
             }
         }
     }

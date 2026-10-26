@@ -73,6 +73,40 @@ class RoutineGoalsTest {
         }
 
     @Test
+    fun `a routine put under a goal with its target reached already finishes the goal, as does such a target set`() =
+        runBlocking {
+            val vocabulary = wishes.create(WishDraft("Wortschatz"))
+            val routine = routines.create(routine("Vokabeln"))
+            done(routine, "2026-10-20", "2026-10-21", "2026-10-22")
+
+            routines.update(routine, routine("Vokabeln", goal = vocabulary, target = RoutineTarget.Streak(3)))
+            assertEquals(WishStatus.Done, wishes.get(vocabulary)?.status)
+
+            val yoga = wishes.create(WishDraft("Yoga"))
+            routines.update(routine, routine("Vokabeln", goal = yoga))
+            assertEquals("Without a target, nothing counts", WishStatus.Open, wishes.get(yoga)?.status)
+            routines.update(routine, routine("Vokabeln", goal = yoga, target = RoutineTarget.TimesDone(3)))
+            assertEquals(WishStatus.Done, wishes.get(yoga)?.status)
+        }
+
+    @Test
+    fun `a time of a day missed after another was done undoes the streak reached by that, and opens the goal again`() =
+        runBlocking {
+            val vocabulary = wishes.create(WishDraft("Wortschatz"))
+            val twice = routine("Vokabeln", goal = vocabulary, target = RoutineTarget.Streak(3)).copy(times = listOf(EIGHT, EIGHT_PM))
+            val routine = routines.create(twice)
+            done(routine, "2026-10-21", "2026-10-22")
+            routines.markDone(routines.dueOn(today).first().first().occurrenceId)
+            assertEquals(WishStatus.Done, wishes.get(vocabulary)?.status)
+
+            // 01:00 on Saturday in Berlin: the time window of 20:00 ended at midnight.
+            clock.now = Instant.parse("2026-10-23T23:00:00Z")
+            routines.markMissed(since = Instant.parse("2026-10-23T05:00:00Z"))
+
+            assertEquals(WishStatus.InProgress, wishes.get(vocabulary)?.status)
+        }
+
+    @Test
     fun `a routine without a target holds no goal open`() = runBlocking {
         val fit = wishes.create(WishDraft("Fit bleiben"))
         routines.create(routine("Spazieren", goal = fit))
@@ -141,5 +175,6 @@ class RoutineGoalsTest {
 
     private companion object {
         val EIGHT: LocalTime = LocalTime.of(8, 0)
+        val EIGHT_PM: LocalTime = LocalTime.of(20, 0)
     }
 }
