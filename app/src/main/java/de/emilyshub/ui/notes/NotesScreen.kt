@@ -54,23 +54,23 @@ fun NotesScreen(
     val tabs by remember(notes) { notes.tabs() }.collectAsState(initial = null)
     val own = tabs ?: return
     val shown = if (selected is TabSelection.Own && own.none { it.id == selected.tabId }) TabSelection.All else selected
-    val list by remember(notes, shown) { notes.notes(shown) }.collectAsState(initial = null)
+    val shownNotes by remember(notes, shown) { notes.notes(shown) }.collectAsState(initial = null)
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(top = contentPadding.calculateTopPadding())) {
             TabBar(own, shown, onSelect, onManageTabs)
             val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding())
-            val shownList = list
+            val list = shownNotes
             when {
-                shownList == null -> Unit
-                shownList.isEmpty() -> PlaceholderScreen(
+                list == null -> Unit
+                list.isEmpty() -> PlaceholderScreen(
                     stringResource(if (shown == TabSelection.All) R.string.notes_empty else R.string.notes_tab_empty),
                     bottom,
                 )
                 else -> LazyColumn(contentPadding = bottom.plusFabSpace()) {
-                    items(shownList, key = { it.id }) { note ->
-                        val tabName = if (shown == TabSelection.All) tabNameOf(note, own) else null
-                        NoteRow(note, tabName, onClick = { onOpen(note.id) })
+                    items(list, key = { it.id }) { note ->
+                        val inTab = if (shown == TabSelection.All) tabName(note.tabId, own) else null
+                        NoteRow(note, inTab, onClick = { onOpen(note.id) })
                     }
                 }
             }
@@ -122,10 +122,11 @@ private fun NoteRow(note: Note, tabName: String?, onClick: () -> Unit) {
 @Composable
 private fun nameOf(choice: TabSelection, own: List<NoteTab>): String = when (choice) {
     TabSelection.All -> stringResource(R.string.notes_tab_all)
-    TabSelection.General -> stringResource(R.string.notes_tab_general)
-    is TabSelection.Own -> own.first { it.id == choice.tabId }.name
+    TabSelection.General -> tabName(null, own)
+    is TabSelection.Own -> tabName(choice.tabId, own)
 }
 
+/** The name of the tab [tabId] among the user's [own]; none, or one deleted meanwhile: "Allgemein". */
 @Composable
-private fun tabNameOf(note: Note, own: List<NoteTab>): String =
-    own.find { it.id == note.tabId }?.name ?: stringResource(R.string.notes_tab_general)
+internal fun tabName(tabId: Long?, own: List<NoteTab>): String =
+    own.find { it.id == tabId }?.name ?: stringResource(R.string.notes_tab_general)

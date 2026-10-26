@@ -74,6 +74,19 @@ class MarkdownTest {
     }
 
     @Test
+    fun `code between runs of backticks ends at the run as long as the one it began with`() {
+        assertEquals(listOf(Text("Mit "), Code("a ` b"), Text(".")), inline("Mit ``a ` b``."))
+        assertEquals("A space each side is left out", listOf(Code("`x`")), inline("`` `x` ``"))
+        assertEquals("Unclosed stays as written", listOf(Text("a `` b ` c")), inline("a `` b ` c"))
+    }
+
+    @Test
+    fun `an exclamation mark before brackets that are no image stays`() {
+        assertEquals(listOf(Text("Toll![1] und Achtung![Hinweis] folgt")), inline("Toll![1] und Achtung![Hinweis] folgt"))
+        assertEquals(listOf(Text("Wow! "), Link(listOf(Text("Bild")))), inline("Wow! ![Bild](x.png)"))
+    }
+
+    @Test
     fun `HTML is no markup but text, shown as written`() {
         val html = "<script>alert('x')</script><img src=x onerror=alert(1)><b>fett?</b>"
 
@@ -108,6 +121,8 @@ class MarkdownTest {
             "\n".repeat(100_000),
             "![a](".repeat(20_000),
             "abc def ".repeat(12_500),
+            (1..440).joinToString(" ") { "`".repeat(it) },
+            "``a`".repeat(25_000),
         )
 
         for (text in hostile) {

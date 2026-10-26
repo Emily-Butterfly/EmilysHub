@@ -1,6 +1,9 @@
 package de.emilyshub.notes
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.R
 import de.emilyshub.TestClock
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.inMemoryDatabase
@@ -74,6 +77,13 @@ class NotesTest {
             assertThrows(IllegalArgumentException::class.java) { runBlocking { notes.createTab(name) } }
         }
         assertEquals(NameProblem.Taken, tabNameProblem("ALLE", emptyList()))
+    }
+
+    @Test
+    fun `the names no tab can take are those the screens show for the tabs the app has`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        assertEquals(NoteTab.FIXED_NAMES, listOf(R.string.notes_tab_all, R.string.notes_tab_general).map(context::getString))
     }
 
     @Test

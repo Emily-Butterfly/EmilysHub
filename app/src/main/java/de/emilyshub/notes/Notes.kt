@@ -76,13 +76,8 @@ class Notes(
         }
     }
 
-    /** Deletes the tab, its notes moving to "Allgemein". */
-    suspend fun deleteTabMovingNotes(id: Long) = write {
-        database().withTransaction {
-            dao.moveToGeneral(id)
-            dao.deleteTab(id)
-        }
-    }
+    /** Deletes the tab, its notes moving to "Allgemein": they are in no tab once theirs is gone. */
+    suspend fun deleteTabMovingNotes(id: Long) = write { dao.deleteTab(id) }
 
     /** Deletes the tab with its notes, for good. */
     suspend fun deleteTabWithNotes(id: Long) = write {

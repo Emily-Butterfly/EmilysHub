@@ -5,6 +5,9 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import de.emilyshub.data.InputText
+import de.emilyshub.data.NameProblem
+import java.io.Serializable
 import java.time.Instant
 
 /**
@@ -21,10 +24,20 @@ data class NoteTab(
         /** As long as a tag's name, so that it fits on a tab. */
         const val NAME_MAX = 30
 
-        /** The names of the tabs the app has, which no other can have; the app speaks German only (SPEC.md §1). */
+        /**
+         * The names of the tabs the app has, as the screens show them, which no other can have; the app speaks German only
+         * (SPEC.md §1).
+         */
         val FIXED_NAMES = listOf("Alle", "Allgemein")
     }
 }
+
+/**
+ * What keeps [name], on a single line, from naming a tab besides the [others]; none if it can. "Alle" and "Allgemein"
+ * are taken always, by the tabs the app has, and two tabs read differently, as two tags do.
+ */
+fun tabNameProblem(name: String, others: Collection<NoteTab>): NameProblem? =
+    InputText.nameProblem(name, NoteTab.NAME_MAX, others.map { it.name } + NoteTab.FIXED_NAMES)
 
 /**
  * A note (SPEC.md §7): a [title] and its [text] in Markdown, in the tab [tabId], none: in "Allgemein". When it was
@@ -46,7 +59,7 @@ data class Note(
 )
 
 /** Which notes a tab shows: all of them, those in "Allgemein", or those in a tab made by the user. */
-sealed interface TabSelection : java.io.Serializable {
+sealed interface TabSelection : Serializable {
     data object All : TabSelection
 
     data object General : TabSelection

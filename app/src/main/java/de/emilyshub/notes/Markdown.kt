@@ -39,13 +39,14 @@ sealed interface Inline {
 /**
  * The Markdown of notes (SPEC.md §7, §9): headings, paragraphs, lists with tasks, quotes, code and rules; bold, italic,
  * code and links within lines. There is no HTML: it stays text, as written, and nothing is ever opened or loaded. Read
- * in one pass with a bounded depth, so that hostile or very large text is read in time.
+ * line by line, nesting only so deep and looking ahead only so far, so that hostile or very large text is read in time.
  */
 object Markdown {
 
+    /** The blocks of [text], one after the other; what is no markup stays as written. */
     fun parse(text: String): List<Block> = BlockReader(text.replace("\r\n", "\n").split('\n')).read()
 
-    fun inline(text: String): List<Inline> = InlineReader(text).read()
+    private fun inline(text: String): List<Inline> = InlineReader(text).read()
 
     private class BlockReader(private val lines: List<String>) {
         private var at = 0
@@ -105,12 +106,12 @@ object Markdown {
 
         private fun paragraph() {
             val text = mutableListOf<String>()
-            while (at < lines.size && startsParagraphLine(lines[at], first = text.isEmpty())) text += lines[at++].trim()
+            while (at < lines.size && continuesParagraph(lines[at], first = text.isEmpty())) text += lines[at++].trim()
             blocks += Block.Paragraph(inline(text.joinToString("\n")))
         }
 
         /** Whether the line goes on the paragraph: the first always does; the others unless blank or starting a block. */
-        private fun startsParagraphLine(line: String, first: Boolean) = first || !line.isBlank() && !isFence(line) &&
+        private fun continuesParagraph(line: String, first: Boolean) = first || !line.isBlank() && !isFence(line) &&
             !isRule(line) && heading(line) == null && !line.trimStart().startsWith('>') &&
             bullet(line) == null && numbered(line) == null
     }
@@ -159,7 +160,9 @@ object Markdown {
 
         private val stack = mutableListOf(Frame(""))
         private val plain = StringBuilder()
-        private val lastBacktick = text.lastIndexOf('`')
+
+        /** The lengths of runs of backticks that no run as long follows any more, so that none is looked for again. */
+        private val unclosed = mutableSetOf<Int>()
         private var at = 0
 
         fun read(): List<Inline> {
@@ -172,11 +175,8 @@ object Markdown {
                     }
                     c == '`' -> code()
                     c == '*' || c == '_' -> emphasis(c)
-                    c == '!' && text.startsWith("[", at + 1) -> {
-                        at++
-                        open("[")
-                    }
-                    c == '[' -> open("[")
+                    c == '!' && text.startsWith("[", at + 1) -> open(IMAGE)
+                    c == '[' -> open(LINK)
                     c == ']' && text.startsWith("(", at + 1) -> link()
                     else -> {
                         plain.append(c)
@@ -189,16 +189,42 @@ object Markdown {
             return merged(stack.single().content)
         }
 
+        /** A run of backticks opens code that ends at the next run as long; without one, the run stays as written. */
         private fun code() {
-            val end = if (at < lastBacktick) text.indexOf('`', at + 1) else -1
+            val run = runAt(at)
+            val end = if (run in unclosed) -1 else closingRun(from = at + run, length = run)
             if (end < 0) {
-                plain.append('`')
-                at++
+                unclosed += run
+                plain.append(text, at, at + run)
+                at += run
                 return
             }
             flush()
-            top().content += Inline.Code(text.substring(at + 1, end))
-            at = end + 1
+            top().content += Inline.Code(withoutPadding(text.substring(at + run, end)))
+            at = end + run
+        }
+
+        private fun runAt(from: Int): Int {
+            var end = from
+            while (end < text.length && text[end] == '`') end++
+            return end - from
+        }
+
+        /** Where the next run of just [length] backticks starts, from [from] on; none if there is none. */
+        private fun closingRun(from: Int, length: Int): Int {
+            var next = text.indexOf('`', from)
+            while (next >= 0) {
+                val run = runAt(next)
+                if (run == length) return next
+                next = text.indexOf('`', next + run)
+            }
+            return -1
+        }
+
+        /** Code with a space at each end, so that it can start or end with a backtick, without these spaces. */
+        private fun withoutPadding(code: String): String {
+            val padded = code.length >= 2 && code.first() == ' ' && code.last() == ' ' && code.any { it != ' ' }
+            return if (padded) code.substring(1, code.length - 1) else code
         }
 
         private fun emphasis(c: Char) {
@@ -217,9 +243,9 @@ object Markdown {
             }
         }
 
-        /** "](" after "[": a link whose target goes up to its ")" is closed; its target is left out. */
+        /** "](" after "[" or "![": a link or image whose target goes up to its ")" is closed; its target is left out. */
         private fun link() {
-            val opened = stack.indexOfLast { it.mark == "[" }
+            val opened = stack.indexOfLast { it.mark == LINK || it.mark == IMAGE }
             val end = if (opened > 0) targetEnd(at + 2) else -1
             if (end < 0) {
                 plain.append("](")
@@ -296,6 +322,9 @@ object Markdown {
     private const val RULE_MARKS = 3
     private const val MAX_HEADING = 6
     private const val MAX_DIGITS = 9
+
+    private const val LINK = "["
+    private const val IMAGE = "!["
 
     /** As a task starts, "[ ]" or "[x]". */
     private const val TASK = "[ ]"

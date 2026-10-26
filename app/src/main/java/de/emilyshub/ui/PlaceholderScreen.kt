@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/** Stands in for a screen that a later slice builds. */
+/** Stands in for a list with nothing in it yet, saying so and how to add to it. */
 @Composable
 fun PlaceholderScreen(text: String, contentPadding: PaddingValues) {
     Box(

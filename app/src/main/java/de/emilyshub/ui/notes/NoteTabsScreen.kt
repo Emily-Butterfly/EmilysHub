@@ -92,7 +92,7 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
                 item(key = "none") { Text(stringResource(R.string.note_tabs_empty), modifier = Modifier.padding(horizontal = 16.dp)) }
             }
             itemsIndexed(list, key = { _, tab -> tab.id }) { index, tab ->
-                val moved = { by: Int ->
+                val move = { by: Int ->
                     val order = list.map { it.id }.toMutableList().apply { add(index + by, removeAt(index)) }
                     scope.launchNow { notes.arrangeTabs(order) }
                 }
@@ -100,10 +100,10 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
                     headlineContent = { Text(tab.name) },
                     trailingContent = {
                         Row {
-                            IconButton(onClick = { moved(-1) }, enabled = index > 0) {
+                            IconButton(onClick = { move(-1) }, enabled = index > 0) {
                                 Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.note_tab_up, tab.name))
                             }
-                            IconButton(onClick = { moved(1) }, enabled = index < list.lastIndex) {
+                            IconButton(onClick = { move(1) }, enabled = index < list.lastIndex) {
                                 Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.note_tab_down, tab.name))
                             }
                             IconButton(onClick = { deleting = tab.id }) {
@@ -144,9 +144,9 @@ fun NoteTabsScreen(notes: Notes, onBack: () -> Unit) {
             onDismiss = { renaming = null },
         )
     }
-    val notesIn = all ?: return
+    val allNotes = all ?: return
     list.find { it.id == deleting }?.let { tab ->
-        val count = notesIn.count { it.tabId == tab.id }
+        val count = allNotes.count { it.tabId == tab.id }
         val delete = { work: suspend () -> Unit ->
             deleting = null
             scope.launchNow { work() }

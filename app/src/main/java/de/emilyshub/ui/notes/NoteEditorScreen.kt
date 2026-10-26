@@ -278,10 +278,9 @@ private fun TabField(notes: Notes, selected: Long?, onChange: (Long?) -> Unit) {
     var choosing by rememberSaveable { mutableStateOf(false) }
     val list = tabs ?: return
     val chosen = list.find { it.id == selected }
-    val general = stringResource(R.string.notes_tab_general)
     LabelledValue(
         label = stringResource(R.string.note_tab),
-        value = chosen?.name ?: general,
+        value = tabName(selected, list),
         modifier = Modifier.clickable(onClickLabel = stringResource(R.string.note_tab_choose), role = Role.Button) { choosing = true },
     )
 
@@ -300,7 +299,7 @@ private fun TabField(notes: Notes, selected: Long?, onChange: (Long?) -> Unit) {
                         .verticalScroll(rememberScrollState())
                         .selectableGroup(),
                 ) {
-                    RadioOption(general, selected = chosen == null, onSelect = { choose(null) })
+                    RadioOption(tabName(null, list), selected = chosen == null, onSelect = { choose(null) })
                     list.forEach { tab -> RadioOption(tab.name, selected = tab == chosen, onSelect = { choose(tab) }) }
                 }
             },

@@ -1,7 +1,6 @@
 package de.emilyshub.notes
 
 import de.emilyshub.data.InputText
-import de.emilyshub.data.NameProblem
 import java.io.Serializable
 import java.time.Instant
 
@@ -49,10 +48,3 @@ data class NoteDraft(
 
 /** The note as the editor starts out with it. */
 fun Note.toDraft() = NoteDraft(title, text, tabId)
-
-/**
- * What keeps [name], on a single line, from naming a tab besides the [others]; none if it can. "Alle" and "Allgemein"
- * are taken always, by the tabs the app has, and two tabs read differently, as two tags do.
- */
-fun tabNameProblem(name: String, others: Collection<NoteTab>): NameProblem? =
-    InputText.nameProblem(name, NoteTab.NAME_MAX, others.map { it.name } + NoteTab.FIXED_NAMES)

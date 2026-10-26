@@ -48,8 +48,4 @@ interface NoteDao {
 
     @Query("DELETE FROM notes WHERE tab_id = :tabId")
     suspend fun deleteInTab(tabId: Long)
-
-    /** Moves the notes of the tab to "Allgemein". */
-    @Query("UPDATE notes SET tab_id = NULL WHERE tab_id = :tabId")
-    suspend fun moveToGeneral(tabId: Long)
 }
