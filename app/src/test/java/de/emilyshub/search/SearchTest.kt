@@ -77,6 +77,16 @@ class SearchTest {
     }
 
     @Test
+    fun `text pasted with its umlauts in two parts is found as it reads, and so is a search typed so`() = runBlocking {
+        notes.create(NoteDraft("Abfall", "Mu\u0308ll rausbringen"))
+        notes.create(NoteDraft("Altglas", "Flaschen zum Container, auch die Öl\u200Bflasche"))
+
+        assertEquals(listOf("Abfall"), titles(search.find("müll"), SearchArea.Notes))
+        assertEquals(listOf("Abfall"), titles(search.find("Mu\u0308ll"), SearchArea.Notes))
+        assertEquals(listOf("Altglas"), titles(search.find("ÖL"), SearchArea.Notes))
+    }
+
+    @Test
     fun `what is typed is looked for as written, wildcards and quotes too, and nothing typed finds nothing`() = runBlocking {
         notes.create(NoteDraft("Rabatt", "100% sicher"))
         notes.create(NoteDraft("Datei", "name_v2"))

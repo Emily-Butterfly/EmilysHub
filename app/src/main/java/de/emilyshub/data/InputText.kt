@@ -18,7 +18,8 @@ object InputText {
     /** Whether [a] and [b] read the same: in whatever case, however their letters were typed, and leaving out what prints nothing. */
     fun readTheSame(a: String, b: String): Boolean = comparable(a) == comparable(b)
 
-    private fun comparable(text: String) =
+    /** [text] as [readTheSame] compares it: in lower case, its letters typed one way, without what prints nothing. */
+    fun comparable(text: String) =
         Normalizer.normalize(text, Normalizer.Form.NFKC).filterNot(::isFormat).lowercase(Locale.GERMAN)
 
     private fun isFormat(char: Char) = Character.getType(char) == Character.FORMAT.toInt()
