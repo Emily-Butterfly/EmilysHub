@@ -427,6 +427,13 @@
     <string name="note_link_none">Nichts, womit sich verknüpfen ließe.</string>
     <string name="note_link_remove">Verknüpfung mit „%1$s“ lösen</string>
     <string name="note_link_named">%1$s · %2$s</string>
+    <string name="search">Suchen</string>
+    <string name="search_title">Suche</string>
+    <string name="search_field">Suchbegriff</string>
+    <string name="search_clear">Suchbegriff löschen</string>
+    <string name="search_hint">Sucht in Routinen, To-dos, Wünschen und Notizen: in Titeln, Beschreibungen, Notiztext und Tags.</string>
+    <string name="search_none">Nichts gefunden.</string>
+    <string name="search_wishes">Wünsche</string>
     <string name="linked_notes">Verknüpfte Notizen</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>

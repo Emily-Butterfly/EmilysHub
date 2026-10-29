@@ -17,6 +17,7 @@ import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
+import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.AppLockLifecycle
 import de.emilyshub.security.DatabaseKeyFile
@@ -62,6 +63,8 @@ open class EmilysHubApplication : Application() {
     open val wishes: Wishes by lazy { Wishes({ database }, DeviceClock) }
 
     open val notes: Notes by lazy { Notes({ database }, DeviceClock) }
+
+    open val search: Search by lazy { Search({ database }) }
 
     open val places: Places by lazy { Places({ database }, onChange = ::updateReminders) }
 

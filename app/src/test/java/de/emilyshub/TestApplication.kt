@@ -14,6 +14,7 @@ import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
+import de.emilyshub.search.Search
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
@@ -46,6 +47,7 @@ class TestApplication : EmilysHubApplication() {
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wishes = Wishes({ testDatabase }, clock, Dispatchers.Unconfined)
     override val notes = Notes({ testDatabase }, clock, Dispatchers.Unconfined)
+    override val search = Search({ testDatabase }, Dispatchers.Unconfined)
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)

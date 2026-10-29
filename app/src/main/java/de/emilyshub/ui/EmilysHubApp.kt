@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +43,8 @@ import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
 import de.emilyshub.routines.Routines
+import de.emilyshub.search.Search
+import de.emilyshub.search.SearchArea
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
@@ -62,6 +65,7 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
+import de.emilyshub.ui.search.SearchScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
 import de.emilyshub.ui.stats.StatisticsScreen
@@ -100,6 +104,7 @@ fun EmilysHubApp(
     wifi: CurrentWifi,
     location: CurrentLocation,
     backups: Backups,
+    search: Search,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -128,6 +133,7 @@ fun EmilysHubApp(
                     wifi = wifi,
                     location = location,
                     backups = backups,
+                    search = search,
                     onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
@@ -182,6 +188,7 @@ private fun AppShell(
     wifi: CurrentWifi,
     location: CurrentLocation,
     backups: Backups,
+    search: Search,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
@@ -195,6 +202,9 @@ private fun AppShell(
     var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var statisticsOpen by rememberSaveable { mutableStateOf(false) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    // Here, so that it stays while an entry found is open.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var statisticsRoutineId by rememberSaveable { mutableStateOf<Long?>(null) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
     var placesOpen by rememberSaveable { mutableStateOf(false) }
@@ -323,6 +333,28 @@ private fun AppShell(
             BackHandler { statisticsOpen = false }
             StatisticsScreen(routines, onOpenRoutine = { statisticsRoutineId = it }, onBack = { statisticsOpen = false })
         }
+        // After the editors, which an entry found opens on top of it.
+        searchOpen -> {
+            val close = {
+                searchOpen = false
+                searchQuery = ""
+            }
+            BackHandler(onBack = close)
+            SearchScreen(
+                search = search,
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onOpen = { area, id ->
+                    when (area) {
+                        SearchArea.Routines -> routineEditor = RoutineEditorTarget.Edit(id)
+                        SearchArea.Todos -> todoEditor = TodoEditorTarget.Edit(id)
+                        SearchArea.Wishes -> wishEditor = WishEditorTarget.Edit(id)
+                        SearchArea.Notes -> noteEditor = NoteEditorTarget.Edit(id)
+                    }
+                },
+                onBack = close,
+            )
+        }
         else -> {
             // Heute is the start screen: back from any other area returns there before leaving the app.
             BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
@@ -351,6 +383,7 @@ private fun AppShell(
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
+                onOpenSearch = { searchOpen = true },
                 onOpenRoutine = { routineEditor = it },
                 onOpenArchive = { archiveOpen = true },
                 onOpenStatistics = { statisticsOpen = true },
@@ -394,6 +427,7 @@ private fun TopLevelScaffold(
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
     onOpenRoutine: (RoutineEditorTarget) -> Unit,
     onOpenArchive: () -> Unit,
     onOpenStatistics: () -> Unit,
@@ -406,6 +440,9 @@ private fun TopLevelScaffold(
                     Text(stringResource(current.label), modifier = Modifier.semantics { heading() })
                 },
                 actions = {
+                    IconButton(onClick = onOpenSearch) {
+                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
                     }

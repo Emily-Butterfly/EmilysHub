@@ -26,6 +26,7 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineDao
 import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.search.SearchDao
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.TagDao
 import de.emilyshub.todos.Todo
@@ -70,6 +71,8 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun wishes(): WishDao
 
     abstract fun notes(): NoteDao
+
+    abstract fun search(): SearchDao
 
     abstract fun backup(): BackupDao
 
