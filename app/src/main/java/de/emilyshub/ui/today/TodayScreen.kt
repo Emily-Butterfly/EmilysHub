@@ -60,6 +60,7 @@ import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
@@ -71,6 +72,7 @@ import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
+import de.emilyshub.ui.todos.upcomingText
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -97,10 +99,11 @@ fun TodayScreen(
     val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
     val dueTodos by remember(today, now) { todos.dueOn(today, now) }.collectAsState(initial = null)
     val list = dueRoutines?.let { routinesDue -> dueTodos?.let { todosDue -> todayList(routinesDue, todosDue, today) } }
+    val upcoming by remember(today, now) { todos.upcoming(today, now) }.collectAsState(initial = emptyList())
     val pinned by remember(notes) { notes.onToday() }.collectAsState(initial = emptyList())
     when {
         list == null -> Unit
-        list.isEmpty() && pinned.isEmpty() -> Column(
+        list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty() -> Column(
             Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
@@ -133,6 +136,11 @@ fun TodayScreen(
                     is TodayEntry.OfTodo -> TodoEntry(entry.todo, today, todos)
                 }
             }
+            // Under the day's own entries, those due some days on that are to show before (SPEC.md §1).
+            if (upcoming.isNotEmpty()) {
+                item(key = "upcoming") { SectionTitle(stringResource(R.string.today_upcoming)) }
+                items(upcoming, key = { "upcoming:${it.todoId}" }) { todo -> TodoEntry(todo, today, todos, upcoming = true) }
+            }
         }
     }
 }
@@ -162,14 +170,18 @@ private fun RoutineEntry(routine: DueRoutine, today: LocalDate, routines: Routin
     }
 }
 
-/** A to-do on Heute, with its checklist under it: ticked off, it is done and stays here, ticked, for the day. */
+/**
+ * A to-do on Heute, with its checklist under it, [upcoming] under "Demnächst" if so: ticked off, it is done and stays
+ * here, ticked, for the day.
+ */
 @Composable
-private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos) {
+private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos, upcoming: Boolean = false) {
     val scope = rememberCoroutineScope()
     Column {
         DueTodoRow(
             todo = todo,
             today = today,
+            upcoming = upcoming,
             onDoneChange = { done -> scope.launchNow { if (done) todos.markDone(todo.todoId) else todos.reopen(todo.todoId) } },
         )
         todo.checklist.forEach { entry ->
@@ -179,11 +191,11 @@ private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos) {
 }
 
 /**
- * A to-do's row on Heute: when it is due, in red while it is overdue, its title, crossed out once done, how it comes
- * again, and the places it waits for.
+ * A to-do's row on Heute: when it is due, in red while it is overdue, or in how many days if [upcoming]; its title,
+ * crossed out once done, how it comes again, and the places it waits for.
  */
 @Composable
-private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) -> Unit) {
+private fun DueTodoRow(todo: DueTodo, today: LocalDate, upcoming: Boolean, onDoneChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -201,6 +213,7 @@ private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) 
             val day = dueText(due, today).orEmpty()
             Text(
                 text = when {
+                    upcoming -> stringResource(R.string.today_todo_due, upcomingText(due, today).orEmpty())
                     todo.overdue -> stringResource(R.string.today_todo_overdue, day)
                     due is Due.At && due.date == today -> stringResource(R.string.today_todo_at, due.time.clockTime())
                     due is Due.On && due.date == today -> stringResource(R.string.today_todo)

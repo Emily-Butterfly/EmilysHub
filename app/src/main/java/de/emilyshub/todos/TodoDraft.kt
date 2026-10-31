@@ -19,6 +19,7 @@ enum class TodoProblem {
     IntervalOutOfRange,
     EndTimesOutOfRange,
     EndDateTooEarly,
+    ShowsDaysBeforeOutOfRange,
 }
 
 /**
@@ -43,6 +44,8 @@ data class TodoDraft(
     val recurrence: Recurrence? = null,
     /** When the series ends; only with a [recurrence], never without. */
     val end: RecurrenceEnd = RecurrenceEnd.Never,
+    /** On Heute so many days before it is due, if at all before its day; only with a [due] day, left out without. */
+    val showsDaysBefore: Int? = null,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -64,6 +67,7 @@ data class TodoDraft(
                     is RecurrenceEnd.AfterTimes -> if (end.times !in RecurrenceEnd.TIMES) add(TodoProblem.EndTimesOutOfRange)
                     is RecurrenceEnd.OnDate -> if (due.date?.let(end.date::isBefore) == true) add(TodoProblem.EndDateTooEarly)
                 }
+                if (showsDaysBefore != null && showsDaysBefore !in SHOWS_DAYS_BEFORE) add(TodoProblem.ShowsDaysBeforeOutOfRange)
             }
         }
 
@@ -77,6 +81,7 @@ data class TodoDraft(
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
         recurrence = recurrence.takeIf { due != Due.None },
         end = end.takeIf { recurrence != null && due != Due.None } ?: RecurrenceEnd.Never,
+        showsDaysBefore = showsDaysBefore.takeIf { due != Due.None },
     )
 
     /**
@@ -99,16 +104,20 @@ data class TodoDraft(
             endsAfter = (end as? RecurrenceEnd.AfterTimes)?.times,
             endsOn = (end as? RecurrenceEnd.OnDate)?.date,
             seriesNumber = seriesNumber,
+            showsDaysBefore = showsDaysBefore,
         )
 
     companion object {
         const val TITLE_MAX = 80
         const val DESCRIPTION_MAX = 1000
+
+        /** How many days before it is due a to-do can show on Heute. */
+        val SHOWS_DAYS_BEFORE = 1..30
     }
 }
 
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
-    end,
+    end, showsDaysBefore,
 )

@@ -432,3 +432,10 @@ val MIGRATION_25_26 = object : Migration(25, 26) {
         db.execSQL("ALTER TABLE `routines` ADD COLUMN `ends_on` TEXT")
     }
 }
+
+/** Version 27: a to-do can show on Heute some days before it is due (#35). None does yet: each only on its day. */
+val MIGRATION_26_27 = object : Migration(26, 27) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `shows_days_before` INTEGER")
+    }
+}

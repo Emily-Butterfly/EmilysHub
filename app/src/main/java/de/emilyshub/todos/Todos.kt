@@ -53,17 +53,34 @@ class Todos(
             val due = todo.dueDate
             val done = todo.doneAt
             due != null && !due.isAfter(date) && (done == null || today(done, clock.zone) == date)
-        }.map { details ->
-            val todo = details.todo
-            val overdue = isOverdue(todo, now)
-            val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo.due, now)
-            val waitingFor = if (waiting) details.placeNames else emptyList()
-            val done = todo.doneAt != null
-            DueTodo(
-                todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor, todo.recurrence,
-                todo.end, todo.seriesNumber,
-            )
-        }
+        }.map { it.toDue(now) }
+    }
+
+    /** As it stands on Heute at [now]: [DueTodo.overdue] as [isOverdue] says, and waiting for its places once its time has come. */
+    private fun TodoWithDetails.toDue(now: Instant): DueTodo {
+        val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo.due, now)
+        return DueTodo(
+            todo.id, todo.title, todo.due, todo.priority, done = todo.doneAt != null, overdue = isOverdue(todo, now),
+            checklist(), if (waiting) placeNames else emptyList(), todo.recurrence, todo.end, todo.seriesNumber,
+        )
+    }
+
+    /**
+     * The to-dos under "Demnächst" on Heute of [date] (SPEC.md §1): due on a later day, but within as many days as they
+     * show before it, still open or ticked off that day; on their day they are among those [dueOn] it instead. In the
+     * order they are due, those without a time first on a day.
+     */
+    fun upcoming(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
+        all.map { it.todo to it }
+            .filter { (todo) ->
+                val due = todo.dueDate
+                val before = todo.showsDaysBefore
+                val done = todo.doneAt
+                due != null && before != null && due.isAfter(date) && !due.isAfter(date.plusDays(before.toLong())) &&
+                    (done == null || today(done, clock.zone) == date)
+            }
+            .sortedWith(compareBy<Pair<Todo, TodoWithDetails>> { (todo) -> todo.dueDate }.thenBy(nullsFirst()) { (todo) -> todo.dueTime })
+            .map { (_, details) -> details.toDue(now) }
     }
 
     /** The to-do, or null once it is deleted. */

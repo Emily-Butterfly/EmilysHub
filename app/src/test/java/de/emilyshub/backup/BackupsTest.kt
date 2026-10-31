@@ -445,7 +445,10 @@ class BackupsTest {
 
     /** [content] as version 25 made it: without ends of series, which came with 26. */
     private fun asOfVersion25(content: JSONObject): JSONObject =
-        content.withoutColumns("todos", "ends_after", "ends_on", "series_number").withoutColumns("routines", "ends_on").put("schema", 25)
+        asOfVersion26(content).withoutColumns("todos", "ends_after", "ends_on", "series_number").withoutColumns("routines", "ends_on").put("schema", 25)
+
+    /** [content] as version 26 made it: without to-dos shown before their day, which came with 27. */
+    private fun asOfVersion26(content: JSONObject): JSONObject = content.withoutColumns("todos", "shows_days_before").put("schema", 26)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

@@ -206,6 +206,7 @@ fun TodoEditorScreen(
                 onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
             )
             draft.due.date?.let { day ->
+                ShowBeforeFields(draft.showsDaysBefore, onChange = { draft = draft.copy(showsDaysBefore = it) })
                 RecurrenceFields(
                     recurrence = draft.recurrence,
                     due = day,

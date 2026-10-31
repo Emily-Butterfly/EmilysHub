@@ -300,6 +300,13 @@
     <string name="todo_day_tomorrow">morgen</string>
     <string name="todo_day_yesterday">gestern</string>
     <string name="todo_day_time">%1$s, %2$s</string>
+    <string name="todo_weekday_date">%1$s, %2$s</string>
+    <string name="todo_day_ahead">%1$s · in %2$d Tagen</string>
+    <string name="todo_show_title">In Heute zeigen</string>
+    <string name="todo_show_on_day">Am Fälligkeitstag</string>
+    <string name="todo_show_before">Schon einige Tage vorher</string>
+    <string name="todo_show_days">Tage vorher</string>
+    <string name="today_upcoming">Demnächst</string>
     <string name="todo_tick">„%1$s“ abhaken</string>
     <string name="todo_done">„%1$s“ erledigt</string>
     <string name="undo">Rückgängig</string>

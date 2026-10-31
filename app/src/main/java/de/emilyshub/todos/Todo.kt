@@ -70,6 +70,8 @@ data class Todo(
     @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
     /** Which of its series it is, the first counting 1; [endsAfter] counts from there. */
     @ColumnInfo(name = "series_number", defaultValue = "1") val seriesNumber: Int = 1,
+    /** With a [dueDate]: on Heute so many days before it, under "Demnächst" (SPEC.md §1); only on its day if none. */
+    @ColumnInfo(name = "shows_days_before") val showsDaysBefore: Int? = null,
 ) {
     /** When its series ends, from [endsAfter] and [endsOn]. */
     val end: RecurrenceEnd

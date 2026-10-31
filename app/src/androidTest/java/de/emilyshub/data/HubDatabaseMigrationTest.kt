@@ -592,7 +592,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 25 moves to version 26 where no series ends yet, each to-do the first of its own, and then one can end`() {
+    fun `version 25 moves to version 26 where no series ends yet and then one can end`() {
         createAtVersion(25) {
             it.execSQL(
                 "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away, recurrence) " +
@@ -611,6 +611,24 @@ class HubDatabaseMigrationTest {
 
             database.todos().update(cleaning.copy(endsAfter = 4))
             assertEquals(4, database.todos().get(1)?.endsAfter)
+        }
+    }
+
+    @Test
+    fun `version 26 moves to version 27 where each to-do shows on its day only and then one can show before`() {
+        createAtVersion(26) {
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away, series_number) " +
+                    "VALUES (1, 'Geschenk', '', '2026-10-27', 'normal', 0, 0, 0, 1)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val gift = checkNotNull(database.todos().get(1))
+            assertEquals(null, gift.showsDaysBefore)
+
+            database.todos().update(gift.copy(showsDaysBefore = 3))
+            assertEquals(3, database.todos().get(1)?.showsDaysBefore)
         }
     }
 
