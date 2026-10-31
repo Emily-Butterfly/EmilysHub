@@ -16,6 +16,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -66,6 +67,7 @@ import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.routines.FullScreenField
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
@@ -232,6 +234,14 @@ fun TodoEditorScreen(
                 hintChosen = R.string.todo_places_chosen,
                 onChange = { draft = draft.copy(placeIds = it) },
             )
+            FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
+            if (draft.fullScreen && draft.due !is Due.At) {
+                Text(
+                    stringResource(R.string.todo_full_screen_no_time),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })

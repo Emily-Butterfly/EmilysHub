@@ -194,6 +194,19 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before full-screen to-dos loads with their alarms off, and a backup now keeps them`() {
+        app.todo("Arzt anrufen", fullScreen = true)
+        val now = exported()
+        val older = sealed(asOfVersion32(contentOf(now)))
+
+        restore(now)
+        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
+
+        restore(older)
+        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the wishes are tables too many for then.
@@ -518,9 +531,13 @@ class BackupsTest {
 
     /** [content] as version 31 made it: without budgets, which came with 32. */
     private fun asOfVersion31(content: JSONObject): JSONObject {
-        content.tables().remove("ledger_closed_budgets")
-        return content.withoutColumns("ledger_categories", "budget_cents").put("schema", 31)
+        val older = asOfVersion32(content)
+        older.tables().remove("ledger_closed_budgets")
+        return older.withoutColumns("ledger_categories", "budget_cents").put("schema", 31)
     }
+
+    /** [content] as version 32 made it: without full-screen alarms for to-dos, which came with 33. */
+    private fun asOfVersion32(content: JSONObject): JSONObject = content.withoutColumns("todos", "full_screen").put("schema", 32)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

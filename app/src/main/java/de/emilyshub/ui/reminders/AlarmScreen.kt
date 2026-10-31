@@ -27,18 +27,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.reminders.putOffLabel
-import de.emilyshub.routines.Reminder
-import de.emilyshub.ui.clockTime
 import java.time.Duration
 
 /**
- * The full-screen alarm (SPEC.md §3, §9). While [locked], it only says "Erinnerung fällig" and offers to
- * unlock or close; once unlocked, it shows the [reminder] with "Erledigt · Später · Überspringen · Heute nicht", and after
- * "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
+ * What the full-screen alarm shows of what it rings for, a routine or a to-do: its [title] and [text], and whether it can
+ * be skipped, as a routine can and a to-do cannot. [key] tells them apart.
+ */
+data class AlarmShown(val key: String, val title: String, val text: String?, val skippable: Boolean)
+
+/**
+ * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig" and offers to
+ * unlock or close; once unlocked, it shows what it rings for, [shown], with "Erledigt · Später", and "Überspringen · Heute
+ * nicht" for a routine; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
 fun AlarmScreen(
-    reminder: Reminder?,
+    shown: AlarmShown?,
     putOffChoices: List<Duration>,
     locked: Boolean,
     onUnlock: () -> Unit,
@@ -49,7 +53,7 @@ fun AlarmScreen(
     onClose: () -> Unit,
 ) {
     // For the reminder shown: another one coming first starts with its actions again.
-    var choosingPutOff by rememberSaveable(reminder?.occurrenceId) { mutableStateOf(false) }
+    var choosingPutOff by rememberSaveable(shown?.key) { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -66,9 +70,9 @@ fun AlarmScreen(
                     TextButton(onClick = onClose) { Text(stringResource(R.string.alarm_close)) }
                 }
                 // Only for a moment, until the reminder is read.
-                reminder == null -> Unit
+                shown == null -> Unit
                 choosingPutOff -> {
-                    Title(reminder.name)
+                    Title(shown.title)
                     Text(stringResource(R.string.reminder_put_off_when), style = MaterialTheme.typography.bodyLarge)
                     val context = LocalContext.current
                     putOffChoices.forEach { choice ->
@@ -77,17 +81,16 @@ fun AlarmScreen(
                     TextButton(onClick = { choosingPutOff = false }) { Text(stringResource(R.string.cancel)) }
                 }
                 else -> {
-                    Title(reminder.name)
-                    Text(
-                        stringResource(R.string.reminder_due_at, reminder.dueAt.clockTime()),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Title(shown.title)
+                    shown.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
                     WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
                     if (putOffChoices.isNotEmpty()) {
                         WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
                     }
-                    TextButton(onClick = onSkip) { Text(stringResource(R.string.reminder_skip)) }
-                    TextButton(onClick = onDrop) { Text(stringResource(R.string.reminder_drop)) }
+                    if (shown.skippable) {
+                        TextButton(onClick = onSkip) { Text(stringResource(R.string.reminder_skip)) }
+                        TextButton(onClick = onDrop) { Text(stringResource(R.string.reminder_drop)) }
+                    }
                 }
             }
         }

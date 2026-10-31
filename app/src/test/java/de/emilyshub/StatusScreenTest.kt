@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.todos.Due
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -30,6 +31,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 import org.robolectric.shadows.ShadowBuild
 import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * "Funktioniert alles?" in the settings (SPEC.md §11): what the reminders need from Android, each with whether Android
@@ -157,6 +160,18 @@ class StatusScreenTest {
 
             compose.onAllNodesWithText("Fehlt").assertCountEquals(3)
             compose.onNodeWithText("Für Routinen und To-dos an Orten", substring = true).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a to-do with a full-screen alarm needs full-screen alarms, as a routine with one does`() {
+        app.todo("Arzt anrufen", Due.At(LocalDate.parse("2026-10-24"), LocalTime.of(9, 0)), fullScreen = true)
+
+        launchApp().use {
+            openStatus()
+
+            compose.onAllNodesWithText("Fehlt").assertCountEquals(3)
+            compose.onNodeWithText("Für Routinen und To-dos mit Vollbild-Alarm", substring = true).performScrollTo().assertIsDisplayed()
         }
     }
 

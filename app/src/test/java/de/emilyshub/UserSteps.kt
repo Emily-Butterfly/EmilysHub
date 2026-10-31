@@ -91,10 +91,11 @@ fun TestApplication.todo(
     recurrence: Recurrence? = null,
     end: RecurrenceEnd = RecurrenceEnd.Never,
     showsDaysBefore: Int? = null,
+    fullScreen: Boolean = false,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
     val draft = TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal)
-    todos.create(draft.copy(recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore))
+    todos.create(draft.copy(recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen))
 }
 
 /** A tag, set up before the test opens the app. */

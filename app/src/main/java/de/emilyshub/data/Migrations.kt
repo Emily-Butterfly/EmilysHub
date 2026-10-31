@@ -514,3 +514,10 @@ val MIGRATION_31_32 = object : Migration(31, 32) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_ledger_closed_budgets_category_id` ON `ledger_closed_budgets` (`category_id`)")
     }
 }
+
+/** Version 33: a to-do's reminder can come as a full-screen alarm (SPEC.md §5, #36). None does yet. */
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `full_screen` INTEGER NOT NULL DEFAULT 0")
+    }
+}

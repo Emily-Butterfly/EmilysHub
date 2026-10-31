@@ -46,6 +46,8 @@ data class TodoDraft(
     val end: RecurrenceEnd = RecurrenceEnd.Never,
     /** On Heute so many days before it is due, if at all before its day; only with a [due] day, left out without. */
     val showsDaysBefore: Int? = null,
+    /** Whether its reminder comes as a full-screen alarm (SPEC.md §5); without a time, only on arrival at a place. */
+    val fullScreen: Boolean = false,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -105,6 +107,7 @@ data class TodoDraft(
             endsOn = (end as? RecurrenceEnd.OnDate)?.date,
             seriesNumber = seriesNumber,
             showsDaysBefore = showsDaysBefore,
+            fullScreen = fullScreen,
         )
 
     companion object {
@@ -119,5 +122,5 @@ data class TodoDraft(
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
-    end, showsDaysBefore,
+    end, showsDaysBefore, fullScreen,
 )

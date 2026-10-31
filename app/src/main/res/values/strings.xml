@@ -302,6 +302,7 @@
     <string name="todo_day_time">%1$s, %2$s</string>
     <string name="todo_weekday_date">%1$s, %2$s</string>
     <string name="todo_day_ahead">%1$s · in %2$d Tagen</string>
+    <string name="todo_full_screen_no_time">Ohne Uhrzeit klingelt der Vollbild-Alarm nur beim Ankommen an einem Ort.</string>
     <string name="todo_show_title">In Heute zeigen</string>
     <string name="todo_show_on_day">Am Fälligkeitstag</string>
     <string name="todo_show_before">Schon einige Tage vorher</string>
@@ -486,7 +487,7 @@
     <string name="need_location_off">Der Standort ist ausgeschaltet. Ohne ihn erkennt die App keine Orte.</string>
     <string name="need_location_off_title">Standort eingeschaltet</string>
     <string name="need_full_screen">Vollbild-Alarme</string>
-    <string name="need_full_screen_purpose">Für Routinen mit Vollbild-Alarm: Ohne sie kommt der Alarm als normale Benachrichtigung.</string>
+    <string name="need_full_screen_purpose">Für Routinen und To-dos mit Vollbild-Alarm: Ohne sie kommt der Alarm als normale Benachrichtigung.</string>
     <string name="need_full_screen_allow">Vollbild-Alarme erlauben</string>
     <string name="need_no_battery_limits">Keine Akku-Einschränkung</string>
     <string name="need_no_battery_limits_purpose">Mit Akku-Optimierung kann Android Erinnerungen zurückhalten, solange das Gerät ruht.</string>

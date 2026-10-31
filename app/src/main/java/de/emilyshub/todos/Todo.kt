@@ -72,6 +72,8 @@ data class Todo(
     @ColumnInfo(name = "series_number", defaultValue = "1") val seriesNumber: Int = 1,
     /** With a [dueDate]: on Heute so many days before it, under "Demnächst" (SPEC.md §1); only on its day if none. */
     @ColumnInfo(name = "shows_days_before") val showsDaysBefore: Int? = null,
+    /** Whether its reminder comes as a full-screen alarm, like an alarm clock, wherever it comes (SPEC.md §3, §5). */
+    @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
 ) {
     /** When its series ends, from [endsAfter] and [endsOn]. */
     val end: RecurrenceEnd
@@ -185,7 +187,7 @@ data class TodoWithDetails(
     val seenAway: Boolean get() = todo.reminding.away
 
     /** Its reminder, as it pops up. */
-    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames)
+    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen)
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
     fun checklist(): List<ChecklistEntry> = checklistItems.sortedBy { it.position }.map {
@@ -212,8 +214,11 @@ data class DueTodo(
     val seriesNumber: Int = 1,
 )
 
-/** A to-do to remind of (SPEC.md §3): its [title], when it is [due], and the names of the [places] it reminds at. */
-data class TodoReminder(val todoId: Long, val title: String, val due: Due, val places: List<String>)
+/**
+ * A to-do to remind of (SPEC.md §3): its [title], when it is [due], the names of the [places] it reminds at, and whether
+ * it comes as a [fullScreen] alarm.
+ */
+data class TodoReminder(val todoId: Long, val title: String, val due: Due, val places: List<String>, val fullScreen: Boolean = false)
 
 /** How the To-dos list is ordered (SPEC.md §5): by when they are due, or by priority. */
 enum class TodoOrder(val comparator: Comparator<TodoWithDetails>) {

@@ -27,37 +27,41 @@ import kotlinx.coroutines.launch
 /**
  * Rings like an alarm clock for a full-screen alarm as it pops up (SPEC.md §3), also where Android shows only its
  * reminder instead, as it does while the phone or tablet is in use. A foreground service, so that Android lets it
- * ring on in the background, with the same [AlarmRinger] as the alarm itself. It rings for at most [AlarmRinger.LIMIT],
- * until every reminder it rings for is answered or gone, "Stumm" is tapped, or the alarm is silenced ([silence]).
+ * ring on in the background, with the same [AlarmRinger] as the alarm itself, for routines and to-dos alike. It rings
+ * for at most [AlarmRinger.LIMIT], until every reminder it rings for is answered or gone, "Stumm" is tapped, or the alarm
+ * is silenced ([silence]).
  */
 class AlarmRingService : Service() {
     private val app get() = application as EmilysHubApplication
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    /** The occurrences it rings for, each watched until its reminder is answered or gone. */
-    private val ringingFor = mutableMapOf<Long, Job>()
+    /** The occurrences and to-dos it rings for, each watched until its reminder is answered or gone. */
+    private val ringingFor = mutableMapOf<Alarmed, Job>()
     private var limit: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val occurrenceId = intent?.occurrenceId()
+        val alarmed = intent?.alarmed()
         // First of all, as Android expects of a service started in the foreground.
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
         } else {
             0
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(occurrenceId), type)
-        if (occurrenceId == null) {
+        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(alarmed), type)
+        if (alarmed == null) {
             if (ringingFor.isEmpty()) stop()
             return START_NOT_STICKY
         }
         app.ringer.start()
-        if (occurrenceId !in ringingFor) {
-            ringingFor[occurrenceId] = scope.launch {
-                app.routines.reminder(occurrenceId).first { it == null }
-                ringingFor.remove(occurrenceId)
+        if (alarmed !in ringingFor) {
+            ringingFor[alarmed] = scope.launch {
+                when (alarmed) {
+                    is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).first { it == null }
+                    is Alarmed.Todo -> app.todos.reminder(alarmed.id).first { it == null }
+                }
+                ringingFor.remove(alarmed)
                 if (ringingFor.isEmpty()) stop()
             }
         }
@@ -83,7 +87,7 @@ class AlarmRingService : Service() {
     }
 
     /** Says that an alarm rings, without what for, as it shows on the lock screen too; tapped, it opens the alarm. */
-    private fun notification(occurrenceId: Long?): Notification {
+    private fun notification(alarmed: Alarmed?): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, getString(R.string.alarm_ringing_channel), NotificationManager.IMPORTANCE_LOW),
@@ -97,8 +101,8 @@ class AlarmRingService : Service() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .apply {
-                if (occurrenceId != null) {
-                    val open = alarmIntent(this@AlarmRingService, occurrenceId, ring = false)
+                if (alarmed != null) {
+                    val open = alarmIntent(this@AlarmRingService, alarmed, ring = false)
                     setContentIntent(PendingIntent.getActivity(this@AlarmRingService, 0, open, flags))
                 }
             }
@@ -117,9 +121,9 @@ class AlarmRingService : Service() {
         private const val NOTIFICATION_ID = 2
         private const val TAG = "EmilysHub"
 
-        /** Rings for the full-screen alarm of the occurrence, as it pops up; Android allows that only then. */
-        fun ring(context: Context, occurrenceId: Long) {
-            val intent = Intent(context, AlarmRingService::class.java).putExtra(EXTRA_OCCURRENCE, occurrenceId)
+        /** Rings for the full-screen alarm of the occurrence or to-do, as it pops up; Android allows that only then. */
+        fun ring(context: Context, alarmed: Alarmed) {
+            val intent = alarmed.putInto(Intent(context, AlarmRingService::class.java))
             try {
                 ContextCompat.startForegroundService(context, intent)
             } catch (e: IllegalStateException) {

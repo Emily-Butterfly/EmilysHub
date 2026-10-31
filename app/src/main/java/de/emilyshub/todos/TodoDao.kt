@@ -18,6 +18,11 @@ interface TodoDao {
     @Query("SELECT * FROM todos WHERE id = :id")
     suspend fun get(id: Long): Todo?
 
+    /** The to-do with its checklist, tags and places, as it changes; null once it is deleted. */
+    @Transaction
+    @Query("SELECT * FROM todos WHERE id = :id")
+    fun observeWithDetails(id: Long): Flow<TodoWithDetails?>
+
     /** The open to-dos, each with its checklist, tags and places. */
     @Transaction
     @Query("SELECT * FROM todos WHERE done_at IS NULL")

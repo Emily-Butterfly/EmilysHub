@@ -17,23 +17,27 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
-import de.emilyshub.routines.Reminder
+import de.emilyshub.R
 import de.emilyshub.security.OutsideAppLock
+import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.reminders.AlarmScreen
+import de.emilyshub.ui.reminders.AlarmShown
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Duration
 
 /**
- * The full-screen alarm of a reminder (SPEC.md §3), over the lock screen too. While the phone is locked it
- * only says "Erinnerung fällig"; once it is unlocked, it shows the routine with its actions. A newer alarm
+ * The full-screen alarm of a reminder (SPEC.md §3, §5), over the lock screen too. While the phone is locked it
+ * only says "Erinnerung fällig"; once it is unlocked, it shows the routine or to-do with its actions. A newer alarm
  * comes first; once a reminder is answered, here or anywhere else, the alarm shows the next one still due,
  * or goes away. It shows no more than the reminder does, so it is not behind the app lock, and its time on
- * the screen is not time in the app. Not exported: only the reminder opens it, with its full-screen intent or when
- * it is tapped.
+ * the screen is not time in the app. Routines and to-dos take turns in it alike. Not exported: only the reminder opens
+ * it, with its full-screen intent or when it is tapped.
  *
  * Like an alarm clock, it rings and keeps the screen on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
  * by a tap on the reminder, it only rings on if the alarm rings already in the background ([AlarmRingService]).
@@ -44,9 +48,9 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     private val app get() = application as EmilysHubApplication
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
 
-    /** The occurrences whose alarms came, the newest first; the alarm shows the first. */
-    private var queue = listOf<Long>()
-    private var reminder by mutableStateOf<Reminder?>(null)
+    /** The occurrences and to-dos whose alarms came, the newest first; the alarm shows the first. */
+    private var queue = listOf<Alarmed>()
+    private var showing by mutableStateOf<Showing?>(null)
     private var locked by mutableStateOf(true)
     private var watching: Job? = null
 
@@ -74,7 +78,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         // Not exported: the system still delivers its own broadcasts, other apps cannot send any (SPEC.md §9).
         val filter = IntentFilter(Intent.ACTION_USER_PRESENT)
         ContextCompat.registerReceiver(this, userPresent, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        queue = savedInstanceState?.getLongArray(QUEUE)?.toList() ?: listOfNotNull(intent.occurrenceId())
+        queue = savedInstanceState?.getStringArray(QUEUE)?.mapNotNull(Alarmed::of) ?: listOfNotNull(intent.alarmed())
         showFirst()
         when {
             queue.isEmpty() -> Unit
@@ -87,15 +91,18 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
             LaunchedEffect(Unit) { if (app.settings.current == null) app.settings.load() }
             val design = app.settings.current?.design ?: return@setContent
             EmilysHubTheme(darkTheme = isDark(design)) {
+                val shown = showing
                 AlarmScreen(
-                    reminder = reminder,
-                    putOffChoices = reminder?.let(app.reminders::putOffChoices).orEmpty(),
+                    shown = shown?.screen,
+                    putOffChoices = shown?.putOffChoices?.invoke().orEmpty(),
                     locked = locked,
                     onUnlock = ::unlock,
-                    onDone = { answer { app.routines.markDone(it) } },
-                    onPutOff = { by: Duration -> answer { app.reminders.putOff(it, by) } },
-                    onSkip = { answer { app.routines.skip(it) } },
-                    onDrop = { answer { app.routines.dropForToday(it) } },
+                    onDone = { answer(ofOccurrence = app.routines::markDone, ofTodo = app.todos::markDone) },
+                    onPutOff = { by: Duration ->
+                        answer(ofOccurrence = { app.reminders.putOff(it, by) }, ofTodo = { app.reminders.putOffTodo(it, by) })
+                    },
+                    onSkip = { answer(ofOccurrence = app.routines::skip) },
+                    onDrop = { answer(ofOccurrence = app.routines::dropForToday) },
                     onClose = {
                         silence()
                         finish()
@@ -107,8 +114,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val occurrenceId = intent.occurrenceId() ?: return
-        queue = listOf(occurrenceId) + (queue - occurrenceId)
+        val alarmed = intent.alarmed() ?: return
+        queue = listOf(alarmed) + (queue - alarmed)
         showFirst()
         if (intent.rings()) ring()
     }
@@ -140,7 +147,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putLongArray(QUEUE, queue.toLongArray())
+        outState.putStringArray(QUEUE, queue.map { it.key }.toTypedArray())
         outState.putLong(RING_UNTIL, ringUntil)
     }
 
@@ -174,27 +181,44 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
     private fun now() = SystemClock.elapsedRealtime()
 
-    /** Shows the first occurrence in the [queue] while it is due, then the next; with none left, the alarm closes. */
+    /** Shows the first in the [queue] while it is due, then the next; with none left, the alarm closes. */
     private fun showFirst() {
         watching?.cancel()
-        reminder = null
-        val occurrenceId = queue.firstOrNull() ?: return finish()
+        showing = null
+        val alarmed = queue.firstOrNull() ?: return finish()
         watching = lifecycleScope.launch {
-            app.routines.reminder(occurrenceId).collect { due ->
+            showingOf(alarmed).collect { due ->
                 if (due != null) {
-                    reminder = due
+                    showing = due
                 } else {
                     // Answered elsewhere, or gone: the alarm has been heard.
                     silence()
-                    drop(occurrenceId)
+                    drop(alarmed)
                 }
             }
         }
     }
 
-    /** Takes the occurrence out of the [queue], however often it is answered or gone, and shows what is first then. */
-    private fun drop(occurrenceId: Long) {
-        queue = queue - occurrenceId
+    /** What the alarm shows of the occurrence or to-do while it is due, as it changes; null once it is not. */
+    private fun showingOf(alarmed: Alarmed): Flow<Showing?> = when (alarmed) {
+        is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).map { reminder ->
+            reminder?.let {
+                val screen = AlarmShown(alarmed.key, it.name, getString(R.string.reminder_due_at, it.dueAt.clockTime()), skippable = true)
+                Showing(alarmed, screen) { app.reminders.putOffChoices(it) }
+            }
+        }
+        is Alarmed.Todo -> app.todos.reminder(alarmed.id).map { reminder ->
+            reminder?.let {
+                val screen = AlarmShown(alarmed.key, it.title, resources.reminderText(it, app.todos.today()), skippable = false)
+                // Any of them, as a to-do has no time window.
+                Showing(alarmed, screen) { Reminders.PUT_OFF_CHOICES }
+            }
+        }
+    }
+
+    /** Takes it out of the [queue], however often it is answered or gone, and shows what is first then. */
+    private fun drop(alarmed: Alarmed) {
+        queue = queue - alarmed
         showFirst()
     }
 
@@ -210,15 +234,23 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     )
 
     /**
-     * Goes on to the next occurrence and does [work] on the one shown, to the end even if the alarm closes. In
-     * that order, so that the work being done cannot take the next one out of the queue too.
+     * Goes on to the next in the queue and does the work on the one shown, [ofOccurrence] or [ofTodo], to the end even
+     * if the alarm closes. In that order, so that the work being done cannot take the next one out of the queue too.
+     * Nothing for one without such work, as a to-do is never skipped.
      */
-    private fun answer(work: suspend (occurrenceId: Long) -> Unit) {
-        val occurrenceId = reminder?.occurrenceId ?: return
+    private fun answer(ofOccurrence: suspend (Long) -> Unit, ofTodo: (suspend (Long) -> Unit)? = null) {
+        val alarmed = showing?.alarmed ?: return
+        val work = when (alarmed) {
+            is Alarmed.Occurrence -> ofOccurrence
+            is Alarmed.Todo -> ofTodo ?: return
+        }
         silence()
-        drop(occurrenceId)
-        app.background.launch { work(occurrenceId) }
+        drop(alarmed)
+        app.background.launch { work(alarmed.id) }
     }
+
+    /** What the alarm shows of [alarmed]: its [screen], and what "Später" offers now. */
+    private class Showing(val alarmed: Alarmed, val screen: AlarmShown, val putOffChoices: () -> List<Duration>)
 
     private fun Intent.rings() = getBooleanExtra(EXTRA_RING, true)
 
@@ -232,14 +264,13 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 }
 
 /**
- * Opens the full-screen alarm of the occurrence: [ring]ing, as when it pops up, or only showing it, as when its
+ * Opens the full-screen alarm of the occurrence or to-do: [ring]ing, as when it pops up, or only showing it, as when its
  * reminder is tapped, where it rings on only if it already does.
  */
-internal fun alarmIntent(context: Context, occurrenceId: Long, ring: Boolean): Intent =
-    Intent(context, AlarmActivity::class.java)
-        // Tells the two apart, so that each keeps its own extras.
-        .setIdentifier(if (ring) "occurrence:$occurrenceId" else "occurrence:$occurrenceId:open")
-        .putExtra(EXTRA_OCCURRENCE, occurrenceId)
+internal fun alarmIntent(context: Context, alarmed: Alarmed, ring: Boolean): Intent =
+    alarmed.putInto(Intent(context, AlarmActivity::class.java))
+        // Tells them apart, so that each keeps its own extras.
+        .setIdentifier(if (ring) alarmed.key else "${alarmed.key}:open")
         .putExtra(EXTRA_RING, ring)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 

@@ -150,6 +150,25 @@ class TodosScreenTest {
     }
 
     @Test
+    fun `a to-do can ring as a full-screen alarm, off at first, which says it rings only on arrival without a time`() {
+        app.fullScreenAlarmsAllowed = true
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Arzt anrufen")
+            fullScreenAlarm().performScrollTo().assertIsOff()
+
+            fullScreenAlarm().performClick()
+            compose.onNodeWithText("Ohne Uhrzeit klingelt", substring = true).performScrollTo().assertIsDisplayed()
+            option("Datum + Uhrzeit").tap()
+            compose.onNodeWithText("Ohne Uhrzeit klingelt", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.fullScreen } })
+    }
+
+    @Test
     fun `a to-do needs a title before it is saved`() {
         launchApp().use {
             openTodos()
@@ -315,6 +334,8 @@ class TodosScreenTest {
     /** A chip of the tag filter, not the tags shown with a to-do. */
     private fun chip(label: String) =
         compose.onNode(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
+
+    private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
 
     private fun option(label: String) = compose.onNode(isSelectable() and hasText(label))
 

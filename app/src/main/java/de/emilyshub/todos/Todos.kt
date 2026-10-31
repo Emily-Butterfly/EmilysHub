@@ -256,6 +256,14 @@ class Todos(
     }
 
     /**
+     * The to-do's reminder while it is to remind of, as [stillDue] has it, as it changes; null once it is done, put off,
+     * set anew or gone. For its full-screen alarm, which shows it until then.
+     */
+    fun reminder(id: Long): Flow<TodoReminder?> = flow {
+        emitAll(dao.observeWithDetails(id).map { details -> details?.takeIf { isReminding(it.todo, now()) }?.toReminder() })
+    }.flowOn(io)
+
+    /**
      * When the reminders have something to do for a to-do next after [after]: pop it up, at its time or when put off to,
      * or begin to look around for one waiting for its places, as its day begins; none if never.
      */

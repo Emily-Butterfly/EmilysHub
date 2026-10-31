@@ -715,6 +715,24 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 32 moves to version 33 where no to-do has a full-screen alarm and then one can`() {
+        createAtVersion(32) {
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, reminds_at_due_time, waiting, away, series_number) " +
+                    "VALUES (1, 'Arzt anrufen', '', 'normal', 0, 0, 0, 1)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val call = checkNotNull(database.todos().get(1))
+            assertEquals(false, call.fullScreen)
+
+            database.todos().update(call.copy(fullScreen = true))
+            assertEquals(true, database.todos().get(1)?.fullScreen)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -29,7 +30,7 @@ import java.time.LocalDate
  * the content of notifications there; an app cannot make that choice for the user. A routine with a
  * full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
  * One notification per occurrence, tagged with its id. A to-do's reminder offers "Erledigt · Später" only, as a to-do
- * is never skipped (SPEC.md §5), and is tagged with the to-do's id.
+ * is never skipped (SPEC.md §5), and is tagged with the to-do's id; one with a full-screen alarm fills the screen too.
  */
 class ReminderNotifications(private val context: Context, private val clock: Clock) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -90,17 +91,23 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     private fun post(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean) {
         manager.createNotificationChannel(channel())
         val notification = notification(reminder, alert, offeringPutOff)
-        // Android fills the screen for a notification posted, not reliably for one changed: a full-screen alarm
-        // coming again, at a follow-up for one, is posted anew.
-        if (notification.fullScreenIntent != null) manager.cancel(tagOf(reminder.occurrenceId), ID)
-        manager.notify(tagOf(reminder.occurrenceId), ID, notification)
-        // While the phone or tablet is in use, Android shows only the reminder instead: it rings all the same.
-        if (notification.fullScreenIntent != null) AlarmRingService.ring(context, reminder.occurrenceId)
+        notify(tagOf(reminder.occurrenceId), notification, Alarmed.Occurrence(reminder.occurrenceId))
     }
 
     private fun post(reminder: TodoReminder, alert: Boolean, offeringPutOff: Boolean) {
         manager.createNotificationChannel(channel())
-        manager.notify(todoTagOf(reminder.todoId), ID, notification(reminder, alert, offeringPutOff))
+        notify(todoTagOf(reminder.todoId), notification(reminder, alert, offeringPutOff), Alarmed.Todo(reminder.todoId))
+    }
+
+    /** Shows [notification] under [tag]; as a full-screen alarm, posted anew and ringing for what it is [about]. */
+    private fun notify(tag: String, notification: Notification, about: Alarmed) {
+        val fullScreen = notification.fullScreenIntent != null
+        // Android fills the screen for a notification posted, not reliably for one changed: a full-screen alarm
+        // coming again, at a follow-up for one, is posted anew.
+        if (fullScreen) manager.cancel(tag, ID)
+        manager.notify(tag, ID, notification)
+        // While the phone or tablet is in use, Android shows only the reminder instead: it rings all the same.
+        if (fullScreen) AlarmRingService.ring(context, about)
     }
 
     private fun isOfferingPutOff(occurrenceId: Long) = isOfferingPutOff(tagOf(occurrenceId))
@@ -142,17 +149,10 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
             )
         }
-        // An alarm, which "Nicht stören" lets through where it lets alarms through, as it does the ringing.
-        val alarm = reminder.fullScreen && context.fullScreenAlarmsAllowed()
-        // Only when it pops up: shown again quietly, it does not fill the screen again.
-        val fullScreen = alert && alarm
         return builder(reminder.name, text, alert, offeringPutOff)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
-            .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
-            // Tapped, an alarm's reminder opens the alarm, as the reminder is all Android shows of it while in use.
-            .setContentIntent(if (alarm) alarm(reminder.occurrenceId, ring = false) else openApp())
-            .apply { if (fullScreen) setFullScreenIntent(alarm(reminder.occurrenceId, ring = true), true) }
+            .asAlarmIf(reminder.fullScreen, Alarmed.Occurrence(reminder.occurrenceId), alert, otherwise = openApp())
             .apply { actions.forEach(::addAction) }
             .build()
     }
@@ -173,19 +173,32 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             )
         }
         return builder(reminder.title, text, alert, offeringPutOff)
-            .setCategory(Notification.CATEGORY_REMINDER)
-            // Tapped, it opens the app and stays up: a to-do waits until it is done.
-            .setContentIntent(openApp())
+            // Tapped, it opens the app, or its alarm, and stays up: a to-do waits until it is done.
+            .asAlarmIf(reminder.fullScreen, Alarmed.Todo(reminder.todoId), alert, otherwise = openApp())
             .setAutoCancel(false)
             .apply { actions.forEach(::addAction) }
             .build()
     }
 
-    /** "Fällig: heute, 18:00" as the To-dos list says it; without a due, the places it reminds at, if it still has any. */
-    private fun textOf(reminder: TodoReminder): String? {
-        val resources = context.resources
-        val due = resources.dueText(reminder.due, LocalDate.now(clock))
-        return due?.let { resources.getString(R.string.todo_due_label, it) } ?: resources.placesLabel(reminder.places)
+    private fun textOf(reminder: TodoReminder): String? = context.resources.reminderText(reminder, LocalDate.now(clock))
+
+    /**
+     * With a [fullScreen] alarm, where Android allows it, the reminder is an alarm about [about]: one "Nicht stören" lets
+     * through where it lets alarms through, as it does the ringing, which fills the screen as it pops up ([alert]) and opens
+     * the alarm when tapped, as the reminder is all Android shows of it while in use. Otherwise a reminder opening [otherwise].
+     */
+    private fun Notification.Builder.asAlarmIf(
+        fullScreen: Boolean,
+        about: Alarmed,
+        alert: Boolean,
+        otherwise: PendingIntent,
+    ): Notification.Builder {
+        val alarm = fullScreen && context.fullScreenAlarmsAllowed()
+        setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
+        setContentIntent(if (alarm) alarm(about, ring = false) else otherwise)
+        // Only when it pops up: shown again quietly, it does not fill the screen again.
+        if (alarm && alert) setFullScreenIntent(alarm(about, ring = true), true)
+        return this
     }
 
     /** What every reminder has: its [title] and [text], hidden on the lock screen, with a sound only if it [alert]s. */
@@ -218,9 +231,9 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             .build()
     }
 
-    /** The full-screen alarm for the occurrence, shown over the lock screen too, as [alarmIntent] has it. */
-    private fun alarm(occurrenceId: Long, ring: Boolean): PendingIntent {
-        val intent = alarmIntent(context, occurrenceId, ring)
+    /** The full-screen alarm for what it is [about], shown over the lock screen too, as [alarmIntent] has it. */
+    private fun alarm(about: Alarmed, ring: Boolean): PendingIntent {
+        val intent = alarmIntent(context, about, ring)
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
@@ -253,6 +266,13 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         const val EXTRA_OFFERING_PUT_OFF = "de.emilyshub.extra.OFFERING_PUT_OFF"
     }
 }
+
+/**
+ * What a to-do's reminder says, in the notification and in its alarm: "Fällig: heute, 18:00" as the To-dos list says it,
+ * on [today]; without a due, the places it reminds at, if it still has any.
+ */
+fun Resources.reminderText(reminder: TodoReminder, today: LocalDate): String? =
+    dueText(reminder.due, today)?.let { getString(R.string.todo_due_label, it) } ?: placesLabel(reminder.places)
 
 /** One of the choices "Später" offers: "10 Min.", or "1 Std." for whole hours. */
 fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 60) {
