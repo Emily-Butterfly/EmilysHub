@@ -318,7 +318,7 @@ class LedgerScreenTest {
     }
 
     @Test
-    fun `the year overview has each month with its sums and the year's expenses by category, and opens a month`() {
+    fun `the year overview has each month with its sums and the year's expenses by category, and opens a month that goes back to it`() {
         book("Gehalt", BookingKind.Income, "2.500", "2026-03-01")
         book("Wohnen", BookingKind.Expense, "850", "2026-03-02")
         book("Lebensmittel", BookingKind.Expense, "150", "2026-10-12")
@@ -348,6 +348,15 @@ class LedgerScreenTest {
             compose.onNodeWithText("März").performClick()
             compose.onNodeWithText("März 2026").assertIsDisplayed()
             ledgerList().performScrollToNode(hasText("Wohnen · 100 %"))
+
+            // Back goes to the overview, then to the month it was opened from.
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Jahresübersicht").assertIsDisplayed()
+            compose.onNodeWithText("2026").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Oktober 2026").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithContentDescription("Haushaltsbuch öffnen").assertIsDisplayed()
         }
     }
 

@@ -244,6 +244,9 @@ private fun AppShell(
     var ledgerArchiveOpen by rememberSaveable { mutableStateOf(false) }
     // The year overview shown, if it is.
     var ledgerYear by rememberSaveable { mutableStateOf<Year?>(null) }
+    // A month opened from the overview, which back goes to; the month it was opened from, which back from it goes to.
+    var ledgerMonthFromYear by rememberSaveable { mutableStateOf(false) }
+    var ledgerMonthBeforeYear by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
     var recurringEditor by rememberSaveable { mutableStateOf<RecurringEditorTarget?>(null) }
     // Here, so that it stays while a booking is open.
     var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
@@ -337,17 +340,21 @@ private fun AppShell(
                 onBack = { ledgerArchiveOpen = false },
             )
         }
-        yearShown != null -> {
-            BackHandler { ledgerYear = null }
+        yearShown != null && !ledgerMonthFromYear -> {
+            val closeYear = {
+                ledgerYear = null
+                ledgerMonth = ledgerMonthBeforeYear
+            }
+            BackHandler(onBack = closeYear)
             LedgerYearScreen(
                 ledger = ledger,
                 year = yearShown,
                 onYearChange = { ledgerYear = it },
                 onOpenMonth = {
                     ledgerMonth = it
-                    ledgerYear = null
+                    ledgerMonthFromYear = true
                 },
-                onBack = { ledgerYear = null },
+                onBack = closeYear,
             )
         }
         ledgerCategoriesOpen -> {
@@ -355,7 +362,9 @@ private fun AppShell(
             LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
         }
         ledgerOpen -> {
-            BackHandler { ledgerOpen = false }
+            // Opened from the overview, it goes back there.
+            val closeMonth = { if (ledgerMonthFromYear) ledgerMonthFromYear = false else ledgerOpen = false }
+            BackHandler(onBack = closeMonth)
             LedgerScreen(
                 ledger = ledger,
                 month = ledgerMonth,
@@ -365,8 +374,13 @@ private fun AppShell(
                 onOpenCategories = { ledgerCategoriesOpen = true },
                 onOpenRecurring = { recurringOpen = true },
                 onOpenArchive = { ledgerArchiveOpen = true },
-                onOpenYear = { ledgerYear = Year.from(ledgerMonth) },
-                onBack = { ledgerOpen = false },
+                onOpenYear = {
+                    // From a month opened from an overview, back goes where it would from that one.
+                    if (!ledgerMonthFromYear) ledgerMonthBeforeYear = ledgerMonth
+                    ledgerMonthFromYear = false
+                    ledgerYear = Year.from(ledgerMonth)
+                },
+                onBack = closeMonth,
             )
         }
         noteTabsOpen -> {
@@ -488,6 +502,8 @@ private fun AppShell(
                 onOpenNoteTabs = { noteTabsOpen = true },
                 onOpenLedger = {
                     ledgerMonth = ledger.thisMonth()
+                    ledgerYear = null
+                    ledgerMonthFromYear = false
                     ledgerOpen = true
                 },
                 current = current,
