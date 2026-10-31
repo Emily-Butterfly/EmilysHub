@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 /** The areas the search looks through, in the order their results show in. */
-enum class SearchArea { Routines, Todos, Wishes, Notes }
+enum class SearchArea { Routines, Todos, Wishes, Notes, Bookings }
 
 /** An entry found, by its [title]: [id] opens it in its area. */
 data class SearchHit(val id: Long, val title: String)
@@ -17,7 +17,7 @@ data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more
 
 /**
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
- * notes and their tags. Every word typed has to be there, in whatever case, and however its letters were typed, as
+ * notes and their tags; and the bookings of the household book (SPEC.md §13), by their descriptions and categories. Every word typed has to be there, in whatever case, and however its letters were typed, as
  * [InputText.searchable] compares. The database looks for the longest word, as a value of the query, its wildcards
  * escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those stand for anything
  * there, and what it finds is then looked at closely here. [database] is only called on [io].
@@ -38,6 +38,7 @@ class Search(
             SearchArea.Todos to dao.todos(pattern),
             SearchArea.Wishes to dao.wishes(pattern),
             SearchArea.Notes to dao.notes(pattern),
+            SearchArea.Bookings to dao.bookings(pattern),
         )
         found.mapNotNull { (area, candidates) ->
             val hits = candidates.filter { candidate -> InputText.searchable(candidate.text).let { text -> words.all { it in text } } }

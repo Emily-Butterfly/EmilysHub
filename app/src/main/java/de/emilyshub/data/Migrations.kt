@@ -439,3 +439,23 @@ val MIGRATION_26_27 = object : Migration(26, 27) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `shows_days_before` INTEGER")
     }
 }
+
+/**
+ * Version 28: the household book (#44), its categories and bookings. None is there yet: the suggested categories come
+ * with the first look at it.
+ */
+val MIGRATION_27_28 = object : Migration(27, 28) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_categories` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`kind` TEXT NOT NULL, `name` TEXT NOT NULL, `is_other` INTEGER NOT NULL DEFAULT 0)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `bookings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`amount_cents` INTEGER NOT NULL, `date` TEXT NOT NULL, `category_id` INTEGER NOT NULL, `description` TEXT NOT NULL, " +
+                "FOREIGN KEY(`category_id`) REFERENCES `ledger_categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookings_category_id` ON `bookings` (`category_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookings_date` ON `bookings` (`date`)")
+    }
+}

@@ -2,6 +2,8 @@ package de.emilyshub.backup
 
 import androidx.room.Dao
 import androidx.room.Query
+import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -101,4 +103,10 @@ interface BackupDao {
 
     @Query("SELECT * FROM note_tags")
     fun noteTags(): List<NoteTag>
+
+    @Query("SELECT * FROM ledger_categories")
+    fun ledgerCategories(): List<LedgerCategory>
+
+    @Query("SELECT * FROM bookings")
+    fun bookings(): List<Booking>
 }

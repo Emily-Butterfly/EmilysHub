@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -629,6 +632,18 @@ class HubDatabaseMigrationTest {
 
             database.todos().update(gift.copy(showsDaysBefore = 3))
             assertEquals(3, database.todos().get(1)?.showsDaysBefore)
+        }
+    }
+
+    @Test
+    fun `version 27 moves to version 28 where the household book is empty and then takes bookings`() {
+        createAtVersion(27) {}
+
+        withMigratedDatabase { database ->
+            val ledger = Ledger({ database }, java.time.Clock.systemDefaultZone())
+            val food = ledger.categories().first().first { it.name == "Lebensmittel" }
+            val id = ledger.create(BookingDraft(BookingKind.Expense, "12,50", LocalDate.parse("2026-10-23"), food.id))
+            assertEquals(1_250L, ledger.get(id)?.amountCents)
         }
     }
 

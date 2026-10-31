@@ -152,6 +152,7 @@ class Backups(
             "note_tabs" to dao::noteTabs, "notes" to dao::notes, "note_folders" to dao::noteFolders,
             "note_general_tab" to dao::noteGeneralTab, "note_goals" to dao::noteGoals, "note_todos" to dao::noteTodos,
             "note_routines" to dao::noteRoutines, "note_tags" to dao::noteTags,
+            "ledger_categories" to dao::ledgerCategories, "bookings" to dao::bookings,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {
@@ -162,6 +163,10 @@ class Backups(
         }
         val (folders, notes) = dao.noteFolders() to dao.notes()
         if (!notesHoldTogether(folders, notes) || !notesKeepTheRules(dao.noteTabs(), folders, notes)) {
+            throw BackupException(BackupProblem.Damaged)
+        }
+        // At most one "Sonstiges" of each kind, which the bookings of a category deleted go to; none, and it comes anew.
+        if (dao.ledgerCategories().filter { it.isOther }.groupBy { it.kind }.values.any { it.size > 1 }) {
             throw BackupException(BackupProblem.Damaged)
         }
     }

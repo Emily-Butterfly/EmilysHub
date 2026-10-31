@@ -9,6 +9,8 @@ import de.emilyshub.alarmsFor
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingKind
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteLink
@@ -135,8 +137,9 @@ class BackupsTest {
         // Version 16 had no wishes yet, nor notes, so there are none after the update either.
         assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 0, notes = 0, places = 2, tags = 2), backup.summary)
         val restored = everything()
-        assertEquals(made - WISH_TABLES - NOTE_TABLES, restored - WISH_TABLES - NOTE_TABLES)
-        assertEquals((WISH_TABLES + NOTE_TABLES).map { emptyList<Any>() }, (WISH_TABLES + NOTE_TABLES).map(restored::getValue))
+        val newer = WISH_TABLES + NOTE_TABLES + LEDGER_TABLES
+        assertEquals(made - newer, restored - newer)
+        assertEquals(newer.map { emptyList<Any>() }, newer.map(restored::getValue))
     }
 
     @Test
@@ -149,7 +152,8 @@ class BackupsTest {
 
         // Version 14 had no places for to-dos, nor their reminders: they start as an update would have left them.
         val restored = everything()
-        assertEquals(made - TODO_TABLES - WISH_TABLES - NOTE_TABLES, restored - TODO_TABLES - WISH_TABLES - NOTE_TABLES)
+        val newer = TODO_TABLES + WISH_TABLES + NOTE_TABLES + LEDGER_TABLES
+        assertEquals(made - newer, restored - newer)
         assertEquals(emptyList<Any>(), restored.getValue("todo_places"))
         assertEquals(listOf("Milch kaufen", "Steuer machen"), runBlocking { app.todos.open().first() }.map { it.todo.title }.sorted())
     }
@@ -339,6 +343,8 @@ class BackupsTest {
             val verbs = app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", container = inGrammar))
             app.notes.update(verbs, NoteDraft("Verben", "## Präsens", inGrammar, setOf(NoteLink.Goal(northernLights)), setOf(sport)))
             app.notes.pinNote(verbs, pinned = true)
+            val food = app.ledger.categories().first().first { it.name == "Lebensmittel" }
+            app.ledger.create(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-21"), food.id, "Wocheneinkauf"))
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -451,7 +457,14 @@ class BackupsTest {
             .put("schema", 25)
 
     /** [content] as version 26 made it: without to-dos shown before their day, which came with 27. */
-    private fun asOfVersion26(content: JSONObject): JSONObject = content.withoutColumns("todos", "shows_days_before").put("schema", 26)
+    private fun asOfVersion26(content: JSONObject): JSONObject =
+        asOfVersion27(content).withoutColumns("todos", "shows_days_before").put("schema", 26)
+
+    /** [content] as version 27 made it: without the household book, which came with 28. */
+    private fun asOfVersion27(content: JSONObject): JSONObject {
+        LEDGER_TABLES.forEach { content.tables().remove(it) }
+        return content.put("schema", 27)
+    }
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and
@@ -496,6 +509,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
+        val LEDGER_TABLES = listOf("bookings", "ledger_categories")
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000

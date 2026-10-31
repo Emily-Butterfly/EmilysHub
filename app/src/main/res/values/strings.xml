@@ -592,4 +592,46 @@
         <item quantity="one">%d Tag</item>
         <item quantity="other">%d Tags</item>
     </plurals>
+    <string name="ledger_title">Haushaltsbuch</string>
+    <string name="ledger_open">Haushaltsbuch öffnen</string>
+    <string name="ledger_income">Einnahmen</string>
+    <string name="ledger_expenses">Ausgaben</string>
+    <string name="ledger_balance">Saldo</string>
+    <string name="ledger_by_category">Ausgaben je Kategorie</string>
+    <string name="ledger_bookings">Buchungen</string>
+    <string name="ledger_month_empty">In diesem Monat gibt es noch keine Buchungen.</string>
+    <string name="ledger_share">%1$s · %2$d %%</string>
+    <string name="ledger_pie_description">Tortendiagramm der Ausgaben je Kategorie</string>
+    <string name="ledger_month_previous">Voriger Monat</string>
+    <string name="ledger_month_next">Nächster Monat</string>
+    <string name="ledger_categories">Kategorien</string>
+    <string name="booking_create">Buchung anlegen</string>
+    <string name="booking_new">Neue Buchung</string>
+    <string name="booking_edit">Buchung bearbeiten</string>
+    <string name="booking_kind_expense">Ausgabe</string>
+    <string name="booking_kind_income">Einnahme</string>
+    <string name="booking_amount">Betrag in Euro</string>
+    <string name="booking_amount_hint">z. B. 12,50</string>
+    <string name="booking_amount_missing">Bitte gib einen Betrag ein.</string>
+    <string name="booking_amount_invalid">Bitte gib den Betrag mit Komma ein, z. B. 12,50.</string>
+    <string name="booking_amount_not_above_zero">Der Betrag muss größer als 0 sein.</string>
+    <string name="booking_date">Datum</string>
+    <string name="booking_category">Kategorie</string>
+    <string name="booking_category_missing">Bitte wähle eine Kategorie.</string>
+    <string name="booking_description">Beschreibung (optional)</string>
+    <string name="booking_delete_title">Buchung löschen?</string>
+    <string name="booking_delete_text">Die Buchung über %1$s wird gelöscht.</string>
+    <string name="category_create">Kategorie anlegen</string>
+    <string name="category_create_confirm">Anlegen</string>
+    <string name="category_rename">Kategorie umbenennen</string>
+    <string name="category_rename_confirm">Umbenennen</string>
+    <string name="category_name">Name</string>
+    <string name="category_name_taken">Diese Kategorie gibt es schon.</string>
+    <string name="category_delete">„%1$s“ löschen</string>
+    <string name="category_delete_title">Kategorie löschen?</string>
+    <plurals name="category_delete_text">
+        <item quantity="one">„%2$s“ hat eine Buchung. Sie wandert nach „Sonstiges“.</item>
+        <item quantity="other">„%2$s“ hat %1$d Buchungen. Sie wandern nach „Sonstiges“.</item>
+    </plurals>
+    <string name="category_other_stays">Bleibt immer, für Buchungen ohne eigene Kategorie.</string>
 </resources>

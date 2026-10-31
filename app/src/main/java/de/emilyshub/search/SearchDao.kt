@@ -37,6 +37,14 @@ interface SearchDao {
             "AS text FROM notes n) WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun notes(pattern: String): List<Candidate>
+
+    /** By its description, or its category without one. */
+    @Query(
+        "SELECT * FROM (SELECT b.id, CASE WHEN b.description = '' THEN c.name ELSE b.description END AS title, " +
+            "b.description || ' ' || c.name AS text FROM bookings b JOIN ledger_categories c ON c.id = b.category_id) " +
+            "WHERE text LIKE :pattern ESCAPE '\\'",
+    )
+    suspend fun bookings(pattern: String): List<Candidate>
 }
 
 /** An entry the database found, with all its text in one, for [Search] to look at more closely. */

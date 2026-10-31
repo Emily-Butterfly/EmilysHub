@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +41,7 @@ import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
@@ -53,6 +55,10 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
+import de.emilyshub.ui.ledger.BookingEditorScreen
+import de.emilyshub.ui.ledger.BookingEditorTarget
+import de.emilyshub.ui.ledger.LedgerCategoriesScreen
+import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
@@ -108,6 +114,7 @@ fun EmilysHubApp(
     backups: Backups,
     nightlyBackups: NightlyBackups,
     search: Search,
+    ledger: Ledger,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -138,6 +145,7 @@ fun EmilysHubApp(
                     backups = backups,
                     nightlyBackups = nightlyBackups,
                     search = search,
+                    ledger = ledger,
                     onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
@@ -194,6 +202,7 @@ private fun AppShell(
     backups: Backups,
     nightlyBackups: NightlyBackups,
     search: Search,
+    ledger: Ledger,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
@@ -222,6 +231,11 @@ private fun AppShell(
     var wishTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var noteEditor by rememberSaveable { mutableStateOf<NoteEditorTarget?>(null) }
     var noteTabsOpen by rememberSaveable { mutableStateOf(false) }
+    var ledgerOpen by rememberSaveable { mutableStateOf(false) }
+    var ledgerCategoriesOpen by rememberSaveable { mutableStateOf(false) }
+    var bookingEditor by rememberSaveable { mutableStateOf<BookingEditorTarget?>(null) }
+    // Here, so that it stays while a booking is open.
+    var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
     // Here, so that it stays while a note is open and while another area shows.
     var notesView by rememberSaveable { mutableStateOf(NotesView()) }
     // Here, so that they stay while a to-do is open and while another tab shows.
@@ -236,6 +250,7 @@ private fun AppShell(
     val todoTarget = todoEditor
     val wishTarget = wishEditor
     val noteTarget = noteEditor
+    val bookingTarget = bookingEditor
     val statisticsRoutine = statisticsRoutineId
     // A note opened from the editor of what it is linked to goes back there, with what was typed there kept.
     val editors = rememberSaveableStateHolder()
@@ -284,6 +299,27 @@ private fun AppShell(
         wishReviewOpen -> {
             BackHandler { wishReviewOpen = false }
             WishReviewScreen(wishes, onOpen = { wishEditor = WishEditorTarget.Edit(it) }, onBack = { wishReviewOpen = false })
+        }
+        // Each opened from the one below it, it goes back there: a booking, the household book, the notes.
+        bookingTarget != null -> {
+            BackHandler { bookingEditor = null }
+            BookingEditorScreen(ledger, bookingTarget, onClose = { bookingEditor = null })
+        }
+        ledgerCategoriesOpen -> {
+            BackHandler { ledgerCategoriesOpen = false }
+            LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
+        }
+        ledgerOpen -> {
+            BackHandler { ledgerOpen = false }
+            LedgerScreen(
+                ledger = ledger,
+                month = ledgerMonth,
+                onMonthChange = { ledgerMonth = it },
+                onOpen = { bookingEditor = BookingEditorTarget.Edit(it) },
+                onCreate = { bookingEditor = BookingEditorTarget.New },
+                onOpenCategories = { ledgerCategoriesOpen = true },
+                onBack = { ledgerOpen = false },
+            )
         }
         noteTabsOpen -> {
             BackHandler { noteTabsOpen = false }
@@ -370,6 +406,7 @@ private fun AppShell(
                         SearchArea.Todos -> todoEditor = TodoEditorTarget.Edit(id)
                         SearchArea.Wishes -> wishEditor = WishEditorTarget.Edit(id)
                         SearchArea.Notes -> noteEditor = NoteEditorTarget.Edit(id)
+                        SearchArea.Bookings -> bookingEditor = BookingEditorTarget.Edit(id)
                     }
                 },
                 onBack = close,
@@ -401,6 +438,10 @@ private fun AppShell(
                 onNotesViewChange = { notesView = it },
                 onOpenNote = { noteEditor = it },
                 onOpenNoteTabs = { noteTabsOpen = true },
+                onOpenLedger = {
+                    ledgerMonth = ledger.thisMonth()
+                    ledgerOpen = true
+                },
                 current = current,
                 onSelect = { current = it },
                 onOpenSettings = { settingsOpen = true },
@@ -447,6 +488,7 @@ private fun TopLevelScaffold(
     onNotesViewChange: (NotesView) -> Unit,
     onOpenNote: (NoteEditorTarget) -> Unit,
     onOpenNoteTabs: () -> Unit,
+    onOpenLedger: () -> Unit,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenSettings: () -> Unit,
@@ -464,6 +506,12 @@ private fun TopLevelScaffold(
                     Text(stringResource(current.label), modifier = Modifier.semantics { heading() })
                 },
                 actions = {
+                    // The household book is reached from the notes (SPEC.md §13).
+                    if (current == TopLevelDestination.Notes) {
+                        IconButton(onClick = onOpenLedger) {
+                            Icon(Icons.Filled.ShoppingCart, contentDescription = stringResource(R.string.ledger_open))
+                        }
+                    }
                     IconButton(onClick = onOpenSearch) {
                         Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                     }

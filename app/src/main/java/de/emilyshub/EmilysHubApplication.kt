@@ -10,6 +10,7 @@ import de.emilyshub.backup.NightAlarm
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
@@ -67,6 +68,9 @@ open class EmilysHubApplication : Application() {
     open val wishes: Wishes by lazy { Wishes({ database }, DeviceClock) }
 
     open val notes: Notes by lazy { Notes({ database }, DeviceClock) }
+
+    /** The household book (SPEC.md §13), which never reminds of anything either. */
+    open val ledger: Ledger by lazy { Ledger({ database }, DeviceClock) }
 
     open val search: Search by lazy { Search({ database }) }
 

@@ -9,6 +9,7 @@ import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
@@ -50,6 +51,7 @@ class TestApplication : EmilysHubApplication() {
     override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
     override val wishes = Wishes({ testDatabase }, clock, Dispatchers.Unconfined)
     override val notes = Notes({ testDatabase }, clock, Dispatchers.Unconfined)
+    override val ledger = Ledger({ testDatabase }, clock, Dispatchers.Unconfined)
     override val search = Search({ testDatabase }, Dispatchers.Unconfined)
     override val wifi = FakeWifi()
     override val location = FakeLocation()

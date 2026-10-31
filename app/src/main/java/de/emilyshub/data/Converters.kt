@@ -1,6 +1,7 @@
 package de.emilyshub.data
 
 import androidx.room.TypeConverter
+import de.emilyshub.ledger.BookingKind
 import de.emilyshub.notes.NoteSort
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
@@ -151,6 +152,12 @@ class Converters {
 
     @TypeConverter
     fun toWishStatus(text: String): WishStatus = WishStatus.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromBookingKind(kind: BookingKind): String = kind.stored
+
+    @TypeConverter
+    fun toBookingKind(text: String): BookingKind = BookingKind.entries.first { it.stored == text }
 
     @TypeConverter
     fun fromNoteSort(sort: NoteSort): String = sort.stored
