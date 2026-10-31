@@ -225,20 +225,54 @@ class Routines(
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 
     /**
+     * "Heute nicht" (SPEC.md §2): drops the routine of the occurrence for the day. Every one of its occurrences still
+     * open on Heute, the later ones of today and one of yesterday still in its time window too, is dropped; none of
+     * them reminds any more. Those done, skipped or missed stay as they are.
+     */
+    suspend fun dropForToday(occurrenceId: Long) = write {
+        database().withTransaction {
+            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
+            val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
+            val open = onHeute(routine).filter { it.status == OccurrenceStatus.Open }
+            settlingGoal(routine.id) { dao.setStatuses(open.map { it.id }, OccurrenceStatus.Dropped) }
+        }
+    }
+
+    /**
      * Undoes "done" or "skipped" of an active routine; undoing "done" unticks the checklist too. If the routine's
      * times changed meanwhile, the occurrence is planned anew like an open one when they changed ([replanDay]): it
      * moves to the new time it stood in for while that is ahead, and goes if the routine no longer has a time for
-     * it and it is still to come.
+     * it and it is still to come. Undoing "Heute nicht" ([dropForToday]) undoes it for every occurrence it dropped
+     * on Heute: open again while their time window is open, missed once it has ended.
      */
     suspend fun reopen(occurrenceId: Long) = write {
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status != OccurrenceStatus.Missed } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
             settlingGoal(routine.id) {
-                if (occurrence.status == OccurrenceStatus.Done) dao.deleteTicks(occurrenceId)
-                reopen(occurrence, routine)
+                when (occurrence.status) {
+                    OccurrenceStatus.Dropped -> onHeute(routine).filter { it.status == OccurrenceStatus.Dropped }.forEach {
+                        if (routine.windowEnded(it, now(), clock.zone)) {
+                            dao.setStatus(it.id, OccurrenceStatus.Missed)
+                        } else {
+                            reopen(it, routine)
+                        }
+                    }
+                    OccurrenceStatus.Done -> {
+                        dao.deleteTicks(occurrenceId)
+                        reopen(occurrence, routine)
+                    }
+                    else -> reopen(occurrence, routine)
+                }
             }
         }
+    }
+
+    /** The [routine]'s occurrences on Heute: today's, and yesterday's still in their time window. */
+    private suspend fun onHeute(routine: Routine): List<Occurrence> {
+        val today = today()
+        return dao.occurrencesOn(routine.id, today) +
+            dao.occurrencesOn(routine.id, today.minusDays(1)).filterNot { routine.windowEnded(it, now(), clock.zone) }
     }
 
     /**

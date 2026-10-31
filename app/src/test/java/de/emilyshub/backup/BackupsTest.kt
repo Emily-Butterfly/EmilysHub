@@ -19,6 +19,7 @@ import de.emilyshub.places.Coordinates
 import de.emilyshub.reminders.ReminderReceiver
 import de.emilyshub.routine
 import de.emilyshub.routines.OccurrenceStatus.Done
+import de.emilyshub.routines.OccurrenceStatus.Dropped
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.tag
@@ -292,7 +293,7 @@ class BackupsTest {
         val sport = app.tag("Sport")
         val vitamins = app.routine("Vitamine", "07:30", checklist = listOf("Vitamin D", "Magnesium"), tags = setOf(health))
         app.routine("Yoga", "18:00", tags = setOf(sport), places = setOf(home))
-        app.history(vitamins, "2026-10-21" to Missed, "2026-10-22" to Done)
+        app.history(vitamins, "2026-10-20" to Dropped, "2026-10-21" to Missed, "2026-10-22" to Done)
         runBlocking {
             val occurrence = app.testDatabase.routines().occurrencesOn(vitamins, LocalDate.parse("2026-10-23")).single()
             app.routines.tick(occurrence.id, app.routines.checklist(vitamins).first().id, ticked = true)

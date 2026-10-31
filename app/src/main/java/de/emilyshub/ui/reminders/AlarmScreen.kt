@@ -33,7 +33,7 @@ import java.time.Duration
 
 /**
  * The full-screen alarm (SPEC.md §3, §9). While [locked], it only says "Erinnerung fällig" and offers to
- * unlock or close; once unlocked, it shows the [reminder] with "Erledigt · Später · Überspringen", and after
+ * unlock or close; once unlocked, it shows the [reminder] with "Erledigt · Später · Überspringen · Heute nicht", and after
  * "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
@@ -45,6 +45,7 @@ fun AlarmScreen(
     onDone: () -> Unit,
     onPutOff: (Duration) -> Unit,
     onSkip: () -> Unit,
+    onDrop: () -> Unit,
     onClose: () -> Unit,
 ) {
     // For the reminder shown: another one coming first starts with its actions again.
@@ -86,6 +87,7 @@ fun AlarmScreen(
                         WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
                     }
                     TextButton(onClick = onSkip) { Text(stringResource(R.string.reminder_skip)) }
+                    TextButton(onClick = onDrop) { Text(stringResource(R.string.reminder_drop)) }
                 }
             }
         }

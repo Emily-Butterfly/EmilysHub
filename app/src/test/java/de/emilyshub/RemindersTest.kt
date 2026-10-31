@@ -122,7 +122,7 @@ class RemindersTest {
     }
 
     @Test
-    fun `later offers 10 min, 30 min and 1 h, and the reminder comes back after the time chosen`() {
+    fun `later offers 10 min, 30 min and Heute nicht, and the reminder comes back after the time chosen`() {
         app.routine("Vitamine", "07:30")
         app.routine("Tagebuch", "20:00")
         goOffAt("2026-10-23T07:30")
@@ -133,7 +133,7 @@ class RemindersTest {
         val choice = reminders().single()
         assertEquals("Vitamine", choice.extras.getString(Notification.EXTRA_TITLE))
         assertEquals("Erneut erinnern in …", choice.extras.getString(Notification.EXTRA_TEXT))
-        assertEquals(listOf("10 Min.", "30 Min.", "1 Std."), choice.actions.map { it.title.toString() })
+        assertEquals(listOf("10 Min.", "30 Min.", "Heute nicht"), choice.actions.map { it.title.toString() })
         choice.actions.forEach { assertSentOnlyTo(ReminderReceiver::class.java.name, it.actionIntent) }
         assertTrue(choice.actions.all { it.isAuthenticationRequired })
         assertTrue("without a sound", alertsOnlyOnce(choice))
@@ -153,14 +153,14 @@ class RemindersTest {
         app.routine("Vitamine", "07:30")
         goOffAt("2026-10-23T07:32")
 
-        for ((choice, back) in listOf("1 Std." to "08:32", "30 Min." to "09:02", "10 Min." to "09:12")) {
+        for ((choice, back) in listOf("30 Min." to "08:02", "10 Min." to "08:12")) {
             putOff(choice)
             assertEquals(choice, berlin("2026-10-23T$back"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
             goOffAt("2026-10-23T$back")
             assertEquals(choice, listOf("Vitamine"), titles())
         }
 
-        assertEquals(berlin("2026-10-23T09:42"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        assertEquals(berlin("2026-10-23T08:42"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
     }
 
     @Test
@@ -171,16 +171,32 @@ class RemindersTest {
 
         tap("Später")
 
-        assertEquals(listOf("10 Min."), reminders().single().actions.map { it.title.toString() })
+        assertEquals(listOf("10 Min.", "Heute nicht"), reminders().single().actions.map { it.title.toString() })
     }
 
     @Test
-    fun `with less than ten minutes of the time window left, there is no later`() {
+    fun `with less than ten minutes of the time window left, later offers only Heute nicht`() {
         app.routine("Lesen", "23:55", window = TimeWindow(untilMidnight = true))
 
         goOffAt("2026-10-23T23:55")
+        assertEquals(listOf("Erledigt", "Später", "Überspringen"), reminders().single().actions.map { it.title.toString() })
+        tap("Später")
 
-        assertEquals(listOf("Erledigt", "Überspringen"), reminders().single().actions.map { it.title.toString() })
+        assertEquals(listOf("Heute nicht"), reminders().single().actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `Heute nicht drops the routine for the rest of the day, takes the reminder away, and nothing follows up`() {
+        app.routine("Wasser trinken", "07:30", "12:00")
+        goOffAt("2026-10-23T07:30")
+
+        tap("Später")
+        tap("Heute nicht")
+
+        assertEquals(emptyList<Notification>(), reminders())
+        assertEquals(listOf(OccurrenceStatus.Dropped, OccurrenceStatus.Dropped), statuses())
+        goOffAt("2026-10-23T12:00")
+        assertEquals(emptyList<Notification>(), reminders())
     }
 
     @Test
@@ -208,7 +224,7 @@ class RemindersTest {
 
         app.routine("Tagebuch", "20:00")
 
-        assertEquals(listOf("10 Min.", "30 Min.", "1 Std."), reminders().single().actions.map { it.title.toString() })
+        assertEquals(listOf("10 Min.", "30 Min.", "Heute nicht"), reminders().single().actions.map { it.title.toString() })
     }
 
     @Test

@@ -29,12 +29,15 @@
     <string name="today_todo_due">To-do, fällig: %1$s</string>
     <string name="today_todo_overdue">To-do, überfällig: %1$s</string>
     <string name="today_skip">Überspringen</string>
+    <string name="today_more">Mehr zu „%1$s“</string>
+    <string name="today_drop">Heute nicht</string>
     <string name="today_yesterday_at">Gestern, %1$s</string>
     <string name="today_waiting_for">Wartet auf %1$s</string>
     <string name="names_or">" oder "</string>
     <string name="today_undo">Rückgängig</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>
+    <string name="status_dropped">Ausgelassen</string>
 
     <string name="routines_empty">Noch keine Routinen. Tippe auf +, um deine erste anzulegen.</string>
     <string name="routine_create">Routine anlegen</string>
@@ -126,6 +129,7 @@
     <string name="statistics_done">erledigt</string>
     <string name="statistics_skipped">übersprungen</string>
     <string name="statistics_missed">verpasst</string>
+    <string name="statistics_dropped">ausgelassen</string>
     <string name="statistics_open_day">offen</string>
     <string name="archive_open">Archiv (%1$d)</string>
     <string name="archive_restore">Wiederherstellen</string>
@@ -156,6 +160,7 @@
     <string name="reminder_put_off_minutes">%1$d Min.</string>
     <string name="reminder_put_off_hours">%1$d Std.</string>
     <string name="reminder_skip">Überspringen</string>
+    <string name="reminder_drop">Heute nicht</string>
     <string name="todo_reminder_places">Ort: %1$s</string>
     <string name="todo_places_none">Ohne Ort erinnert ein To-do nur zu seiner Uhrzeit, falls es eine hat.</string>
     <string name="todo_places_chosen">Erinnert an diesen Orten: mit Uhrzeit zu ihr, wenn du dort bist, sonst beim Ankommen, ohne Uhrzeit beim Ankommen. Das Ankommen erkennt die App, wenn sich das Handy mit einem WLAN verbindet, und an Orten mit GPS-Bereich, indem sie alle 30 Minuten nachsieht, solange das in den Einstellungen eingeschaltet ist. Die Erinnerung wartet, bis das To-do erledigt ist.</string>

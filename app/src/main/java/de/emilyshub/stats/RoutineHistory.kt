@@ -17,14 +17,18 @@ enum class DayOutcome {
     /** Something missed: the day breaks the streak. */
     Missed,
 
+    /** Something dropped with "Heute nicht" and nothing missed: the day breaks the streak like a missed one. */
+    Dropped,
+
     /** Nothing done or missed yet while something is still open: so far, like a day skipped. */
     Open,
     ;
 
     companion object {
-        /** The outcome of a day whose occurrences ended as [statuses]: one missed decides it, then one done. */
+        /** The outcome of a day whose occurrences ended as [statuses]: one missed decides it, then one dropped, then one done. */
         fun of(statuses: Collection<OccurrenceStatus>): DayOutcome = when {
             OccurrenceStatus.Missed in statuses -> Missed
+            OccurrenceStatus.Dropped in statuses -> Dropped
             OccurrenceStatus.Done in statuses -> Done
             OccurrenceStatus.Open in statuses -> Open
             else -> Skipped
@@ -75,7 +79,7 @@ class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
         days.values.forEach { outcome ->
             when (outcome) {
                 DayOutcome.Done -> longest = maxOf(longest, ++current)
-                DayOutcome.Missed -> current = 0
+                DayOutcome.Missed, DayOutcome.Dropped -> current = 0
                 DayOutcome.Skipped, DayOutcome.Open -> Unit
             }
         }
@@ -91,12 +95,15 @@ class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
         val inPeriod = occurrences.filter { !it.date.isBefore(from) && !it.date.isAfter(today) }
         return DoneRate(
             done = inPeriod.count { it.status == OccurrenceStatus.Done },
-            counted = inPeriod.count { it.status == OccurrenceStatus.Done || it.status == OccurrenceStatus.Missed },
+            counted = inPeriod.count { it.status in COUNTED },
         )
     }
 
     companion object {
         /** The periods of the done rate, in days (SPEC.md §8). */
         val PERIODS = listOf(7, 30, 90)
+
+        /** What the done rate counts: done ones, and those missed or dropped, which count as not done. */
+        private val COUNTED = setOf(OccurrenceStatus.Done, OccurrenceStatus.Missed, OccurrenceStatus.Dropped)
     }
 }

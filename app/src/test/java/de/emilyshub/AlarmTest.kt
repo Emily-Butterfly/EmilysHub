@@ -84,7 +84,7 @@ class AlarmTest {
 
             compose.onNodeWithText("Arzttermin").assertIsDisplayed()
             compose.onNodeWithText("Fällig um 07:30").assertIsDisplayed()
-            listOf("Erledigt", "Später", "Überspringen").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            listOf("Erledigt", "Später", "Überspringen", "Heute nicht").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
         }
     }
 
@@ -122,6 +122,17 @@ class AlarmTest {
             assertClosed(scenario)
         }
         assertEquals(listOf(OccurrenceStatus.Skipped), statuses())
+    }
+
+    @Test
+    fun `Heute nicht in the alarm drops the routine for the day`() {
+        openAlarm().use { scenario ->
+            compose.onNodeWithText("Heute nicht").performClick()
+            idle()
+
+            assertClosed(scenario)
+        }
+        assertEquals(listOf(OccurrenceStatus.Dropped), statuses())
     }
 
     @Test

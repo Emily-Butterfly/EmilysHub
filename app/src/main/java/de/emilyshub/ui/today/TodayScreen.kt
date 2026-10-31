@@ -15,7 +15,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,8 +69,8 @@ import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
-import kotlinx.coroutines.delay
 import java.time.LocalDate
+import kotlinx.coroutines.delay
 
 /**
  * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
@@ -143,6 +149,7 @@ private fun RoutineEntry(routine: DueRoutine, today: LocalDate, routines: Routin
                 }
             },
             onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
+            onDrop = { scope.launchNow { routines.dropForToday(routine.occurrenceId) } },
             onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
         )
         routine.checklist.forEach { entry ->
@@ -275,11 +282,12 @@ private fun DueRoutineRow(
     fromDayBefore: Boolean,
     onDoneChange: (Boolean) -> Unit,
     onSkip: () -> Unit,
+    onDrop: () -> Unit,
     onReopen: () -> Unit,
 ) {
     val done = routine.status == OccurrenceStatus.Done
-    // Missed is how it ended: it can no longer be ticked off.
-    val tickable = routine.status != OccurrenceStatus.Missed
+    // Missed is how it ended, and one dropped is undone first: neither can be ticked off.
+    val tickable = routine.status != OccurrenceStatus.Missed && routine.status != OccurrenceStatus.Dropped
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -314,9 +322,33 @@ private fun DueRoutineRow(
             routine.status.label?.let { Hint(stringResource(it)) }
         }
         when (routine.status) {
-            OccurrenceStatus.Open -> TextButton(onClick = onSkip) { Text(stringResource(R.string.today_skip)) }
-            OccurrenceStatus.Skipped -> TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
+            OccurrenceStatus.Open -> {
+                TextButton(onClick = onSkip) { Text(stringResource(R.string.today_skip)) }
+                MoreMenu(routine.name, onDrop)
+            }
+            OccurrenceStatus.Skipped, OccurrenceStatus.Dropped ->
+                TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
             OccurrenceStatus.Done, OccurrenceStatus.Missed -> Unit
+        }
+    }
+}
+
+/** The menu of an open routine on Heute: "Heute nicht" drops it for the rest of the day (SPEC.md §2). */
+@Composable
+private fun MoreMenu(name: String, onDrop: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.today_more, name))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.today_drop)) },
+                onClick = {
+                    open = false
+                    onDrop()
+                },
+            )
         }
     }
 }
@@ -326,6 +358,7 @@ private val OccurrenceStatus.label: Int?
     @StringRes get() = when (this) {
         OccurrenceStatus.Skipped -> R.string.status_skipped
         OccurrenceStatus.Missed -> R.string.status_missed
+        OccurrenceStatus.Dropped -> R.string.status_dropped
         OccurrenceStatus.Open, OccurrenceStatus.Done -> null
     }
 

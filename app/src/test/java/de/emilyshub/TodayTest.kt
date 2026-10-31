@@ -3,6 +3,7 @@ package de.emilyshub
 import android.Manifest
 import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -10,6 +11,8 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -166,6 +169,22 @@ class TodayTest {
             compose.onNodeWithText("Rückgängig").performClick()
             assertEquals(listOf("18:00 Joggen"), rows())
             assertEquals(listOf(OccurrenceStatus.Open), statuses())
+        }
+    }
+
+    @Test
+    fun `Heute nicht in the menu of an entry drops the routine for the day, until it is undone`() {
+        app.routine("Wasser trinken", "18:00", "21:00")
+
+        launchApp().use {
+            compose.onAllNodesWithContentDescription("Mehr zu „Wasser trinken“")[0].performClick()
+            compose.onNodeWithText("Heute nicht").performClick()
+            assertEquals(listOf("18:00 Wasser trinken Ausgelassen", "21:00 Wasser trinken Ausgelassen"), rows())
+            assertEquals(listOf(OccurrenceStatus.Dropped, OccurrenceStatus.Dropped), statuses())
+            compose.onAllNodesWithContentDescription("Mehr zu „Wasser trinken“").assertCountEquals(0)
+
+            compose.onAllNodesWithText("Rückgängig")[0].performClick()
+            assertEquals(listOf("18:00 Wasser trinken", "21:00 Wasser trinken"), rows())
         }
     }
 

@@ -18,7 +18,7 @@ Eine Routine lässt sich für den Tag bewusst fallen lassen: „Heute nicht“ s
 - [ ] Danach kommen für die Routine heute keine Erinnerungen, Wiederholungs-Erinnerungen und Wecker mehr; eine gezeigte Benachrichtigung verschwindet, ein klingelnder Wecker verstummt
 - [ ] „Heute nicht“ gibt es:
   - im entsperrten Vollbild-Wecker als eigenen Knopf neben „Erledigt · Später · Überspringen“
-  - in der Benachrichtigung in der Auswahl von „Später“: „10 min · 30 min · 1 h · Heute nicht“, auch wenn das Zeitfenster für „Später“ schon zu kurz ist
+  - in der Benachrichtigung in der Auswahl von „Später“: „10 min · 30 min · Heute nicht“ (Android zeigt dort höchstens drei Knöpfe; „1 h“ bleibt im Vollbild-Wecker), auch wenn das Zeitfenster für „Später“ schon zu kurz ist
   - in Heute im Menü des Eintrags neben „Überspringen“
 - [ ] In Heute rückgängig zu machen, solange der Tag läuft: Die Fälligkeiten werden wieder offen, solange ihr Zeitfenster läuft, sonst verpasst; ihre Erinnerungen kommen dann wieder wie geplant
 - [ ] Heute und der Kalender der Statistik zeigen „Ausgelassen“ mit eigenem Namen und eigener Farbe

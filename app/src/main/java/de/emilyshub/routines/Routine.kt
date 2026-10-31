@@ -103,6 +103,9 @@ enum class OccurrenceStatus(val stored: String) {
     Done("done"),
     Skipped("skipped"),
     Missed("missed"),
+
+    /** Dropped for the day with "Heute nicht" (SPEC.md §2): counts like missed, but was decided. */
+    Dropped("dropped"),
     ;
 
     /** Whether its occurrence's checklist can be ticked: not once it was skipped or missed. */

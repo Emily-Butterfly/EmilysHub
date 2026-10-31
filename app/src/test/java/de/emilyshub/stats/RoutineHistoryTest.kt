@@ -3,6 +3,7 @@ package de.emilyshub.stats
 import de.emilyshub.routines.OccurrenceOutcome
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.OccurrenceStatus.Done
+import de.emilyshub.routines.OccurrenceStatus.Dropped
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.OccurrenceStatus.Open
 import de.emilyshub.routines.OccurrenceStatus.Skipped
@@ -129,6 +130,23 @@ class RoutineHistoryTest {
             ),
             history.days,
         )
+    }
+
+    @Test
+    fun `a day dropped with Heute nicht breaks the streak like a missed one and shows as dropped`() {
+        assertEquals(DayOutcome.Dropped, DayOutcome.of(listOf(Done, Dropped)))
+        assertEquals(DayOutcome.Missed, DayOutcome.of(listOf(Dropped, Missed)))
+        val history = history("2026-10-20" to Done, "2026-10-21" to Done, "2026-10-22" to Dropped, "2026-10-23" to Done)
+
+        assertEquals(Streaks(current = 1, longest = 2), history.streaks())
+        assertEquals(DayOutcome.Dropped, history.days[LocalDate.parse("2026-10-22")])
+    }
+
+    @Test
+    fun `a dropped occurrence counts in the done rate as not done`() {
+        val history = history("2026-10-21" to Done, "2026-10-22" to Dropped, "2026-10-23" to Skipped)
+
+        assertEquals(DoneRate(done = 1, counted = 2), history.doneRate(today, period = 7))
     }
 
     /** The occurrences of a routine on the days given, as they ended. */

@@ -291,6 +291,69 @@ class RoutinesTest {
     }
 
     @Test
+    fun `Heute nicht drops every open occurrence of the routine on Heute, the later times too, and leaves the others`() =
+        runBlocking {
+            routines.create(draft("Wasser trinken", "08:00", "12:00", "20:00", window = TimeWindow(hours = 2)))
+            routines.create(draft("Lesen", "21:00"))
+            routines.markDone(occurrenceAt("08:00"))
+            clock.now = berlin("2026-10-23T13:00")
+
+            routines.dropForToday(occurrenceAt("12:00"))
+
+            assertEquals(
+                listOf(
+                    "08:00 Wasser trinken: Done", "12:00 Wasser trinken: Dropped", "20:00 Wasser trinken: Dropped",
+                    "21:00 Lesen: Open",
+                ),
+                dueOn(today),
+            )
+            assertEquals(emptyList<Reminder>(), routines.remindersDue(after = clock.now, until = berlin("2026-10-23T20:30")).filter {
+                it.name == "Wasser trinken"
+            })
+        }
+
+    @Test
+    fun `Heute nicht also drops the occurrence of yesterday still in its time window, and leaves one missed as it is`() =
+        runBlocking {
+            routines.create(draft("Lesen", "08:00", "22:00", window = TimeWindow(hours = 4)))
+            clock.now = berlin("2026-10-24T01:00")
+            routines.markMissed(since = berlin("2026-10-23T05:00"))
+            val tomorrow = today.plusDays(1)
+            val yesterdayLate = routines.dueOn(tomorrow).first().first { it.dueAt.toLocalDate() == today }.occurrenceId
+
+            routines.dropForToday(yesterdayLate)
+
+            assertEquals(listOf("22:00 Lesen: Dropped", "08:00 Lesen: Dropped", "22:00 Lesen: Dropped"), dueOn(tomorrow))
+            assertEquals(listOf("08:00 Lesen: Missed", "22:00 Lesen: Dropped"), dueOn(today))
+        }
+
+    @Test
+    fun `undoing Heute nicht opens again what is still in its time window and misses the rest`() = runBlocking {
+        routines.create(draft("Wasser trinken", "12:00", "20:00", window = TimeWindow(hours = 2)))
+        clock.now = berlin("2026-10-23T13:00")
+        routines.dropForToday(occurrenceAt("12:00"))
+        clock.now = berlin("2026-10-23T15:00")
+
+        routines.reopen(occurrenceAt("20:00"))
+
+        assertEquals(listOf("12:00 Wasser trinken: Missed", "20:00 Wasser trinken: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `a dropped occurrence is not missed later, and its checklist cannot be ticked`() = runBlocking {
+        routines.create(draft("Yoga", "18:00", checklist = listOf("Matte")))
+        routines.dropForToday(occurrenceAt("18:00"))
+        val item = routines.dueOn(today).first().single().checklist.single().itemId
+
+        routines.tick(occurrenceAt("18:00"), item, ticked = true)
+        clock.now = berlin("2026-10-24T08:00")
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+
+        assertEquals(listOf("18:00 Yoga: Dropped"), dueOn(today))
+        assertEquals(listOf("Matte" to false), checklistOn(today))
+    }
+
+    @Test
     fun `all routines are listed by time, then by name`() = runBlocking {
         routines.create(draft("Tagebuch", "20:00", description = "Drei gute Dinge"))
         routines.create(draft("Übungen", "07:30"))

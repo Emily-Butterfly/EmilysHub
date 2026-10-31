@@ -29,6 +29,7 @@ class ReminderReceiver : BroadcastReceiver() {
             ACTION_OFFER_PUT_OFF -> onEither(app.reminders::offerPutOff, app.reminders::offerTodoPutOff)
             ACTION_PUT_OFF -> putOffBy?.let { by -> onEither({ app.reminders.putOff(it, by) }, { app.reminders.putOffTodo(it, by) }) }
             ACTION_SKIP -> occurrence?.let { suspend { app.routines.skip(it) } }
+            ACTION_DROP -> occurrence?.let { suspend { app.routines.dropForToday(it) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
@@ -48,6 +49,9 @@ class ReminderReceiver : BroadcastReceiver() {
         /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"
         const val ACTION_SKIP = "de.emilyshub.action.SKIP"
+
+        /** "Heute nicht": the routine is dropped for the rest of the day. */
+        const val ACTION_DROP = "de.emilyshub.action.DROP"
 
         /** "Stumm" while an alarm rings: it stops ringing, its reminders stay. */
         const val ACTION_SILENCE = "de.emilyshub.action.SILENCE"

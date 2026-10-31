@@ -95,6 +95,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                     onDone = { answer { app.routines.markDone(it) } },
                     onPutOff = { by: Duration -> answer { app.reminders.putOff(it, by) } },
                     onSkip = { answer { app.routines.skip(it) } },
+                    onDrop = { answer { app.routines.dropForToday(it) } },
                     onClose = {
                         silence()
                         finish()

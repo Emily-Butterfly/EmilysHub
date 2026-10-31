@@ -125,21 +125,21 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
 
     private fun notification(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean): Notification {
         val about = ReminderOf(tagOf(reminder.occurrenceId), EXTRA_OCCURRENCE, reminder.occurrenceId)
-        // Only what comes back before the time window ends; with none, there is no "Später".
-        val choices = reminder.putOffChoices(clock.instant())
-        val offering = offeringPutOff && choices.isNotEmpty()
+        // Only what comes back before the time window ends, and "Heute nicht" after it: Android shows three actions at most,
+        // so two times at most. With no time left, "Später" still offers "Heute nicht".
+        val choices = reminder.putOffChoices(clock.instant()).take(2)
+        val offering = offeringPutOff
         val text: String
         val actions: List<Notification.Action>
         if (offering) {
             text = context.getString(R.string.reminder_put_off_when)
-            actions = putOffActions(choices, about)
+            actions = putOffActions(choices, about) +
+                action(context.getString(R.string.reminder_drop), ReminderReceiver.ACTION_DROP, about)
         } else {
             text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
-            actions = listOfNotNull(
+            actions = listOf(
                 action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, about),
-                choices.firstOrNull()?.let {
-                    action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about)
-                },
+                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
             )
         }

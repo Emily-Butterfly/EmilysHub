@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -125,7 +126,11 @@ private fun DayCell(date: LocalDate, outcome: DayOutcome?) {
 /** What the colors and signs of the calendar mean. */
 @Composable
 private fun Legend() {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 8.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
         DayOutcome.entries.forEach { outcome ->
             val marking = outcome.marking()
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -154,6 +159,7 @@ private fun DayOutcome.marking(): Marking {
         DayOutcome.Done -> Marking(colors.primary, colors.onPrimary, "✓", R.string.statistics_done)
         DayOutcome.Skipped -> Marking(colors.secondaryContainer, colors.onSecondaryContainer, "–", R.string.statistics_skipped)
         DayOutcome.Missed -> Marking(colors.error, colors.onError, "✗", R.string.statistics_missed)
+        DayOutcome.Dropped -> Marking(colors.errorContainer, colors.onErrorContainer, "⊘", R.string.statistics_dropped)
         DayOutcome.Open -> Marking(colors.surfaceVariant, colors.onSurfaceVariant, "·", R.string.statistics_open_day)
     }
 }
