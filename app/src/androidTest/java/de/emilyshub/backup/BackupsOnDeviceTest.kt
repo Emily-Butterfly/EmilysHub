@@ -163,7 +163,9 @@ class BackupsOnDeviceTest {
                 "AND name NOT IN ('android_metadata', 'room_master_table', 'settings') ORDER BY name",
         ).use { cursor -> List(cursor.count) { cursor.moveToNext(); cursor.getString(0) } }
         return tables.associateWith { table ->
-            db.query("SELECT * FROM `$table` ORDER BY 1, 2").use { cursor ->
+            // By the first two columns, or the only one.
+            val order = db.query("SELECT * FROM `$table` LIMIT 0").use { if (it.columnCount > 1) "1, 2" else "1" }
+            db.query("SELECT * FROM `$table` ORDER BY $order").use { cursor ->
                 List(cursor.count) {
                     cursor.moveToNext()
                     List(cursor.columnCount) { column ->
