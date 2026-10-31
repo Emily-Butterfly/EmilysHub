@@ -21,7 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -58,6 +58,7 @@ import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.ui.rememberNow
 import java.time.YearMonth
 import kotlin.math.roundToInt
 
@@ -78,7 +79,9 @@ fun LedgerScreen(
     onOpenRecurring: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val summary by remember(ledger, month) { ledger.month(month) }.collectAsState(initial = null)
+    // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
+    val today = ledger.dayOf(rememberNow(ledger::now))
+    val summary by remember(ledger, month, today) { ledger.month(month) }.collectAsState(initial = null)
 
     Scaffold(
         topBar = {
@@ -91,7 +94,7 @@ fun LedgerScreen(
                 },
                 actions = {
                     IconButton(onClick = onOpenRecurring) {
-                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.recurring_title))
+                        Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.recurring_title))
                     }
                     IconButton(onClick = onOpenCategories) {
                         Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.ledger_categories))
@@ -247,7 +250,6 @@ private fun PieChart(values: List<Long>, modifier: Modifier) {
 @Composable
 private fun BookingRow(entry: BookingWithCategory, onClick: () -> Unit) {
     val (booking, category) = entry
-    val income = category.kind == BookingKind.Income
     ListItem(
         headlineContent = { Text(booking.description.ifEmpty { category.name }) },
         supportingContent = {
@@ -260,14 +262,20 @@ private fun BookingRow(entry: BookingWithCategory, onClick: () -> Unit) {
             Text(parts.joinToString(" · "))
         },
         trailingContent = {
-            Text(
-                // Signed, so that the colour is not all that tells income from expenses.
-                text = if (income) "+${Money.format(booking.amountCents)}" else Money.format(-booking.amountCents),
-                color = if (income) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            SignedAmount(category.kind, booking.amountCents)
         },
         modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+/** An amount of [kind], signed, so that the colour is not all that tells income from expenses. */
+@Composable
+internal fun SignedAmount(kind: BookingKind, cents: Long) {
+    val income = kind == BookingKind.Income
+    Text(
+        text = if (income) "+${Money.format(cents)}" else Money.format(-cents),
+        color = if (income) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.bodyLarge,
     )
 }
 

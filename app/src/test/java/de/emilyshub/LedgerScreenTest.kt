@@ -147,7 +147,7 @@ class LedgerScreenTest {
             openLedger()
             compose.onNodeWithContentDescription("Kategorien").performClick()
             compose.onNodeWithContentDescription("„Kleidung“ löschen").performClick()
-            compose.onNodeWithText("„Kleidung“ hat eine Buchung. Sie wandert nach „Sonstiges“.").assertIsDisplayed()
+            compose.onNodeWithText("„Kleidung“ hat eine Buchung oder Fixbuchung. Sie wandert nach „Sonstiges“.").assertIsDisplayed()
             compose.onNode(hasText("Löschen") and hasAnyAncestor(isDialog())).performClick()
 
             compose.onNodeWithText("Kleidung").assertDoesNotExist()

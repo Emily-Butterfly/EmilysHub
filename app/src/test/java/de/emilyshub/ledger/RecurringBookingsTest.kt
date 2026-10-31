@@ -38,11 +38,20 @@ class RecurringBookingsTest {
     @Test
     fun `the dates of each interval, on the last day of shorter months, in leap years too`() {
         fun dates(interval: BookingInterval, day: Int, first: String, through: String) =
-            schedule(interval, day, YearMonth.parse(first)).takeWhile { !it.isAfter(LocalDate.parse(through)) }.map(LocalDate::toString).toList()
+            schedule(interval, day, YearMonth.parse(first))
+                .takeWhile { !it.isAfter(LocalDate.parse(through)) }
+                .map(LocalDate::toString)
+                .toList()
 
-        assertEquals(listOf("2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"), dates(BookingInterval.Monthly, 31, "2026-01", "2026-04-30"))
+        assertEquals(
+            listOf("2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"),
+            dates(BookingInterval.Monthly, 31, "2026-01", "2026-04-30"),
+        )
         assertEquals(listOf("2028-01-30", "2028-02-29", "2028-03-30"), dates(BookingInterval.Monthly, 30, "2028-01", "2028-03-31"))
-        assertEquals(listOf("2026-01-15", "2026-04-15", "2026-07-15", "2026-10-15"), dates(BookingInterval.Quarterly, 15, "2026-01", "2026-12-31"))
+        assertEquals(
+            listOf("2026-01-15", "2026-04-15", "2026-07-15", "2026-10-15"),
+            dates(BookingInterval.Quarterly, 15, "2026-01", "2026-12-31"),
+        )
         assertEquals(listOf("2026-03-01", "2026-09-01", "2027-03-01"), dates(BookingInterval.HalfYearly, 1, "2026-03", "2027-08-31"))
         assertEquals(listOf("2028-02-29", "2029-02-28", "2030-02-28"), dates(BookingInterval.Yearly, 29, "2028-02", "2030-12-31"))
     }
@@ -101,6 +110,47 @@ class RecurringBookingsTest {
         ledger.enterDue()
         assertEquals(2, entered().size)
         assertEquals(emptyList<Any>(), ledger.templates().first())
+    }
+
+    @Test
+    fun `months without the app after entries are made up on the next look, each once`() = runBlocking {
+        template(BookingKind.Expense, "Wohnen", "850", BookingInterval.Monthly, day = 1, first = "2026-10", "Miete")
+        ledger.enterDue()
+
+        at("2027-02-15T09:00")
+        ledger.month(YearMonth.of(2027, 2)).first()
+        ledger.month(YearMonth.of(2027, 2)).first()
+
+        assertEquals(
+            listOf("2026-10-01", "2026-11-01", "2026-12-01", "2027-01-01", "2027-02-01"),
+            entered().map { it.substringBefore(' ') },
+        )
+    }
+
+    @Test
+    fun `a template moved to a day or month gone by brings nothing back-dated, only from the next day on`() = runBlocking {
+        val id = template(BookingKind.Expense, "Freizeit", "9,99", BookingInterval.Monthly, day = 28, first = "2026-09", "Streaming")
+        ledger.enterDue()
+        assertEquals(listOf("2026-09-28"), entered().map { it.substringBefore(' ') })
+
+        // On the 23rd of October: the 5th has gone by, so it comes on the 5th of November first.
+        ledger.updateTemplate(id, ledger.templates().first().single().draft.copy(day = 5))
+        assertEquals(listOf("2026-09-28"), entered().map { it.substringBefore(' ') })
+        assertEquals(LocalDate.parse("2026-11-05"), ledger.templates().first().single().next)
+
+        // Yearly from a month gone by: not this year again.
+        val yearly = ledger.templates().first().single().draft.copy(interval = BookingInterval.Yearly, firstMonth = YearMonth.of(2026, 3))
+        ledger.updateTemplate(id, yearly)
+        assertEquals(LocalDate.parse("2027-03-05"), ledger.templates().first().single().next)
+        assertEquals(1, entered().size)
+    }
+
+    @Test
+    fun `a category with fixed bookings only counts them as used`() = runBlocking {
+        val clothes = ledger.categories().first().first { it.name == "Kleidung" }.id
+        template(BookingKind.Expense, "Kleidung", "30", BookingInterval.Yearly, day = 1, first = "2027-01", "Winterjacke")
+
+        assertEquals(1, ledger.usesOf(clothes))
     }
 
     @Test

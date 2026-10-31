@@ -33,7 +33,17 @@ data class RecurringDraft(
 
     val problems: Set<RecurringProblem>
         get() = buildSet {
-            asBooking.problems.forEach { add(RecurringProblem.valueOf(it.name)) }
+            asBooking.problems.forEach { problem ->
+                add(
+                    when (problem) {
+                        BookingProblem.AmountMissing -> RecurringProblem.AmountMissing
+                        BookingProblem.AmountInvalid -> RecurringProblem.AmountInvalid
+                        BookingProblem.AmountNotAboveZero -> RecurringProblem.AmountNotAboveZero
+                        BookingProblem.CategoryMissing -> RecurringProblem.CategoryMissing
+                        BookingProblem.DescriptionTooLong -> RecurringProblem.DescriptionTooLong
+                    },
+                )
+            }
             if (day !in RecurringBooking.DAYS) add(RecurringProblem.DayOutOfRange)
         }
 

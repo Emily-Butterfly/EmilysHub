@@ -138,7 +138,7 @@ class LedgerTest {
     fun `a category deleted moves its bookings to "Sonstiges" of its kind, and the two "Sonstiges" stay`() = runBlocking {
         val clothes = category(BookingKind.Expense, "Kleidung")
         val id = book(BookingKind.Expense, "Kleidung", "39,99", "2026-10-12")
-        assertEquals(1, ledger.bookingsIn(clothes))
+        assertEquals(1, ledger.usesOf(clothes))
 
         ledger.deleteCategory(clothes)
 

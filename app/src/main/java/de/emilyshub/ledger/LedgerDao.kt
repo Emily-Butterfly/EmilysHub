@@ -62,6 +62,9 @@ interface LedgerDao {
     @Query("SELECT COUNT(*) FROM bookings WHERE category_id = :categoryId")
     suspend fun countIn(categoryId: Long): Int
 
+    @Query("SELECT COUNT(*) FROM recurring_bookings WHERE category_id = :categoryId")
+    suspend fun countTemplatesIn(categoryId: Long): Int
+
     @Transaction
     @Query("SELECT * FROM bookings WHERE date BETWEEN :from AND :to")
     fun observeBetween(from: LocalDate, to: LocalDate): Flow<List<BookingWithCategory>>

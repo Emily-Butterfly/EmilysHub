@@ -461,8 +461,8 @@ val MIGRATION_27_28 = object : Migration(27, 28) {
 }
 
 /**
- * Version 29: fixed bookings of the household book (#45), and with each booking the one it was entered from, if any.
- * None is there yet.
+ * Version 29: fixed bookings of the household book (SPEC.md §13, #45), and with each booking the one it was entered
+ * from, if any. None is there yet.
  */
 val MIGRATION_28_29 = object : Migration(28, 29) {
     override fun migrate(db: SupportSQLiteDatabase) {

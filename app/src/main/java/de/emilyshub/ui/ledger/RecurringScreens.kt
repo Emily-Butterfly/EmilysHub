@@ -67,6 +67,7 @@ import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import java.io.Serializable
+import java.time.YearMonth
 
 /** What the editor of fixed bookings opens: a new one, or one saved already. */
 sealed interface RecurringEditorTarget : Serializable {
@@ -107,7 +108,6 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
             else -> LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
                 items(list, key = { it.id }) { template ->
                     val draft = template.draft
-                    val cents = draft.asBooking.cents ?: 0
                     ListItem(
                         headlineContent = { Text(draft.cleanedDescription.ifEmpty { template.category.name }) },
                         supportingContent = {
@@ -117,10 +117,10 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
                                 ),
                             )
                         },
-                        trailingContent = {
-                            Text(if (draft.kind == BookingKind.Income) "+${Money.format(cents)}" else Money.format(-cents))
+                        trailingContent = { SignedAmount(draft.kind, template.amountCents) },
+                        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.recurring_edit)) {
+                            onOpen(RecurringEditorTarget.Edit(template.id))
                         },
-                        modifier = Modifier.clickable { onOpen(RecurringEditorTarget.Edit(template.id)) },
                     )
                 }
             }
@@ -143,6 +143,8 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var dayText by rememberSaveable { mutableStateOf(draft.day.toString()) }
+    // The first month of the one saved, which it may keep, if it lies further back.
+    var loadedFirstMonth by rememberSaveable { mutableStateOf<YearMonth?>(null) }
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
@@ -155,6 +157,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
             } else {
                 draft = saved
                 dayText = saved.day.toString()
+                loadedFirstMonth = saved.firstMonth
                 loaded = true
             }
         }
@@ -233,13 +236,20 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
             }
             Column {
                 SectionTitle(stringResource(R.string.recurring_first_month))
+                // A year back at most, as all months since are entered at once; one saved keeps its own.
+                val earliest = minOf(ledger.thisMonth().minusMonths(MONTHS_BACK), loadedFirstMonth ?: draft.firstMonth)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { draft = draft.copy(firstMonth = draft.firstMonth.minusMonths(1)) }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.ledger_month_previous))
+                    IconButton(
+                        onClick = { draft = draft.copy(firstMonth = draft.firstMonth.minusMonths(1)) },
+                        enabled = draft.firstMonth.isAfter(earliest),
+                    ) {
+                        val previous = stringResource(R.string.recurring_first_month_previous)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previous)
                     }
                     Text(draft.firstMonth.monthAndYear(), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     IconButton(onClick = { draft = draft.copy(firstMonth = draft.firstMonth.plusMonths(1)) }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.ledger_month_next))
+                        val next = stringResource(R.string.recurring_first_month_next)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = next)
                     }
                 }
             }
@@ -281,3 +291,4 @@ private fun intervalLabel(interval: BookingInterval): String = stringResource(
 )
 
 private const val SHORTEST_MONTH = 28
+private const val MONTHS_BACK = 12L

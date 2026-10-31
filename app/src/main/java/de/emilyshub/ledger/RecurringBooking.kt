@@ -43,6 +43,16 @@ data class RecurringBooking(
     @ColumnInfo(name = "first_month") val firstMonth: YearMonth,
     @ColumnInfo(name = "entered_through") val enteredThrough: YearMonth? = null,
 ) {
+    /**
+     * Changed on [today] after [previous], the month entered last before: so that the change holds from the next one
+     * on, the months of its new schedule before today count as entered, unless none was entered yet, when it is as new.
+     */
+    fun enteredAfterChange(previous: YearMonth?, today: LocalDate): YearMonth? {
+        previous ?: return null
+        val gone = schedule(interval, day, firstMonth).takeWhile { it.isBefore(today) }.lastOrNull()?.let(YearMonth::from)
+        return if (gone != null && gone.isAfter(previous)) gone else previous
+    }
+
     /** The dates it is still to be entered on, from the first after the month last entered. */
     fun dueDates(): Sequence<LocalDate> =
         schedule(interval, day, firstMonth).filter { date -> enteredThrough?.let { YearMonth.from(date).isAfter(it) } ?: true }
@@ -59,7 +69,13 @@ data class RecurringWithCategory(
 )
 
 /** A fixed booking as the list shows it: as the editor starts out with it, in its [category], next due on [next]. */
-data class RecurringTemplate(val id: Long, val draft: RecurringDraft, val category: LedgerCategory, val next: LocalDate)
+data class RecurringTemplate(
+    val id: Long,
+    val draft: RecurringDraft,
+    val amountCents: Long,
+    val category: LedgerCategory,
+    val next: LocalDate,
+)
 
 /**
  * The dates of a booking on [day] of the month every [interval] from [first] on, without end: on the last day of a

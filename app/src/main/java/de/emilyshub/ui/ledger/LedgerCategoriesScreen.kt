@@ -86,7 +86,7 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                                 IconButton(
                                     onClick = {
                                         scope.launchNow {
-                                            val count = ledger.bookingsIn(category.id)
+                                            val count = ledger.usesOf(category.id)
                                             if (count == 0) ledger.deleteCategory(category.id) else deleting = category.id to count
                                         }
                                     },

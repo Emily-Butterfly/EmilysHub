@@ -630,8 +630,8 @@
     <string name="category_delete">„%1$s“ löschen</string>
     <string name="category_delete_title">Kategorie löschen?</string>
     <plurals name="category_delete_text">
-        <item quantity="one">„%2$s“ hat eine Buchung. Sie wandert nach „Sonstiges“.</item>
-        <item quantity="other">„%2$s“ hat %1$d Buchungen. Sie wandern nach „Sonstiges“.</item>
+        <item quantity="one">„%2$s“ hat eine Buchung oder Fixbuchung. Sie wandert nach „Sonstiges“.</item>
+        <item quantity="other">„%2$s“ hat %1$d Buchungen und Fixbuchungen. Sie wandern nach „Sonstiges“.</item>
     </plurals>
     <string name="category_other_stays">Bleibt immer, für Buchungen ohne eigene Kategorie.</string>
     <string name="recurring_title">Fixbuchungen</string>
@@ -647,9 +647,11 @@
     <string name="recurring_day">Tag im Monat</string>
     <string name="recurring_day_short_months">In kürzeren Monaten am Monatsletzten.</string>
     <string name="recurring_first_month">Erster Monat</string>
+    <string name="recurring_first_month_previous">Erster Monat einen früher</string>
+    <string name="recurring_first_month_next">Erster Monat einen später</string>
     <string name="recurring_schedule">%1$s am %2$d. · nächste am %3$s</string>
     <string name="recurring_entered">Fixbuchung</string>
     <string name="recurring_delete_title">Fixbuchung löschen?</string>
     <string name="recurring_delete_text">Es kommen keine weiteren; die schon eingetragenen bleiben.</string>
-    <string name="recurring_edit_hint">Änderungen gelten ab dem nächsten Eintrag; die schon eingetragenen bleiben, wie sie sind.</string>
+    <string name="recurring_edit_hint">Änderungen gelten ab dem nächsten Eintrag von heute an; die schon eingetragenen bleiben, wie sie sind.</string>
 </resources>

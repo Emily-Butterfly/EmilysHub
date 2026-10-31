@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.coroutines.CoroutineContext
@@ -46,11 +47,17 @@ class Ledger(
     /** Today, the day a new booking is dated, and a new fixed one comes on. */
     fun today(): LocalDate = LocalDate.now(clock)
 
+    /** Now, so that a screen can tell when the day changes. */
+    fun now(): Instant = clock.instant()
+
+    /** The day of [instant] here. */
+    fun dayOf(instant: Instant): LocalDate = instant.atZone(clock.zone).toLocalDate()
+
     /** The month of today, which the household book opens on. */
     fun thisMonth(): YearMonth = YearMonth.now(clock)
 
     /** A new booking of [kind], dated today. */
-    fun newDraft(kind: BookingKind) = BookingDraft(kind, amount = "", date = LocalDate.now(clock))
+    fun newDraft(kind: BookingKind) = BookingDraft(kind, amount = "", date = today())
 
     /** The booking, or null once it is deleted. */
     suspend fun get(id: Long): Booking? = withContext(io) { dao.get(id) }
@@ -61,8 +68,8 @@ class Ledger(
         booking.toDraft(checkNotNull(dao.category(booking.categoryId)).kind)
     }
 
-    /** How many bookings the category has, which deleting it moves. */
-    suspend fun bookingsIn(categoryId: Long): Int = withContext(io) { dao.countIn(categoryId) }
+    /** How many bookings and fixed bookings the category has, which deleting it moves. */
+    suspend fun usesOf(categoryId: Long): Int = withContext(io) { dao.countIn(categoryId) + dao.countTemplatesIn(categoryId) }
 
     /** Saves a new booking; refuses a draft with problems, which the editor shows before. */
     suspend fun create(draft: BookingDraft): Long = write {
@@ -116,7 +123,9 @@ class Ledger(
         emitAll(
             dao.observeTemplates().map { all ->
                 all.map { (recurring, category) ->
-                    RecurringTemplate(recurring.id, recurring.toDraft(category.kind), category, recurring.dueDates().first())
+                    RecurringTemplate(
+                        recurring.id, recurring.toDraft(category.kind), recurring.amountCents, category, recurring.dueDates().first(),
+                    )
                 }.sortedWith(compareBy<RecurringTemplate> { it.next }.thenBy(InputText.byName) { it.draft.description })
             },
         )
@@ -140,7 +149,8 @@ class Ledger(
     suspend fun updateTemplate(id: Long, draft: RecurringDraft) = write {
         database().withTransaction {
             val before = dao.template(id) ?: return@withTransaction
-            dao.updateTemplate(checkedTemplate(draft).copy(id = id, enteredThrough = before.enteredThrough))
+            val changed = checkedTemplate(draft).copy(id = id)
+            dao.updateTemplate(changed.copy(enteredThrough = changed.enteredAfterChange(before.enteredThrough, today())))
         }
         enterDue()
     }
@@ -154,7 +164,7 @@ class Ledger(
      */
     suspend fun enterDue() = write {
         database().withTransaction {
-            val today = LocalDate.now(clock)
+            val today = today()
             dao.templates().forEach { template ->
                 val due = template.dueDates().takeWhile { !it.isAfter(today) }.toList()
                 if (due.isEmpty()) return@forEach

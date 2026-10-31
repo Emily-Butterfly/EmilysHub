@@ -653,13 +653,16 @@ class HubDatabaseMigrationTest {
     fun `version 28 moves to version 29 where bookings came from no fixed one and then one can be entered`() {
         createAtVersion(28) {
             it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other) VALUES (1, 'expense', 'Wohnen', 0)")
-            it.execSQL("INSERT INTO bookings (id, amount_cents, date, category_id, description) VALUES (1, 85000, '2026-10-01', 1, 'Miete')")
+            it.execSQL(
+                "INSERT INTO bookings (id, amount_cents, date, category_id, description) VALUES (1, 85000, '2026-10-01', 1, 'Miete')",
+            )
         }
 
         withMigratedDatabase { database ->
             assertEquals(null, database.ledger().get(1)?.recurringId)
             val ledger = Ledger({ database }, java.time.Clock.systemDefaultZone())
-            val draft = RecurringDraft(BookingKind.Expense, "850", 1, "Miete", BookingInterval.Monthly, 1, java.time.YearMonth.of(2026, 10))
+            val first = java.time.YearMonth.of(2026, 10)
+            val draft = RecurringDraft(BookingKind.Expense, "850", 1, "Miete", BookingInterval.Monthly, 1, first)
             val id = ledger.createTemplate(draft)
             assertEquals(id, database.ledger().templates().single().id)
         }
