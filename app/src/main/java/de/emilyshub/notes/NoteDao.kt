@@ -133,6 +133,16 @@ interface NoteDao {
     @Query("SELECT routine_id FROM note_routines WHERE note_id = :noteId")
     suspend fun routineIdsOf(noteId: Long): List<Long>
 
+    @Query("SELECT tag_id FROM note_tags WHERE note_id = :noteId")
+    suspend fun tagIdsOf(noteId: Long): List<Long>
+
+    @Query("DELETE FROM note_tags WHERE note_id = :noteId")
+    suspend fun untagAll(noteId: Long)
+
+    /** Tags the note with those of [tagIds] that are still there: one deleted meanwhile is left out. */
+    @Query("INSERT INTO note_tags (note_id, tag_id) SELECT :noteId, id FROM tags WHERE id IN (:tagIds)")
+    suspend fun tag(noteId: Long, tagIds: Collection<Long>)
+
     @Query("DELETE FROM note_goals WHERE note_id = :noteId")
     suspend fun unlinkGoals(noteId: Long)
 

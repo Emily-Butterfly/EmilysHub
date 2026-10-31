@@ -101,11 +101,13 @@ class BackupsOnDeviceTest {
 
     /**
      * [content] as version 16 made it, the first that made backups: without the wishes, which came with 17, nor the notes,
-     * which came with 21, their folders, which came with 22, and their links, which came with 23.
+     * which came with 21, their folders, which came with 22, their links, which came with 23, and their tags.
      */
     private fun asOfVersion16(content: JSONObject): JSONObject {
         val tables = content.getJSONObject("tables")
-        val notes = listOf("note_tabs", "notes", "note_folders", "note_general_tab", "note_goals", "note_todos", "note_routines")
+        val notes = listOf(
+            "note_tabs", "notes", "note_folders", "note_general_tab", "note_goals", "note_todos", "note_routines", "note_tags",
+        )
         (listOf("wishes", "wish_tags") + notes).forEach { tables.remove(it) }
         // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
         // goals routines hang under, which came with 20.

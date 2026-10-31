@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import de.emilyshub.routines.Routine
+import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Todo
 import de.emilyshub.wishes.Wish
 import java.io.Serializable
@@ -76,6 +77,21 @@ data class NoteTodo(
 data class NoteRoutine(
     @ColumnInfo(name = "note_id") val noteId: Long,
     @ColumnInfo(name = "routine_id") val routineId: Long,
+)
+
+/** A tag given to a note: the notes' link to the shared tags (SPEC.md §8). */
+@Entity(
+    tableName = "note_tags",
+    primaryKeys = ["note_id", "tag_id"],
+    foreignKeys = [
+        ForeignKey(entity = Note::class, parentColumns = ["id"], childColumns = ["note_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = Tag::class, parentColumns = ["id"], childColumns = ["tag_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index(value = ["tag_id"])],
+)
+data class NoteTag(
+    @ColumnInfo(name = "note_id") val noteId: Long,
+    @ColumnInfo(name = "tag_id") val tagId: Long,
 )
 
 /** Something a note can be linked to, by its [name]; [open] unless done, or archived, so that it is offered no more. */

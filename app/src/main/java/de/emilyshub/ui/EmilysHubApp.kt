@@ -267,7 +267,7 @@ private fun AppShell(
         }
         noteTarget != null -> {
             BackHandler { noteEditor = null }
-            NoteEditorScreen(notes, noteTarget, onClose = { noteEditor = null })
+            NoteEditorScreen(notes, tags, noteTarget, onClose = { noteEditor = null })
         }
         noteTabsOpen -> {
             BackHandler { noteTabsOpen = false }

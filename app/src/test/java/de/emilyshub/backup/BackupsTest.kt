@@ -313,7 +313,7 @@ class BackupsTest {
             app.notes.pinFolder(grammar, pinned = true)
             val inGrammar = Container(arabic, grammar)
             val verbs = app.notes.create(NoteDraft("Verben", "## Präsens\n**kataba** – schreiben", container = inGrammar))
-            app.notes.update(verbs, NoteDraft("Verben", "## Präsens", inGrammar, setOf(NoteLink.Goal(northernLights))))
+            app.notes.update(verbs, NoteDraft("Verben", "## Präsens", inGrammar, setOf(NoteLink.Goal(northernLights)), setOf(sport)))
             app.notes.pinNote(verbs, pinned = true)
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
@@ -407,8 +407,15 @@ class BackupsTest {
 
     /** [content] as version 22 made it: without notes pinned, nor linked, which came with 23. */
     private fun asOfVersion22(content: JSONObject): JSONObject {
-        LINK_TABLES.forEach { content.tables().remove(it) }
-        return content.withoutColumns("notes", "pinned", "on_today").withoutColumns("note_folders", "pinned").put("schema", 22)
+        val older = asOfVersion23(content)
+        LINK_TABLES.forEach { older.tables().remove(it) }
+        return older.withoutColumns("notes", "pinned", "on_today").withoutColumns("note_folders", "pinned").put("schema", 22)
+    }
+
+    /** [content] as version 23 made it: without tags of notes, which came with 24. */
+    private fun asOfVersion23(content: JSONObject): JSONObject {
+        content.tables().remove("note_tags")
+        return content.put("schema", 23)
     }
 
     /**
@@ -455,7 +462,7 @@ class BackupsTest {
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
-        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "notes") + LINK_TABLES
+        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000
     }
 }

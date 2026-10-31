@@ -111,6 +111,21 @@ class NotesScreenTest {
     }
 
     @Test
+    fun `a note is given shared tags in its editor`() {
+        val language = app.tag("Sprachen")
+        val verbs = runBlocking { app.notes.create(NoteDraft("Verben")) }
+
+        launchApp().use {
+            openNotes()
+            compose.onNodeWithText("Verben").performClick()
+            option("Bearbeiten").performClick()
+            compose.onNode(isSelectable() and hasText("Sprachen")).performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(setOf(language), runBlocking { app.notes.tagIdsOf(verbs) })
+    }
+
+    @Test
     fun `a note needs a title, and without one it is not saved`() {
         launchApp().use {
             openNotes()

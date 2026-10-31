@@ -54,8 +54,10 @@ import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
 import de.emilyshub.notes.toDraft
+import de.emilyshub.tags.Tags
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
 import java.io.Serializable
 
@@ -68,14 +70,14 @@ sealed interface NoteEditorTarget : Serializable {
 }
 
 /**
- * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies and what it is linked to, while
+ * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies, its tags and what it is linked to, while
  * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
  * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
  * first; leaving without saving drops the changes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit) {
+fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
     val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
     var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
@@ -96,7 +98,7 @@ fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit
             if (note == null) {
                 onClose()
             } else {
-                draft = note.toDraft(notes.linksOf(noteId))
+                draft = note.toDraft(notes.linksOf(noteId), notes.tagIdsOf(noteId))
                 loaded = true
             }
         }
@@ -157,7 +159,7 @@ fun NoteEditorScreen(notes: Notes, target: NoteEditorTarget, onClose: () -> Unit
             if (previewing) {
                 Preview(notes, draft)
             } else {
-                Writing(notes, draft, problems, showMissingTitle, titleAsked, onChange = { draft = it })
+                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, onChange = { draft = it })
             }
         }
     }
@@ -199,6 +201,7 @@ private fun ModeChoice(previewing: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 private fun Writing(
     notes: Notes,
+    tags: Tags,
     draft: NoteDraft,
     problems: Set<NoteProblem>,
     showMissingTitle: Boolean,
@@ -234,6 +237,7 @@ private fun Writing(
                 .focusRequester(titleFocus),
         )
         LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
+        TagsField(tags, draft.tagIds, onChange = { onChange(draft.copy(tagIds = it)) })
         LinksField(notes, draft.links, onChange = { onChange(draft.copy(links = it)) })
         OutlinedTextField(
             value = draft.text,

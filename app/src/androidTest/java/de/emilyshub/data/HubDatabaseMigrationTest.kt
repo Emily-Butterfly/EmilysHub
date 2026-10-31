@@ -557,6 +557,26 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 23 moves to version 24 where notes have no tags yet and then can have them`() {
+        createAtVersion(23) {
+            it.execSQL("INSERT INTO tags (id, name) VALUES (1, 'Sprachen')")
+            it.execSQL("INSERT INTO notes (id, title, text, changed_at, position) VALUES (1, 'Verben', '', '2026-10-23T05:00:00Z', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            val notes = database.notes()
+            assertEquals(emptyList<Long>(), notes.tagIdsOf(1))
+
+            notes.tag(1, listOf(1L))
+            assertEquals(listOf(1L), notes.tagIdsOf(1))
+
+            // A tag deleted is taken off.
+            database.tags().delete(1)
+            assertEquals(emptyList<Long>(), notes.tagIdsOf(1))
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

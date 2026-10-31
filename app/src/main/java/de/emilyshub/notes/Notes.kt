@@ -37,6 +37,9 @@ class Notes(
     /** The note, or null once it is deleted. */
     suspend fun get(id: Long): Note? = withContext(io) { dao.get(id) }
 
+    /** The tags of the note. */
+    suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
+
     /** What the note is linked to. */
     suspend fun linksOf(id: Long): Set<NoteLink> = withContext(io) {
         (dao.goalIdsOf(id).map(NoteLink::Goal) + dao.todoIdsOf(id).map(NoteLink::Todo) + dao.routineIdsOf(id).map(NoteLink::Routine))
@@ -78,6 +81,7 @@ class Notes(
             val into = book.stillThere(cleaned.container)
             val id = dao.insert(cleaned.toNote(into, book.endOfNotes(into), clock.instant(), pinned = false, onToday = false))
             saveLinks(id, cleaned.links)
+            dao.tag(id, cleaned.tagIds)
             id
         }
     }
@@ -92,6 +96,8 @@ class Notes(
             val position = if (into == book.containerOf(note)) note.position else book.endOfNotes(into)
             dao.update(cleaned.toNote(into, position, clock.instant(), note.pinned, note.onToday, id))
             saveLinks(id, cleaned.links)
+            dao.untagAll(id)
+            dao.tag(id, cleaned.tagIds)
         }
     }
 

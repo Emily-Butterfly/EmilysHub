@@ -15,6 +15,7 @@ import de.emilyshub.notes.NoteFolder
 import de.emilyshub.notes.NoteGoal
 import de.emilyshub.notes.NoteRoutine
 import de.emilyshub.notes.NoteTab
+import de.emilyshub.notes.NoteTag
 import de.emilyshub.notes.NoteTodo
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceDao
@@ -52,7 +53,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         Todo::class, TodoChecklistItem::class, TodoTag::class, TodoPlace::class,
         Wish::class, WishTag::class,
         NoteTab::class, Note::class, NoteFolder::class, GeneralTab::class,
-        NoteGoal::class, NoteTodo::class, NoteRoutine::class,
+        NoteGoal::class, NoteTodo::class, NoteRoutine::class, NoteTag::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -77,7 +78,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 23
+        const val VERSION = 24
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -101,7 +102,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
             MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
-            MIGRATION_22_23,
+            MIGRATION_22_23, MIGRATION_23_24,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

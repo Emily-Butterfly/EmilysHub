@@ -8,6 +8,7 @@ import de.emilyshub.notes.NoteFolder
 import de.emilyshub.notes.NoteGoal
 import de.emilyshub.notes.NoteRoutine
 import de.emilyshub.notes.NoteTab
+import de.emilyshub.notes.NoteTag
 import de.emilyshub.notes.NoteTodo
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
@@ -97,4 +98,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM note_routines")
     fun noteRoutines(): List<NoteRoutine>
+
+    @Query("SELECT * FROM note_tags")
+    fun noteTags(): List<NoteTag>
 }

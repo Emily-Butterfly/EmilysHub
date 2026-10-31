@@ -23,6 +23,8 @@ data class NoteDraft(
     val container: Container = Container(),
     /** What it is linked to; one deleted meanwhile is left out on saving. */
     val links: Set<NoteLink> = emptySet(),
+    /** Its tags (SPEC.md §8); one deleted meanwhile is left out on saving. */
+    val tagIds: Set<Long> = emptySet(),
 ) : Serializable {
 
     val problems: Set<NoteProblem>
@@ -52,5 +54,5 @@ data class NoteDraft(
     }
 }
 
-/** The note as the editor starts out with it, with what it is linked to, its [links]. */
-fun Note.toDraft(links: Set<NoteLink>) = NoteDraft(title, text, Container(tabId, folderId), links)
+/** The note as the editor starts out with it, with what it is linked to, its [links], and its [tagIds]. */
+fun Note.toDraft(links: Set<NoteLink>, tagIds: Set<Long>) = NoteDraft(title, text, Container(tabId, folderId), links, tagIds)

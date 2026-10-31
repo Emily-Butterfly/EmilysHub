@@ -363,3 +363,16 @@ val MIGRATION_22_23 = object : Migration(22, 23) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_routines_routine_id` ON `note_routines` (`routine_id`)")
     }
 }
+
+/** Version 24: notes have the shared tags too (SPEC.md §8). None has one yet. */
+val MIGRATION_23_24 = object : Migration(23, 24) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note_tags` (`note_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`note_id`, `tag_id`), " +
+                "FOREIGN KEY(`note_id`) REFERENCES `notes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`tag_id`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_tags_tag_id` ON `note_tags` (`tag_id`)")
+    }
+}

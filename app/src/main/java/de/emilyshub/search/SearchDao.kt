@@ -31,7 +31,11 @@ interface SearchDao {
     )
     suspend fun wishes(pattern: String): List<Candidate>
 
-    @Query("SELECT * FROM (SELECT id, title, title || ' ' || text AS text FROM notes) WHERE text LIKE :pattern ESCAPE '\\'")
+    @Query(
+        "SELECT * FROM (SELECT n.id, n.title, n.title || ' ' || n.text || ' ' || IFNULL((SELECT " +
+            "group_concat(g.name, ' ') FROM note_tags nt JOIN tags g ON g.id = nt.tag_id WHERE nt.note_id = n.id), '') " +
+            "AS text FROM notes n) WHERE text LIKE :pattern ESCAPE '\\'",
+    )
     suspend fun notes(pattern: String): List<Candidate>
 }
 
