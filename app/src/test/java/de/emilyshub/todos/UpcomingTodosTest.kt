@@ -67,10 +67,10 @@ class UpcomingTodosTest {
         at("2026-10-24T00:00")
         assertEquals(listOf("Geschenk kaufen"), upcoming(LocalDate.parse("2026-10-24")))
 
-        // Gone to New York, it is still the 23rd there.
+        // Gone to New York, it is still the 23rd there: Heute of that day does not show it yet.
         clock.timeZone = ZoneId.of("America/New_York")
+        assertEquals(listOf<String>(), upcoming(todos.today()))
         assertEquals(LocalDate.parse("2026-10-23"), todos.today())
-        assertEquals(listOf<String>(), upcoming(LocalDate.parse("2026-10-23")))
     }
 
     @Test
@@ -96,6 +96,20 @@ class UpcomingTodosTest {
         assertEquals(today.plusDays(7) to 2, next.dueDate to next.showsDaysBefore)
         at("2026-10-28T08:00")
         assertEquals(listOf("Pflanzen gießen"), upcoming(LocalDate.parse("2026-10-28")))
+    }
+
+    @Test
+    fun `ticked off early, one that comes again stays ticked off there, beside the next if that is near enough too`() = runBlocking {
+        val watering = todos.create(
+            TodoDraft("Pflanzen gießen", due = Due.On(today.plusDays(1)), recurrence = Recurrence.Daily, showsDaysBefore = 3),
+        )
+
+        todos.markDone(watering)
+
+        assertEquals(
+            listOf("Pflanzen gießen 2026-10-24 true", "Pflanzen gießen 2026-10-25 false"),
+            todos.upcoming(today, clock.now).first().map { "${it.title} ${it.due.date} ${it.done}" },
+        )
     }
 
     @Test

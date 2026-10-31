@@ -72,7 +72,8 @@ class UpcomingTodosScreenTest {
 
     @Test
     fun `due tomorrow at a time, it says so, and ticked off there it stays ticked off`() {
-        app.todo("Zahnarzt", due = Due.At(today.plusDays(1), LocalTime.of(9, 30)), checklist = listOf("Karte", "Überweisung"), showsDaysBefore = 2)
+        val tomorrow = Due.At(today.plusDays(1), LocalTime.of(9, 30))
+        app.todo("Zahnarzt", due = tomorrow, checklist = listOf("Karte", "Überweisung"), showsDaysBefore = 2)
 
         launchApp().use {
             compose.onNodeWithText("To-do, fällig: morgen, 09:30").assertIsDisplayed()

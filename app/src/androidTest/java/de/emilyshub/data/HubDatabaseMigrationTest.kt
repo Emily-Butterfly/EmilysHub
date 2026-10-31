@@ -592,7 +592,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 25 moves to version 26 where no series ends yet and then one can end`() {
+    fun `version 25 moves to version 26 where no series ends yet and a lone to-do is the first of its own`() {
         createAtVersion(25) {
             it.execSQL(
                 "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away, recurrence) " +

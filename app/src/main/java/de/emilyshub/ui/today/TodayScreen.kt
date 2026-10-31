@@ -99,10 +99,12 @@ fun TodayScreen(
     val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
     val dueTodos by remember(today, now) { todos.dueOn(today, now) }.collectAsState(initial = null)
     val list = dueRoutines?.let { routinesDue -> dueTodos?.let { todosDue -> todayList(routinesDue, todosDue, today) } }
-    val upcoming by remember(today, now) { todos.upcoming(today, now) }.collectAsState(initial = emptyList())
+    val upcomingTodos by remember(today, now) { todos.upcoming(today, now) }.collectAsState(initial = null)
+    val upcoming = upcomingTodos.orEmpty()
     val pinned by remember(notes) { notes.onToday() }.collectAsState(initial = emptyList())
     when {
-        list == null -> Unit
+        // Until all is there, so that Heute does not say there is nothing before "Demnächst" comes.
+        list == null || upcomingTodos == null -> Unit
         list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty() -> Column(
             Modifier
                 .fillMaxSize()

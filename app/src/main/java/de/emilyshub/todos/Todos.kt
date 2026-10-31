@@ -51,10 +51,12 @@ class Todos(
     fun dueOn(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
         all.filter { (todo) ->
             val due = todo.dueDate
-            val done = todo.doneAt
-            due != null && !due.isAfter(date) && (done == null || today(done, clock.zone) == date)
+            due != null && !due.isAfter(date) && openOrDoneOn(todo, date)
         }.map { it.toDue(now) }
     }
+
+    /** Whether [todo] is still open, or was ticked off on [date], so that it stays on Heute for the rest of that day. */
+    private fun openOrDoneOn(todo: Todo, date: LocalDate): Boolean = todo.doneAt.let { it == null || today(it, clock.zone) == date }
 
     /** As it stands on Heute at [now]: [DueTodo.overdue] as [isOverdue] says, and waiting for its places once its time has come. */
     private fun TodoWithDetails.toDue(now: Instant): DueTodo {
@@ -71,16 +73,14 @@ class Todos(
      * order they are due, those without a time first on a day.
      */
     fun upcoming(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
-        all.map { it.todo to it }
-            .filter { (todo) ->
-                val due = todo.dueDate
-                val before = todo.showsDaysBefore
-                val done = todo.doneAt
-                due != null && before != null && due.isAfter(date) && !due.isAfter(date.plusDays(before.toLong())) &&
-                    (done == null || today(done, clock.zone) == date)
-            }
-            .sortedWith(compareBy<Pair<Todo, TodoWithDetails>> { (todo) -> todo.dueDate }.thenBy(nullsFirst()) { (todo) -> todo.dueTime })
-            .map { (_, details) -> details.toDue(now) }
+        all.filter { (todo) ->
+            val due = todo.dueDate
+            val before = todo.showsDaysBefore
+            due != null && before != null && due.isAfter(date) && !due.isAfter(date.plusDays(before.toLong())) &&
+                openOrDoneOn(todo, date)
+        }
+            .sortedWith(compareBy<TodoWithDetails> { it.todo.dueDate }.thenBy(nullsFirst()) { it.todo.dueTime })
+            .map { it.toDue(now) }
     }
 
     /** The to-do, or null once it is deleted. */
