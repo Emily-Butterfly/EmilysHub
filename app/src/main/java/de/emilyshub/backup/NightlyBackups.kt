@@ -66,17 +66,35 @@ class NightlyBackups(
     private val lock = Mutex()
 
     /**
-     * Makes the folder at [address] the one for the nightly backups, in place of any before, keeping its access, and
-     * makes a backup there right away: whether it worked, so that the user knows the folder will do.
+     * Makes a backup in the folder at [address] right away, and if that works, makes it the one for the nightly
+     * backups in place of any before, keeping its access: whether it worked, so that the user knows the folder will
+     * do. One that does not is not taken, and the one before stays.
      */
     suspend fun choose(address: String): Boolean = withContext(io + NonCancellable) {
         lock.withLock {
             val folder = folderAt(address)
-            folder.keepAccess()
-            stored(FOLDER)?.takeIf { it != address }?.let { folderAt(it).releaseAccess() }
+            val before = stored(FOLDER)
+            val made = try {
+                folder.keepAccess()
+                export(folder)
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "No backup could be made in the folder chosen: ${e.javaClass.name}")
+                false
+            }
+            if (!made) {
+                if (address != before) folder.releaseAccess()
+                return@withLock false
+            }
+            before?.takeIf { it != address }?.let { folderAt(it).releaseAccess() }
             put(FOLDER, address)
             put(FOLDER_NAME, folder.name.orEmpty())
-            backUp(folder)
+            put(LAST_TRIED, clock.instant().toString())
+            put(FAILED, "")
+            setAlarm()
+            true
         }
     }
 
@@ -86,6 +104,8 @@ class NightlyBackups(
             stored(FOLDER)?.let { folderAt(it).releaseAccess() }
             put(FOLDER, "")
             put(FOLDER_NAME, "")
+            // Of a folder no longer used.
+            put(FAILED, "")
             alarm.cancel()
         }
     }
@@ -135,7 +155,7 @@ class NightlyBackups(
         val now = clock.instant()
         put(LAST_TRIED, now.toString())
         val made = try {
-            backups.export { folder.write(backups.fileName()) }
+            export(folder)
             true
         } catch (e: CancellationException) {
             throw e
@@ -145,12 +165,15 @@ class NightlyBackups(
             put(FAILED, now.toString())
             false
         }
-        if (made) {
-            put(FAILED, "")
-            deleteOlder(folder)
-        }
+        if (made) put(FAILED, "")
         setAlarm()
         return made
+    }
+
+    /** A backup into [folder], under the name of the day, older ones beyond the last [KEPT] deleted. */
+    private suspend fun export(folder: BackupFolder) {
+        backups.export { folder.write(backups.fileName()) }
+        deleteOlder(folder)
     }
 
     /** The backups beyond the last [KEPT], by the date in their names; the backup made stands if this fails. */

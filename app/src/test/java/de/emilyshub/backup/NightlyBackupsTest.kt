@@ -139,6 +139,34 @@ class NightlyBackupsTest {
     }
 
     @Test
+    fun `a folder the first backup fails in is not taken, and the one before stays`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+        val other = FakeBackupFolder("Anderswo").apply { failing = true }
+        app.otherBackupFolders[OTHER_FOLDER] = other
+
+        assertFalse(runBlocking { nightly.choose(OTHER_FOLDER) })
+
+        assertFalse(other.kept)
+        assertTrue(folder.kept)
+        assertEquals("Backups", runBlocking { nightly.state() }.folderName)
+        assertEquals(listOf(berlin("2026-10-24T03:00")), nights())
+        assertNull(runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `turned off after a backup failed, Heute is no longer told of it`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+        folder.failing = true
+        night("2026-10-24T03:00")
+
+        runBlocking { nightly.stop() }
+
+        assertNull(runBlocking { nightly.warning() })
+    }
+
+    @Test
     fun `a backup restored leaves the folder and the nights as they were`() {
         setPassword()
         runBlocking { nightly.choose(FOLDER) }
@@ -168,5 +196,6 @@ class NightlyBackupsTest {
     private companion object {
         const val PASSWORD = "Flieder und Lila"
         const val FOLDER = "content://com.android.externalstorage.documents/tree/primary%3ABackups"
+        const val OTHER_FOLDER = "content://com.android.externalstorage.documents/tree/primary%3AAnderswo"
     }
 }

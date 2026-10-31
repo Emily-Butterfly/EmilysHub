@@ -74,10 +74,12 @@ class TestApplication : EmilysHubApplication() {
         onRestore = ::updateReminders,
     )
 
-    /** The folder chosen for the nightly backups, whatever its address. */
+    /** The folder chosen for the nightly backups, at any address but those of [otherBackupFolders]. */
     val backupFolder = FakeBackupFolder()
+    val otherBackupFolders = mutableMapOf<String, FakeBackupFolder>()
     override val nightlyBackups by lazy {
-        NightlyBackups(backups, { settingsDao }, clock, { backupFolder }, NightAlarm(this), Dispatchers.Unconfined)
+        val folderAt = { address: String -> otherBackupFolders[address] ?: backupFolder }
+        NightlyBackups(backups, { settingsDao }, clock, folderAt, NightAlarm(this), Dispatchers.Unconfined)
     }
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
