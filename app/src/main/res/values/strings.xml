@@ -667,7 +667,7 @@
     <string name="ledger_still_open">Noch offen</string>
     <string name="ledger_archive_sums">Einnahmen %1$s · Ausgaben %2$s · Saldo %3$s</string>
     <string name="booking_month_closed">%1$s ist abgeschlossen: Buchungen darin lassen sich erst ändern, wenn er wieder offen ist.</string>
-    <string name="category_delete_locked">„%1$s“ hat Buchungen in abgeschlossenen Monaten. Sie lässt sich erst löschen, wenn diese wieder offen sind.</string>
+    <string name="category_delete_locked">„%1$s“ hat Buchungen oder ein Budget in abgeschlossenen Monaten. Sie lässt sich erst löschen, wenn diese wieder offen sind.</string>
     <string name="ledger_archive_open">Monat ansehen</string>
     <plurals name="ledger_enter_skipped">
         <item quantity="one">Ausgelassene Fixbuchung eintragen</item>
@@ -683,5 +683,5 @@
     <string name="budget_of">%1$s von %2$s</string>
     <string name="budget_left">noch %1$s übrig</string>
     <string name="budget_over">%1$s über Budget</string>
-    <string name="booking_over_budget">Damit %1$s über dem Budget für %2$s</string>
+    <string name="booking_over_budget">%2$s liegt damit %1$s über Budget.</string>
 </resources>

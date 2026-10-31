@@ -312,7 +312,7 @@ class LedgerScreenTest {
             compose.onNodeWithText("Speichern").performClick()
             compose.waitForIdle()
 
-            assertEquals("Damit 12,50 € über dem Budget für Lebensmittel", ShadowToast.getTextOfLatestToast())
+            assertEquals("Lebensmittel liegt damit 12,50 € über Budget.", ShadowToast.getTextOfLatestToast())
         }
     }
 

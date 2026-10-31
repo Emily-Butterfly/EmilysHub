@@ -182,11 +182,11 @@ class Ledger(
         }
     }
 
-    /** Whether the category has bookings in a month closed, which keep it from being deleted until it is open again. */
-    suspend fun inClosedMonths(categoryId: Long): Boolean = withContext(io) {
-        val closed = closedNow()
-        dao.datesIn(categoryId).any { YearMonth.from(it) in closed }
-    }
+    /**
+     * Whether the category has bookings in a month closed, or a budget one keeps, which keep it from being deleted until
+     * it is open again.
+     */
+    suspend fun inClosedMonths(categoryId: Long): Boolean = withContext(io) { lockedByClosedMonths(categoryId) }
 
     /**
      * How many fixed bookings were skipped in [month] while it was closed, to enter now it is open again; none while it
@@ -257,9 +257,8 @@ class Ledger(
         database().withTransaction {
             val category = dao.category(id) ?: return@withTransaction
             require(!category.isOther) { "\"Sonstiges\" stays" }
-            // Its bookings would move: none of a month closed does.
-            val closed = closedNow()
-            require(dao.datesIn(id).none { YearMonth.from(it) in closed }) { "It has bookings in a month closed" }
+            // Its bookings would move, and its budget go: neither of a month closed does.
+            require(!lockedByClosedMonths(id)) { "It has bookings or a budget in a month closed" }
             suggest()
             val other = otherOf(category.kind)
             dao.moveBookings(from = id, to = other.id)
@@ -366,6 +365,11 @@ class Ledger(
     private suspend fun requireOpen(vararg dates: LocalDate) {
         val closed = closedNow()
         dates.forEach { require(YearMonth.from(it) !in closed) { "${YearMonth.from(it)} is closed" } }
+    }
+
+    private suspend fun lockedByClosedMonths(categoryId: Long): Boolean {
+        val closed = closedNow()
+        return dao.hasClosedBudgets(categoryId) || dao.datesIn(categoryId).any { YearMonth.from(it) in closed }
     }
 
     private suspend fun closedNow(): Set<YearMonth> = dao.closed().map { it.month }.toSet()

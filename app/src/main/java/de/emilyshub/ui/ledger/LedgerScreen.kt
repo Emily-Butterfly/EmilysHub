@@ -279,11 +279,11 @@ private fun Sum(label: String, cents: Long, modifier: Modifier) {
  * §13); that of one without is as long as its share of the largest.
  */
 @Composable
-private fun ExpensesByCategory(all: List<CategoryTotal>, expenses: Long) {
+private fun ExpensesByCategory(byCategory: List<CategoryTotal>, expenses: Long) {
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.ledger_by_category))
-        val largest = all.first().cents
-        all.forEachIndexed { index, total ->
+        val largest = byCategory.first().cents
+        byCategory.forEachIndexed { index, total ->
             val use = total.use
             Column(Modifier.semantics(mergeDescendants = true) {}) {
                 Row {
@@ -314,7 +314,7 @@ private fun ExpensesByCategory(all: List<CategoryTotal>, expenses: Long) {
             }
         }
         // Those with a budget but nothing spent are last, and have no slice.
-        val totals = all.filter { it.cents > 0 }
+        val totals = byCategory.filter { it.cents > 0 }
         if (totals.isEmpty()) return@Column
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             val description = stringResource(R.string.ledger_pie_description)

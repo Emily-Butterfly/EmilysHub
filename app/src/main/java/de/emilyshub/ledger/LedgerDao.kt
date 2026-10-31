@@ -110,11 +110,15 @@ interface LedgerDao {
     @Query("SELECT * FROM ledger_closed_budgets WHERE month = :month")
     fun observeClosedBudgets(month: YearMonth): Flow<List<ClosedBudget>>
 
-    @Query("SELECT * FROM ledger_closed_budgets WHERE month = :month")
-    suspend fun closedBudgets(month: YearMonth): List<ClosedBudget>
+    /** Whether a month closed keeps a budget of the category. */
+    @Query("SELECT EXISTS (SELECT 1 FROM ledger_closed_budgets WHERE category_id = :categoryId)")
+    suspend fun hasClosedBudgets(categoryId: Long): Boolean
 
     /** What the expenses in the category come to between the days, but for the booking [except]. */
-    @Query("SELECT IFNULL(SUM(amount_cents), 0) FROM bookings WHERE category_id = :categoryId AND date BETWEEN :from AND :to AND id != :except")
+    @Query(
+        "SELECT IFNULL(SUM(amount_cents), 0) FROM bookings " +
+            "WHERE category_id = :categoryId AND date BETWEEN :from AND :to AND id != :except",
+    )
     suspend fun spentIn(categoryId: Long, from: LocalDate, to: LocalDate, except: Long): Long
 
     @Query("DELETE FROM ledger_closed_months WHERE month = :month")

@@ -10,6 +10,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.Instant
@@ -63,7 +64,7 @@ class BudgetTest {
         val totals = ledger.month(october).first().expensesByCategory
         assertEquals(
             listOf(Triple("Lebensmittel", 21_250L, 30_000L), Triple("Kleidung", 4_000L, null), Triple("Freizeit", 0L, 5_000L)),
-            totals.map { Triple(it.category.name, it.cents, it.budget) },
+            totals.map { Triple(it.category.name, it.cents, it.budgetCents) },
         )
         assertEquals(8_750L, totals.first().use?.left)
     }
@@ -138,8 +139,21 @@ class BudgetTest {
         assertEquals(15_000L, ledger.overrunOf(checkNotNull(ledger.draftOf(other)).copy(date = LocalDate.parse("2026-10-20")), other))
     }
 
+    @Test
+    fun `a category whose budget a closed month keeps is not deleted until it is open again`() = runBlocking {
+        val clothes = expense("Kleidung")
+        ledger.setBudget(clothes, 5_000)
+        ledger.close(september)
+
+        assertTrue(ledger.inClosedMonths(clothes))
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.deleteCategory(clothes) } }
+
+        ledger.reopen(september)
+        ledger.deleteCategory(clothes)
+    }
+
     private suspend fun budgetIn(month: YearMonth): Long? =
-        ledger.month(month).first().expensesByCategory.single { it.category.name == "Lebensmittel" }.budget
+        ledger.month(month).first().expensesByCategory.single { it.category.name == "Lebensmittel" }.budgetCents
 
     private suspend fun expense(name: String): Long =
         ledger.categories().first().single { it.kind == BookingKind.Expense && it.name == name }.id

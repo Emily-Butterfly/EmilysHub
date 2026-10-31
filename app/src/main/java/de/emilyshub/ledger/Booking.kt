@@ -72,10 +72,10 @@ data class BookingWithCategory(
     @Relation(parentColumn = "category_id", entityColumn = "id") val category: LedgerCategory,
 )
 
-/** What a month's expenses in one [category] come to, and its [budget] that month, if it has one. */
-data class CategoryTotal(val category: LedgerCategory, val cents: Long, val budget: Long? = null) {
+/** What a month's expenses in one [category] come to, and its budget that month, if it has one. */
+data class CategoryTotal(val category: LedgerCategory, val cents: Long, val budgetCents: Long? = null) {
     /** How much of its budget is used, if it has one. */
-    val use: BudgetUse? get() = budget?.let { BudgetUse(it, cents) }
+    val use: BudgetUse? get() = budgetCents?.let { BudgetUse(it, cents) }
 }
 
 /**

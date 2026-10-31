@@ -711,7 +711,7 @@ class HubDatabaseMigrationTest {
             val september = java.time.YearMonth.of(2026, 9)
             database.ledger().close(ClosedMonth(september))
             database.ledger().keepBudgets(september)
-            assertEquals(listOf(ClosedBudget(september, 1, 30_000)), database.ledger().closedBudgets(september))
+            assertEquals(listOf(ClosedBudget(september, 1, 30_000)), database.ledger().observeClosedBudgets(september).first())
         }
     }
 

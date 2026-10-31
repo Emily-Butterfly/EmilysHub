@@ -32,7 +32,7 @@ data class BudgetUse(val budget: Long, val spent: Long) {
 
 /**
  * The budget a category had when [month] was closed (SPEC.md §13), which the month keeps until it is opened again;
- * then it has the budget of now. Deleting the category takes it along.
+ * then it has the budget of now. The category is not deleted while a month closed keeps its budget.
  */
 @Entity(
     tableName = "ledger_closed_budgets",
