@@ -98,7 +98,7 @@ class ClosedMonthsTest {
 
         assertEquals(
             listOf(september to -2_000L, YearMonth.of(2026, 8) to -800L),
-            ledger.archive().first().map { it.month to it.summary.balance },
+            ledger.archive().first().map { it.month to it.balance },
         )
     }
 
@@ -111,6 +111,31 @@ class ClosedMonthsTest {
         ledger.close(YearMonth.of(2026, 8))
 
         assertEquals(listOf(september, YearMonth.of(2026, 7)), ledger.openEarlierMonths().first())
+    }
+
+    @Test
+    fun `a category with bookings in a closed month is not deleted, as they would move`() = runBlocking {
+        val clothes = ledger.categories().first().single { it.name == "Kleidung" }.id
+        book("Kleidung", "39,99", "2026-09-12")
+        ledger.close(september)
+
+        assertTrue(ledger.inClosedMonths(clothes))
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.deleteCategory(clothes) } }
+
+        ledger.reopen(september)
+        assertFalse(ledger.inClosedMonths(clothes))
+        ledger.deleteCategory(clothes)
+    }
+
+    @Test
+    fun `closed on its last day, the month gets that day's fixed booking first`() = runBlocking {
+        val rent = ledger.categories().first().single { it.name == "Wohnen" }.id
+        ledger.createTemplate(RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 31, october))
+        at("2026-10-31T08:00")
+
+        ledger.close(october)
+
+        assertEquals(listOf(LocalDate.parse("2026-10-31")), ledger.month(october).first().bookings.map { it.booking.date })
     }
 
     private suspend fun book(category: String, amount: String, date: String): Long {

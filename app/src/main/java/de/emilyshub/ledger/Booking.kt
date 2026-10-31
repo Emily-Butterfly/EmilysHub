@@ -59,8 +59,10 @@ data class Booking(
 @Entity(tableName = "ledger_closed_months")
 data class ClosedMonth(@PrimaryKey val month: YearMonth)
 
-/** A month in the archive, with its sums. */
-data class ArchivedMonth(val month: YearMonth, val summary: MonthSummary)
+/** A month in the archive, with what came in and went out. */
+data class ArchivedMonth(val month: YearMonth, val income: Long, val expenses: Long) {
+    val balance: Long get() = income - expenses
+}
 
 /** A booking with its category. */
 data class BookingWithCategory(

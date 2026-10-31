@@ -51,6 +51,8 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     // The category asked about, with how many bookings it has.
     var deleting by rememberSaveable { mutableStateOf<Pair<Long, Int>?>(null) }
+    // One with bookings in a month closed, which is not deleted.
+    var locked by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -87,7 +89,11 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                                     onClick = {
                                         scope.launchNow {
                                             val count = ledger.usesOf(category.id)
-                                            if (count == 0) ledger.deleteCategory(category.id) else deleting = category.id to count
+                                            when {
+                                                ledger.inClosedMonths(category.id) -> locked = category.id
+                                                count == 0 -> ledger.deleteCategory(category.id)
+                                                else -> deleting = category.id to count
+                                            }
                                         }
                                     },
                                 ) {
@@ -134,6 +140,14 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                 scope.launchNow { ledger.renameCategory(category.id, name) }
             },
             onDismiss = { renaming = null },
+        )
+    }
+    list.find { it.id == locked }?.let { category ->
+        AlertDialog(
+            onDismissRequest = { locked = null },
+            title = { Text(stringResource(R.string.category_delete_title)) },
+            text = { Text(stringResource(R.string.category_delete_locked, category.name)) },
+            confirmButton = { TextButton(onClick = { locked = null }) { Text(stringResource(R.string.ok)) } },
         )
     }
     deleting?.let { (id, count) ->

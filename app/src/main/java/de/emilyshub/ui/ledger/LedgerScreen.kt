@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -62,7 +63,6 @@ import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.MonthSummary
-import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
@@ -90,9 +90,11 @@ fun LedgerScreen(
     onOpenArchive: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val closed by remember(ledger, month) { ledger.isClosed(month) }.collectAsState(initial = false)
+    // Null until known, so that a closed month does not show what an open one has for a moment.
+    val closedOrNot by remember(ledger, month) { ledger.isClosed(month) }.collectAsState(initial = null)
+    val closed = closedOrNot == true
     val stillOpen by remember(ledger) { ledger.openEarlierMonths() }.collectAsState(initial = emptyList())
-    var asking by rememberSaveable { mutableStateOf(false) }
+    var confirmingClose by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
     val today = ledger.dayOf(rememberNow(ledger::now))
@@ -122,7 +124,7 @@ fun LedgerScreen(
         },
         floatingActionButton = {
             // Nothing is booked in a month closed.
-            if (!closed) {
+            if (closedOrNot == false) {
                 FloatingActionButton(onClick = onCreate) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.booking_create))
                 }
@@ -136,6 +138,7 @@ fun LedgerScreen(
             if (others.isNotEmpty()) item(key = "still-open") { StillOpen(others, onMonthChange) }
             item(key = "closing") {
                 when {
+                    closedOrNot == null -> Unit
                     closed -> Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -145,11 +148,12 @@ fun LedgerScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { asking = true }) { Text(stringResource(R.string.ledger_reopen)) }
+                        TextButton(onClick = { confirmingClose = true }) { Text(stringResource(R.string.ledger_reopen)) }
                     }
-                    ledger.canClose(month) -> TextButton(onClick = { asking = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                        Text(stringResource(R.string.ledger_close))
-                    }
+                    ledger.canClose(month) -> TextButton(
+                        onClick = { confirmingClose = true },
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    ) { Text(stringResource(R.string.ledger_close)) }
                 }
             }
             val shown = summary ?: return@LazyColumn
@@ -171,24 +175,28 @@ fun LedgerScreen(
         }
     }
 
-    if (asking) {
+    if (confirmingClose && closedOrNot != null) {
+        // Reopening what is closed, closing what is open.
+        val (title, text, confirm) = if (closed) {
+            Triple(R.string.ledger_reopen_title, R.string.ledger_reopen_text, R.string.ledger_reopen)
+        } else {
+            Triple(R.string.ledger_close_title, R.string.ledger_close_text, R.string.ledger_close_confirm)
+        }
         AlertDialog(
-            onDismissRequest = { asking = false },
-            title = {
-                Text(stringResource(if (closed) R.string.ledger_reopen_title else R.string.ledger_close_title, month.monthAndYear()))
-            },
-            text = { Text(stringResource(if (closed) R.string.ledger_reopen_text else R.string.ledger_close_text)) },
+            onDismissRequest = { confirmingClose = false },
+            title = { Text(stringResource(title, month.monthAndYear())) },
+            text = { Text(stringResource(text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        asking = false
+                        confirmingClose = false
                         val reopening = closed
                         scope.launchNow { if (reopening) ledger.reopen(month) else ledger.close(month) }
                     },
-                ) { Text(stringResource(if (closed) R.string.ledger_reopen else R.string.ledger_close_confirm)) }
+                ) { Text(stringResource(confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { asking = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { confirmingClose = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -200,7 +208,8 @@ private fun StillOpen(months: List<YearMonth>, onMonthChange: (YearMonth) -> Uni
     Column(Modifier.padding(horizontal = 16.dp)) {
         Text(stringResource(R.string.ledger_still_open), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            months.forEach { month -> ChoiceChip(month.monthAndYear(), chosen = false) { onMonthChange(month) } }
+            // Chips that lead there, not choices.
+            months.forEach { month -> AssistChip(onClick = { onMonthChange(month) }, label = { Text(month.monthAndYear()) }) }
         }
     }
 }

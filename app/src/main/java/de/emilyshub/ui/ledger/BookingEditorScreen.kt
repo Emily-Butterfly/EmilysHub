@@ -82,7 +82,8 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
-    val closedMonths by remember(ledger) { ledger.closedMonths() }.collectAsState(initial = emptySet())
+    // Null until known: till then, nothing is saved or deleted.
+    val closedMonths by remember(ledger) { ledger.closedMonths() }.collectAsState(initial = null)
     // The month of the booking as saved, which locks it too while closed.
     var savedMonth by rememberSaveable { mutableStateOf<YearMonth?>(null) }
 
@@ -102,18 +103,25 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
 
     val problems = draft.problems
     // Neither made, changed nor deleted in a month closed (SPEC.md §13), until it is opened again.
-    val closedMonth = listOfNotNull(savedMonth, YearMonth.from(draft.date)).firstOrNull { it in closedMonths }
+    val known = closedMonths
+    val closedMonth = listOfNotNull(savedMonth, YearMonth.from(draft.date)).firstOrNull { known != null && it in known }
+    val locked = known == null || closedMonth != null
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
             closing = true
-            scope.launchNow { work() }
+            scope.launchNow {
+                try {
+                    work()
+                } catch (_: IllegalArgumentException) {
+                    // The month was closed meanwhile, elsewhere: nothing is saved, as it says when opened again.
+                }
+            }
             onClose()
         }
     }
-    val save = {
-        if (closedMonth != null) {
-            Unit
-        } else if (problems.isNotEmpty()) {
+    val save = save@{
+        if (locked) return@save
+        if (problems.isNotEmpty()) {
             showProblems = true
         } else {
             val saved = draft
@@ -136,12 +144,12 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                     }
                 },
                 actions = {
-                    if (bookingId != null && closedMonth == null) {
+                    if (bookingId != null && !locked) {
                         IconButton(onClick = { confirmingDelete = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save, enabled = closedMonth == null) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = save, enabled = !locked) { Text(stringResource(R.string.save)) }
                 },
             )
         },

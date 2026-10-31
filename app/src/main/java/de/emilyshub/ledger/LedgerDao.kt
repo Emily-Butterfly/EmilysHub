@@ -61,6 +61,9 @@ interface LedgerDao {
     @Query("DELETE FROM recurring_bookings WHERE id = :id")
     suspend fun deleteTemplate(id: Long)
 
+    @Query("SELECT date FROM bookings WHERE category_id = :categoryId")
+    suspend fun datesIn(categoryId: Long): List<LocalDate>
+
     @Query("SELECT COUNT(*) FROM bookings WHERE category_id = :categoryId")
     suspend fun countIn(categoryId: Long): Int
 
@@ -71,9 +74,19 @@ interface LedgerDao {
     @Query("SELECT * FROM bookings WHERE date BETWEEN :from AND :to")
     fun observeBetween(from: LocalDate, to: LocalDate): Flow<List<BookingWithCategory>>
 
-    @Transaction
-    @Query("SELECT * FROM bookings")
-    fun observeAllBookings(): Flow<List<BookingWithCategory>>
+    /** The months with bookings, as "2026-10". */
+    @Query("SELECT DISTINCT substr(date, 1, 7) FROM bookings")
+    fun observeBookingMonths(): Flow<List<String>>
+
+    /** The months closed, each with its sums. */
+    @Query(
+        "SELECT m.month, " +
+            "IFNULL(SUM(CASE WHEN c.kind = 'income' THEN b.amount_cents END), 0) AS income, " +
+            "IFNULL(SUM(CASE WHEN c.kind = 'expense' THEN b.amount_cents END), 0) AS expenses " +
+            "FROM ledger_closed_months m LEFT JOIN bookings b ON substr(b.date, 1, 7) = m.month " +
+            "LEFT JOIN ledger_categories c ON c.id = b.category_id GROUP BY m.month",
+    )
+    fun observeArchive(): Flow<List<ArchivedMonth>>
 
     @Query("SELECT * FROM ledger_closed_months")
     fun observeClosed(): Flow<List<ClosedMonth>>

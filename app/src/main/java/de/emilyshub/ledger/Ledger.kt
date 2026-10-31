@@ -89,8 +89,7 @@ class Ledger(
             // One entered from a fixed booking stays marked so; the template stays as it is.
             val before = dao.get(id) ?: return@withTransaction
             // Neither changed in a month closed, nor moved out of one or into one.
-            requireOpen(before.date)
-            requireOpen(draft.date)
+            requireOpen(before.date, draft.date)
             dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
         }
     }
@@ -115,10 +114,20 @@ class Ledger(
     /** Whether [month] can be closed: one gone by, or the current one from its last day on. */
     fun canClose(month: YearMonth): Boolean = !month.atEndOfMonth().isAfter(today())
 
-    /** Closes [month]: it goes to the archive, only to read; the screen asks first. */
+    /**
+     * Closes [month]: it goes to the archive, only to read; the screen asks first. The fixed bookings due by today are
+     * entered before, so that none of its last day is lost.
+     */
     suspend fun close(month: YearMonth) = write {
         require(canClose(month)) { "$month has not ended yet" }
+        enterDue()
         dao.close(ClosedMonth(month))
+    }
+
+    /** Whether the category has bookings in a month closed, which keep it from being deleted until it is open again. */
+    suspend fun inClosedMonths(categoryId: Long): Boolean = withContext(io) {
+        val closed = closedNow()
+        dao.datesIn(categoryId).any { YearMonth.from(it) in closed }
     }
 
     /** Opens the closed [month] again; the screen asks first. */
@@ -126,22 +135,15 @@ class Ledger(
 
     /** The months closed, the latest first, each with its sums (SPEC.md §13). */
     fun archive(): Flow<List<ArchivedMonth>> = flow {
-        emitAll(
-            dao.observeClosed().combine(dao.observeAllBookings()) { closed, bookings ->
-                val byMonth = bookings.groupBy { YearMonth.from(it.booking.date) }
-                closed.map { ArchivedMonth(it.month, summary(byMonth[it.month].orEmpty())) }.sortedByDescending { it.month }
-            },
-        )
+        emitAll(dao.observeArchive().map { months -> months.sortedByDescending { it.month } })
     }.flowOn(io)
 
     /** The months before this one with bookings that are still open, the latest first, to find them easily. */
     fun openEarlierMonths(): Flow<List<YearMonth>> = flow {
         emitAll(
-            dao.observeClosed().combine(dao.observeAllBookings()) { closed, bookings ->
-                val shut = closed.map { it.month }.toSet()
-                bookings.map { YearMonth.from(it.booking.date) }.distinct()
-                    .filter { it.isBefore(thisMonth()) && it !in shut }
-                    .sortedDescending()
+            dao.observeClosed().combine(dao.observeBookingMonths()) { closed, months ->
+                val closedMonths = closed.map { it.month }.toSet()
+                months.map(YearMonth::parse).filter { it.isBefore(thisMonth()) && it !in closedMonths }.sortedDescending()
             },
         )
     }.flowOn(io)
@@ -168,6 +170,9 @@ class Ledger(
         database().withTransaction {
             val category = dao.category(id) ?: return@withTransaction
             require(!category.isOther) { "\"Sonstiges\" stays" }
+            // Its bookings would move: none of a month closed does.
+            val closed = closedNow()
+            require(dao.datesIn(id).none { YearMonth.from(it) in closed }) { "It has bookings in a month closed" }
             suggest()
             val other = otherOf(category.kind)
             dao.moveBookings(from = id, to = other.id)
@@ -223,11 +228,11 @@ class Ledger(
     suspend fun enterDue() = write {
         database().withTransaction {
             val today = today()
+            val closed = closedNow()
             dao.templates().forEach { template ->
                 val due = template.dueDates().takeWhile { !it.isAfter(today) }.toList()
                 if (due.isEmpty()) return@forEach
                 // None into a month closed, nor later once it is opened again.
-                val closed = dao.closed().map { it.month }.toSet()
                 due.filter { YearMonth.from(it) !in closed }.forEach { date ->
                     dao.insert(Booking(0, template.amountCents, date, template.categoryId, template.description, template.id))
                 }
@@ -271,9 +276,12 @@ class Ledger(
         )
     }
 
-    private suspend fun requireOpen(date: LocalDate) {
-        require(dao.closed().none { it.month == YearMonth.from(date) }) { "${YearMonth.from(date)} is closed" }
+    private suspend fun requireOpen(vararg dates: LocalDate) {
+        val closed = closedNow()
+        dates.forEach { require(YearMonth.from(it) !in closed) { "${YearMonth.from(it)} is closed" } }
     }
+
+    private suspend fun closedNow(): Set<YearMonth> = dao.closed().map { it.month }.toSet()
 
     private suspend fun checkedTemplate(draft: RecurringDraft): RecurringBooking {
         require(draft.problems.isEmpty()) { "Invalid fixed booking: ${draft.problems}" }

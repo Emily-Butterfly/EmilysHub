@@ -667,4 +667,6 @@
     <string name="ledger_still_open">Noch offen</string>
     <string name="ledger_archive_sums">Einnahmen %1$s · Ausgaben %2$s · Saldo %3$s</string>
     <string name="booking_month_closed">%1$s ist abgeschlossen: Buchungen darin lassen sich erst ändern, wenn er wieder offen ist.</string>
+    <string name="category_delete_locked">„%1$s“ hat Buchungen in abgeschlossenen Monaten. Sie lässt sich erst löschen, wenn diese wieder offen sind.</string>
+    <string name="ledger_archive_open">Monat ansehen</string>
 </resources>

@@ -52,20 +52,21 @@ fun LedgerArchiveScreen(ledger: Ledger, onOpen: (YearMonth) -> Unit, onBack: () 
             list == null -> Unit
             list.isEmpty() -> PlaceholderScreen(stringResource(R.string.ledger_archive_empty), contentPadding)
             else -> LazyColumn(contentPadding = contentPadding) {
-                items(list, key = { it.month.toString() }) { (month, summary) ->
+                items(list, key = { it.month.toString() }) { archived ->
+                    val month = archived.month
                     ListItem(
                         headlineContent = { Text(month.monthAndYear()) },
                         supportingContent = {
                             Text(
                                 stringResource(
                                     R.string.ledger_archive_sums,
-                                    Money.format(summary.income),
-                                    Money.format(summary.expenses),
-                                    Money.format(summary.balance),
+                                    Money.format(archived.income),
+                                    Money.format(archived.expenses),
+                                    Money.format(archived.balance),
                                 ),
                             )
                         },
-                        modifier = Modifier.clickable { onOpen(month) },
+                        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) { onOpen(month) },
                     )
                 }
             }
