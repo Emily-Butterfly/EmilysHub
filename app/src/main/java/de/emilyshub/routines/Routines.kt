@@ -160,7 +160,7 @@ class Routines(
     suspend fun archive(id: Long) = setAside(id, RoutineStatus.Archived)
 
     /** Brings an archived routine back, active again like one [resume]d. */
-    suspend fun restore(id: Long) = reactivate(id)
+    suspend fun restore(id: Long) = reactivate(id, endingBefore = today())
 
     private suspend fun setAside(id: Long, status: RoutineStatus) = write {
         database().withTransaction {
@@ -173,11 +173,17 @@ class Routines(
         }
     }
 
-    private suspend fun reactivate(id: Long) = write {
+    /** Active again from now on; an end before [endingBefore] is dropped, so that it does not end again right away. */
+    private suspend fun reactivate(id: Long, endingBefore: LocalDate? = null) = write {
         database().withTransaction {
             val now = now()
             dao.reactivate(id, from = now)
-            val routine = dao.get(id) ?: return@withTransaction
+            val reactivated = dao.get(id) ?: return@withTransaction
+            val routine = if (endingBefore != null && reactivated.endsOn?.isBefore(endingBefore) == true) {
+                reactivated.copy(endsOn = null).also { dao.update(it) }
+            } else {
+                reactivated
+            }
             val today = today()
             // Today may have occurrences of it from before, ticked off: the times still ahead are added to them.
             replan(routine, today, dao.occurrencesOn(id, today), now)
@@ -213,6 +219,7 @@ class Routines(
                         occurrence.id, routine.id, routine.name, dueAt, occurrence.status, routine.priority,
                         checklist = due.entries(),
                         waitingFor = due.waitingFor(),
+                        endsOn = routine.endsOn,
                     )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
@@ -352,11 +359,11 @@ class Routines(
 
     /**
      * Archives the routines that have ended (SPEC.md §2): their last day is over, and nothing of it is still open, as
-     * one whose time window runs past midnight may be. Their history stays, as for one archived by hand.
+     * one whose time window runs past midnight may be; paused ones too. Their history stays, as for one archived by hand.
      */
     private suspend fun archiveEnded() {
         val today = today()
-        dao.withStatus(RoutineStatus.Active)
+        (dao.withStatus(RoutineStatus.Active) + dao.withStatus(RoutineStatus.Paused))
             .filter { routine -> routine.endsOn?.isBefore(today) == true && dao.openOccurrences(routine.id).isEmpty() }
             .forEach { dao.setRoutineStatus(it.id, RoutineStatus.Archived) }
     }
@@ -545,7 +552,8 @@ class Routines(
     }
 
     private fun checked(draft: RoutineDraft): RoutineDraft {
-        val problems = draft.problemsOn(today())
+        // Not whether it ends before today: the editor tells, as the day can pass while it saves.
+        val problems = draft.problems
         require(problems.isEmpty()) { "Invalid routine: $problems" }
         return draft.cleaned()
     }

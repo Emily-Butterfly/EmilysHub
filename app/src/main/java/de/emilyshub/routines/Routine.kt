@@ -169,7 +169,7 @@ data class Reminder(
 
 /**
  * An occurrence on the Heute list, with its routine's name, the moment it is due, its routine's checklist, and the
- * names of the places it waits for, if it waits.
+ * names of the places it waits for, if it waits, and its last day, if it ends.
  */
 data class DueRoutine(
     val occurrenceId: Long,
@@ -180,4 +180,5 @@ data class DueRoutine(
     val priority: Priority,
     val checklist: List<ChecklistEntry> = emptyList(),
     val waitingFor: List<String> = emptyList(),
+    val endsOn: LocalDate? = null,
 )

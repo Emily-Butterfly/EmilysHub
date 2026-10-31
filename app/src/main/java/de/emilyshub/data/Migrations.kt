@@ -409,13 +409,26 @@ private val STRAY_CHARACTERS = listOf(0x200B, 0x2060, 0xFEFF, 0x00AD)
 
 /**
  * Version 26: a series that comes again can end (#34): a to-do's after a number of to-dos or on a date, counting which
- * of its series it is; a routine's on a date. None ends yet, and each to-do counts as the first of its series.
+ * of its series it is; a routine's on a date. None ends yet; a series under way counts on from its first to-do.
  */
 val MIGRATION_25_26 = object : Migration(25, 26) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `ends_after` INTEGER")
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `ends_on` TEXT")
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `series_number` INTEGER NOT NULL DEFAULT 1")
+        // A series already under way counts on from its first to-do, along the links from each one to the next.
+        db.execSQL(
+            """
+            WITH RECURSIVE series(id, number) AS (
+                SELECT id, 1 FROM todos WHERE id NOT IN (SELECT next_id FROM todos WHERE next_id IS NOT NULL)
+                UNION ALL
+                SELECT todos.next_id, series.number + 1 FROM series JOIN todos ON todos.id = series.id
+                WHERE todos.next_id IS NOT NULL
+            )
+            UPDATE todos SET series_number = (SELECT number FROM series WHERE series.id = todos.id)
+            WHERE id IN (SELECT id FROM series)
+            """.trimIndent(),
+        )
         db.execSQL("ALTER TABLE `routines` ADD COLUMN `ends_on` TEXT")
     }
 }

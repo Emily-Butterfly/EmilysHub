@@ -582,6 +582,9 @@ class RoutineEditingTest {
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Täglich um 08:00 · bis 15.11.").assertIsDisplayed()
+
+            tab("Heute").performClick()
+            compose.onNodeWithText("bis 15.11.").assertIsDisplayed()
         }
         assertEquals(LocalDate.parse("2026-11-15"), savedRoutines().single().endsOn)
     }

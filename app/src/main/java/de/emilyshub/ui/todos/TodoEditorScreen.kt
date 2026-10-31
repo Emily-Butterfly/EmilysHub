@@ -27,6 +27,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -98,6 +99,8 @@ fun TodoEditorScreen(
     // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
     var recurrenceChosen by rememberSaveable { mutableStateOf(false) }
     var loaded by rememberSaveable { mutableStateOf(todoId == null) }
+    // Which of its series it is, as the end tells how many are left.
+    var seriesNumber by rememberSaveable { mutableIntStateOf(1) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -112,6 +115,7 @@ fun TodoEditorScreen(
                 onClose()
             } else {
                 draft = todo.toDraft(todos.checklist(todoId), todos.tagIdsOf(todoId), todos.placeIdsOf(todoId))
+                seriesNumber = todo.seriesNumber
                 loaded = true
             }
         }
@@ -211,7 +215,13 @@ fun TodoEditorScreen(
                     },
                 )
                 if (draft.recurrence != null) {
-                    EndFields(draft.end, earliest = day, withTimes = true, onChange = { draft = draft.copy(end = it) })
+                    EndFields(
+                        draft.end,
+                        earliest = day,
+                        tooEarly = TodoProblem.EndDateTooEarly in problems,
+                        seriesNumber = seriesNumber,
+                        onChange = { draft = draft.copy(end = it) },
+                    )
                 }
             }
             PlacesField(

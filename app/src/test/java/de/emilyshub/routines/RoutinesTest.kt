@@ -429,12 +429,49 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a routine paused past its last day goes to the archive too`() = runBlocking {
+        val cure = routines.create(draft("Kur", "08:00", endsOn = today))
+        routines.pause(cure)
+
+        clock.now = berlin("2026-10-24T09:00")
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+
+        assertEquals(RoutineStatus.Archived, routines.get(cure)?.status)
+    }
+
+    @Test
+    fun `restored after its last day, a routine comes back without its end, and stays`() = runBlocking {
+        val cure = routines.create(draft("Kur", "08:00", endsOn = today))
+        clock.now = berlin("2026-10-24T09:00")
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+
+        routines.restore(cure)
+        routines.markMissed(since = berlin("2026-10-24T09:00"))
+
+        assertEquals(RoutineStatus.Active, routines.get(cure)?.status)
+        assertEquals(null, routines.get(cure)?.endsOn)
+    }
+
+    @Test
+    fun `an end changed later or taken away holds from then on, and one passed meanwhile still saves`() = runBlocking {
+        val cure = routines.create(draft("Kur", "08:00", endsOn = today.plusDays(1)))
+        routines.update(cure, draft("Kur", "08:00", endsOn = today))
+        assertEquals(emptyList<String>(), dueOn(today.plusDays(1)))
+
+        routines.update(cure, draft("Kur", "08:00"))
+        assertEquals(listOf("08:00 Kur: Open"), dueOn(today.plusDays(1)))
+
+        // Saved after midnight from an editor opened before, its last day is over by then: it saves all the same.
+        routines.update(cure, draft("Kur", "08:00", endsOn = today))
+        clock.now = berlin("2026-10-24T00:01")
+        routines.update(cure, draft("Kurz", "08:00", endsOn = today))
+        assertEquals("Kurz", routines.get(cure)?.name)
+    }
+
+    @Test
     fun `an end is not before today, and a one-time routine has none`() = runBlocking {
         assertEquals(setOf(DraftProblem.EndDateTooEarly), draft("Kur", "08:00", endsOn = today.minusDays(1)).problemsOn(today))
         assertEquals(emptySet<DraftProblem>(), draft("Kur", "08:00", endsOn = today).problemsOn(today))
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { routines.create(draft("Kur", "08:00", endsOn = today.minusDays(1))) }
-        }
         val once = draft("Arzt", "08:00", repetition = Repetition.Once(today), endsOn = today.plusDays(3))
         assertEquals(null, once.cleaned().endsOn)
     }

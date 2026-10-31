@@ -155,6 +155,24 @@ class BackupsTest {
     }
 
     @Test
+    fun `a series under way in a backup from before ends could be set counts on from its first to-do`() {
+        val market = app.todo("Markt", due = Due.On(LocalDate.parse("2026-10-24")), recurrence = Recurrence.Daily)
+        runBlocking { app.todos.markDone(market) }
+        runBlocking { app.todos.markDone(app.todos.open().first().single().todo.id) }
+        app.todo("Steuer machen")
+        val file = sealed(asOfVersion25(contentOf(exported())))
+
+        restore(file)
+
+        val numbers = runBlocking { app.todos.archived().first() + app.todos.open().first().map { it.todo } }
+            .associate { "${it.title} ${it.due.date}" to it.seriesNumber }
+        assertEquals(
+            mapOf("Markt 2026-10-24" to 1, "Markt 2026-10-25" to 2, "Markt 2026-10-26" to 3, "Steuer machen null" to 1),
+            numbers,
+        )
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the wishes are tables too many for then.

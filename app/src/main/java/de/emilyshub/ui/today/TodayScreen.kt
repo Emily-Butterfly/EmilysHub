@@ -55,6 +55,7 @@ import de.emilyshub.today.TodayEntry
 import de.emilyshub.today.todayList
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
@@ -62,6 +63,7 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
+import de.emilyshub.ui.fields.endText
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.PinnedNotes
@@ -314,6 +316,7 @@ private fun DueRoutineRow(
                 style = priorityNameStyle(routine.priority),
                 textDecoration = if (done) TextDecoration.LineThrough else null,
             )
+            routine.endsOn?.let { endText(RecurrenceEnd.OnDate(it))?.let { until -> Hint(until) } }
             PriorityNote(routine.priority)
             // Due elsewhere: it pops up on arrival at one of its places (SPEC.md §4).
             if (routine.waitingFor.isNotEmpty()) {

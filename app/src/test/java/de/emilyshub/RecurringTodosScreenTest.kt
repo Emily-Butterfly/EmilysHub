@@ -152,6 +152,7 @@ class RecurringTodosScreenTest {
             option("Kein Ende").performScrollTo().assertIsSelected()
             option("Nach einer Anzahl").tap()
             field("Anzahl insgesamt").performScrollTo().performTextReplacement("2")
+            compose.onNodeWithText("noch 2 von 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Jede Woche Sa · noch 2 von 2").assertIsDisplayed()

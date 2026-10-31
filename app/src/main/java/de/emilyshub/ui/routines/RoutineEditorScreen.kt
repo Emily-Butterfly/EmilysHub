@@ -121,8 +121,10 @@ fun RoutineEditorScreen(
         return
     }
 
-    val problems = draft.problemsOn(today)
     val cleaned = draft.cleaned()
+    // Only for a new end: a routine kept as it was after its last day, not yet archived, may still be renamed.
+    val endMoved = original.let { it == null || it.endsOn != cleaned.endsOn }
+    val problems = if (endMoved) draft.problemsOn(today) else draft.problems
     // Only for new times or a new date: a routine kept as it was after its date may still be renamed.
     // Saving does not check this again, since the moment can pass in between.
     val rescheduled = original.let { it == null || it.times != cleaned.times || it.repetition != cleaned.repetition }
@@ -248,7 +250,8 @@ fun RoutineEditorScreen(
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             if (draft.repetition !is Repetition.Once) {
                 val end = draft.endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
-                EndFields(end, earliest = today, withTimes = false, onChange = {
+                val tooEarly = DraftProblem.EndDateTooEarly in problems
+                EndFields(end, earliest = today, tooEarly = tooEarly, onChange = {
                     draft = draft.copy(endsOn = (it as? RecurrenceEnd.OnDate)?.date)
                 })
             }
