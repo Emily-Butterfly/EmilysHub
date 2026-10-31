@@ -212,7 +212,7 @@ private fun DueTodoRow(todo: DueTodo, today: LocalDate, onDoneChange: (Boolean) 
                 style = priorityNameStyle(todo.priority),
                 textDecoration = if (todo.done) TextDecoration.LineThrough else null,
             )
-            todo.recurrence?.let { Hint(recurrenceText(it)) }
+            todo.recurrence?.let { Hint(recurrenceText(it, todo.end, todo.seriesNumber)) }
             PriorityNote(todo.priority)
             // It pops up on arrival at one of its places (SPEC.md §4).
             if (todo.waitingFor.isNotEmpty()) {

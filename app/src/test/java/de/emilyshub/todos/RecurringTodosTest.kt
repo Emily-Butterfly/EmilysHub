@@ -273,5 +273,96 @@ class RecurringTodosTest {
         assertEquals(emptySet<TodoProblem>(), problemsOf(Recurrence.EveryNDays(365)))
     }
 
+    @Test
+    fun `after N times the series ends, counting to-dos, also when a day was left out by doing one late`() = runBlocking {
+        val saturdays = Recurrence.Weekdays(setOf(DayOfWeek.SATURDAY))
+        todos.create(TodoDraft("Putzen", due = Due.On(day("2026-10-24")), recurrence = saturdays, end = RecurrenceEnd.AfterTimes(4)))
+
+        // The 2nd done only after the 3rd Saturday: the 3rd Saturday is left out, the series runs a Saturday longer.
+        doneOn("2026-10-24")
+        doneOn("2026-11-08")
+        doneOn("2026-11-14")
+        assertEquals(listOf(Due.On(day("2026-11-21")) to 4), todos.open().first().map { it.todo.due to it.todo.seriesNumber })
+        doneOn("2026-11-21")
+
+        assertEquals(emptyList<TodoWithDetails>(), todos.open().first())
+        assertEquals(4, todos.archived().first().size)
+    }
+
+    @Test
+    fun `after N times counts from the day it was done too`() = runBlocking {
+        val fortnight = Recurrence.EveryNDays(14, fromDone = true)
+        todos.create(TodoDraft("Düngen", due = Due.On(day("2026-10-23")), recurrence = fortnight, end = RecurrenceEnd.AfterTimes(2)))
+
+        doneOn("2026-10-23")
+        doneOn("2026-11-10")
+
+        assertEquals(emptyList<TodoWithDetails>(), todos.open().first())
+    }
+
+    @Test
+    fun `on a date the series ends with the last one due by then, that day included`() = runBlocking {
+        val saturdays = Recurrence.Weekdays(setOf(DayOfWeek.SATURDAY))
+        todos.create(TodoDraft("Markt", due = Due.On(day("2026-10-24")), recurrence = saturdays, end = RecurrenceEnd.OnDate(day("2026-11-07"))))
+
+        doneOn("2026-10-24")
+        doneOn("2026-10-31")
+        assertEquals(listOf(Due.On(day("2026-11-07"))), todos.open().first().map { it.todo.due })
+        doneOn("2026-11-07")
+
+        assertEquals(emptyList<TodoWithDetails>(), todos.open().first())
+    }
+
+    @Test
+    fun `the end can be changed later, N still counting from the first, and one below those come makes this the last`() =
+        runBlocking {
+            val trash = todos.create(TodoDraft("Müll", due = Due.On(day("2026-10-26")), recurrence = mondays))
+            doneOn("2026-10-26")
+            doneOn("2026-11-02")
+            val third = todos.open().first().single().todo
+            assertEquals(3, third.seriesNumber)
+
+            todos.update(third.id, TodoDraft("Müll", due = third.due, recurrence = mondays, end = RecurrenceEnd.AfterTimes(2)))
+            doneOn("2026-11-09")
+
+            assertEquals(emptyList<TodoWithDetails>(), todos.open().first())
+            assertEquals(RecurrenceEnd.AfterTimes(2), todos.get(third.id)?.end)
+            assertEquals(RecurrenceEnd.Never, todos.get(trash)?.end)
+        }
+
+    @Test
+    fun `undoing the last of a series takes it back as it was, and done again it ends the series again`() = runBlocking {
+        val trash = todos.create(TodoDraft("Müll", due = Due.On(day("2026-10-26")), recurrence = mondays, end = RecurrenceEnd.AfterTimes(2)))
+        doneOn("2026-10-26")
+        val second = todos.open().first().single().todo.id
+        todos.reopen(trash)
+        assertEquals(listOf(trash), todos.open().first().map { it.todo.id })
+        assertNull(todos.get(second))
+
+        doneOn("2026-10-26")
+        doneOn("2026-11-02")
+        assertEquals(emptyList<TodoWithDetails>(), todos.open().first())
+        val last = todos.archived().first().first()
+        todos.reopen(last.id)
+        assertEquals(listOf(last.id), todos.open().first().map { it.todo.id })
+    }
+
+    @Test
+    fun `an end needs at least 1 time, and a date not before the day it is due, and goes without a recurrence`() {
+        val due = Due.On(day("2026-10-26"))
+        fun problemsOf(end: RecurrenceEnd) = TodoDraft("Müll", due = due, recurrence = mondays, end = end).problems
+        assertEquals(setOf(TodoProblem.EndTimesOutOfRange), problemsOf(RecurrenceEnd.AfterTimes(0)))
+        assertEquals(setOf(TodoProblem.EndTimesOutOfRange), problemsOf(RecurrenceEnd.AfterTimes(1000)))
+        assertEquals(setOf(TodoProblem.EndDateTooEarly), problemsOf(RecurrenceEnd.OnDate(day("2026-10-25"))))
+        assertEquals(emptySet<TodoProblem>(), problemsOf(RecurrenceEnd.OnDate(day("2026-10-26"))))
+        assertEquals(RecurrenceEnd.Never, TodoDraft("Müll", due = due, end = RecurrenceEnd.AfterTimes(3)).cleaned().end)
+    }
+
+    /** Ticks off the one open to-do on the morning of [date]. */
+    private suspend fun doneOn(date: String) {
+        clock.now = day(date).atTime(8, 0).atZone(clock.zone).toInstant()
+        todos.markDone(todos.open().first().single().todo.id)
+    }
+
     private fun day(text: String) = LocalDate.parse(text)
 }

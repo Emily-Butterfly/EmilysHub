@@ -17,6 +17,8 @@ enum class TodoProblem {
     ChecklistItemTooLong,
     WeekdaysMissing,
     IntervalOutOfRange,
+    EndTimesOutOfRange,
+    EndDateTooEarly,
 }
 
 /**
@@ -39,6 +41,8 @@ data class TodoDraft(
     val goalId: Long? = null,
     /** How it comes again once ticked off, if it does; only with a [due] day, left out without. */
     val recurrence: Recurrence? = null,
+    /** When the series ends; only with a [recurrence], never without. */
+    val end: RecurrenceEnd = RecurrenceEnd.Never,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -55,6 +59,11 @@ data class TodoDraft(
                     // Their day comes from the day the to-do is due.
                     null, Recurrence.Daily, is Recurrence.Monthly, is Recurrence.Yearly -> Unit
                 }
+                when (val end = end) {
+                    RecurrenceEnd.Never -> Unit
+                    is RecurrenceEnd.AfterTimes -> if (end.times !in RecurrenceEnd.TIMES) add(TodoProblem.EndTimesOutOfRange)
+                    is RecurrenceEnd.OnDate -> if (due.date?.let(end.date::isBefore) == true) add(TodoProblem.EndDateTooEarly)
+                }
             }
         }
 
@@ -67,6 +76,7 @@ data class TodoDraft(
         description = InputText.multiLine(description).trimStart(),
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
         recurrence = recurrence.takeIf { due != Due.None },
+        end = end.takeIf { recurrence != null && due != Due.None } ?: RecurrenceEnd.Never,
     )
 
     /**
@@ -81,10 +91,15 @@ data class TodoDraft(
 
     /**
      * The to-do this draft makes: [id] if saved already, ticked off [doneAt] then if it is, its reminder as [reminding],
-     * followed by [nextId] if it came again.
+     * followed by [nextId] if it came again, the [seriesNumber]th of its series.
      */
-    fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding(), nextId: Long? = null) =
-        Todo(id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding, goalId, recurrence, nextId)
+    fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding(), nextId: Long? = null, seriesNumber: Int = 1) =
+        Todo(
+            id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding, goalId, recurrence, nextId,
+            endsAfter = (end as? RecurrenceEnd.AfterTimes)?.times,
+            endsOn = (end as? RecurrenceEnd.OnDate)?.date,
+            seriesNumber = seriesNumber,
+        )
 
     companion object {
         const val TITLE_MAX = 80
@@ -95,4 +110,5 @@ data class TodoDraft(
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
+    end,
 )

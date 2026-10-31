@@ -55,6 +55,7 @@ import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
@@ -209,6 +210,9 @@ fun TodoEditorScreen(
                         recurrenceChosen = true
                     },
                 )
+                if (draft.recurrence != null) {
+                    EndFields(draft.end, earliest = day, withTimes = true, onChange = { draft = draft.copy(end = it) })
+                }
             }
             PlacesField(
                 places = places,

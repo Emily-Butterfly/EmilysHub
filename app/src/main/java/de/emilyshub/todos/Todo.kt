@@ -64,7 +64,24 @@ data class Todo(
     val recurrence: Recurrence? = null,
     /** Ticked off, the to-do that came next in its place, if it came again; deleting that one leaves none. */
     @ColumnInfo(name = "next_id") val nextId: Long? = null,
+    /** With a [recurrence]: the series ends after this many to-dos, if it does so (SPEC.md §5). */
+    @ColumnInfo(name = "ends_after") val endsAfter: Int? = null,
+    /** With a [recurrence]: the series ends with the last one due by this day, if it does so. */
+    @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
+    /** Which of its series it is, the first counting 1; [endsAfter] counts from there. */
+    @ColumnInfo(name = "series_number", defaultValue = "1") val seriesNumber: Int = 1,
 ) {
+    /** When its series ends, from [endsAfter] and [endsOn]. */
+    val end: RecurrenceEnd
+        get() = endsAfter?.let(RecurrenceEnd::AfterTimes) ?: endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
+
+    /** Whether the series comes again after it, due on [nextDue]: not once it is the last its [end] allows. */
+    fun comesAgainOn(nextDue: LocalDate): Boolean = when (val end = end) {
+        RecurrenceEnd.Never -> true
+        is RecurrenceEnd.AfterTimes -> seriesNumber < end.times
+        is RecurrenceEnd.OnDate -> !nextDue.isAfter(end.date)
+    }
+
     /** [dueDate] and [dueTime] as one. */
     val due: Due
         get() = when {
@@ -176,7 +193,8 @@ data class TodoWithDetails(
 
 /**
  * A to-do on Heute: due by then, open or ticked off that day, [overdue] while still open after its time, with the names
- * of the places it waits for, if it waits, and how it comes again, if it does.
+ * of the places it waits for, if it waits, and how it comes again, if it does: by its rule, until its [end], being the
+ * [seriesNumber]th of its series.
  */
 data class DueTodo(
     val todoId: Long,
@@ -188,6 +206,8 @@ data class DueTodo(
     val checklist: List<ChecklistEntry> = emptyList(),
     val waitingFor: List<String> = emptyList(),
     val recurrence: Recurrence? = null,
+    val end: RecurrenceEnd = RecurrenceEnd.Never,
+    val seriesNumber: Int = 1,
 )
 
 /** A to-do to remind of (SPEC.md §3): its [title], when it is [due], and the names of the [places] it reminds at. */

@@ -227,7 +227,7 @@ private fun TodoRow(
                         Text(stringResource(R.string.todo_due_label, due))
                     }
                 }
-                todo.recurrence?.let { Text(recurrenceText(it)) }
+                todo.recurrence?.let { Text(recurrenceText(it, todo.end, todo.seriesNumber)) }
                 PriorityNote(todo.priority)
                 LocalResources.current.placesLabel(details.placeNames)?.let { Text(it) }
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))

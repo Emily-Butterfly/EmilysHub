@@ -591,6 +591,29 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 25 moves to version 26 where no series ends yet, each to-do the first of its own, and then one can end`() {
+        createAtVersion(25) {
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away, recurrence) " +
+                    "VALUES (1, 'Putzen', '', '2026-10-24', 'normal', 0, 0, 0, 'weekdays:6')",
+            )
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (1, 'Kur', '', '08:00', 'daily', '2026-10-01T00:00:00Z')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val cleaning = checkNotNull(database.todos().get(1))
+            assertEquals(Triple(null, null, 1), Triple(cleaning.endsAfter, cleaning.endsOn, cleaning.seriesNumber))
+            assertEquals(null, database.routines().get(1)?.endsOn)
+
+            database.todos().update(cleaning.copy(endsAfter = 4))
+            assertEquals(4, database.todos().get(1)?.endsAfter)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

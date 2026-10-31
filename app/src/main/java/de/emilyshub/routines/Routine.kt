@@ -56,9 +56,12 @@ data class Routine(
      * for nothing, until saved again. Without, it only shows with its goal.
      */
     val target: RoutineTarget? = null,
+    /** Its last day, if it ends (SPEC.md §2): due on none after; once that day is over, it goes to the archive. */
+    @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
 ) {
-    /** The times it is due on [date]; none if its repetition skips that day. */
-    fun timesOn(date: LocalDate): List<LocalTime> = if (repetition.isDueOn(date)) times else emptyList()
+    /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
+    fun timesOn(date: LocalDate): List<LocalTime> =
+        if (repetition.isDueOn(date) && endsOn?.let(date::isAfter) != true) times else emptyList()
 
     /** The times on [date] that are due from [plannedFrom] on, the routine's day as it is first planned. */
     fun plannedTimesOn(date: LocalDate, zone: ZoneId): List<LocalTime> =

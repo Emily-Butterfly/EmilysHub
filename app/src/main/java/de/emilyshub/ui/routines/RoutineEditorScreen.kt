@@ -50,7 +50,9 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.routines.toDraft
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.ui.fields.ChecklistFields
+import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.PlacesField
@@ -119,7 +121,7 @@ fun RoutineEditorScreen(
         return
     }
 
-    val problems = draft.problems
+    val problems = draft.problemsOn(today)
     val cleaned = draft.cleaned()
     // Only for new times or a new date: a routine kept as it was after its date may still be renamed.
     // Saving does not check this again, since the moment can pass in between.
@@ -244,6 +246,12 @@ fun RoutineEditorScreen(
             if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
+            if (draft.repetition !is Repetition.Once) {
+                val end = draft.endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
+                EndFields(end, earliest = today, withTimes = false, onChange = {
+                    draft = draft.copy(endsOn = (it as? RecurrenceEnd.OnDate)?.date)
+                })
+            }
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
             TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })

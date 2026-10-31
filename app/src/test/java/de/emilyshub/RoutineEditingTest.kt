@@ -569,6 +569,32 @@ class RoutineEditingTest {
         assertEquals(emptyList<String>(), savedRoutines())
     }
 
+    @Test
+    fun `a routine ending on a day, picked from today on, says until when in the list`() {
+        launchApp().use {
+            newRoutine("Kur")
+            option("Kein Ende").performScrollTo().assertIsSelected()
+            option("Nach einer Anzahl").assertDoesNotExist()
+            option("An einem Datum").tap()
+            compose.onNode(hasText("Letzter Tag") and hasClickAction()).tap()
+            compose.onNode(hasText("15", substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Täglich um 08:00 · bis 15.11.").assertIsDisplayed()
+        }
+        assertEquals(LocalDate.parse("2026-11-15"), savedRoutines().single().endsOn)
+    }
+
+    @Test
+    fun `a routine due once has no end to choose`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+            option("Einmalig").tap()
+            compose.onNodeWithText("Endet").assertDoesNotExist()
+        }
+    }
+
     private fun tab(label: String) = compose.onNode(isSelectable() and hasText(label))
 
     private fun heading(title: String) = compose.onNode(isHeading() and hasText(title))

@@ -420,9 +420,14 @@ class BackupsTest {
 
     /** [content] as version 23 made it: without tags of notes, which came with 24. */
     private fun asOfVersion23(content: JSONObject): JSONObject {
-        content.tables().remove("note_tags")
-        return content.put("schema", 23)
+        val older = asOfVersion25(content)
+        older.tables().remove("note_tags")
+        return older.put("schema", 23)
     }
+
+    /** [content] as version 25 made it: without ends of series, which came with 26. */
+    private fun asOfVersion25(content: JSONObject): JSONObject =
+        content.withoutColumns("todos", "ends_after", "ends_on", "series_number").withoutColumns("routines", "ends_on").put("schema", 25)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

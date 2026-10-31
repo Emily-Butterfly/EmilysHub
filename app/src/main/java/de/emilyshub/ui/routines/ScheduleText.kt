@@ -9,12 +9,16 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.numericDayAndMonth
 
-/** When a routine is due, in a line: "Täglich um 07:30", "Mo, Mi, Fr um 07:30 und 20:00", "Einmalig am 30.10.2026 um 09:30". */
+/**
+ * When a routine is due, in a line: "Täglich um 07:30", "Mo, Mi, Fr um 07:30 und 20:00", "Einmalig am 30.10.2026 um
+ * 09:30"; and "… · bis 15.11." if it ends.
+ */
 @Composable
 fun scheduleText(routine: Routine): String {
     val times = enumeration(routine.times.map { it.clockTime() })
-    return when (val repetition = routine.repetition) {
+    val schedule = when (val repetition = routine.repetition) {
         Repetition.Daily -> stringResource(R.string.routine_schedule_daily, times)
         is Repetition.Weekdays -> {
             val names = stringArrayResource(R.array.weekdays_short)
@@ -24,5 +28,7 @@ fun scheduleText(routine: Routine): String {
         is Repetition.EveryNDays -> stringResource(R.string.routine_schedule_every_n_days, repetition.days, times)
         is Repetition.Once -> stringResource(R.string.routine_schedule_once, repetition.date.numericDate(), times)
     }
+    val endsOn = routine.endsOn ?: return schedule
+    return stringResource(R.string.end_joined, schedule, stringResource(R.string.end_until, endsOn.numericDayAndMonth()))
 }
 

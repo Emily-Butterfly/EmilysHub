@@ -59,7 +59,10 @@ class Todos(
             val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo.due, now)
             val waitingFor = if (waiting) details.placeNames else emptyList()
             val done = todo.doneAt != null
-            DueTodo(todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor, todo.recurrence)
+            DueTodo(
+                todo.id, todo.title, todo.due, todo.priority, done, overdue, details.checklist(), waitingFor, todo.recurrence,
+                todo.end, todo.seriesNumber,
+            )
         }
     }
 
@@ -103,7 +106,7 @@ class Todos(
             val todo = dao.get(id) ?: return@withTransaction
             val placesBefore = dao.placeIdsOf(id).toSet()
             val goalId = database().wishes().stillThere(cleaned.goalId)
-            dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId))
+            dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId, todo.seriesNumber))
             settleGoals(todo.asPart(), todo.copy(goalId = goalId).asPart())
             saveTags(id, cleaned.tagIds)
             savePlaces(id, cleaned.placeIds)
@@ -345,12 +348,14 @@ class Todos(
         val doneAt = now()
         val recurrence = todo.recurrence
         val due = todo.dueDate
-        if (recurrence == null || due == null) {
+        val nextDue = due?.let { recurrence?.nextDue(it, dayOf(doneAt)) }
+        // Not again without a recurrence, nor once its series has come as often or as long as its end allows.
+        if (nextDue == null || !todo.comesAgainOn(nextDue)) {
             dao.setDoneAt(todo.id, doneAt)
             settleGoals(todo.asPart(), todo.copy(doneAt = doneAt).asPart())
             return
         }
-        val next = todo.copy(id = 0, dueDate = recurrence.nextDue(due, dayOf(doneAt)), doneAt = null, reminding = Reminding())
+        val next = todo.copy(id = 0, dueDate = nextDue, doneAt = null, reminding = Reminding(), seriesNumber = todo.seriesNumber + 1)
         val nextId = dao.insert(next)
         dao.insertChecklistItems(dao.checklist(todo.id).map { it.copy(id = 0, todoId = nextId, ticked = false) })
         dao.tag(nextId, dao.tagIdsOf(todo.id))
@@ -384,7 +389,9 @@ class Todos(
         val done = todo.doneAt ?: return false
         val due = todo.dueDate ?: return false
         val recurrence = todo.recurrence ?: return false
-        val cameAs = todo.copy(id = next.id, dueDate = recurrence.nextDue(due, dayOf(done)), doneAt = null, nextId = null)
+        val cameAs = todo.copy(
+            id = next.id, dueDate = recurrence.nextDue(due, dayOf(done)), doneAt = null, nextId = null, seriesNumber = todo.seriesNumber + 1,
+        )
         val checklist = dao.checklist(next.id)
         return next.copy(reminding = todo.reminding) == cameAs &&
             checklist.none { it.ticked } &&

@@ -19,6 +19,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.RecurrenceEnd
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -140,11 +141,84 @@ class RecurringTodosScreenTest {
         }
     }
 
+    @Test
+    fun `a series ending after so many times, chosen in the editor, says how many are left and the last one`() {
+        val saturdays = Recurrence.Weekdays(setOf(DayOfWeek.SATURDAY))
+        app.todo("Markt", due = Due.On(LocalDate.parse("2026-10-24")), recurrence = saturdays)
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Markt").performClick()
+            option("Kein Ende").performScrollTo().assertIsSelected()
+            option("Nach einer Anzahl").tap()
+            field("Anzahl insgesamt").performScrollTo().performTextReplacement("2")
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Jede Woche Sa · noch 2 von 2").assertIsDisplayed()
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithContentDescription("„Markt“ abhaken").performClick()
+            compose.mainClock.advanceTimeBy(SNACKBAR_SHOWS)
+            compose.mainClock.autoAdvance = true
+            compose.onNodeWithText("Jede Woche Sa · letztes Mal").assertIsDisplayed()
+        }
+        assertEquals(RecurrenceEnd.AfterTimes(2), runBlocking { app.todos.open().first().single().todo.end })
+    }
+
+    @Test
+    fun `no count below one is saved`() {
+        app.todo("Markt", due = Due.On(today), recurrence = Recurrence.Daily)
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Markt").performClick()
+            option("Nach einer Anzahl").tap()
+            field("Anzahl insgesamt").performScrollTo().performTextReplacement("0")
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Von 1 bis 999").assertIsDisplayed()
+        }
+        assertEquals(RecurrenceEnd.Never, runBlocking { app.todos.open().first().single().todo.end })
+    }
+
+    @Test
+    fun `a series ending on a day, picked from the due date on, says until when, on Heute too`() {
+        app.todo("Pflanzen gießen", due = Due.On(today), recurrence = Recurrence.Daily)
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Pflanzen gießen").performClick()
+            option("An einem Datum").tap()
+            // A month on at first, then the day picked in that month.
+            compose.onNodeWithText("23.11.2026").performScrollTo().assertIsDisplayed()
+            pickDay("15", field = "Letzter Tag")
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Täglich · bis 15.11.").assertIsDisplayed()
+
+            compose.onNode(hasText("Heute") and hasClickAction()).performClick()
+            compose.onNodeWithText("Täglich · bis 15.11.").assertIsDisplayed()
+        }
+        assertEquals(RecurrenceEnd.OnDate(LocalDate.parse("2026-11-15")), runBlocking { app.todos.open().first().single().todo.end })
+    }
+
+    @Test
+    fun `without a repetition, there is no end to choose`() {
+        app.todo("Steuern", due = Due.On(today))
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Steuern").performClick()
+            compose.onNodeWithText("Endet").assertDoesNotExist()
+        }
+    }
+
     private fun openTodos() = compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
 
-    /** Picks the day in the calendar, where each day reads as a whole date, such as "Mittwoch, 28. Oktober 2026". */
-    private fun pickDay(day: String) {
-        compose.onNode(hasText("Am") and hasClickAction()).tap()
+    /**
+     * Picks the day in the calendar of the date [field], where each day reads as a whole date, such as "Mittwoch, 28.
+     * Oktober 2026".
+     */
+    private fun pickDay(day: String, field: String = "Am") {
+        compose.onNode(hasText(field) and hasClickAction()).tap()
         compose.onNode(hasText(day, substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
         compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
     }

@@ -22,6 +22,7 @@ import de.emilyshub.routines.TimeWindow
 import de.emilyshub.security.FakeAuthenticator
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishStatus
@@ -60,10 +61,11 @@ fun TestApplication.routine(
     places: Set<Long> = emptySet(),
     goal: Long? = null,
     target: RoutineTarget? = null,
+    endsOn: LocalDate? = null,
 ): Long = runBlocking {
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn,
     )
     routines.create(draft)
 }
@@ -87,10 +89,11 @@ fun TestApplication.todo(
     places: Set<Long> = emptySet(),
     goal: Long? = null,
     recurrence: Recurrence? = null,
+    end: RecurrenceEnd = RecurrenceEnd.Never,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
     val draft = TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal)
-    todos.create(draft.copy(recurrence = recurrence))
+    todos.create(draft.copy(recurrence = recurrence, end = end))
 }
 
 /** A tag, set up before the test opens the app. */

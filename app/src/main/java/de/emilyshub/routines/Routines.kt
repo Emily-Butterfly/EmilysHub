@@ -346,7 +346,19 @@ class Routines(
             val parts = missed.map { it.routine.id }.distinct().associateWith { partOf(it) }
             dao.setStatuses(missed.map { it.occurrence.id }, OccurrenceStatus.Missed)
             parts.forEach { (routineId, part) -> settleGoals(part, partOf(routineId)) }
+            archiveEnded()
         }
+    }
+
+    /**
+     * Archives the routines that have ended (SPEC.md §2): their last day is over, and nothing of it is still open, as
+     * one whose time window runs past midnight may be. Their history stays, as for one archived by hand.
+     */
+    private suspend fun archiveEnded() {
+        val today = today()
+        dao.withStatus(RoutineStatus.Active)
+            .filter { routine -> routine.endsOn?.isBefore(today) == true && dao.openOccurrences(routine.id).isEmpty() }
+            .forEach { dao.setRoutineStatus(it.id, RoutineStatus.Archived) }
     }
 
     /**
@@ -533,7 +545,8 @@ class Routines(
     }
 
     private fun checked(draft: RoutineDraft): RoutineDraft {
-        require(draft.problems.isEmpty()) { "Invalid routine: ${draft.problems}" }
+        val problems = draft.problemsOn(today())
+        require(problems.isEmpty()) { "Invalid routine: $problems" }
         return draft.cleaned()
     }
 }

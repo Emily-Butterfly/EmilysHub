@@ -406,3 +406,16 @@ val MIGRATION_24_25 = object : Migration(24, 25) {
 
 /** The code points of what [MIGRATION_24_25] takes out, as InputText leaves them out on saving. */
 private val STRAY_CHARACTERS = listOf(0x200B, 0x2060, 0xFEFF, 0x00AD)
+
+/**
+ * Version 26: a series that comes again can end (#34): a to-do's after a number of to-dos or on a date, counting which
+ * of its series it is; a routine's on a date. None ends yet, and each to-do counts as the first of its series.
+ */
+val MIGRATION_25_26 = object : Migration(25, 26) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `ends_after` INTEGER")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `ends_on` TEXT")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `series_number` INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `ends_on` TEXT")
+    }
+}

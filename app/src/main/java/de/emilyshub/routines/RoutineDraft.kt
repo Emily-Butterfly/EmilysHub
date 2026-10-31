@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import de.emilyshub.data.InputText
 import java.io.Serializable
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 
 enum class DraftProblem {
@@ -19,6 +20,7 @@ enum class DraftProblem {
     ChecklistTooLong,
     ChecklistItemTooLong,
     TargetOutOfRange,
+    EndDateTooEarly,
 }
 
 /**
@@ -45,7 +47,13 @@ data class RoutineDraft(
     val goalId: Long? = null,
     /** What it aims at for its goal, if anything; left out without a goal. */
     val target: RoutineTarget? = null,
+    /** Its last day, if it ends; none for one due once. */
+    val endsOn: LocalDate? = null,
 ) : Serializable {
+
+    /** Its [problems], and an end before [today], which is no longer to come. */
+    fun problemsOn(today: LocalDate): Set<DraftProblem> =
+        problems + listOfNotNull(DraftProblem.EndDateTooEarly.takeIf { cleaned().endsOn?.isBefore(today) == true })
 
     val problems: Set<DraftProblem>
         get() = with(cleaned()) {
@@ -82,11 +90,12 @@ data class RoutineDraft(
         window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
         target = target.takeIf { goalId != null },
+        endsOn = endsOn.takeIf { repetition !is Repetition.Once },
     )
 
     /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
     fun toRoutine(id: Long = 0, plannedFrom: Instant, status: RoutineStatus = RoutineStatus.Active) =
-        Routine(id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target)
+        Routine(id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target, endsOn)
 
     companion object {
         const val NAME_MAX = 80
@@ -112,5 +121,5 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
 /** The routine with its [checklist], tags and places as the editor starts out with it. */
 fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn,
 )

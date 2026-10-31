@@ -390,6 +390,56 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a routine ending on a date is due up to that day, that day included, and not after`() = runBlocking {
+        routines.create(draft("Kur", "08:00", endsOn = today.plusDays(1)))
+
+        assertEquals(listOf("08:00 Kur: Open"), dueOn(today))
+        assertEquals(listOf("08:00 Kur: Open"), dueOn(today.plusDays(1)))
+        assertEquals(emptyList<String>(), dueOn(today.plusDays(2)))
+    }
+
+    @Test
+    fun `after its last day, once its occurrences have ended, a routine goes to the archive, keeping its history`() =
+        runBlocking {
+            val cure = routines.create(draft("Kur", "22:00", endsOn = today, window = TimeWindow(hours = 4)))
+            routines.markDone(occurrenceAt("22:00"))
+
+            clock.now = berlin("2026-10-23T23:00")
+            routines.markMissed(since = clock.now)
+            assertEquals(RoutineStatus.Active, routines.get(cure)?.status)
+
+            clock.now = berlin("2026-10-24T00:30")
+            routines.markMissed(since = clock.now)
+            assertEquals(RoutineStatus.Archived, routines.get(cure)?.status)
+            assertEquals(listOf(OccurrenceStatus.Done), routines.history().first().map { it.status })
+        }
+
+    @Test
+    fun `a routine still open from its last day goes to the archive once that is missed`() = runBlocking {
+        val cure = routines.create(draft("Kur", "22:00", endsOn = today, window = TimeWindow(hours = 4)))
+
+        clock.now = berlin("2026-10-24T01:00")
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+        assertEquals("Its time window runs on past midnight", RoutineStatus.Active, routines.get(cure)?.status)
+
+        clock.now = berlin("2026-10-24T02:00")
+        routines.markMissed(since = berlin("2026-10-24T01:00"))
+        assertEquals(RoutineStatus.Archived, routines.get(cure)?.status)
+        assertEquals(listOf(OccurrenceStatus.Missed), routines.history().first().map { it.status })
+    }
+
+    @Test
+    fun `an end is not before today, and a one-time routine has none`() = runBlocking {
+        assertEquals(setOf(DraftProblem.EndDateTooEarly), draft("Kur", "08:00", endsOn = today.minusDays(1)).problemsOn(today))
+        assertEquals(emptySet<DraftProblem>(), draft("Kur", "08:00", endsOn = today).problemsOn(today))
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { routines.create(draft("Kur", "08:00", endsOn = today.minusDays(1))) }
+        }
+        val once = draft("Arzt", "08:00", repetition = Repetition.Once(today), endsOn = today.plusDays(3))
+        assertEquals(null, once.cleaned().endsOn)
+    }
+
+    @Test
     fun `all routines are listed by time, then by name`() = runBlocking {
         routines.create(draft("Tagebuch", "20:00", description = "Drei gute Dinge"))
         routines.create(draft("Übungen", "07:30"))
@@ -939,9 +989,10 @@ class RoutinesTest {
         priority: Priority = Priority.Normal,
         checklist: List<String> = emptyList(),
         tags: Set<Long> = emptySet(),
+        endsOn: LocalDate? = null,
     ) = RoutineDraft(
         name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, endsOn = endsOn,
     )
 
     /** Each checklist item of the occurrences on Heute on [date], and whether it is ticked off there. */

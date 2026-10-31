@@ -283,6 +283,17 @@
     <string name="todo_recurrence_monthly">Monatlich am %1$d.</string>
     <string name="todo_recurrence_monthly_from_done">Monatlich ab Erledigung</string>
     <string name="todo_recurrence_yearly">Jährlich am %1$s</string>
+    <string name="end_title">Endet</string>
+    <string name="end_never">Kein Ende</string>
+    <string name="end_after_times">Nach einer Anzahl</string>
+    <string name="end_times">Anzahl insgesamt</string>
+    <string name="end_on_date">An einem Datum</string>
+    <string name="end_last_day">Letzter Tag</string>
+    <string name="end_date_too_early">Frühestens am %1$s</string>
+    <string name="end_remaining">noch %1$d von %2$d</string>
+    <string name="end_last_time">letztes Mal</string>
+    <string name="end_until">bis %1$s</string>
+    <string name="end_joined">%1$s · %2$s</string>
     <string name="todo_recurrence_yearly_from_done">Jährlich ab Erledigung</string>
     <string name="todo_overdue_label">Überfällig: %1$s</string>
     <string name="todo_day_today">heute</string>
