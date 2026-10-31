@@ -376,3 +376,33 @@ val MIGRATION_23_24 = object : Migration(23, 24) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_tags_tag_id` ON `note_tags` (`tag_id`)")
     }
 }
+
+/**
+ * Version 25: the characters that print nothing and only get in the way, which saving leaves out since, are taken out of
+ * what was saved before (#26): zero-width spaces, word joiners, byte order marks and soft hyphens, so that the search
+ * finds it as it reads. Names of tags stay, as two can only differ in such characters if a backup brought them in.
+ */
+val MIGRATION_24_25 = object : Migration(24, 25) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val texts = mapOf(
+            "notes" to listOf("title", "text"),
+            "todos" to listOf("title", "description"),
+            "routines" to listOf("name", "description"),
+            "wishes" to listOf("title", "description", "period"),
+            "note_tabs" to listOf("name"),
+            "note_folders" to listOf("name"),
+            "places" to listOf("name"),
+            "checklist_items" to listOf("text"),
+            "todo_checklist_items" to listOf("text"),
+        )
+        for ((table, columns) in texts) {
+            val cleaned = columns.joinToString { column ->
+                "`$column` = " + STRAY_CHARACTERS.fold("`$column`") { text, code -> "replace($text, char($code), '')" }
+            }
+            db.execSQL("UPDATE `$table` SET $cleaned")
+        }
+    }
+}
+
+/** The code points of what [MIGRATION_24_25] takes out, as InputText leaves them out on saving. */
+private val STRAY_CHARACTERS = listOf(0x200B, 0x2060, 0xFEFF, 0x00AD)

@@ -246,7 +246,7 @@ private fun AppShell(
         }
         todoTarget != null -> {
             BackHandler { todoEditor = null }
-            editors.SaveableStateProvider("todo $todoTarget") {
+            editors.SaveableStateProvider(editorKey("todo", todoTarget)) {
                 TodoEditorScreen(
                     todos, wishes, tags, places, notes, todoTarget, onClose = { todoEditor = null }, onOpenNote = openNote,
                 )
@@ -260,7 +260,7 @@ private fun AppShell(
         wishTarget != null -> {
             BackHandler { wishEditor = null }
             // A new editor for each wish, so that one opened from another starts afresh.
-            editors.SaveableStateProvider("wish $wishTarget") {
+            editors.SaveableStateProvider(editorKey("wish", wishTarget)) {
                 WishEditorScreen(
                     wishes = wishes,
                     todos = todos,
@@ -330,7 +330,7 @@ private fun AppShell(
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            editors.SaveableStateProvider("routine $editor") {
+            editors.SaveableStateProvider(editorKey("routine", editor)) {
                 RoutineEditorScreen(
                     routines, wishes, tags, places, notes, editor, onClose = { routineEditor = null }, onOpenNote = openNote,
                 )
@@ -544,7 +544,10 @@ private fun TopLevelScaffold(
 private fun ForgetClosedEditor(editors: SaveableStateHolder, kind: String, target: Any?) {
     var open by remember { mutableStateOf<Any?>(null) }
     LaunchedEffect(target) {
-        open?.takeIf { it != target }?.let { editors.removeState("$kind $it") }
+        open?.takeIf { it != target }?.let { editors.removeState(editorKey(kind, it)) }
         open = target
     }
 }
+
+/** Under what the editor [kind] keeps what was typed for [target]. */
+private fun editorKey(kind: String, target: Any) = "$kind $target"

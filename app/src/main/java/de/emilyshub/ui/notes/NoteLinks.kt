@@ -45,7 +45,7 @@ import de.emilyshub.ui.launchNow
 
 /**
  * What the note is linked to (SPEC.md §7), "Ziel · Wortschatz", each to be taken off, and the way to link it to a goal,
- * a to-do or a routine not done nor archived. One deleted meanwhile shows no more.
+ * a to-do or a routine, those done or archived last. One deleted meanwhile shows no more.
  */
 @Composable
 fun LinksField(notes: Notes, links: Set<NoteLink>, onChange: (Set<NoteLink>) -> Unit) {
@@ -67,7 +67,7 @@ fun LinksField(notes: Notes, links: Set<NoteLink>, onChange: (Set<NoteLink>) -> 
 
     if (adding) {
         LinkDialog(
-            offered = all.filter { it.open && it.link !in links },
+            offered = all.filter { it.link !in links },
             onChoose = { link ->
                 adding = false
                 onChange(links + link)
@@ -181,7 +181,9 @@ private fun LinkDialog(offered: List<LinkCandidate>, onChoose: (NoteLink) -> Uni
                         )
                     }
                 }
-                val ofKind = offered.filter { it.link.kind == kind }.sortedWith(compareBy(InputText.byName) { it.name })
+                // Those done or archived after the others, as the other side links them too.
+                val ofKind = offered.filter { it.link.kind == kind }
+                    .sortedWith(compareBy<LinkCandidate> { !it.open }.thenBy(InputText.byName) { it.name })
                 Column(
                     Modifier
                         .heightIn(max = 360.dp)
@@ -191,7 +193,7 @@ private fun LinkDialog(offered: List<LinkCandidate>, onChoose: (NoteLink) -> Uni
                     if (ofKind.isEmpty()) Text(stringResource(R.string.note_link_none), modifier = Modifier.padding(vertical = 12.dp))
                     ofKind.forEach { candidate ->
                         Text(
-                            text = candidate.name,
+                            text = if (candidate.open) candidate.name else stringResource(R.string.note_link_closed, candidate.name),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxWidth()

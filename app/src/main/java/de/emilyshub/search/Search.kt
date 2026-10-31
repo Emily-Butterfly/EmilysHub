@@ -18,7 +18,7 @@ data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more
 /**
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
  * notes and their tags. Every word typed has to be there, in whatever case, and however its letters were typed, as
- * [InputText.readTheSame] compares. The database looks for the longest word, as a value of the query, its wildcards
+ * [InputText.searchable] compares. The database looks for the longest word, as a value of the query, its wildcards
  * escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those stand for anything
  * there, and what it finds is then looked at closely here. [database] is only called on [io].
  */
@@ -28,7 +28,7 @@ class Search(
 ) {
     /** What [typed] finds, area by area, those with nothing left out; nothing for nothing typed. */
     suspend fun find(typed: String): List<SearchGroup> = withContext(io) {
-        val words = InputText.comparable(InputText.singleLine(typed).take(MAX_LENGTH)).split(' ').filter(String::isNotEmpty)
+        val words = InputText.searchable(InputText.singleLine(typed).take(MAX_LENGTH)).split(' ').filter(String::isNotEmpty)
         if (words.isEmpty()) return@withContext emptyList()
         // "ß" beyond ASCII stands for anything, so that an "ss" typed finds one.
         val pattern = patternFor(words.maxBy { it.length }.replace("ss", "ß"))
@@ -40,7 +40,7 @@ class Search(
             SearchArea.Notes to dao.notes(pattern),
         )
         found.mapNotNull { (area, candidates) ->
-            val hits = candidates.filter { candidate -> InputText.comparable(candidate.text).let { text -> words.all { it in text } } }
+            val hits = candidates.filter { candidate -> InputText.searchable(candidate.text).let { text -> words.all { it in text } } }
                 .map { SearchHit(it.id, it.title) }
                 .sortedWith(compareBy(InputText.byName) { it.title })
             if (hits.isEmpty()) null else SearchGroup(area, hits.take(MAX_HITS), more = maxOf(hits.size - MAX_HITS, 0))
@@ -58,8 +58,7 @@ class Search(
 
         /**
          * "%word%", with the wildcards and the escape character in [word] escaped, and letters beyond ASCII, which the
-         * database compares in their case and may hold in two parts, standing for anything, as does "ss", which may be
-         * an "ß" there.
+         * database compares in their case and may hold in two parts, standing for anything.
          */
         fun patternFor(word: String): String = buildString {
             // Whether what was put last stands for anything, not for a "%" typed.

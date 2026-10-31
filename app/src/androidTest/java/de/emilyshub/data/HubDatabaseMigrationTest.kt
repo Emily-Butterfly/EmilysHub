@@ -577,6 +577,20 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 24 moves to version 25 where what was saved is without the characters that print nothing`() {
+        createAtVersion(24) {
+            it.execSQL(
+                "INSERT INTO notes (id, title, text, changed_at, position) " +
+                    "VALUES (1, 'Ein' || char(8203) || 'kauf', 'Ha' || char(173) || 'fer', '2026-10-23T05:00:00Z', 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals("Einkauf" to "Hafer", database.notes().get(1)?.let { it.title to it.text })
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

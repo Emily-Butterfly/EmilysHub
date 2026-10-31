@@ -62,6 +62,7 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
+import kotlinx.coroutines.CoroutineScope
 import java.io.Serializable
 
 /**
@@ -165,7 +166,7 @@ private fun PathBar(notebook: Notebook, here: Container, onOpenFolder: (Long?) -
     }
 }
 
-/** Every note, the one changed last first, each with where it lies. */
+/** Every note, those pinned first, each the one changed last first, with where it lies and its menu. */
 @Composable
 private fun AllNotes(notes: Notes, notebook: Notebook, contentPadding: PaddingValues, onOpenNote: (Long) -> Unit) {
     var moving by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -179,7 +180,7 @@ private fun AllNotes(notes: Notes, notebook: Notebook, contentPadding: PaddingVa
         // By place, as in a folder: so that one pinned, going up, does not take the list along out of sight.
         items(all) { note ->
             val lyingIn = pathName(notebook.containerOf(note), notebook)
-            NoteRow(note, depth = 0, lyingIn = lyingIn, menu = noteMenu(notes, note, onMove = { moving = note.id }), onClick = {
+            NoteRow(note, depth = 0, lyingIn = lyingIn, menu = noteMenu(notes, note, scope, onMove = { moving = note.id }), onClick = {
                 onOpenNote(note.id)
             })
         }
@@ -199,8 +200,7 @@ private fun AllNotes(notes: Notes, notebook: Notebook, contentPadding: PaddingVa
 
 /** What the menu of a note offers: to pin it where it lies, or loosen it, the same on Heute, and to move it elsewhere. */
 @Composable
-private fun noteMenu(notes: Notes, note: Note, onMove: () -> Unit): List<MenuEntry> {
-    val scope = rememberCoroutineScope()
+private fun noteMenu(notes: Notes, note: Note, scope: CoroutineScope, onMove: () -> Unit): List<MenuEntry> {
     return listOf(
         MenuEntry(stringResource(if (note.pinned) R.string.note_unpin else R.string.note_pin)) {
             scope.launchNow { notes.pinNote(note.id, !note.pinned) }
@@ -323,7 +323,7 @@ private fun ContainerContents(
                             note = note,
                             depth = line.depth,
                             lyingIn = null,
-                            menu = noteMenu(notes, note, onMove = { movingNote = note.id }) + order,
+                            menu = noteMenu(notes, note, scope, onMove = { movingNote = note.id }) + order,
                             onClick = { onOpenNote(note.id) },
                         )
                     }

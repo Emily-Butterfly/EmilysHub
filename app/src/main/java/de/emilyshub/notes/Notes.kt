@@ -85,7 +85,7 @@ class Notes(
         }
     }
 
-    /** Takes the link of the note to [link] off, from either side. */
+    /** Takes the link of the note to [link] off, from either side; nothing if there is none, as one deleted meanwhile. */
     suspend fun unlink(noteId: Long, link: NoteLink) = write {
         when (link) {
             is NoteLink.Goal -> dao.unlinkGoal(noteId, link.id)

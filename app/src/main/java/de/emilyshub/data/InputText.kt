@@ -25,12 +25,15 @@ object InputText {
     /** Whether [a] and [b] read the same: in whatever case, however their letters were typed, and leaving out what prints nothing. */
     fun readTheSame(a: String, b: String): Boolean = comparable(a) == comparable(b)
 
-    /**
-     * [text] as [readTheSame] compares it: in lower case, its letters typed one way, without what prints nothing, and
-     * "ß" as "ss", as "STRASSE" reads "Straße".
-     */
+    /** [text] as [readTheSame] compares it: in lower case, its letters typed one way, without what prints nothing. */
     fun comparable(text: String) =
-        Normalizer.normalize(text, Normalizer.Form.NFKC).filterNot(::isFormat).lowercase(Locale.GERMAN).replace("ß", "ss")
+        Normalizer.normalize(text, Normalizer.Form.NFKC).filterNot(::isFormat).lowercase(Locale.GERMAN)
+
+    /**
+     * [text] as the search compares it: as [comparable], and "ß" as "ss", so that "STRASSE" finds "Straße"; not for
+     * names, as "Maße" and "Masse" are two words.
+     */
+    fun searchable(text: String) = comparable(text).replace("ß", "ss")
 
     private fun isFormat(char: Char) = Character.getType(char) == Character.FORMAT.toInt()
 

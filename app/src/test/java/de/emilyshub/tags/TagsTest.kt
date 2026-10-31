@@ -58,6 +58,7 @@ class TagsTest {
         assertEquals(listOf("\u00C4rzte"), names())
         assertEquals(NameProblem.Taken, tagNameProblem("\u00C4rzte", listOf(Tag(doctors, "\u00C4rzte"))))
         assertEquals(NameProblem.Taken, tagNameProblem("Ar\u200Bbeit", listOf(Tag(1, "Arbeit"))))
+        assertEquals("Two words, though the search finds the one by the other", null, tagNameProblem("Masse", listOf(Tag(1, "Maße"))))
     }
 
     @Test

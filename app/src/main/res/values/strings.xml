@@ -424,6 +424,7 @@
     <string name="note_link_goal">Ziel</string>
     <string name="note_link_todo">To-do</string>
     <string name="note_link_routine">Routine</string>
+    <string name="note_link_closed">%1$s (abgeschlossen)</string>
     <string name="note_link_none">Nichts, womit sich verknüpfen ließe.</string>
     <string name="note_link_remove">Verknüpfung mit „%1$s“ lösen</string>
     <string name="note_link_named">%1$s · %2$s</string>
