@@ -5,7 +5,7 @@
     <string name="destination_today">Heute</string>
     <string name="destination_routines">Routinen</string>
     <string name="destination_todos">To-dos</string>
-    <string name="destination_wishlist">Wunschliste</string>
+    <string name="destination_wishlist">Ziele</string>
     <string name="destination_notes">Notizen</string>
 
     <string name="settings">Einstellungen</string>
@@ -296,10 +296,10 @@
     <string name="todo_delete_for_good">„%1$s“ endgültig löschen</string>
     <string name="todo_delete_for_good_title">Endgültig löschen?</string>
     <string name="todo_delete_for_good_text">„%1$s“ wird mit seiner Checkliste gelöscht und lässt sich nicht wiederherstellen.</string>
-    <string name="wishes_empty">Noch keine Wünsche. Hier sammelst du, was du irgendwann machen möchtest, ganz ohne Erinnerungen. Mit „+“ legst du einen an.</string>
-    <string name="wish_create">Wunsch anlegen</string>
-    <string name="wish_new">Neuer Wunsch</string>
-    <string name="wish_edit">Wunsch bearbeiten</string>
+    <string name="wishes_empty">Noch keine Ziele. Hier sammelst du, was du irgendwann erreichen möchtest, ganz ohne Erinnerungen. Mit „+“ legst du eins an.</string>
+    <string name="wish_create">Ziel anlegen</string>
+    <string name="wish_new">Neues Ziel</string>
+    <string name="wish_edit">Ziel bearbeiten</string>
     <string name="wish_title">Titel</string>
     <string name="wish_title_missing">Bitte gib einen Titel ein.</string>
     <string name="wish_description">Beschreibung (optional)</string>
@@ -311,11 +311,11 @@
     <string name="wish_status_done">Erledigt</string>
     <string name="wish_done_on">Erledigt am</string>
     <string name="wish_done_on_date">Erledigt am %1$s</string>
-    <string name="wishes_filter_empty">Kein Wunsch mit dem Tag „%1$s“.</string>
+    <string name="wishes_filter_empty">Kein Ziel mit dem Tag „%1$s“.</string>
     <string name="wishes_review_open">Rückblick (%1$d)</string>
     <string name="wishes_review_title">Rückblick</string>
-    <string name="wishes_review_empty">Noch kein Wunsch erledigt.</string>
-    <string name="wish_delete_title">Wunsch löschen?</string>
+    <string name="wishes_review_empty">Noch kein Ziel erreicht.</string>
+    <string name="wish_delete_title">Ziel löschen?</string>
     <string name="wish_delete_text">„%1$s“ wird gelöscht. To-dos daran bleiben erhalten.</string>
     <string name="wish_delete_parts_text">„%1$s“ wird gelöscht. Seine Unterziele und To-dos können eine Ebene höher rücken, oder die Unterziele werden mitgelöscht. To-dos bleiben in jedem Fall erhalten.</string>
     <string name="wish_delete_moving_up">Eine Ebene höher</string>
@@ -432,9 +432,9 @@
     <string name="search_title">Suche</string>
     <string name="search_field">Suchbegriff</string>
     <string name="search_clear">Suchbegriff löschen</string>
-    <string name="search_hint">Sucht in Routinen, To-dos, Wünschen und Notizen: in Titeln, Beschreibungen, Notiztext und Tags.</string>
+    <string name="search_hint">Sucht in Routinen, To-dos, Zielen und Notizen: in Titeln, Beschreibungen, Notiztext und Tags.</string>
     <string name="search_none">Nichts gefunden.</string>
-    <string name="search_wishes">Wünsche</string>
+    <string name="search_wishes">Ziele</string>
     <string name="linked_notes">Verknüpfte Notizen</string>
     <string name="linked_note_add">Notiz verknüpfen</string>
     <string name="linked_note_open">Notiz öffnen</string>
@@ -554,8 +554,8 @@
         <item quantity="other">%d To-dos</item>
     </plurals>
     <plurals name="backup_wishes">
-        <item quantity="one">%d Wunsch</item>
-        <item quantity="other">%d Wünsche</item>
+        <item quantity="one">%d Ziel</item>
+        <item quantity="other">%d Ziele</item>
     </plurals>
     <plurals name="backup_places">
         <item quantity="one">%d Ort</item>

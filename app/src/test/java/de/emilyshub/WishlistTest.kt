@@ -51,8 +51,8 @@ class WishlistTest {
 
         launchApp().use {
             openWishlist()
-            compose.onNodeWithText("Noch keine Wünsche", substring = true).assertIsDisplayed()
-            compose.onNodeWithContentDescription("Wunsch anlegen").performClick()
+            compose.onNodeWithText("Noch keine Ziele", substring = true).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Ziel anlegen").performClick()
 
             field("Titel").performTextInput("Nordlichter sehen")
             field("Beschreibung (optional)").performTextInput("In Tromsø")
@@ -73,7 +73,7 @@ class WishlistTest {
     fun `a wish needs a title`() {
         launchApp().use {
             openWishlist()
-            compose.onNodeWithContentDescription("Wunsch anlegen").performClick()
+            compose.onNodeWithContentDescription("Ziel anlegen").performClick()
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Bitte gib einen Titel ein.").assertIsDisplayed()
@@ -115,7 +115,7 @@ class WishlistTest {
             compose.onNodeWithText("Bergtour").performClick()
             option("Offen").tap()
             compose.onNodeWithText("Speichern").performClick()
-            compose.onNodeWithText("Noch kein Wunsch erledigt.").assertIsDisplayed()
+            compose.onNodeWithText("Noch kein Ziel erreicht.").assertIsDisplayed()
         }
         assertEquals(null, runBlocking { app.wishes.current().first().single().wish.doneOn })
     }
@@ -127,7 +127,7 @@ class WishlistTest {
 
         launchApp().use {
             openWishlist()
-            compose.onNodeWithText("Noch keine Wünsche", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("Noch keine Ziele", substring = true).assertDoesNotExist()
             compose.onNodeWithText("Rückblick (2)").performClick()
 
             assertEquals(
@@ -147,7 +147,7 @@ class WishlistTest {
             compose.onNodeWithContentDescription("Löschen").performClick()
             compose.onNode(hasText("Löschen") and hasAnyAncestor(isDialog())).performClick()
 
-            compose.onNodeWithText("Noch keine Wünsche", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Noch keine Ziele", substring = true).assertIsDisplayed()
         }
         assertEquals(emptyList<Any>(), runBlocking { app.wishes.current().first() })
     }
@@ -167,7 +167,7 @@ class WishlistTest {
             compose.onNodeWithText("Bergtour").assertDoesNotExist()
 
             chip("Sport").performClick()
-            compose.onNodeWithText("Kein Wunsch mit dem Tag „Sport“.").assertIsDisplayed()
+            compose.onNodeWithText("Kein Ziel mit dem Tag „Sport“.").assertIsDisplayed()
         }
     }
 
@@ -184,7 +184,7 @@ class WishlistTest {
         assertEquals(emptyList<Any>(), alarms.alarmsFor(ReminderReceiver.ACTION_REMIND))
     }
 
-    private fun openWishlist() = compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
+    private fun openWishlist() = compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 

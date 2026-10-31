@@ -186,7 +186,7 @@ class GoalsScreenTest {
         }
     }
 
-    private fun openWishlist() = compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
+    private fun openWishlist() = compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 

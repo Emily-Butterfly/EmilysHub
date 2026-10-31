@@ -32,7 +32,7 @@ class SearchScreenTest {
     @Test
     fun `the search is there on every tab`() {
         launchApp().use {
-            for (area in listOf("Heute", "Routinen", "To-dos", "Wunschliste", "Notizen")) {
+            for (area in listOf("Heute", "Routinen", "To-dos", "Ziele", "Notizen")) {
                 compose.onNode(hasText(area) and hasClickAction()).performClick()
                 compose.onNodeWithContentDescription("Suchen").performClick()
                 compose.onNode(isHeading() and hasText("Suche")).assertIsDisplayed()
@@ -53,7 +53,7 @@ class SearchScreenTest {
             compose.onNode(hasSetTextAction() and hasText("Suchbegriff")).performTextInput("arabisch")
             waitFor("Vokabeln Arabisch")
 
-            for (area in listOf("Routinen", "To-dos", "Wünsche", "Notizen")) {
+            for (area in listOf("Routinen", "To-dos", "Ziele", "Notizen")) {
                 compose.onNode(hasScrollAction()).performScrollToNode(isHeading() and hasText(area))
             }
             compose.onNode(hasScrollAction()).performScrollToNode(hasText("Wörterbuch Arabisch"))

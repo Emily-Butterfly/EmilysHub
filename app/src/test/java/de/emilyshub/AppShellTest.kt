@@ -26,7 +26,7 @@ class AppShellTest {
         val labels = compose.onAllNodes(isSelectable()).fetchSemanticsNodes()
             .map { node -> node.config[SemanticsProperties.Text].joinToString { it.text } }
 
-        assertEquals(listOf("Heute", "Routinen", "To-dos", "Wunschliste", "Notizen"), labels)
+        assertEquals(listOf("Heute", "Routinen", "To-dos", "Ziele", "Notizen"), labels)
     }
 
     @Test
@@ -37,7 +37,7 @@ class AppShellTest {
 
     @Test
     fun `tapping a tab opens that area`() {
-        for (area in listOf("Routinen", "To-dos", "Wunschliste", "Notizen", "Heute")) {
+        for (area in listOf("Routinen", "To-dos", "Ziele", "Notizen", "Heute")) {
             tab(area).performClick().assertIsSelected()
             heading(area).assertIsDisplayed()
         }
@@ -45,7 +45,7 @@ class AppShellTest {
 
     @Test
     fun `back from another area returns to Heute`() {
-        tab("Wunschliste").performClick()
+        tab("Ziele").performClick()
 
         pressBack()
 

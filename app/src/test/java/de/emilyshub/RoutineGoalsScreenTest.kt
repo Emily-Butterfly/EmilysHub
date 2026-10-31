@@ -53,7 +53,7 @@ class RoutineGoalsScreenTest {
             field("Anzahl").performScrollTo().performTextReplacement("10")
             compose.onNodeWithText("Speichern").performClick()
 
-            compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
+            compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
             compose.onNodeWithText("Fortschritt: 20 %").assertIsDisplayed()
             compose.onNodeWithContentDescription("„Wortschatz“ aufklappen").performClick()
             compose.onNodeWithText("Routine · 2 von 10 Tagen am Stück").assertIsDisplayed()
@@ -74,7 +74,7 @@ class RoutineGoalsScreenTest {
         runBlocking { app.routines.pause(stretching) }
 
         launchApp().use {
-            compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
+            compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("„Yoga-Routine“ aufklappen").performClick()
             compose.onNodeWithText("Routine · Erreicht: 2 Mal erledigt").assertIsDisplayed()
             compose.onNodeWithContentDescription("„Gelenkig“ aufklappen").performClick()
@@ -87,7 +87,7 @@ class RoutineGoalsScreenTest {
         app.routine("Spazieren", "12:00", goal = app.wish("Fit bleiben"))
 
         launchApp().use {
-            compose.onNode(hasText("Wunschliste") and hasClickAction()).performClick()
+            compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
             compose.onNodeWithText("Fortschritt", substring = true).assertDoesNotExist()
             compose.onNodeWithContentDescription("„Fit bleiben“ aufklappen").performClick()
             compose.onNodeWithText("Spazieren").assertIsDisplayed()

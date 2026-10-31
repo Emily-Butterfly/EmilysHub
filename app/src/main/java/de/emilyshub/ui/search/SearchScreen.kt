@@ -142,7 +142,7 @@ private fun Hint(text: String) {
     )
 }
 
-/** "Routinen", "To-dos", "Wünsche", "Notizen". */
+/** "Routinen", "To-dos", "Ziele", "Notizen". */
 private val SearchArea.label: Int
     @StringRes get() = when (this) {
         SearchArea.Routines -> R.string.destination_routines
