@@ -250,7 +250,8 @@ private fun BookingRow(entry: BookingWithCategory, onClick: () -> Unit) {
         },
         trailingContent = {
             Text(
-                text = Money.format(if (income) booking.amountCents else -booking.amountCents),
+                // Signed, so that the colour is not all that tells income from expenses.
+                text = if (income) "+${Money.format(booking.amountCents)}" else Money.format(-booking.amountCents),
                 color = if (income) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -269,8 +270,9 @@ private fun percent(part: Long, whole: Long): Int = if (whole == 0L) 0 else (par
 private fun sliceColor(index: Int): Color = SLICE_COLORS[index % SLICE_COLORS.size]
 
 private val SLICE_COLORS = listOf(
-    Color(0xFF7E57C2), Color(0xFF26A69A), Color(0xFFEF6C00), Color(0xFF42A5F5),
-    Color(0xFFEC407A), Color(0xFF9CCC65), Color(0xFF8D6E63), Color(0xFFFFB300),
+    // Violet late, as the light and dark designs are lilac.
+    Color(0xFF26A69A), Color(0xFFEF6C00), Color(0xFF42A5F5), Color(0xFFEC407A),
+    Color(0xFF9CCC65), Color(0xFFFFB300), Color(0xFF8D6E63), Color(0xFF7E57C2),
 )
 
 private val PIE_SIZE = 120.dp

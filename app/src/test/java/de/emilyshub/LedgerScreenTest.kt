@@ -112,8 +112,9 @@ class LedgerScreenTest {
             compose.onNodeWithContentDescription("Voriger Monat").performClick()
 
             compose.onNodeWithText("September 2026").assertIsDisplayed()
-            // Income and balance, and the booking.
-            compose.onAllNodes(hasText("2.500,00 €")).assertCountEquals(3)
+            // Income and balance, and the booking, signed.
+            compose.onAllNodes(hasText("2.500,00 €")).assertCountEquals(2)
+            compose.onNodeWithText("+2.500,00 €").assertExists()
             compose.onNodeWithText("−12,00 €").assertDoesNotExist()
         }
     }

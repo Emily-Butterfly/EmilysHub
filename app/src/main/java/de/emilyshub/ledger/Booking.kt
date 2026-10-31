@@ -9,10 +9,10 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import java.time.LocalDate
 
-/** Whether a booking brings money in or takes it out (SPEC.md §13). */
+/** Whether a booking takes money out or brings it in (SPEC.md §13), in the order the screens show them. */
 enum class BookingKind(val stored: String) {
-    Income("income"),
     Expense("expense"),
+    Income("income"),
 }
 
 /**

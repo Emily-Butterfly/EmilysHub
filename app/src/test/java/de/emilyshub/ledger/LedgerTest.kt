@@ -4,6 +4,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -16,6 +19,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.util.concurrent.Executors
 
 /**
  * The household book (SPEC.md §13): bookings of income and expenses in categories of their own, and each month's
@@ -142,6 +146,50 @@ class LedgerTest {
         assertEquals(other.id, ledger.get(id)?.categoryId)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.deleteCategory(other.id) } }
         assertEquals(listOf("Sonstiges" to 3_999L), ledger.month(october).first().expensesByCategory.map { it.category.name to it.cents })
+    }
+
+    @Test
+    fun `looked at twice at once, the suggestions still come once`() = runBlocking {
+        val io = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+        val parallel = Ledger({ database }, clock, io)
+        try {
+            listOf(async(io) { parallel.categories().first() }, async(io) { parallel.categories().first() }).awaitAll()
+        } finally {
+            io.close()
+        }
+
+        assertEquals(9, ledger.categories().first().size)
+        assertEquals(2, ledger.categories().first().count { it.isOther })
+    }
+
+    @Test
+    fun `"Sonstiges" keeps its name`() = runBlocking {
+        val other = ledger.categories().first().first { it.isOther }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.renameCategory(other.id, "Rest") } }
+        Unit
+    }
+
+    @Test
+    fun `a booking whose category was deleted while it was edited goes to "Sonstiges"`() = runBlocking {
+        val clothes = category(BookingKind.Expense, "Kleidung")
+        ledger.deleteCategory(clothes)
+
+        val id = ledger.create(BookingDraft(BookingKind.Expense, "20", LocalDate.parse("2026-10-23"), clothes))
+
+        assertEquals(category(BookingKind.Expense, "Sonstiges"), ledger.get(id)?.categoryId)
+    }
+
+    @Test
+    fun `categories without "Sonstiges", as a backup may bring them, get it back, and nothing else`() = runBlocking {
+        database.ledger().insertCategories(
+            listOf(LedgerCategory(kind = BookingKind.Expense, name = "Reisen"), LedgerCategory(kind = BookingKind.Expense, name = "sonstiges")),
+        )
+
+        val expenses = ledger.categories().first().filter { it.kind == BookingKind.Expense }
+
+        assertEquals(listOf("Reisen" to false, "sonstiges" to true), expenses.map { it.name to it.isOther })
+        ledger.deleteCategory(expenses.first().id)
+        assertEquals(listOf("sonstiges"), ledger.categories().first().filter { it.kind == BookingKind.Expense }.map { it.name })
     }
 
     private suspend fun category(kind: BookingKind, name: String): Long =

@@ -32,7 +32,8 @@ class Ledger(
 
     /** All categories, of each kind by name, "Sonstiges" last. */
     fun categories(): Flow<List<LedgerCategory>> = flow {
-        withContext(NonCancellable) { suggest() }
+        // In a transaction, so that two looking at once do not both suggest them.
+        write { database().withTransaction { suggest() } }
         emitAll(dao.observeCategories().map { it.sortedWith(CATEGORY_ORDER) })
     }.flowOn(io)
 
@@ -47,6 +48,7 @@ class Ledger(
     /** A new booking of [kind], dated today. */
     fun newDraft(kind: BookingKind) = BookingDraft(kind, amount = "", date = LocalDate.now(clock))
 
+    /** The booking, or null once it is deleted. */
     suspend fun get(id: Long): Booking? = withContext(io) { dao.get(id) }
 
     /** The booking as the editor starts out with it, or null once it is deleted. */
@@ -63,10 +65,12 @@ class Ledger(
         database().withTransaction { dao.insert(checked(draft)) }
     }
 
+    /** Saves the booking anew, as [create] does a new one. */
     suspend fun update(id: Long, draft: BookingDraft) = write {
         database().withTransaction { dao.update(checked(draft).copy(id = id)) }
     }
 
+    /** Deletes the booking; the editor asks first. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
 
     /** A new category of [kind] named [name] on a single line; refuses a name with a problem. */
@@ -77,9 +81,11 @@ class Ledger(
         }
     }
 
+    /** Renames the category, as [createCategory] names one; "Sonstiges" keeps its name, as the bookings moved go there. */
     suspend fun renameCategory(id: Long, name: String) = write {
         database().withTransaction {
             val category = requireNotNull(dao.category(id)) { "No such category" }
+            require(!category.isOther) { "\"Sonstiges\" keeps its name" }
             dao.renameCategory(id, checkedName(name, category.kind, except = id))
         }
     }
@@ -89,32 +95,42 @@ class Ledger(
         database().withTransaction {
             val category = dao.category(id) ?: return@withTransaction
             require(!category.isOther) { "\"Sonstiges\" stays" }
-            val other = dao.categories().single { it.kind == category.kind && it.isOther }
+            suggest()
+            val other = otherOf(category.kind)
             dao.moveBookings(from = id, to = other.id)
             dao.deleteCategory(id)
         }
     }
 
-    /** What keeps [name] from naming a category of [kind] besides the others, [except] the one renamed; none if it can. */
-    suspend fun nameProblem(name: String, kind: BookingKind, except: Long?): NameProblem? = withContext(io) {
-        categoryNameProblem(name, dao.categories().filter { it.kind == kind && it.id != except })
+    /**
+     * The suggested categories, for a kind that has none yet: on first use, or after a backup from before them. A kind
+     * with categories but without "Sonstiges", as a backup may bring, only gets that: the one named so, if there is one.
+     */
+    private suspend fun suggest() {
+        val all = dao.categories()
+        BookingKind.entries.filter { kind -> all.none { it.kind == kind && it.isOther } }.forEach { kind ->
+            val ofKind = all.filter { it.kind == kind }
+            val named = ofKind.find { InputText.readTheSame(it.name, OTHER) }
+            when {
+                ofKind.isEmpty() -> dao.insertCategories(
+                    SUGGESTED.getValue(kind).map { LedgerCategory(kind = kind, name = it) } +
+                        LedgerCategory(kind = kind, name = OTHER, isOther = true),
+                )
+                named != null -> dao.makeOther(named.id)
+                else -> dao.insertCategory(LedgerCategory(kind = kind, name = OTHER, isOther = true))
+            }
+        }
     }
 
-    /** The suggested categories, for a kind that has none yet: on first use, or after a backup from before them. */
-    private suspend fun suggest() {
-        val present = dao.categories().filter { it.isOther }.map { it.kind }.toSet()
-        val missing = SUGGESTED.filterKeys { it !in present }
-        if (missing.isEmpty()) return
-        dao.insertCategories(
-            missing.flatMap { (kind, names) ->
-                names.map { LedgerCategory(kind = kind, name = it) } + LedgerCategory(kind = kind, name = OTHER, isOther = true)
-            },
-        )
-    }
+    private suspend fun otherOf(kind: BookingKind): LedgerCategory = dao.categories().single { it.kind == kind && it.isOther }
 
     private suspend fun checked(draft: BookingDraft): Booking {
         require(draft.problems.isEmpty()) { "Invalid booking: ${draft.problems}" }
-        val category = requireNotNull(dao.category(checkNotNull(draft.categoryId))) { "No such category" }
+        // One deleted while the editor was open: the booking goes where those of a category deleted go.
+        val category = dao.category(checkNotNull(draft.categoryId)) ?: run {
+            suggest()
+            otherOf(draft.kind)
+        }
         require(category.kind == draft.kind) { "A category of the other kind" }
         return Booking(
             amountCents = checkNotNull(draft.cents), date = draft.date, categoryId = category.id, description = draft.cleanedDescription,
@@ -137,6 +153,7 @@ class Ledger(
             BookingKind.Income to listOf("Gehalt"),
         )
 
+        /** Expenses first, as [BookingKind] has them. */
         private val CATEGORY_ORDER =
             compareBy<LedgerCategory> { it.kind.ordinal }.thenBy { it.isOther }.thenBy(InputText.byName) { it.name }
     }

@@ -17,8 +17,9 @@ data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more
 
 /**
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
- * notes and their tags; and the bookings of the household book (SPEC.md §13), by their descriptions and categories. Every word typed has to be there, in whatever case, and however its letters were typed, as
- * [InputText.searchable] compares. The database looks for the longest word, as a value of the query, its wildcards
+ * notes and their tags; and the bookings of the household book (SPEC.md §13), by their descriptions and categories.
+ * Every word typed has to be there, in whatever case, and however its letters were typed, as [InputText.searchable]
+ * compares. The database looks for the longest word, as a value of the query, its wildcards
  * escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those stand for anything
  * there, and what it finds is then looked at closely here. [database] is only called on [io].
  */

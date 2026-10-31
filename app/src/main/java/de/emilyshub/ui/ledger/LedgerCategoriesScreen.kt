@@ -67,7 +67,7 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
     ) { contentPadding ->
         val list = all ?: return@Scaffold
         LazyColumn(contentPadding = contentPadding) {
-            listOf(BookingKind.Expense, BookingKind.Income).forEach { kind ->
+            BookingKind.entries.forEach { kind ->
                 item(key = "title:$kind") {
                     SectionTitle(stringResource(if (kind == BookingKind.Expense) R.string.ledger_expenses else R.string.ledger_income))
                 }
@@ -95,7 +95,12 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                                 }
                             }
                         },
-                        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.category_rename)) { renaming = category.id },
+                        // "Sonstiges" keeps its name, as the bookings of a category deleted go there.
+                        modifier = if (category.isOther) {
+                            Modifier
+                        } else {
+                            Modifier.clickable(onClickLabel = stringResource(R.string.category_rename)) { renaming = category.id }
+                        },
                     )
                 }
                 item(key = "create:$kind") {

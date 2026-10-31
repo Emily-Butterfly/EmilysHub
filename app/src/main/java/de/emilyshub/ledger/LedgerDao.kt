@@ -28,6 +28,9 @@ interface LedgerDao {
     @Query("UPDATE ledger_categories SET name = :name WHERE id = :id")
     suspend fun renameCategory(id: Long, name: String)
 
+    @Query("UPDATE ledger_categories SET is_other = 1 WHERE id = :id")
+    suspend fun makeOther(id: Long)
+
     @Query("DELETE FROM ledger_categories WHERE id = :id")
     suspend fun deleteCategory(id: Long)
 

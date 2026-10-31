@@ -49,5 +49,5 @@ data class BookingDraft(
     }
 }
 
-/** The booking as the editor starts out with it, of the kind of its [category]. */
+/** The booking as the editor starts out with it, of [kind], that of its category. */
 fun Booking.toDraft(kind: BookingKind) = BookingDraft(kind, Money.typed(amountCents), date, categoryId, description)

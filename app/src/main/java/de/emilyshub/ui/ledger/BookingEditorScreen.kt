@@ -144,7 +144,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BookingKind.entries.reversed().forEach { kind ->
+                BookingKind.entries.forEach { kind ->
                     ChoiceChip(kindLabel(kind), chosen = draft.kind == kind) {
                         // A category of the other kind does not fit any more.
                         if (draft.kind != kind) draft = draft.copy(kind = kind, categoryId = null)
@@ -228,7 +228,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
 @Composable
 private fun kindLabel(kind: BookingKind): String = stringResource(
     when (kind) {
-        BookingKind.Income -> R.string.booking_kind_income
         BookingKind.Expense -> R.string.booking_kind_expense
+        BookingKind.Income -> R.string.booking_kind_income
     },
 )

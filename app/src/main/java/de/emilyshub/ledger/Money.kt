@@ -16,7 +16,7 @@ object Money {
         val (euros, cents) = match.destructured
         val digits = euros.replace(".", "")
         if (digits.length > MAX_EURO_DIGITS) return null
-        val amount = digits.toLong() * CENTS + cents.padEnd(2, '0').ifEmpty { "0" }.toLong()
+        val amount = digits.toLong() * CENTS + cents.padEnd(2, '0').toLong()
         return amount.takeIf { it <= MAX }
     }
 
