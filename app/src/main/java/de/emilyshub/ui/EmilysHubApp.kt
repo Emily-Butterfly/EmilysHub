@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import de.emilyshub.R
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
@@ -105,6 +106,7 @@ fun EmilysHubApp(
     wifi: CurrentWifi,
     location: CurrentLocation,
     backups: Backups,
+    nightlyBackups: NightlyBackups,
     search: Search,
     onProbe: () -> Unit,
 ) {
@@ -134,6 +136,7 @@ fun EmilysHubApp(
                     wifi = wifi,
                     location = location,
                     backups = backups,
+                    nightlyBackups = nightlyBackups,
                     search = search,
                     onProbe = onProbe,
                     settings = current,
@@ -189,6 +192,7 @@ private fun AppShell(
     wifi: CurrentWifi,
     location: CurrentLocation,
     backups: Backups,
+    nightlyBackups: NightlyBackups,
     search: Search,
     onProbe: () -> Unit,
     settings: Settings,
@@ -311,7 +315,7 @@ private fun AppShell(
         }
         backupsOpen -> {
             BackHandler { backupsOpen = false }
-            BackupScreen(backups, onBack = { backupsOpen = false })
+            BackupScreen(backups, nightlyBackups, onBack = { backupsOpen = false })
         }
         settingsOpen -> {
             BackHandler { settingsOpen = false }
@@ -404,6 +408,8 @@ private fun AppShell(
                 onOpenArchive = { archiveOpen = true },
                 onOpenStatistics = { statisticsOpen = true },
                 onOpenStatus = { statusOpen = true },
+                nightlyBackups = nightlyBackups,
+                onOpenBackups = { backupsOpen = true },
             )
             if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
         }
@@ -448,6 +454,8 @@ private fun TopLevelScaffold(
     onOpenArchive: () -> Unit,
     onOpenStatistics: () -> Unit,
     onOpenStatus: () -> Unit,
+    nightlyBackups: NightlyBackups,
+    onOpenBackups: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -485,6 +493,8 @@ private fun TopLevelScaffold(
                 notes = notes,
                 contentPadding = contentPadding,
                 onOpenStatus = onOpenStatus,
+                nightlyBackups = nightlyBackups,
+                onOpenBackups = onOpenBackups,
                 onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
             )
             TopLevelDestination.Routines -> RoutinesScreen(

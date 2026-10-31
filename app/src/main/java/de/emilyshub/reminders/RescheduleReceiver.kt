@@ -6,15 +6,21 @@ import android.content.Intent
 import de.emilyshub.EmilysHubApplication
 
 /**
- * Sets the reminder alarm anew when Android has dropped it (restart, app update) or its time has moved
- * (clock or time zone changed, exact alarms allowed again). Not exported: the system's broadcasts still
+ * Sets the reminder alarm and the one for the night's backup anew when Android has dropped them (restart, app update)
+ * or their time has moved (clock or time zone changed, exact alarms allowed again). Not exported: the system's broadcasts still
  * arrive, other apps' do not, and any other action is ignored (SPEC.md §9).
  */
 class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in ACTIONS) return
         val app = context.applicationContext as EmilysHubApplication
-        finishInBackground(app) { app.reminders.update() }
+        finishInBackground(app) {
+            try {
+                app.reminders.update()
+            } finally {
+                app.nightlyBackups.schedule()
+            }
+        }
     }
 
     private companion object {

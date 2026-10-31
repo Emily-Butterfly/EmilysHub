@@ -21,6 +21,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +32,8 @@ import java.io.ByteArrayOutputStream
 
 /**
  * The backups in the settings (SPEC.md §10): the backup password set once, a backup saved to a file chosen in Android's
- * dialog, and one loaded from there with its password, replacing all data only once confirmed.
+ * dialog, and one loaded from there with its password, replacing all data only once confirmed; and the folder for the
+ * nightly backups.
  */
 @RunWith(AndroidJUnit4::class)
 class BackupScreenTest {
@@ -144,6 +146,47 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `the nightly backups go to a folder chosen once, and the first is made there right away`() {
+        launchApp().use { scenario ->
+            openBackups()
+            compose.onNodeWithText("Ordner wählen").performScrollTo().assertIsNotEnabled()
+            setPassword(PASSWORD, PASSWORD)
+            compose.onNodeWithText("Noch kein Ordner gewählt.").performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("Ordner wählen").performScrollTo().performClick()
+            val request = scenario.documentRequest()
+            assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE, request.action)
+            scenario.answer(request, FOLDER)
+
+            compose.onNodeWithText("Ordner: Backups").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Letztes Backup: 23.10.2026, 07:00").performScrollTo().assertIsDisplayed()
+            assertEquals(listOf("EmilysHub-Backup-2026-10-23.emhb"), app.backupFolder.fileNames())
+            assertTrue(app.backupFolder.kept)
+
+            compose.onNodeWithText("Ausschalten").performScrollTo().performClick()
+            compose.onNodeWithText("Noch kein Ordner gewählt.").performScrollTo().assertIsDisplayed()
+            assertFalse(app.backupFolder.kept)
+        }
+    }
+
+    @Test
+    fun `a nightly backup that failed is told`() {
+        runBlocking {
+            app.backups.setPassword(PASSWORD)
+            app.nightlyBackups.choose(FOLDER.toString())
+        }
+        app.backupFolder.failing = true
+        runBlocking { app.nightlyBackups.backUp() }
+
+        launchApp().use {
+            openBackups()
+
+            compose.onNodeWithText("Das letzte Backup in der Nacht ist fehlgeschlagen.", substring = true)
+                .performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `the backups are to be copied off the phone`() {
         launchApp().use {
             openBackups()
@@ -201,5 +244,6 @@ class BackupScreenTest {
     private companion object {
         const val PASSWORD = "Flieder und Lila"
         val FILE: Uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ABackup.emhb")
+        val FOLDER: Uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABackups")
     }
 }

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -51,6 +53,8 @@ import de.emilyshub.backup.Backup
 import de.emilyshub.backup.BackupException
 import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.NightlyBackups
+import de.emilyshub.backup.NightlyState
 import de.emilyshub.backup.PasswordProblem
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
@@ -62,16 +66,18 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The backups (SPEC.md §10): the backup password, set once; a backup of all data saved to a file chosen in Android's
- * dialog; and one loaded from such a file with the password it was saved with, which replaces all data only once
- * confirmed. Below, the advice to copy the backups off the phone.
+ * dialog; the folder the [nightly] backups go to; and one loaded from such a file with the password it was saved with,
+ * which replaces all data only once confirmed. Below, the advice to copy the backups off the phone.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BackupScreen(backups: Backups, onBack: () -> Unit) {
+fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) {
     val resolver = LocalContext.current.contentResolver
     val scope = rememberCoroutineScope()
     var hasPassword by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(backups) { hasPassword = backups.hasPassword() }
+    // Read anew after each saving, choosing or loading.
+    var nightlyState by remember { mutableStateOf<NightlyState?>(null) }
     var busy by remember { mutableStateOf(false) }
     // How the last saving or loading went.
     var outcome by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -88,6 +94,7 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
             try {
                 block()
             } finally {
+                nightlyState = nightly.state()
                 busy = false
             }
         }
@@ -104,6 +111,16 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
         }
     }
     val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { file -> picked = file }
+    val chooseFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { folder ->
+        if (folder != null) {
+            work {
+                outcome = failingWith(R.string.backup_nightly_choose_failed) {
+                    if (nightly.choose(folder.toString())) R.string.backup_nightly_chosen else R.string.backup_nightly_choose_failed
+                }
+            }
+        }
+    }
+    LaunchedEffect(nightly) { nightlyState = nightly.state() }
 
     Scaffold(
         topBar = {
@@ -149,6 +166,23 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
             if (!passwordSet) Hint(stringResource(R.string.backup_save_needs_password))
             Button(onClick = { save.launch(backups.fileName()) }, enabled = passwordSet && !busy) {
                 Text(stringResource(R.string.backup_save))
+            }
+
+            nightlyState?.let { state ->
+                Nightly(
+                    state = state,
+                    enabled = passwordSet && !busy,
+                    passwordSet = passwordSet,
+                    onChoose = { chooseFolder.launch(null) },
+                    onStop = {
+                        work {
+                            outcome = failingWith(R.string.backup_nightly_stop_failed) {
+                                nightly.stop()
+                                null
+                            }
+                        }
+                    },
+                )
             }
 
             SectionTitle(stringResource(R.string.backup_load_title))
@@ -203,6 +237,38 @@ fun BackupScreen(backups: Backups, onBack: () -> Unit) {
             },
             onDismiss = { opened = null },
         )
+    }
+}
+
+/**
+ * The nightly backups as they [state]: the folder they go to, to choose, change or give up, when the last backup was
+ * made, and whether the last one at night failed.
+ */
+@Composable
+private fun Nightly(state: NightlyState, enabled: Boolean, passwordSet: Boolean, onChoose: () -> Unit, onStop: () -> Unit) {
+    SectionTitle(stringResource(R.string.backup_nightly_title))
+    Text(stringResource(R.string.backup_nightly_summary))
+    if (!passwordSet) Hint(stringResource(R.string.backup_nightly_needs_password))
+    val folder = state.folderName
+    Text(
+        when (folder) {
+            null -> stringResource(R.string.backup_nightly_no_folder)
+            "" -> stringResource(R.string.backup_nightly_folder, stringResource(R.string.backup_nightly_folder_unnamed))
+            else -> stringResource(R.string.backup_nightly_folder, folder)
+        },
+    )
+    Text(
+        when (val made = state.lastMade) {
+            null -> stringResource(R.string.backup_nightly_none_yet)
+            else -> stringResource(R.string.backup_nightly_last, "${made.toLocalDate().numericDate()}, ${made.clockTime()}")
+        },
+    )
+    if (state.failed) Text(stringResource(R.string.backup_nightly_failed), color = MaterialTheme.colorScheme.error)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onChoose, enabled = enabled) {
+            Text(stringResource(if (folder == null) R.string.backup_nightly_choose else R.string.backup_nightly_change))
+        }
+        if (folder != null) OutlinedButton(onClick = onStop, enabled = enabled) { Text(stringResource(R.string.backup_nightly_stop)) }
     }
 }
 

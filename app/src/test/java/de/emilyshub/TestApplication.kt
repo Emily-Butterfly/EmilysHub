@@ -3,6 +3,9 @@ package de.emilyshub
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.FakeBackupFolder
+import de.emilyshub.backup.NightAlarm
+import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
@@ -29,7 +32,7 @@ import javax.crypto.KeyGenerator
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
  * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, a WLAN
- * the test connects to, a position the test sets, and backups with a key derived quickly.
+ * the test connects to, a position the test sets, backups with a key derived quickly, and a folder for the nightly ones in memory.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
@@ -70,6 +73,12 @@ class TestApplication : EmilysHubApplication() {
         iterations = 1_000,
         onRestore = ::updateReminders,
     )
+
+    /** The folder chosen for the nightly backups, whatever its address. */
+    val backupFolder = FakeBackupFolder()
+    override val nightlyBackups by lazy {
+        NightlyBackups(backups, { settingsDao }, clock, { backupFolder }, NightAlarm(this), Dispatchers.Unconfined)
+    }
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
     var fullScreenAlarmsAllowed = false

@@ -79,6 +79,10 @@
         <receiver
             android:name=".reminders.ReminderReceiver"
             android:exported="false" />
+        <!-- The night's backup (SPEC.md §10). Not exported (SPEC.md §9). -->
+        <receiver
+            android:name=".backup.BackupReceiver"
+            android:exported="false" />
         <receiver
             android:name=".reminders.RescheduleReceiver"
             android:exported="false">

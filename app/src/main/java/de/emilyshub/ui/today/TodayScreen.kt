@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
+import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.notes.Notes
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
@@ -52,6 +53,7 @@ import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.backups.BackupReminder
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.priorityNameStyle
@@ -67,8 +69,8 @@ import java.time.LocalDate
 /**
  * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
  * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
- * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]), and the notes pinned here, which open with a tap
- * ([onOpenNote]).
+ * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]); one while the last backup is over 30 days old or
+ * failed, which leads to the backups ([onOpenBackups]); and the notes pinned here, which open with a tap ([onOpenNote]).
  */
 @Composable
 fun TodayScreen(
@@ -77,6 +79,8 @@ fun TodayScreen(
     notes: Notes,
     contentPadding: PaddingValues,
     onOpenStatus: () -> Unit,
+    nightlyBackups: NightlyBackups,
+    onOpenBackups: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
     val today = rememberToday(routines)
@@ -94,10 +98,12 @@ fun TodayScreen(
                 .padding(contentPadding),
         ) {
             SetupWarning(routines, todos, onCheck = onOpenStatus)
+            BackupReminder(nightlyBackups, onOpen = onOpenBackups)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
+            item(key = "backup-reminder") { BackupReminder(nightlyBackups, onOpen = onOpenBackups) }
             if (pinned.isNotEmpty()) {
                 item(key = "pinned-notes") {
                     PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { notes.pinOnToday(it, pinned = false) })

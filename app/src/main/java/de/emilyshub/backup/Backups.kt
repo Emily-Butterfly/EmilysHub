@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -65,14 +66,22 @@ class Backups(
         store(BackupKey.derive(password, iterations = iterations))
     }
 
-    /** Writes a backup of all data to the stream [output] opens; only once the backup password is set. */
+    /**
+     * Writes a backup of all data to the stream [output] opens; only once the backup password is set. The stream is
+     * opened only once the backup is sealed, so that nothing is written if that fails.
+     */
     suspend fun export(output: () -> OutputStream) = withContext(io + NonCancellable) {
         val key = checkNotNull(storedKey()) { "The backup password is not set" }
         val database = database()
+        val now = clock.instant()
         val tables = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
-        val file = BackupFile.seal(BackupContent(HubDatabase.VERSION, clock.instant(), tables).toJson(), key)
+        val file = BackupFile.seal(BackupContent(HubDatabase.VERSION, now, tables).toJson(), key)
         output().use { it.write(file) }
+        settings().put(Setting(LAST_MADE, now.toString()))
     }
+
+    /** When the last backup was made here, by hand or by night. */
+    suspend fun lastMade(): Instant? = withContext(io) { settings().get(LAST_MADE)?.let(Instant::parse) }
 
     /**
      * The backup in the stream [input] opens, opened with its [password] and checked: by putting it in place of all data
@@ -176,6 +185,7 @@ class Backups(
     companion object {
         const val MIN_PASSWORD_LENGTH = 10
         private const val KEY = "backup-key"
+        private const val LAST_MADE = "backup-last-made"
         private const val SEPARATOR = ":"
 
         fun passwordProblem(password: String, repeated: String): PasswordProblem? = when {

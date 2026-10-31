@@ -2,8 +2,12 @@ package de.emilyshub
 
 import android.app.Application
 import android.util.Log
+import androidx.core.net.toUri
 import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.DocumentFolder
+import de.emilyshub.backup.NightAlarm
+import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.notes.Notes
@@ -89,6 +93,11 @@ open class EmilysHubApplication : Application() {
         )
     }
 
+    /** The backups made each night into the folder chosen for them. */
+    open val nightlyBackups: NightlyBackups by lazy {
+        NightlyBackups(backups, { database.settings() }, DeviceClock, { DocumentFolder(this, it.toUri()) }, NightAlarm(this))
+    }
+
     open val reminders: Reminders by lazy {
         Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::mayLookAround) { database.settings() }
     }
@@ -107,6 +116,8 @@ open class EmilysHubApplication : Application() {
         registerActivityLifecycleCallbacks(AppLockLifecycle(appLock))
         // Android drops the alarm when the app is stopped by force; it is set again on the next start.
         background.launch { reminders.update() }
+        // So too the alarm for the night's backup; and one missed meanwhile is made up.
+        background.launch { nightlyBackups.schedule() }
     }
 
     /**
