@@ -53,7 +53,7 @@ import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.backups.BackupReminder
+import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.priorityNameStyle
@@ -77,9 +77,9 @@ fun TodayScreen(
     routines: Routines,
     todos: Todos,
     notes: Notes,
+    nightlyBackups: NightlyBackups,
     contentPadding: PaddingValues,
     onOpenStatus: () -> Unit,
-    nightlyBackups: NightlyBackups,
     onOpenBackups: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
@@ -98,12 +98,12 @@ fun TodayScreen(
                 .padding(contentPadding),
         ) {
             SetupWarning(routines, todos, onCheck = onOpenStatus)
-            BackupReminder(nightlyBackups, onOpen = onOpenBackups)
+            BackupWarningCard(nightlyBackups, onOpen = onOpenBackups)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
-            item(key = "backup-reminder") { BackupReminder(nightlyBackups, onOpen = onOpenBackups) }
+            item(key = "backup-warning") { BackupWarningCard(nightlyBackups, onOpen = onOpenBackups) }
             if (pinned.isNotEmpty()) {
                 item(key = "pinned-notes") {
                     PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { notes.pinOnToday(it, pinned = false) })

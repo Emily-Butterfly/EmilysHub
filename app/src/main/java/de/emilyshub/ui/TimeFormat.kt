@@ -2,6 +2,7 @@ package de.emilyshub.ui
 
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
 import java.util.Locale
@@ -15,6 +16,9 @@ private val NUMERIC_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM
 
 /** A date as Germans write it in short: 30.10.2026. */
 fun LocalDate.numericDate(): String = NUMERIC_DATE.format(this)
+
+/** A moment as Germans write it in short: 30.10.2026, 07:00. */
+fun ZonedDateTime.dateAndTime(): String = "${toLocalDate().numericDate()}, ${clockTime()}"
 
 private val NUMERIC_DAY_AND_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("d.M.")
 

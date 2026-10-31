@@ -396,6 +396,7 @@ private fun AppShell(
                 onOpenWish = { wishEditor = it },
                 onOpenWishReview = { wishReviewOpen = true },
                 notes = notes,
+                nightlyBackups = nightlyBackups,
                 notesView = notesView,
                 onNotesViewChange = { notesView = it },
                 onOpenNote = { noteEditor = it },
@@ -408,7 +409,6 @@ private fun AppShell(
                 onOpenArchive = { archiveOpen = true },
                 onOpenStatistics = { statisticsOpen = true },
                 onOpenStatus = { statusOpen = true },
-                nightlyBackups = nightlyBackups,
                 onOpenBackups = { backupsOpen = true },
             )
             if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
@@ -442,6 +442,7 @@ private fun TopLevelScaffold(
     onOpenWish: (WishEditorTarget) -> Unit,
     onOpenWishReview: () -> Unit,
     notes: Notes,
+    nightlyBackups: NightlyBackups,
     notesView: NotesView,
     onNotesViewChange: (NotesView) -> Unit,
     onOpenNote: (NoteEditorTarget) -> Unit,
@@ -454,7 +455,6 @@ private fun TopLevelScaffold(
     onOpenArchive: () -> Unit,
     onOpenStatistics: () -> Unit,
     onOpenStatus: () -> Unit,
-    nightlyBackups: NightlyBackups,
     onOpenBackups: () -> Unit,
 ) {
     Scaffold(
@@ -491,9 +491,9 @@ private fun TopLevelScaffold(
                 routines = routines,
                 todos = todos,
                 notes = notes,
+                nightlyBackups = nightlyBackups,
                 contentPadding = contentPadding,
                 onOpenStatus = onOpenStatus,
-                nightlyBackups = nightlyBackups,
                 onOpenBackups = onOpenBackups,
                 onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
             )

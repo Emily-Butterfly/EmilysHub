@@ -521,7 +521,7 @@
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_nightly_title">Jede Nacht</string>
-    <string name="backup_nightly_summary">Legt jede Nacht ein verschlüsseltes Backup in einem Ordner ab, den du einmal wählst. Die letzten 7 bleiben, ältere löscht die App.</string>
+    <string name="backup_nightly_summary">Legt jede Nacht ein verschlüsseltes Backup in einem Ordner ab, den du einmal wählst. Die letzten %1$d bleiben, ältere löscht die App.</string>
     <string name="backup_nightly_needs_password">Lege dafür zuerst ein Backup-Passwort fest.</string>
     <string name="backup_nightly_no_folder">Noch kein Ordner gewählt.</string>
     <string name="backup_nightly_folder">Ordner: %1$s</string>
@@ -536,7 +536,7 @@
     <string name="backup_nightly_chosen">Ordner gewählt, das erste Backup liegt darin.</string>
     <string name="backup_nightly_choose_failed">In diesem Ordner konnte kein Backup gespeichert werden. Wähle einen anderen.</string>
     <string name="today_backup_failed">Das letzte Backup ist fehlgeschlagen</string>
-    <string name="today_backup_old">Das letzte Backup ist über 30 Tage alt</string>
+    <string name="today_backup_old">Das letzte Backup ist über %1$d Tage alt</string>
     <string name="today_backup_none">Noch kein Backup</string>
     <string name="today_backup_text">Mit einem Backup gehen deine Daten nicht verloren, wenn das Handy verloren geht oder kaputt ist.</string>
     <string name="today_backup_open">Zu den Backups</string>

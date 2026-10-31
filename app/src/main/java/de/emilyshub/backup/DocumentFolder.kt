@@ -14,7 +14,7 @@ class DocumentFolder(context: Context, private val tree: Uri) : BackupFolder {
     private val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
 
     override val name: String?
-        get() = resolver.query(folder, arrayOf(Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { cursor ->
+        get() = resolver.query(folder, arrayOf(Document.COLUMN_DISPLAY_NAME), null, null)?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
         }
 
@@ -43,7 +43,7 @@ class DocumentFolder(context: Context, private val tree: Uri) : BackupFolder {
     /** The documents in the folder by their names. */
     private fun documents(): Map<String, Uri> {
         val columns = arrayOf(Document.COLUMN_DISPLAY_NAME, Document.COLUMN_DOCUMENT_ID)
-        val cursor = checkNotNull(resolver.query(children, columns, null, null, null)) { "The folder cannot be read" }
+        val cursor = checkNotNull(resolver.query(children, columns, null, null)) { "The folder cannot be read" }
         return cursor.use {
             buildMap {
                 while (it.moveToNext()) put(it.getString(0), DocumentsContract.buildDocumentUriUsingTree(tree, it.getString(1)))

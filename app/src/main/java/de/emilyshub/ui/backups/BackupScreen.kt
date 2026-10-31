@@ -58,9 +58,8 @@ import de.emilyshub.backup.NightlyState
 import de.emilyshub.backup.PasswordProblem
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.enumeration
-import de.emilyshub.ui.numericDate
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -169,7 +168,7 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
             }
 
             nightlyState?.let { state ->
-                Nightly(
+                NightlySection(
                     state = state,
                     enabled = passwordSet && !busy,
                     passwordSet = passwordSet,
@@ -245,22 +244,21 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
  * made, and whether the last one at night failed.
  */
 @Composable
-private fun Nightly(state: NightlyState, enabled: Boolean, passwordSet: Boolean, onChoose: () -> Unit, onStop: () -> Unit) {
+private fun NightlySection(state: NightlyState, enabled: Boolean, passwordSet: Boolean, onChoose: () -> Unit, onStop: () -> Unit) {
     SectionTitle(stringResource(R.string.backup_nightly_title))
-    Text(stringResource(R.string.backup_nightly_summary))
+    Text(stringResource(R.string.backup_nightly_summary, NightlyBackups.KEPT))
     if (!passwordSet) Hint(stringResource(R.string.backup_nightly_needs_password))
-    val folder = state.folderName
+    val folder = state.folder
     Text(
         when (folder) {
             null -> stringResource(R.string.backup_nightly_no_folder)
-            "" -> stringResource(R.string.backup_nightly_folder, stringResource(R.string.backup_nightly_folder_unnamed))
-            else -> stringResource(R.string.backup_nightly_folder, folder)
+            else -> stringResource(R.string.backup_nightly_folder, folder.name ?: stringResource(R.string.backup_nightly_folder_unnamed))
         },
     )
     Text(
         when (val made = state.lastMade) {
             null -> stringResource(R.string.backup_nightly_none_yet)
-            else -> stringResource(R.string.backup_nightly_last, "${made.toLocalDate().numericDate()}, ${made.clockTime()}")
+            else -> stringResource(R.string.backup_nightly_last, made.dateAndTime())
         },
     )
     if (state.failed) Text(stringResource(R.string.backup_nightly_failed), color = MaterialTheme.colorScheme.error)
@@ -356,7 +354,7 @@ private fun ConfirmReplacing(backup: Backup, takesPassword: Boolean, onReplace: 
         title = { Text(stringResource(R.string.backup_replace_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.backup_replace_text, "${created.toLocalDate().numericDate()}, ${created.clockTime()}"))
+                Text(stringResource(R.string.backup_replace_text, created.dateAndTime()))
                 val contents = enumeration(
                     listOf(
                         pluralStringResource(R.plurals.backup_routines, summary.routines, summary.routines),

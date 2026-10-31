@@ -160,7 +160,7 @@ class BackupScreenTest {
 
             compose.onNodeWithText("Ordner: Backups").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Letztes Backup: 23.10.2026, 07:00").performScrollTo().assertIsDisplayed()
-            assertEquals(listOf("EmilysHub-Backup-2026-10-23.emhb"), app.backupFolder.fileNames())
+            assertEquals(listOf("EmilysHub-Backup-2026-10-23-070000.emhb"), app.backupFolder.fileNames())
             assertTrue(app.backupFolder.kept)
 
             compose.onNodeWithText("Ausschalten").performScrollTo().performClick()

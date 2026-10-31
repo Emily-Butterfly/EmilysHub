@@ -1,7 +1,9 @@
 package de.emilyshub.backup
 
 import android.app.AlarmManager
+import android.app.job.JobScheduler
 import android.content.Context
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
@@ -15,6 +17,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import java.io.ByteArrayInputStream
 import java.time.Instant
@@ -32,6 +35,7 @@ class NightlyBackupsTest {
     private val nightly = app.nightlyBackups
     private val folder = app.backupFolder
     private val alarmManager = shadowOf(app.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
+    private val jobScheduler = app.getSystemService(JobScheduler::class.java)
 
     @Test
     fun `a folder chosen keeps its access, and a backup is made there right away, to open with the password`() {
@@ -41,10 +45,10 @@ class NightlyBackupsTest {
         assertTrue(runBlocking { nightly.choose(FOLDER) })
 
         assertTrue(folder.kept)
-        assertEquals(listOf("EmilysHub-Backup-2026-10-23.emhb"), folder.fileNames())
+        assertEquals(listOf("EmilysHub-Backup-2026-10-23-070000.emhb"), folder.fileNames())
         val backup = runBlocking { app.backups.open({ ByteArrayInputStream(folder.files.values.single()) }, PASSWORD) }
         assertEquals(1, backup.summary.routines)
-        assertEquals("Backups", runBlocking { nightly.state() }.folderName)
+        assertEquals(ChosenFolder("Backups"), runBlocking { nightly.state() }.folder)
     }
 
     @Test
@@ -55,8 +59,31 @@ class NightlyBackupsTest {
 
         night("2026-10-24T03:00")
 
-        assertEquals(listOf("EmilysHub-Backup-2026-10-23.emhb", "EmilysHub-Backup-2026-10-24.emhb"), folder.fileNames())
+        assertEquals(listOf("EmilysHub-Backup-2026-10-23-070000.emhb", "EmilysHub-Backup-2026-10-24-030000.emhb"), folder.fileNames())
         assertEquals(listOf(berlin("2026-10-25T03:00")), nights())
+    }
+
+    @Test
+    fun `a backup made on a day that has one already is saved beside it, never over it`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+
+        app.clock.now = berlin("2026-10-23T22:30")
+        runBlocking { nightly.choose(FOLDER) }
+
+        assertEquals(listOf("EmilysHub-Backup-2026-10-23-070000.emhb", "EmilysHub-Backup-2026-10-23-223000.emhb"), folder.fileNames())
+    }
+
+    @Test
+    fun `a backup broken off while it is written is taken away again, and the ones before stay`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+        folder.breaking = true
+
+        night("2026-10-24T03:00")
+
+        assertEquals(listOf("EmilysHub-Backup-2026-10-23-070000.emhb"), folder.fileNames())
+        assertEquals(BackupWarning.Failed, runBlocking { nightly.warning() })
     }
 
     @Test
@@ -68,20 +95,48 @@ class NightlyBackupsTest {
         (24..31).forEach { night("2026-10-${it}T03:00") }
 
         assertEquals(
-            (25..31).map { "EmilysHub-Backup-2026-10-$it.emhb" } + "Urlaub.jpg",
+            (25..31).map { "EmilysHub-Backup-2026-10-$it-030000.emhb" } + "Urlaub.jpg",
             folder.fileNames().sorted(),
         )
     }
 
     @Test
-    fun `a night missed while the phone was off is made up as soon as it is on again`() {
+    fun `a backup dated later than now, made while the clock was wrong, is the first to go`() {
+        folder.files["EmilysHub-Backup-2031-01-01-030000.emhb"] = byteArrayOf(1)
+        // Saved by hand into the same folder: a backup too.
+        folder.files["EmilysHub-Backup-2026-10-22.emhb"] = byteArrayOf(1)
         setPassword()
         runBlocking { nightly.choose(FOLDER) }
 
-        app.clock.now = berlin("2026-10-26T09:15")
+        (24..29).forEach { night("2026-10-${it}T03:00") }
+
+        // Nine backups: the one dated 2031 goes first, then the oldest.
+        assertEquals(
+            listOf("EmilysHub-Backup-2026-10-23-070000.emhb") + (24..29).map { "EmilysHub-Backup-2026-10-$it-030000.emhb" },
+            folder.fileNames().sorted(),
+        )
+    }
+
+    @Test
+    fun `one night missed while the phone was off, the backup comes the next night`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+
+        app.clock.now = berlin("2026-10-24T09:15")
         runBlocking { nightly.schedule() }
 
-        assertEquals(listOf(berlin("2026-10-26T09:15")), nights())
+        assertEquals(listOf(berlin("2026-10-25T03:00")), nights())
+    }
+
+    @Test
+    fun `two nights missed in a row, the backup is made up as soon as the phone is on again`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+
+        app.clock.now = berlin("2026-10-25T09:15")
+        runBlocking { nightly.schedule() }
+
+        assertEquals(listOf(berlin("2026-10-25T09:15")), nights())
     }
 
     @Test
@@ -133,7 +188,7 @@ class NightlyBackupsTest {
 
         assertFalse(folder.kept)
         assertEquals(emptyList<Instant>(), nights())
-        assertNull(runBlocking { nightly.state() }.folderName)
+        assertNull(runBlocking { nightly.state() }.folder)
         runBlocking { nightly.schedule() }
         assertEquals(emptyList<Instant>(), nights())
     }
@@ -149,7 +204,7 @@ class NightlyBackupsTest {
 
         assertFalse(other.kept)
         assertTrue(folder.kept)
-        assertEquals("Backups", runBlocking { nightly.state() }.folderName)
+        assertEquals(ChosenFolder("Backups"), runBlocking { nightly.state() }.folder)
         assertEquals(listOf(berlin("2026-10-24T03:00")), nights())
         assertNull(runBlocking { nightly.warning() })
     }
@@ -176,17 +231,28 @@ class NightlyBackupsTest {
         runBlocking { app.backups.restore(app.backups.open({ ByteArrayInputStream(file) }, PASSWORD)) }
 
         assertEquals(emptyList<String>(), runBlocking { app.routines.inUse().first() }.map { it.name })
-        assertEquals("Backups", runBlocking { nightly.state() }.folderName)
+        assertEquals(ChosenFolder("Backups"), runBlocking { nightly.state() }.folder)
         assertEquals(listOf(berlin("2026-10-24T03:00")), nights())
     }
 
     private fun setPassword() = runBlocking { app.backups.setPassword(PASSWORD) }
 
     /** The clock at [localDateTime] in Berlin, and the alarm for the night's backup going off then. */
+    /**
+     * The clock at [localDateTime] in Berlin, and the alarm for the night's backup going off then: it hands the backup to
+     * a job, which Android then runs.
+     */
     private fun night(localDateTime: String) {
         app.clock.now = berlin(localDateTime)
         alarmManager.fireAlarm(alarmManager.alarmsFor(BackupReceiver.ACTION_BACKUP).single())
-        shadowOf(android.os.Looper.getMainLooper()).idle()
+        shadowOf(Looper.getMainLooper()).idle()
+        val job = jobScheduler.allPendingJobs.single()
+        assertEquals(BackupJob::class.java.name, job.service.className)
+        jobScheduler.cancel(job.id)
+        val service = Robolectric.buildService(BackupJob::class.java).create().get()
+        assertTrue(service.onStartJob(null))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(shadowOf(service).isJobFinished)
     }
 
     private fun nights() = alarmManager.alarmsFor(BackupReceiver.ACTION_BACKUP).map { Instant.ofEpochMilli(it.triggerAtMs) }

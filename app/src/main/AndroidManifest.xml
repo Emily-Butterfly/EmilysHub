@@ -83,6 +83,11 @@
         <receiver
             android:name=".backup.BackupReceiver"
             android:exported="false" />
+        <!-- Makes the night's backup, with the minutes a job has. Only Android may bind it. -->
+        <service
+            android:name=".backup.BackupJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver
             android:name=".reminders.RescheduleReceiver"
             android:exported="false">
