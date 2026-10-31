@@ -23,7 +23,9 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.RecurringDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -171,6 +173,50 @@ class LedgerScreenTest {
             compose.onNode(hasText("Umbenennen") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Reisen und Urlaub").assertExists()
         }
+    }
+
+    @Test
+    fun `a fixed booking made in its list is entered at once for this month, marked, and shows when it comes next`() {
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.onNodeWithContentDescription("Fixbuchung anlegen").performClick()
+            option("Einnahme").performClick()
+            field("Betrag in Euro").performTextInput("2500")
+            option("Gehalt").tap()
+            field("Tag im Monat").performScrollTo().performTextReplacement("1")
+            field("Beschreibung (optional)").performScrollTo().performTextInput("Gehalt Oktober")
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Monatlich am 1. · nächste am 01.11.2026").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            ledgerList().performScrollToNode(hasText("Gehalt Oktober"))
+            compose.onNodeWithText("01.10.2026 · Gehalt · Fixbuchung").assertExists()
+        }
+    }
+
+    @Test
+    fun `a fixed booking falling on the 31st says so, and deleting it asks and keeps those entered`() {
+        val rent = runBlocking { app.ledger.categories().first().single { it.name == "Wohnen" }.id }
+        runBlocking {
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 31, YearMonth.of(2026, 9)),
+            )
+        }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.onNodeWithText("Monatlich am 31. · nächste am 31.10.2026").performClick()
+            compose.onNodeWithText("In kürzeren Monaten am Monatsletzten.").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription("Löschen").performClick()
+            compose.onNode(hasText("Löschen") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("Noch keine Fixbuchungen", substring = true).assertIsDisplayed()
+        }
+        // That of September, the 30th, stays.
+        val entered = runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().bookings.single().booking }
+        assertEquals(LocalDate.parse("2026-09-30"), entered.date)
     }
 
     private fun openLedger() {

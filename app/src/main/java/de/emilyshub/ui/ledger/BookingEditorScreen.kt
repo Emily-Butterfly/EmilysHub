@@ -43,6 +43,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
@@ -143,50 +144,14 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BookingKind.entries.forEach { kind ->
-                    ChoiceChip(kindLabel(kind), chosen = draft.kind == kind) {
-                        // A category of the other kind does not fit any more.
-                        if (draft.kind != kind) draft = draft.copy(kind = kind, categoryId = null)
-                    }
-                }
+            KindChips(draft.kind) { kind ->
+                // A category of the other kind does not fit any more.
+                draft = draft.copy(kind = kind, categoryId = null)
             }
-            val amountProblem = problems.firstOrNull {
-                it in setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
-            }
-            // A wrong amount is told at once; a missing one only after a try to save.
-            val shownAmountProblem = amountProblem.takeIf { showProblems || it != BookingProblem.AmountMissing }
-            OutlinedTextField(
-                value = draft.amount,
-                onValueChange = { typed -> draft = draft.copy(amount = typed.filter { it.isDigit() || it == ',' || it == '.' }) },
-                label = { Text(stringResource(R.string.booking_amount)) },
-                singleLine = true,
-                suffix = { Text("€") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                isError = shownAmountProblem != null,
-                supportingText = {
-                    Text(
-                        when (shownAmountProblem) {
-                            BookingProblem.AmountMissing -> stringResource(R.string.booking_amount_missing)
-                            BookingProblem.AmountInvalid -> stringResource(R.string.booking_amount_invalid)
-                            BookingProblem.AmountNotAboveZero -> stringResource(R.string.booking_amount_not_above_zero)
-                            else -> draft.cents?.let(Money::format) ?: stringResource(R.string.booking_amount_hint)
-                        },
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            AmountField(draft.amount, draft.cents, problems, showProblems) { draft = draft.copy(amount = it) }
             DateValue(stringResource(R.string.booking_date), draft.date, onClick = { choosingDate = true })
-            Column(Modifier.selectableGroup()) {
-                SectionTitle(stringResource(R.string.booking_category))
-                categories.filter { it.kind == draft.kind }.forEach { category ->
-                    RadioOption(category.name, selected = draft.categoryId == category.id) {
-                        draft = draft.copy(categoryId = category.id)
-                    }
-                }
-                if (showProblems && BookingProblem.CategoryMissing in problems) {
-                    Problem(stringResource(R.string.booking_category_missing))
-                }
+            CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && BookingProblem.CategoryMissing in problems) {
+                draft = draft.copy(categoryId = it)
             }
             OutlinedTextField(
                 value = draft.description,
@@ -225,8 +190,67 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     }
 }
 
+/** Expense or income, a chip each; choosing the other one calls [onChange]. */
 @Composable
-private fun kindLabel(kind: BookingKind): String = stringResource(
+internal fun KindChips(kind: BookingKind, onChange: (BookingKind) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        BookingKind.entries.forEach { each ->
+            ChoiceChip(kindLabel(each), chosen = kind == each) { if (kind != each) onChange(each) }
+        }
+    }
+}
+
+/**
+ * The amount in euros, typed with a comma: what is wrong with it told at once, one missing only after a try to save
+ * ([showProblems]); while it is right, how it is read, "1.234,56 €".
+ */
+@Composable
+internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProblem>, showProblems: Boolean, onChange: (String) -> Unit) {
+    val problem = problems.firstOrNull {
+        it in setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
+    }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
+    OutlinedTextField(
+        value = amount,
+        onValueChange = { typed -> onChange(typed.filter { it.isDigit() || it == ',' || it == '.' }) },
+        label = { Text(stringResource(R.string.booking_amount)) },
+        singleLine = true,
+        suffix = { Text("€") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        isError = problem != null,
+        supportingText = {
+            Text(
+                when (problem) {
+                    BookingProblem.AmountMissing -> stringResource(R.string.booking_amount_missing)
+                    BookingProblem.AmountInvalid -> stringResource(R.string.booking_amount_invalid)
+                    BookingProblem.AmountNotAboveZero -> stringResource(R.string.booking_amount_not_above_zero)
+                    else -> cents?.let(Money::format) ?: stringResource(R.string.booking_amount_hint)
+                },
+            )
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** The categories of [kind] to choose from, [missing] told under them. */
+@Composable
+internal fun CategoryChoice(
+    categories: List<LedgerCategory>,
+    kind: BookingKind,
+    chosen: Long?,
+    missing: Boolean,
+    onChoose: (Long) -> Unit,
+) {
+    Column(Modifier.selectableGroup()) {
+        SectionTitle(stringResource(R.string.booking_category))
+        categories.filter { it.kind == kind }.forEach { category ->
+            RadioOption(category.name, selected = chosen == category.id) { onChoose(category.id) }
+        }
+        if (missing) Problem(stringResource(R.string.booking_category_missing))
+    }
+}
+
+@Composable
+internal fun kindLabel(kind: BookingKind): String = stringResource(
     when (kind) {
         BookingKind.Expense -> R.string.booking_kind_expense
         BookingKind.Income -> R.string.booking_kind_income

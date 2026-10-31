@@ -1,6 +1,7 @@
 package de.emilyshub.data
 
 import androidx.room.TypeConverter
+import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.notes.NoteSort
 import de.emilyshub.routines.OccurrenceStatus
@@ -16,6 +17,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.MonthDay
+import java.time.YearMonth
 
 /**
  * Dates and times are stored as ISO text ("2026-10-23", "08:00", "2026-10-23T06:00:00Z"); dates and times
@@ -158,6 +160,18 @@ class Converters {
 
     @TypeConverter
     fun toBookingKind(text: String): BookingKind = BookingKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromBookingInterval(interval: BookingInterval): String = interval.stored
+
+    @TypeConverter
+    fun toBookingInterval(text: String): BookingInterval = BookingInterval.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromYearMonth(month: YearMonth): String = month.toString()
+
+    @TypeConverter
+    fun toYearMonth(text: String): YearMonth = YearMonth.parse(text)
 
     @TypeConverter
     fun fromNoteSort(sort: NoteSort): String = sort.stored

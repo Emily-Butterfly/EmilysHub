@@ -634,4 +634,22 @@
         <item quantity="other">„%2$s“ hat %1$d Buchungen. Sie wandern nach „Sonstiges“.</item>
     </plurals>
     <string name="category_other_stays">Bleibt immer, für Buchungen ohne eigene Kategorie.</string>
+    <string name="recurring_title">Fixbuchungen</string>
+    <string name="recurring_empty">Noch keine Fixbuchungen. Mit „+“ legst du z. B. Miete, Gehalt oder Abos an, die das Haushaltsbuch an ihrem Tag selbst einträgt.</string>
+    <string name="recurring_create">Fixbuchung anlegen</string>
+    <string name="recurring_new">Neue Fixbuchung</string>
+    <string name="recurring_edit">Fixbuchung bearbeiten</string>
+    <string name="recurring_interval">Abstand</string>
+    <string name="recurring_monthly">Monatlich</string>
+    <string name="recurring_quarterly">Vierteljährlich</string>
+    <string name="recurring_half_yearly">Halbjährlich</string>
+    <string name="recurring_yearly">Jährlich</string>
+    <string name="recurring_day">Tag im Monat</string>
+    <string name="recurring_day_short_months">In kürzeren Monaten am Monatsletzten.</string>
+    <string name="recurring_first_month">Erster Monat</string>
+    <string name="recurring_schedule">%1$s am %2$d. · nächste am %3$s</string>
+    <string name="recurring_entered">Fixbuchung</string>
+    <string name="recurring_delete_title">Fixbuchung löschen?</string>
+    <string name="recurring_delete_text">Es kommen keine weiteren; die schon eingetragenen bleiben.</string>
+    <string name="recurring_edit_hint">Änderungen gelten ab dem nächsten Eintrag; die schon eingetragenen bleiben, wie sie sind.</string>
 </resources>

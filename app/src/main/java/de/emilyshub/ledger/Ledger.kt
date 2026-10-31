@@ -37,10 +37,14 @@ class Ledger(
         emitAll(dao.observeCategories().map { it.sortedWith(CATEGORY_ORDER) })
     }.flowOn(io)
 
-    /** The [month]'s sums, its expenses by category and its bookings. */
+    /** The [month]'s sums, its expenses by category and its bookings, the fixed ones due by today entered first. */
     fun month(month: YearMonth): Flow<MonthSummary> = flow {
+        enterDue()
         emitAll(dao.observeBetween(month.atDay(1), month.atEndOfMonth()).map(::summary))
     }.flowOn(io)
+
+    /** Today, the day a new booking is dated, and a new fixed one comes on. */
+    fun today(): LocalDate = LocalDate.now(clock)
 
     /** The month of today, which the household book opens on. */
     fun thisMonth(): YearMonth = YearMonth.now(clock)
@@ -67,7 +71,11 @@ class Ledger(
 
     /** Saves the booking anew, as [create] does a new one. */
     suspend fun update(id: Long, draft: BookingDraft) = write {
-        database().withTransaction { dao.update(checked(draft).copy(id = id)) }
+        database().withTransaction {
+            // One entered from a fixed booking stays marked so; the template stays as it is.
+            val before = dao.get(id) ?: return@withTransaction
+            dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
+        }
     }
 
     /** Deletes the booking; the editor asks first. */
@@ -98,7 +106,63 @@ class Ledger(
             suggest()
             val other = otherOf(category.kind)
             dao.moveBookings(from = id, to = other.id)
+            dao.moveTemplates(from = id, to = other.id)
             dao.deleteCategory(id)
+        }
+    }
+
+    /** The fixed bookings (SPEC.md §13), the next due first, each with when it comes next. */
+    fun templates(): Flow<List<RecurringTemplate>> = flow {
+        emitAll(
+            dao.observeTemplates().map { all ->
+                all.map { (recurring, category) ->
+                    RecurringTemplate(recurring.id, recurring.toDraft(category.kind), category, recurring.dueDates().first())
+                }.sortedWith(compareBy<RecurringTemplate> { it.next }.thenBy(InputText.byName) { it.draft.description })
+            },
+        )
+    }.flowOn(io)
+
+    /** The fixed booking as its editor starts out with it, or null once it is deleted. */
+    suspend fun templateDraftOf(id: Long): RecurringDraft? = withContext(io) {
+        val template = dao.template(id) ?: return@withContext null
+        template.toDraft(checkNotNull(dao.category(template.categoryId)).kind)
+    }
+
+    /** A new fixed booking; refuses a draft with problems, which the editor shows before. Entered from its first day on. */
+    suspend fun createTemplate(draft: RecurringDraft): Long = write {
+        database().withTransaction { dao.insertTemplate(checkedTemplate(draft)) }.also { enterDue() }
+    }
+
+    /**
+     * Saves the fixed booking anew: it holds from the next one entered on; those entered already stay as they are, and
+     * none comes again for a month entered already.
+     */
+    suspend fun updateTemplate(id: Long, draft: RecurringDraft) = write {
+        database().withTransaction {
+            val before = dao.template(id) ?: return@withTransaction
+            dao.updateTemplate(checkedTemplate(draft).copy(id = id, enteredThrough = before.enteredThrough))
+        }
+        enterDue()
+    }
+
+    /** Deletes the fixed booking: no more come, those entered stay. */
+    suspend fun deleteTemplate(id: Long) = write { dao.deleteTemplate(id) }
+
+    /**
+     * Enters every fixed booking due by today that is not yet: those of days the app did not run on too, each exactly
+     * once, as the month entered last is kept with it in the same transaction.
+     */
+    suspend fun enterDue() = write {
+        database().withTransaction {
+            val today = LocalDate.now(clock)
+            dao.templates().forEach { template ->
+                val due = template.dueDates().takeWhile { !it.isAfter(today) }.toList()
+                if (due.isEmpty()) return@forEach
+                due.forEach { date ->
+                    dao.insert(Booking(0, template.amountCents, date, template.categoryId, template.description, template.id))
+                }
+                dao.updateTemplate(template.copy(enteredThrough = YearMonth.from(due.last())))
+            }
         }
     }
 
@@ -134,6 +198,15 @@ class Ledger(
         require(category.kind == draft.kind) { "A category of the other kind" }
         return Booking(
             amountCents = checkNotNull(draft.cents), date = draft.date, categoryId = category.id, description = draft.cleanedDescription,
+        )
+    }
+
+    private suspend fun checkedTemplate(draft: RecurringDraft): RecurringBooking {
+        require(draft.problems.isEmpty()) { "Invalid fixed booking: ${draft.problems}" }
+        val booking = checked(draft.asBooking)
+        return RecurringBooking(
+            amountCents = booking.amountCents, categoryId = booking.categoryId, description = booking.description,
+            interval = draft.interval, day = draft.day, firstMonth = draft.firstMonth,
         )
     }
 

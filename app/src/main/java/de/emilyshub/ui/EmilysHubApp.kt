@@ -59,6 +59,9 @@ import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
 import de.emilyshub.ui.ledger.LedgerScreen
+import de.emilyshub.ui.ledger.RecurringEditorScreen
+import de.emilyshub.ui.ledger.RecurringEditorTarget
+import de.emilyshub.ui.ledger.RecurringListScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
@@ -234,6 +237,8 @@ private fun AppShell(
     var ledgerOpen by rememberSaveable { mutableStateOf(false) }
     var ledgerCategoriesOpen by rememberSaveable { mutableStateOf(false) }
     var bookingEditor by rememberSaveable { mutableStateOf<BookingEditorTarget?>(null) }
+    var recurringOpen by rememberSaveable { mutableStateOf(false) }
+    var recurringEditor by rememberSaveable { mutableStateOf<RecurringEditorTarget?>(null) }
     // Here, so that it stays while a booking is open.
     var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
     // Here, so that it stays while a note is open and while another area shows.
@@ -251,6 +256,7 @@ private fun AppShell(
     val wishTarget = wishEditor
     val noteTarget = noteEditor
     val bookingTarget = bookingEditor
+    val recurringTarget = recurringEditor
     val statisticsRoutine = statisticsRoutineId
     // A note opened from the editor of what it is linked to goes back there, with what was typed there kept.
     val editors = rememberSaveableStateHolder()
@@ -305,6 +311,14 @@ private fun AppShell(
             BackHandler { bookingEditor = null }
             BookingEditorScreen(ledger, bookingTarget, onClose = { bookingEditor = null })
         }
+        recurringTarget != null -> {
+            BackHandler { recurringEditor = null }
+            RecurringEditorScreen(ledger, recurringTarget, onClose = { recurringEditor = null })
+        }
+        recurringOpen -> {
+            BackHandler { recurringOpen = false }
+            RecurringListScreen(ledger, onOpen = { recurringEditor = it }, onBack = { recurringOpen = false })
+        }
         ledgerCategoriesOpen -> {
             BackHandler { ledgerCategoriesOpen = false }
             LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
@@ -318,6 +332,7 @@ private fun AppShell(
                 onOpen = { bookingEditor = BookingEditorTarget.Edit(it) },
                 onCreate = { bookingEditor = BookingEditorTarget.New },
                 onOpenCategories = { ledgerCategoriesOpen = true },
+                onOpenRecurring = { recurringOpen = true },
                 onBack = { ledgerOpen = false },
             )
         }

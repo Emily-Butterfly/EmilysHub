@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.ledger.Booking
 import de.emilyshub.ledger.LedgerCategory
+import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -109,4 +110,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM bookings")
     fun bookings(): List<Booking>
+
+    @Query("SELECT * FROM recurring_bookings")
+    fun recurringBookings(): List<RecurringBooking>
 }

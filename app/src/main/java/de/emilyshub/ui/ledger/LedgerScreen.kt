@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -74,6 +75,7 @@ fun LedgerScreen(
     onOpen: (Long) -> Unit,
     onCreate: () -> Unit,
     onOpenCategories: () -> Unit,
+    onOpenRecurring: () -> Unit,
     onBack: () -> Unit,
 ) {
     val summary by remember(ledger, month) { ledger.month(month) }.collectAsState(initial = null)
@@ -88,6 +90,9 @@ fun LedgerScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenRecurring) {
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.recurring_title))
+                    }
                     IconButton(onClick = onOpenCategories) {
                         Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.ledger_categories))
                     }
@@ -246,7 +251,13 @@ private fun BookingRow(entry: BookingWithCategory, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(booking.description.ifEmpty { category.name }) },
         supportingContent = {
-            Text(if (booking.description.isEmpty()) booking.date.numericDate() else "${booking.date.numericDate()} · ${category.name}")
+            val parts = listOfNotNull(
+                booking.date.numericDate(),
+                category.name.takeIf { booking.description.isNotEmpty() },
+                // Entered from a fixed booking (SPEC.md §13).
+                stringResource(R.string.recurring_entered).takeIf { booking.recurringId != null },
+            )
+            Text(parts.joinToString(" · "))
         },
         trailingContent = {
             Text(

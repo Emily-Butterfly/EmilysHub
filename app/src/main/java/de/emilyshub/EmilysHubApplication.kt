@@ -122,6 +122,8 @@ open class EmilysHubApplication : Application() {
         background.launch { reminders.update() }
         // So too the alarm for the night's backup; and one missed meanwhile is made up.
         background.launch { nightlyBackups.schedule() }
+        // The fixed bookings of the days the app did not run on (SPEC.md §13).
+        background.launch { ledger.enterDue() }
     }
 
     /**

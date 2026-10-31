@@ -37,6 +37,28 @@ interface LedgerDao {
     @Query("UPDATE bookings SET category_id = :to WHERE category_id = :from")
     suspend fun moveBookings(from: Long, to: Long)
 
+    @Query("UPDATE recurring_bookings SET category_id = :to WHERE category_id = :from")
+    suspend fun moveTemplates(from: Long, to: Long)
+
+    @Transaction
+    @Query("SELECT * FROM recurring_bookings")
+    fun observeTemplates(): Flow<List<RecurringWithCategory>>
+
+    @Query("SELECT * FROM recurring_bookings")
+    suspend fun templates(): List<RecurringBooking>
+
+    @Query("SELECT * FROM recurring_bookings WHERE id = :id")
+    suspend fun template(id: Long): RecurringBooking?
+
+    @Insert
+    suspend fun insertTemplate(template: RecurringBooking): Long
+
+    @Update
+    suspend fun updateTemplate(template: RecurringBooking)
+
+    @Query("DELETE FROM recurring_bookings WHERE id = :id")
+    suspend fun deleteTemplate(id: Long)
+
     @Query("SELECT COUNT(*) FROM bookings WHERE category_id = :categoryId")
     suspend fun countIn(categoryId: Long): Int
 

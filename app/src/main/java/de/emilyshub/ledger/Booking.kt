@@ -50,6 +50,8 @@ data class Booking(
     val date: LocalDate,
     @ColumnInfo(name = "category_id") val categoryId: Long,
     val description: String = "",
+    /** The fixed booking it was entered from, if any (SPEC.md §13); one deleted since leaves it as it is. */
+    @ColumnInfo(name = "recurring_id") val recurringId: Long? = null,
 )
 
 /** A booking with its category. */

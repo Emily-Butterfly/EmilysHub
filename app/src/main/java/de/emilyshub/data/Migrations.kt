@@ -459,3 +459,20 @@ val MIGRATION_27_28 = object : Migration(27, 28) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookings_date` ON `bookings` (`date`)")
     }
 }
+
+/**
+ * Version 29: fixed bookings of the household book (#45), and with each booking the one it was entered from, if any.
+ * None is there yet.
+ */
+val MIGRATION_28_29 = object : Migration(28, 29) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `recurring_bookings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`amount_cents` INTEGER NOT NULL, `category_id` INTEGER NOT NULL, `description` TEXT NOT NULL, " +
+                "`interval` TEXT NOT NULL, `day` INTEGER NOT NULL, `first_month` TEXT NOT NULL, `entered_through` TEXT, " +
+                "FOREIGN KEY(`category_id`) REFERENCES `ledger_categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurring_bookings_category_id` ON `recurring_bookings` (`category_id`)")
+        db.execSQL("ALTER TABLE `bookings` ADD COLUMN `recurring_id` INTEGER")
+    }
+}

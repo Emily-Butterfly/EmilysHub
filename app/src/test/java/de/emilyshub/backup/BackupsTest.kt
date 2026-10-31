@@ -10,7 +10,9 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.history
 import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteLink
@@ -49,6 +51,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 
 /**
  * Backups of all data (SPEC.md §10): made with the backup password set once, opened with it and checked strictly, and
@@ -345,6 +348,10 @@ class BackupsTest {
             app.notes.pinNote(verbs, pinned = true)
             val food = app.ledger.categories().first().first { it.name == "Lebensmittel" }
             app.ledger.create(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-21"), food.id, "Wocheneinkauf"))
+            val rent = app.ledger.categories().first().first { it.name == "Wohnen" }
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
+            )
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -462,8 +469,15 @@ class BackupsTest {
 
     /** [content] as version 27 made it: without the household book, which came with 28. */
     private fun asOfVersion27(content: JSONObject): JSONObject {
-        LEDGER_TABLES.forEach { content.tables().remove(it) }
-        return content.put("schema", 27)
+        val older = asOfVersion28(content)
+        LEDGER_TABLES.forEach { older.tables().remove(it) }
+        return older.put("schema", 27)
+    }
+
+    /** [content] as version 28 made it: without fixed bookings, which came with 29. */
+    private fun asOfVersion28(content: JSONObject): JSONObject {
+        content.tables().remove("recurring_bookings")
+        return content.withoutColumns("bookings", "recurring_id").put("schema", 28)
     }
 
     /**
@@ -509,7 +523,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LEDGER_TABLES = listOf("bookings", "ledger_categories")
+        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings")
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000
