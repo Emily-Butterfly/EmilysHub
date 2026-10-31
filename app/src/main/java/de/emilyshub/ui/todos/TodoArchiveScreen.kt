@@ -1,5 +1,6 @@
 package de.emilyshub.ui.todos
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,12 +37,12 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 
 /**
- * The to-dos ticked off (SPEC.md §5), the one done last first, with the day each was done: each can be brought back,
- * or deleted for good after asking.
+ * The to-dos ticked off (SPEC.md §5), the one done last first, with the day each was done: each opens in its editor
+ * ([onOpen]), with the notes linked to it, and can be brought back, or deleted for good after asking.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoArchiveScreen(todos: Todos, onBack: () -> Unit) {
+fun TodoArchiveScreen(todos: Todos, onOpen: (Long) -> Unit, onBack: () -> Unit) {
     val archived by remember(todos) { todos.archived() }.collectAsState(initial = null)
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
@@ -68,6 +69,7 @@ fun TodoArchiveScreen(todos: Todos, onBack: () -> Unit) {
                         doneOn = todo.doneAt?.let { todos.dayOf(it).numericDate() }.orEmpty(),
                         onRestore = { scope.launchNow { todos.reopen(todo.id) } },
                         onDelete = { deleting = todo.id },
+                        onClick = { onOpen(todo.id) },
                     )
                 }
             }
@@ -92,7 +94,7 @@ fun TodoArchiveScreen(todos: Todos, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ArchivedRow(todo: Todo, doneOn: String, onRestore: () -> Unit, onDelete: () -> Unit) {
+private fun ArchivedRow(todo: Todo, doneOn: String, onRestore: () -> Unit, onDelete: () -> Unit, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(todo.title) },
         supportingContent = { Text(stringResource(R.string.todo_done_on, doneOn)) },
@@ -104,5 +106,6 @@ private fun ArchivedRow(todo: Todo, doneOn: String, onRestore: () -> Unit, onDel
                 }
             }
         },
+        modifier = Modifier.clickable(onClick = onClick),
     )
 }

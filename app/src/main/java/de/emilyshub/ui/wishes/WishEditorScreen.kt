@@ -93,6 +93,7 @@ fun WishEditorScreen(
     notes: Notes,
     target: WishEditorTarget,
     onClose: () -> Unit,
+    onOpenNote: (Long) -> Unit,
     onOpenWish: (WishEditorTarget) -> Unit,
     onOpenTodo: (Long) -> Unit,
 ) {
@@ -259,7 +260,7 @@ fun WishEditorScreen(
                 onChange = { draft = draft.copy(manualProgress = it) },
             )
             if (wishId != null) {
-                LinkedNotes(notes, NoteLink.Goal(wishId))
+                LinkedNotes(notes, NoteLink.Goal(wishId), onOpen = onOpenNote)
                 OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
                     Text(stringResource(R.string.wish_add_subgoal))
                 }

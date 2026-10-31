@@ -91,6 +91,20 @@ class NotePinsAndLinksTest {
         }
 
     @Test
+    fun `a note is linked and unlinked from the other side too, keeping its other links`() = runBlocking {
+        val vocabulary = wishes.create(WishDraft("Wortschatz"))
+        val routine = routines.create(RoutineDraft("Vokabeln", description = "", listOf(EIGHT), Repetition.Daily))
+        val verbs = notes.create(NoteDraft("Verben", links = setOf(NoteLink.Routine(routine))))
+
+        notes.link(verbs, NoteLink.Goal(vocabulary))
+        notes.link(verbs, NoteLink.Goal(vocabulary))
+        assertEquals(setOf(NoteLink.Routine(routine), NoteLink.Goal(vocabulary)), notes.linksOf(verbs))
+
+        notes.unlink(verbs, NoteLink.Routine(routine))
+        assertEquals(setOf(NoteLink.Goal(vocabulary)), notes.linksOf(verbs))
+    }
+
+    @Test
     fun `a link to something deleted meanwhile is left out on saving`() = runBlocking {
         val gone = todos.create(TodoDraft("Weg"))
         todos.delete(gone)

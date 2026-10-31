@@ -90,6 +90,7 @@ fun TodoEditorScreen(
     notes: Notes,
     target: TodoEditorTarget,
     onClose: () -> Unit,
+    onOpenNote: (Long) -> Unit,
 ) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
@@ -226,7 +227,7 @@ fun TodoEditorScreen(
                 none = R.string.goal_field_none,
                 onChange = { draft = draft.copy(goalId = it) },
             )
-            if (todoId != null) LinkedNotes(notes, NoteLink.Todo(todoId))
+            if (todoId != null) LinkedNotes(notes, NoteLink.Todo(todoId), onOpen = onOpenNote)
         }
     }
 

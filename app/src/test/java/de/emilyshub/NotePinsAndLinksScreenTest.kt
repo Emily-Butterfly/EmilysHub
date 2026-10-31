@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isSelectable
@@ -14,12 +15,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.NoteSort
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -97,6 +100,46 @@ class NotePinsAndLinksScreenTest {
             compose.onNodeWithText("Verben").performScrollTo().assertIsDisplayed()
         }
         assertEquals(setOf(NoteLink.Goal(vocabulary), NoteLink.Todo(dictionary)), runBlocking { app.notes.linksOf(verbs) })
+    }
+
+    @Test
+    fun `a note is linked from a to-do too, opens from there, and back the to-do is as it was typed`() {
+        app.todo("Wörterbuch kaufen")
+        runBlocking { app.notes.create(NoteDraft("Verben", "kataba")) }
+
+        launchApp().use {
+            compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
+            compose.onNodeWithText("Wörterbuch kaufen").performClick()
+            compose.onNodeWithText("Notiz verknüpfen").performScrollTo().performClick()
+            compose.onNode(hasText("Verben") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasSetTextAction() and hasText("Wörterbuch kaufen")).performTextReplacement("Wörterbuch Arabisch kaufen")
+
+            compose.onNodeWithText("Verben").performScrollTo().performClick()
+            compose.onNodeWithText("kataba").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNode(hasSetTextAction() and hasText("Wörterbuch Arabisch kaufen")).assertExists()
+
+            compose.onNodeWithContentDescription("Verknüpfung mit „Verben“ lösen").performScrollTo().performClick()
+            compose.onNodeWithText("Verben").assertDoesNotExist()
+        }
+        val verbs = runBlocking { app.notes.notebook().first().all().single().id }
+        assertEquals(emptySet<NoteLink>(), runBlocking { app.notes.linksOf(verbs) })
+    }
+
+    @Test
+    fun `a to-do ticked off opens from the archive, showing its notes`() {
+        val milk = app.todo("Milch kaufen")
+        runBlocking {
+            app.notes.create(NoteDraft("Einkaufsliste", links = setOf(NoteLink.Todo(milk))))
+            app.todos.markDone(milk)
+        }
+
+        launchApp().use {
+            compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
+            compose.onNodeWithText("Archiv", substring = true).performScrollTo().performClick()
+            compose.onNodeWithText("Milch kaufen").performClick()
+            compose.onNodeWithText("Einkaufsliste").performScrollTo().assertIsDisplayed()
+        }
     }
 
     private fun openNotes() = compose.onNode(hasText("Notizen") and hasClickAction()).performClick()

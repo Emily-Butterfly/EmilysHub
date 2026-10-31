@@ -435,6 +435,8 @@
     <string name="search_none">Nichts gefunden.</string>
     <string name="search_wishes">Wünsche</string>
     <string name="linked_notes">Verknüpfte Notizen</string>
+    <string name="linked_note_add">Notiz verknüpfen</string>
+    <string name="linked_note_open">Notiz öffnen</string>
     <string name="settings_reminders">Erinnerungen</string>
     <string name="checkup_title">Funktioniert alles?</string>
     <string name="checkup_summary">Berechtigungen prüfen und eine Probe-Erinnerung schicken</string>

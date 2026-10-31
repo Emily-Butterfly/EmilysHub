@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,9 +37,11 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.notes.LinkCandidate
 import de.emilyshub.notes.LinkKind
+import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.launchNow
 
 /**
  * What the note is linked to (SPEC.md §7), "Ziel · Wortschatz", each to be taken off, and the way to link it to a goal,
@@ -86,15 +89,77 @@ fun LinksSummary(notes: Notes, links: Set<NoteLink>) {
     }
 }
 
-/** The notes linked to [link], by title, as the other side of the link shows them; nothing if none. */
+/**
+ * The notes linked to [link], by title, as the other side of the link shows them (SPEC.md §7): tapping one opens it
+ * ([onOpen]), each link can be taken off, and another note linked from here, right away.
+ */
 @Composable
-fun LinkedNotes(notes: Notes, link: NoteLink) {
+fun LinkedNotes(notes: Notes, link: NoteLink, onOpen: (Long) -> Unit) {
     val linked by remember(notes, link) { notes.notesLinkedTo(link) }.collectAsState(initial = emptyList())
-    if (linked.isEmpty()) return
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     Column {
         SectionTitle(stringResource(R.string.linked_notes))
-        linked.forEach { Text(it.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 4.dp)) }
+        linked.forEach { note ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = note.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClickLabel = stringResource(R.string.linked_note_open), role = Role.Button) { onOpen(note.id) }
+                        .padding(vertical = 12.dp),
+                )
+                IconButton(onClick = { scope.launchNow { notes.unlink(note.id, link) } }) {
+                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.note_link_remove, note.title))
+                }
+            }
+        }
+        TextButton(onClick = { adding = true }) { Text(stringResource(R.string.linked_note_add)) }
     }
+
+    if (adding) {
+        val book by remember(notes) { notes.notebook() }.collectAsState(initial = null)
+        val linkedIds = linked.map { it.id }.toSet()
+        NoteChoiceDialog(
+            offered = book?.all().orEmpty().filter { it.id !in linkedIds }.sortedWith(compareBy(InputText.byName) { it.title }),
+            onChoose = { noteId ->
+                adding = false
+                scope.launchNow { notes.link(noteId, link) }
+            },
+            onDismiss = { adding = false },
+        )
+    }
+}
+
+/** Offers the notes [offered] to link, each by title. */
+@Composable
+private fun NoteChoiceDialog(offered: List<Note>, onChoose: (Long) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.linked_note_add)) },
+        text = {
+            Column(
+                Modifier
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                if (offered.isEmpty()) Text(stringResource(R.string.note_link_none), modifier = Modifier.padding(vertical = 12.dp))
+                offered.forEach { note ->
+                    Text(
+                        text = note.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { onChoose(note.id) }
+                            .padding(vertical = 12.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 /** Offers a goal, a to-do or a routine to link to, one kind at a time, each by name. */

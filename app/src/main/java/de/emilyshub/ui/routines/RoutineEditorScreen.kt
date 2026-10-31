@@ -84,6 +84,7 @@ fun RoutineEditorScreen(
     notes: Notes,
     target: RoutineEditorTarget,
     onClose: () -> Unit,
+    onOpenNote: (Long) -> Unit,
 ) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
     var draft by rememberSaveable {
@@ -246,7 +247,7 @@ fun RoutineEditorScreen(
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
             TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
-            if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId))
+            if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId), onOpen = onOpenNote)
         }
     }
 

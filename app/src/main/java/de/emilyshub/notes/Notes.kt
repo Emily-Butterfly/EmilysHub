@@ -70,6 +70,30 @@ class Notes(
         emitAll(linked.map { notes -> notes.sortedWith(compareBy(InputText.byName) { it.title }) })
     }.flowOn(io)
 
+    /**
+     * Links the note to [link] from its other side (SPEC.md §7), the goal, to-do or routine, the note keeping its other
+     * links; once only, and not if either is gone.
+     */
+    suspend fun link(noteId: Long, link: NoteLink) = write {
+        database().withTransaction {
+            if (link in linksOf(noteId) || dao.get(noteId) == null) return@withTransaction
+            when (link) {
+                is NoteLink.Goal -> dao.linkGoals(noteId, listOf(link.id))
+                is NoteLink.Todo -> dao.linkTodos(noteId, listOf(link.id))
+                is NoteLink.Routine -> dao.linkRoutines(noteId, listOf(link.id))
+            }
+        }
+    }
+
+    /** Takes the link of the note to [link] off, from either side. */
+    suspend fun unlink(noteId: Long, link: NoteLink) = write {
+        when (link) {
+            is NoteLink.Goal -> dao.unlinkGoal(noteId, link.id)
+            is NoteLink.Todo -> dao.unlinkTodo(noteId, link.id)
+            is NoteLink.Routine -> dao.unlinkRoutine(noteId, link.id)
+        }
+    }
+
     /** The notes pinned on Heute, the one changed last first. */
     fun onToday(): Flow<List<Note>> = flow { emitAll(dao.observeOnToday()) }.flowOn(io)
 

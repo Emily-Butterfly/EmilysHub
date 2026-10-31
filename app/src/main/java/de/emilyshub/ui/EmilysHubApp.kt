@@ -23,9 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -232,20 +233,34 @@ private fun AppShell(
     val wishTarget = wishEditor
     val noteTarget = noteEditor
     val statisticsRoutine = statisticsRoutineId
+    // A note opened from the editor of what it is linked to goes back there, with what was typed there kept.
+    val editors = rememberSaveableStateHolder()
+    ForgetClosedEditor(editors, "todo", todoTarget)
+    ForgetClosedEditor(editors, "wish", wishTarget)
+    ForgetClosedEditor(editors, "routine", editor)
+    val openNote = { id: Long -> noteEditor = NoteEditorTarget.Edit(id) }
     when {
+        noteTarget != null -> {
+            BackHandler { noteEditor = null }
+            NoteEditorScreen(notes, tags, noteTarget, onClose = { noteEditor = null })
+        }
         todoTarget != null -> {
             BackHandler { todoEditor = null }
-            TodoEditorScreen(todos, wishes, tags, places, notes, todoTarget, onClose = { todoEditor = null })
+            editors.SaveableStateProvider("todo $todoTarget") {
+                TodoEditorScreen(
+                    todos, wishes, tags, places, notes, todoTarget, onClose = { todoEditor = null }, onOpenNote = openNote,
+                )
+            }
         }
         todoArchiveOpen -> {
             BackHandler { todoArchiveOpen = false }
-            TodoArchiveScreen(todos, onBack = { todoArchiveOpen = false })
+            TodoArchiveScreen(todos, onOpen = { todoEditor = TodoEditorTarget.Edit(it) }, onBack = { todoArchiveOpen = false })
         }
         // Opened from the list or the review, the editor goes back there.
         wishTarget != null -> {
             BackHandler { wishEditor = null }
             // A new editor for each wish, so that one opened from another starts afresh.
-            key(wishTarget) {
+            editors.SaveableStateProvider("wish $wishTarget") {
                 WishEditorScreen(
                     wishes = wishes,
                     todos = todos,
@@ -253,6 +268,7 @@ private fun AppShell(
                     notes = notes,
                     target = wishTarget,
                     onClose = { wishEditor = null },
+                    onOpenNote = openNote,
                     onOpenWish = { wishEditor = it },
                     onOpenTodo = {
                         wishEditor = null
@@ -264,10 +280,6 @@ private fun AppShell(
         wishReviewOpen -> {
             BackHandler { wishReviewOpen = false }
             WishReviewScreen(wishes, onOpen = { wishEditor = WishEditorTarget.Edit(it) }, onBack = { wishReviewOpen = false })
-        }
-        noteTarget != null -> {
-            BackHandler { noteEditor = null }
-            NoteEditorScreen(notes, tags, noteTarget, onClose = { noteEditor = null })
         }
         noteTabsOpen -> {
             BackHandler { noteTabsOpen = false }
@@ -318,7 +330,11 @@ private fun AppShell(
         }
         editor != null -> {
             BackHandler { routineEditor = null }
-            RoutineEditorScreen(routines, wishes, tags, places, notes, editor, onClose = { routineEditor = null })
+            editors.SaveableStateProvider("routine $editor") {
+                RoutineEditorScreen(
+                    routines, wishes, tags, places, notes, editor, onClose = { routineEditor = null }, onOpenNote = openNote,
+                )
+            }
         }
         archiveOpen -> {
             BackHandler { archiveOpen = false }
@@ -517,5 +533,18 @@ private fun TopLevelScaffold(
                 onManageTabs = onOpenNoteTabs,
             )
         }
+    }
+}
+
+/**
+ * Forgets what the editor [kind] kept while a note was open on top of it, once it is closed, so that opening it again
+ * starts afresh.
+ */
+@Composable
+private fun ForgetClosedEditor(editors: SaveableStateHolder, kind: String, target: Any?) {
+    var open by remember { mutableStateOf<Any?>(null) }
+    LaunchedEffect(target) {
+        open?.takeIf { it != target }?.let { editors.removeState("$kind $it") }
+        open = target
     }
 }

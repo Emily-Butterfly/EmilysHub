@@ -143,6 +143,15 @@ interface NoteDao {
     @Query("INSERT INTO note_tags (note_id, tag_id) SELECT :noteId, id FROM tags WHERE id IN (:tagIds)")
     suspend fun tag(noteId: Long, tagIds: Collection<Long>)
 
+    @Query("DELETE FROM note_goals WHERE note_id = :noteId AND goal_id = :goalId")
+    suspend fun unlinkGoal(noteId: Long, goalId: Long)
+
+    @Query("DELETE FROM note_todos WHERE note_id = :noteId AND todo_id = :todoId")
+    suspend fun unlinkTodo(noteId: Long, todoId: Long)
+
+    @Query("DELETE FROM note_routines WHERE note_id = :noteId AND routine_id = :routineId")
+    suspend fun unlinkRoutine(noteId: Long, routineId: Long)
+
     @Query("DELETE FROM note_goals WHERE note_id = :noteId")
     suspend fun unlinkGoals(noteId: Long)
 
