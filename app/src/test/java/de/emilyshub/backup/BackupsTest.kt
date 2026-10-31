@@ -180,6 +180,20 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before budgets loads without them, its months closed with none`() {
+        val made = someOfEverything()
+        val file = sealed(asOfVersion31(contentOf(exported())))
+        changeEverything()
+
+        restore(file)
+
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_closed_budgets"))
+        assertEquals(made.getValue("ledger_closed_months"), restored.getValue("ledger_closed_months"))
+        assertTrue(runBlocking { app.ledger.categories().first() }.all { it.budgetCents == null })
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the wishes are tables too many for then.
@@ -352,6 +366,7 @@ class BackupsTest {
             app.ledger.createTemplate(
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
+            app.ledger.setBudget(food.id, 30_000)
             app.ledger.close(YearMonth.of(2026, 9))
             app.ledger.createTemplate(
                 RecurringDraft(BookingKind.Expense, "9,99", rent.id, "Streaming", BookingInterval.Monthly, 5, YearMonth.of(2026, 9)),
@@ -496,8 +511,15 @@ class BackupsTest {
 
     /** [content] as version 30 made it: without fixed bookings skipped, which came with 31. */
     private fun asOfVersion30(content: JSONObject): JSONObject {
-        content.tables().remove("ledger_skipped")
-        return content.put("schema", 30)
+        val older = asOfVersion31(content)
+        older.tables().remove("ledger_skipped")
+        return older.put("schema", 30)
+    }
+
+    /** [content] as version 31 made it: without budgets, which came with 32. */
+    private fun asOfVersion31(content: JSONObject): JSONObject {
+        content.tables().remove("ledger_closed_budgets")
+        return content.withoutColumns("ledger_categories", "budget_cents").put("schema", 31)
     }
 
     /**
@@ -543,7 +565,9 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months", "ledger_skipped")
+        val LEDGER_TABLES = listOf(
+            "bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months", "ledger_skipped", "ledger_closed_budgets",
+        )
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000

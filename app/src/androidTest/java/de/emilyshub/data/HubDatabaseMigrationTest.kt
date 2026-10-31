@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.RecurringDraft
@@ -695,6 +696,22 @@ class HubDatabaseMigrationTest {
             val skipped = SkippedEntry(1, LocalDate.parse("2026-09-01"))
             database.ledger().insertSkipped(listOf(skipped))
             assertEquals(listOf(skipped), database.ledger().skippedBetween(LocalDate.parse("2026-09-01"), LocalDate.parse("2026-09-30")))
+        }
+    }
+
+    @Test
+    fun `version 31 moves to version 32 where no category has a budget and then one closed keeps its budget`() {
+        createAtVersion(31) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other) VALUES (1, 'expense', 'Lebensmittel', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(null, database.ledger().category(1)?.budgetCents)
+            database.ledger().setBudget(1, 30_000)
+            val september = java.time.YearMonth.of(2026, 9)
+            database.ledger().close(ClosedMonth(september))
+            database.ledger().keepBudgets(september)
+            assertEquals(listOf(ClosedBudget(september, 1, 30_000)), database.ledger().closedBudgets(september))
         }
     }
 

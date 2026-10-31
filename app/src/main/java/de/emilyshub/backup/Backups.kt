@@ -154,7 +154,7 @@ class Backups(
             "note_routines" to dao::noteRoutines, "note_tags" to dao::noteTags,
             "ledger_categories" to dao::ledgerCategories, "bookings" to dao::bookings,
             "recurring_bookings" to dao::recurringBookings, "ledger_closed_months" to dao::closedMonths,
-            "ledger_skipped" to dao::skipped,
+            "ledger_skipped" to dao::skipped, "ledger_closed_budgets" to dao::closedBudgets,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {

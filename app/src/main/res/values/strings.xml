@@ -674,4 +674,14 @@
         <item quantity="other">%1$d ausgelassene Fixbuchungen eintragen</item>
     </plurals>
     <string name="ledger_skipped_hint">Während der Monat abgeschlossen war, wurde keine Fixbuchung eingetragen.</string>
+    <string name="budget">Budget</string>
+    <string name="budget_for">Budget für „%1$s“</string>
+    <string name="budget_title">Budget für %1$s</string>
+    <string name="budget_amount">Budget im Monat</string>
+    <string name="budget_hint">Leer lassen für kein Budget. Gilt für alle offenen Monate.</string>
+    <string name="budget_set">Budget %1$s im Monat</string>
+    <string name="budget_of">%1$s von %2$s</string>
+    <string name="budget_left">noch %1$s übrig</string>
+    <string name="budget_over">%1$s über Budget</string>
+    <string name="booking_over_budget">Damit %1$s über dem Budget für %2$s</string>
 </resources>

@@ -30,6 +30,9 @@ interface LedgerDao {
     @Query("UPDATE ledger_categories SET name = :name WHERE id = :id")
     suspend fun renameCategory(id: Long, name: String)
 
+    @Query("UPDATE ledger_categories SET budget_cents = :cents WHERE id = :id")
+    suspend fun setBudget(id: Long, cents: Long?)
+
     @Query("UPDATE ledger_categories SET is_other = 1 WHERE id = :id")
     suspend fun makeOther(id: Long)
 
@@ -96,6 +99,23 @@ interface LedgerDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun close(month: ClosedMonth)
+
+    /** Keeps the budgets of now with the [month] just closed. */
+    @Query(
+        "INSERT OR IGNORE INTO ledger_closed_budgets (month, category_id, budget_cents) " +
+            "SELECT :month, id, budget_cents FROM ledger_categories WHERE budget_cents IS NOT NULL",
+    )
+    suspend fun keepBudgets(month: YearMonth)
+
+    @Query("SELECT * FROM ledger_closed_budgets WHERE month = :month")
+    fun observeClosedBudgets(month: YearMonth): Flow<List<ClosedBudget>>
+
+    @Query("SELECT * FROM ledger_closed_budgets WHERE month = :month")
+    suspend fun closedBudgets(month: YearMonth): List<ClosedBudget>
+
+    /** What the expenses in the category come to between the days, but for the booking [except]. */
+    @Query("SELECT IFNULL(SUM(amount_cents), 0) FROM bookings WHERE category_id = :categoryId AND date BETWEEN :from AND :to AND id != :except")
+    suspend fun spentIn(categoryId: Long, from: LocalDate, to: LocalDate, except: Long): Long
 
     @Query("DELETE FROM ledger_closed_months WHERE month = :month")
     suspend fun reopen(month: YearMonth)

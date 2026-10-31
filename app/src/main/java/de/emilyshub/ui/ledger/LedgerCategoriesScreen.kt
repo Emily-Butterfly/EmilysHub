@@ -1,6 +1,13 @@
 package de.emilyshub.ui.ledger
 
 import androidx.annotation.StringRes
+import de.emilyshub.ledger.Money
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,6 +49,7 @@ import de.emilyshub.ui.launchNow
 /**
  * The categories of the household book (SPEC.md §13), those of expenses and those of income: each kind can have more,
  * tapping one renames it, deleting one with bookings asks first and moves them to "Sonstiges" of its kind, which stays.
+ * One of expenses can have a monthly budget.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +61,8 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
     var deleting by rememberSaveable { mutableStateOf<Pair<Long, Int>?>(null) }
     // One with bookings in a month closed, which is not deleted.
     var locked by rememberSaveable { mutableStateOf<Long?>(null) }
+    // The expense category whose budget is being set.
+    var budgeting by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -74,30 +84,42 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                     SectionTitle(stringResource(if (kind == BookingKind.Expense) R.string.ledger_expenses else R.string.ledger_income))
                 }
                 items(list.filter { it.kind == kind }, key = { it.id }) { category ->
+                    val about = listOfNotNull(
+                        stringResource(R.string.category_other_stays).takeIf { category.isOther },
+                        category.budgetCents?.let { stringResource(R.string.budget_set, Money.format(it)) },
+                    )
                     ListItem(
                         headlineContent = { Text(category.name) },
-                        supportingContent = if (category.isOther) {
-                            { Text(stringResource(R.string.category_other_stays)) }
-                        } else {
+                        supportingContent = if (about.isEmpty()) {
                             null
+                        } else {
+                            { Text(about.joinToString("\n")) }
                         },
-                        trailingContent = if (category.isOther) {
-                            null
-                        } else {
-                            {
-                                IconButton(
-                                    onClick = {
-                                        scope.launchNow {
-                                            val count = ledger.usesOf(category.id)
-                                            when {
-                                                ledger.inClosedMonths(category.id) -> locked = category.id
-                                                count == 0 -> ledger.deleteCategory(category.id)
-                                                else -> deleting = category.id to count
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Budgets only for expenses (SPEC.md §13), "Sonstiges" too.
+                                if (kind == BookingKind.Expense) {
+                                    val label = stringResource(R.string.budget_for, category.name)
+                                    TextButton(
+                                        onClick = { budgeting = category.id },
+                                        modifier = Modifier.semantics { contentDescription = label },
+                                    ) { Text(stringResource(R.string.budget)) }
+                                }
+                                if (!category.isOther) {
+                                    IconButton(
+                                        onClick = {
+                                            scope.launchNow {
+                                                val count = ledger.usesOf(category.id)
+                                                when {
+                                                    ledger.inClosedMonths(category.id) -> locked = category.id
+                                                    count == 0 -> ledger.deleteCategory(category.id)
+                                                    else -> deleting = category.id to count
+                                                }
                                             }
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.category_delete, category.name))
+                                        },
+                                    ) {
+                                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.category_delete, category.name))
+                                    }
                                 }
                             }
                         },
@@ -140,6 +162,16 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
                 scope.launchNow { ledger.renameCategory(category.id, name) }
             },
             onDismiss = { renaming = null },
+        )
+    }
+    list.find { it.id == budgeting }?.let { category ->
+        BudgetDialog(
+            category,
+            onConfirm = { cents ->
+                budgeting = null
+                scope.launchNow { ledger.setBudget(category.id, cents) }
+            },
+            onDismiss = { budgeting = null },
         )
     }
     list.find { it.id == locked }?.let { category ->
@@ -190,5 +222,52 @@ private fun CategoryNameDialog(
         problemOf = { categoryNameProblem(it, others) },
         onConfirm = onConfirm,
         onDismiss = onDismiss,
+    )
+}
+
+/**
+ * The monthly budget of the expense [category] (SPEC.md §13), in euros with a comma: above zero, or none if left
+ * empty. It holds for every month open.
+ */
+@Composable
+private fun BudgetDialog(category: LedgerCategory, onConfirm: (Long?) -> Unit, onDismiss: () -> Unit) {
+    var typed by rememberSaveable { mutableStateOf(category.budgetCents?.let(Money::typed).orEmpty()) }
+    val cents = Money.parse(typed)
+    val empty = typed.isBlank()
+    val problem = when {
+        empty -> null
+        cents == null -> R.string.booking_amount_invalid
+        cents == 0L -> R.string.booking_amount_not_above_zero
+        else -> null
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.budget_title, category.name)) },
+        text = {
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { text -> typed = text.filter { it.isDigit() || it == ',' || it == '.' } },
+                label = { Text(stringResource(R.string.budget_amount)) },
+                singleLine = true,
+                suffix = { Text("€") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                isError = problem != null,
+                supportingText = {
+                    Text(
+                        when {
+                            problem != null -> stringResource(problem)
+                            cents != null -> Money.format(cents)
+                            else -> stringResource(R.string.budget_hint)
+                        },
+                    )
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(if (empty) null else cents) }, enabled = problem == null) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

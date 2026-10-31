@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
 import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.LedgerDao
@@ -61,6 +62,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         NoteTab::class, Note::class, NoteFolder::class, GeneralTab::class,
         NoteGoal::class, NoteTodo::class, NoteRoutine::class, NoteTag::class,
         LedgerCategory::class, Booking::class, RecurringBooking::class, ClosedMonth::class, SkippedEntry::class,
+        ClosedBudget::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -87,7 +89,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 31
+        const val VERSION = 32
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -112,7 +114,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
-            MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31,
+            MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

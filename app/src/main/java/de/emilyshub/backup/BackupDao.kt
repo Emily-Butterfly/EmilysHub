@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.RecurringBooking
@@ -121,4 +122,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM ledger_skipped")
     fun skipped(): List<SkippedEntry>
+
+    @Query("SELECT * FROM ledger_closed_budgets")
+    fun closedBudgets(): List<ClosedBudget>
 }

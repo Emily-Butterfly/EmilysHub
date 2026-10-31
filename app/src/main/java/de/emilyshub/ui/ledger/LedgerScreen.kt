@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingWithCategory
+import de.emilyshub.ledger.BudgetLevel
 import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
@@ -272,35 +273,49 @@ private fun Sum(label: String, cents: Long, modifier: Modifier) {
 }
 
 /**
- * The expenses by category: a bar each, as long as its share of the largest, and a pie chart of the shares, whose
- * legend names each category with its amount and share, so that the colours are not all there is to tell them apart.
+ * The expenses by category: a bar each, and a pie chart of the shares, whose legend names each category with its
+ * amount and share, so that the colours are not all there is to tell them apart. The bar of a category with a budget
+ * shows how much of it is used and what is left, orange from 80 %, red above it, with how much it is over (SPEC.md
+ * §13); that of one without is as long as its share of the largest.
  */
 @Composable
-private fun ExpensesByCategory(totals: List<CategoryTotal>, expenses: Long) {
+private fun ExpensesByCategory(all: List<CategoryTotal>, expenses: Long) {
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.ledger_by_category))
-        val largest = totals.first().cents
-        totals.forEachIndexed { index, total ->
+        val largest = all.first().cents
+        all.forEachIndexed { index, total ->
+            val use = total.use
             Column(Modifier.semantics(mergeDescendants = true) {}) {
                 Row {
                     Text(total.category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text(Money.format(total.cents), style = MaterialTheme.typography.bodyMedium)
+                    val amount = Money.format(total.cents)
+                    Text(
+                        if (use == null) amount else stringResource(R.string.budget_of, amount, Money.format(use.budget)),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth(total.cents.toFloat() / largest)
-                            .height(8.dp)
-                            .background(sliceColor(index), RoundedCornerShape(4.dp)),
+                Bar(
+                    share = use?.share ?: if (largest == 0L) 0f else total.cents.toFloat() / largest,
+                    color = use?.let { budgetColor(it.level) } ?: sliceColor(index),
+                )
+                if (use != null) {
+                    val over = use.level == BudgetLevel.Over
+                    // In words too, so that the colour is not all that tells it.
+                    Text(
+                        if (over) {
+                            stringResource(R.string.budget_over, Money.format(-use.left))
+                        } else {
+                            stringResource(R.string.budget_left, Money.format(use.left))
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
+        // Those with a budget but nothing spent are last, and have no slice.
+        val totals = all.filter { it.cents > 0 }
+        if (totals.isEmpty()) return@Column
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             val description = stringResource(R.string.ledger_pie_description)
             PieChart(totals.map { it.cents }, Modifier.size(PIE_SIZE).semantics { contentDescription = description })
@@ -322,6 +337,32 @@ private fun ExpensesByCategory(totals: List<CategoryTotal>, expenses: Long) {
             }
         }
     }
+}
+
+/** A bar filled to [share] in [color]. */
+@Composable
+private fun Bar(share: Float, color: Color) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(share)
+                .height(8.dp)
+                .background(color, RoundedCornerShape(4.dp)),
+        )
+    }
+}
+
+/** Orange from 80 % of a budget, red above it; within it, null: the colour of the category. */
+@Composable
+private fun budgetColor(level: BudgetLevel): Color? = when (level) {
+    BudgetLevel.Within -> null
+    BudgetLevel.Near -> NEAR_BUDGET
+    BudgetLevel.Over -> MaterialTheme.colorScheme.error
 }
 
 /** A pie of [values], drawn here, each slice in its colour, set apart from the next by a line in the background's. */
@@ -393,3 +434,6 @@ private val SLICE_COLORS = listOf(
 )
 
 private val PIE_SIZE = 120.dp
+
+/** Orange, which stands out on the light background as on the dark one. */
+private val NEAR_BUDGET = Color(0xFFF57C00)

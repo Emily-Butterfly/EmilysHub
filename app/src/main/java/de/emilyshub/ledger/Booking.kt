@@ -18,7 +18,8 @@ enum class BookingKind(val stored: String) {
 
 /**
  * A category of the household book (SPEC.md §13), for bookings of its [kind]. Each kind has one "Sonstiges" ([isOther])
- * that cannot be deleted: the bookings of a category deleted go there.
+ * that cannot be deleted: the bookings of a category deleted go there. One of expenses can have a monthly budget
+ * ([budgetCents]), which holds for every month open.
  */
 @Entity(tableName = "ledger_categories")
 data class LedgerCategory(
@@ -26,6 +27,7 @@ data class LedgerCategory(
     val kind: BookingKind,
     val name: String,
     @ColumnInfo(name = "is_other", defaultValue = "0") val isOther: Boolean = false,
+    @ColumnInfo(name = "budget_cents") val budgetCents: Long? = null,
 ) {
     companion object {
         const val NAME_MAX = 30
@@ -70,12 +72,15 @@ data class BookingWithCategory(
     @Relation(parentColumn = "category_id", entityColumn = "id") val category: LedgerCategory,
 )
 
-/** What a month's expenses in one [category] come to. */
-data class CategoryTotal(val category: LedgerCategory, val cents: Long)
+/** What a month's expenses in one [category] come to, and its [budget] that month, if it has one. */
+data class CategoryTotal(val category: LedgerCategory, val cents: Long, val budget: Long? = null) {
+    /** How much of its budget is used, if it has one. */
+    val use: BudgetUse? get() = budget?.let { BudgetUse(it, cents) }
+}
 
 /**
  * A month of the household book (SPEC.md §13): what came in and went out, the balance, the expenses by category, the
- * largest first, and all its bookings, the latest first.
+ * largest first, those with a budget but no expenses last, and all its bookings, the latest first.
  */
 data class MonthSummary(
     val income: Long,

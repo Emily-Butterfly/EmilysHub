@@ -109,7 +109,9 @@ class BackupsOnDeviceTest {
             "note_tabs", "notes", "note_folders", "note_general_tab", "note_goals", "note_todos", "note_routines", "note_tags",
         )
         // Nor the household book, which came with 28.
-        val ledger = listOf("ledger_categories", "bookings", "recurring_bookings", "ledger_closed_months", "ledger_skipped")
+        val ledger = listOf(
+            "ledger_categories", "bookings", "recurring_bookings", "ledger_closed_months", "ledger_skipped", "ledger_closed_budgets",
+        )
         (listOf("wishes", "wish_tags") + ledger + notes).forEach { tables.remove(it) }
         // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
         // goals routines hang under, which came with 20, nor ends of series, which came with 26, nor to-dos shown before

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.ledger
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -54,6 +56,8 @@ import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.io.Serializable
 import java.time.YearMonth
 
@@ -67,6 +71,7 @@ sealed interface BookingEditorTarget : Serializable {
 /**
  * A booking of the household book (SPEC.md §13), new or saved: an expense or income, its amount in euros with a
  * comma, its date, today for a new one, its category of that kind and a description, if wanted. Deleting asks first.
+ * Saving one that takes its category over its budget says so briefly.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,14 +111,18 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val known = closedMonths
     val closedMonth = listOfNotNull(savedMonth, YearMonth.from(draft.date)).firstOrNull { known != null && it in known }
     val locked = known == null || closedMonth != null
+    val context = LocalContext.current.applicationContext
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
             closing = true
             scope.launchNow {
-                try {
-                    work()
-                } catch (_: IllegalArgumentException) {
-                    // The month was closed meanwhile, elsewhere: nothing is saved, as it says when opened again.
+                // To the end, though the editor is gone meanwhile.
+                withContext(NonCancellable) {
+                    try {
+                        work()
+                    } catch (_: IllegalArgumentException) {
+                        // The month was closed meanwhile, elsewhere: nothing is saved, as it says when opened again.
+                    }
                 }
             }
             onClose()
@@ -125,7 +134,16 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             showProblems = true
         } else {
             val saved = draft
-            closeWith { if (bookingId == null) ledger.create(saved) else ledger.update(bookingId, saved) }
+            val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
+            closeWith {
+                val over = ledger.overrunOf(saved, replacing = bookingId)
+                if (bookingId == null) ledger.create(saved) else ledger.update(bookingId, saved)
+                // Briefly, once saved: no notification (SPEC.md §13).
+                if (over != null) {
+                    val text = context.getString(R.string.booking_over_budget, Money.format(over), category)
+                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

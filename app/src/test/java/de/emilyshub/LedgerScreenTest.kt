@@ -33,6 +33,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -271,6 +272,47 @@ class LedgerScreenTest {
             compose.onNodeWithText("Ausgelassene Fixbuchung eintragen").assertDoesNotExist()
             ledgerList().performScrollToNode(hasText("Miete"))
             compose.onNodeWithText("01.09.2026 · Wohnen · Fixbuchung").assertExists()
+        }
+    }
+
+    @Test
+    fun `a budget set in the categories shows in the month, what is left, from 80 percent and above it`() {
+        book("Lebensmittel", BookingKind.Expense, "212,50", "2026-10-12")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.onNodeWithContentDescription("Budget für „Lebensmittel“").performClick()
+            field("Budget im Monat").performTextInput("300")
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Budget 300,00 € im Monat").assertExists()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            ledgerList().performScrollToNode(hasText("noch 87,50 € übrig"))
+            compose.onNodeWithText("212,50 € von 300,00 €").assertExists()
+        }
+        book("Lebensmittel", BookingKind.Expense, "100", "2026-10-13")
+        launchApp().use {
+            openLedger()
+            ledgerList().performScrollToNode(hasText("12,50 € über Budget"))
+            compose.onNodeWithText("12,50 € über Budget").assertExists()
+        }
+    }
+
+    @Test
+    fun `saving a booking that goes over its budget says so briefly`() {
+        runBlocking { app.ledger.setBudget(app.ledger.categories().first().single { it.name == "Lebensmittel" }.id, 30_000) }
+        book("Lebensmittel", BookingKind.Expense, "250", "2026-10-12")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Buchung anlegen").performClick()
+            field("Betrag in Euro").performTextInput("62,50")
+            option("Lebensmittel").tap()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.waitForIdle()
+
+            assertEquals("Damit 12,50 € über dem Budget für Lebensmittel", ShadowToast.getTextOfLatestToast())
         }
     }
 

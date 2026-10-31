@@ -497,3 +497,20 @@ val MIGRATION_30_31 = object : Migration(30, 31) {
         )
     }
 }
+
+/**
+ * Version 32: budgets of the household book (SPEC.md §13, #47), a monthly one for an expense category, and those a
+ * month closed keeps. None is set yet; the months closed before keep none.
+ */
+val MIGRATION_31_32 = object : Migration(31, 32) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `ledger_categories` ADD COLUMN `budget_cents` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_closed_budgets` (`month` TEXT NOT NULL, `category_id` INTEGER NOT NULL, " +
+                "`budget_cents` INTEGER NOT NULL, PRIMARY KEY(`month`, `category_id`), " +
+                "FOREIGN KEY(`month`) REFERENCES `ledger_closed_months`(`month`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`category_id`) REFERENCES `ledger_categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ledger_closed_budgets_category_id` ON `ledger_closed_budgets` (`category_id`)")
+    }
+}
