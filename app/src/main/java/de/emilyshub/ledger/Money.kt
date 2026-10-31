@@ -1,5 +1,7 @@
 package de.emilyshub.ledger
 
+import kotlin.math.roundToInt
+
 /**
  * Amounts in euros and cents (SPEC.md §13), reckoned in whole cents so that nothing is lost to rounding: typed with a
  * comma, with thousands dots or without ("1.234,56", "1234,5", "12"), and shown as "1.234,56 €".
@@ -33,6 +35,9 @@ object Money {
         val rest = cents % CENTS
         return if (rest == 0L) "${cents / CENTS}" else "${cents / CENTS},${rest.toString().padStart(2, '0')}"
     }
+
+    /** [part] of [whole] in whole percent; none of nothing. */
+    fun percent(part: Long, whole: Long): Int = if (whole == 0L) 0 else (part * 100.0 / whole).roundToInt()
 
     private const val CENTS = 100L
     private const val MAX_EURO_DIGITS = 8

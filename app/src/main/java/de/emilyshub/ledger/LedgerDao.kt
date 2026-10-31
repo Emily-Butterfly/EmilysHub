@@ -89,7 +89,7 @@ interface LedgerDao {
             "FROM ledger_closed_months m LEFT JOIN bookings b ON substr(b.date, 1, 7) = m.month " +
             "LEFT JOIN ledger_categories c ON c.id = b.category_id GROUP BY m.month",
     )
-    fun observeArchive(): Flow<List<ArchivedMonth>>
+    fun observeArchive(): Flow<List<MonthSums>>
 
     @Query("SELECT * FROM ledger_closed_months")
     fun observeClosed(): Flow<List<ClosedMonth>>

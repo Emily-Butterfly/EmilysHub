@@ -64,7 +64,6 @@ import de.emilyshub.ledger.BudgetLevel
 import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
-import de.emilyshub.ledger.MonthSummary
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
@@ -73,7 +72,6 @@ import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberNow
 import java.time.YearMonth
-import kotlin.math.roundToInt
 
 /**
  * The household book (SPEC.md §13), a month at a time, the current one first: its income, expenses and balance; its
@@ -91,6 +89,7 @@ fun LedgerScreen(
     onOpenCategories: () -> Unit,
     onOpenRecurring: () -> Unit,
     onOpenArchive: () -> Unit,
+    onOpenYear: () -> Unit,
     onBack: () -> Unit,
 ) {
     // Null until known, so that a closed month does not show what an open one has for a moment.
@@ -137,6 +136,11 @@ fun LedgerScreen(
     ) { contentPadding ->
         LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
             item(key = "month") { MonthSwitch(month, onMonthChange) }
+            item(key = "year") {
+                TextButton(onClick = onOpenYear, modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Text(stringResource(R.string.ledger_year_open, month.year))
+                }
+            }
             // Earlier months not closed yet, to find them easily.
             val others = stillOpen - month
             if (others.isNotEmpty()) item(key = "still-open") { StillOpen(others, onMonthChange) }
@@ -172,7 +176,7 @@ fun LedgerScreen(
                 }
             }
             val shown = summary ?: return@LazyColumn
-            item(key = "sums") { Sums(shown) }
+            item(key = "sums") { Sums(shown.income, shown.expenses, shown.balance) }
             if (shown.expensesByCategory.isNotEmpty()) {
                 item(key = "by-category") { ExpensesByCategory(shown.expensesByCategory, shown.expenses) }
             }
@@ -251,16 +255,16 @@ private fun MonthSwitch(month: YearMonth, onMonthChange: (YearMonth) -> Unit) {
 
 /** Income, expenses and the balance, each a figure with its name under it. */
 @Composable
-private fun Sums(summary: MonthSummary) {
+internal fun Sums(income: Long, expenses: Long, balance: Long) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Sum(stringResource(R.string.ledger_income), summary.income, Modifier.weight(1f))
-        Sum(stringResource(R.string.ledger_expenses), summary.expenses, Modifier.weight(1f))
-        Sum(stringResource(R.string.ledger_balance), summary.balance, Modifier.weight(1f))
+        Sum(stringResource(R.string.ledger_income), income, Modifier.weight(1f))
+        Sum(stringResource(R.string.ledger_expenses), expenses, Modifier.weight(1f))
+        Sum(stringResource(R.string.ledger_balance), balance, Modifier.weight(1f))
     }
 }
 
@@ -328,7 +332,7 @@ private fun ExpensesByCategory(byCategory: List<CategoryTotal>, expenses: Long) 
                                 .background(sliceColor(index), CircleShape),
                         )
                         Text(
-                            stringResource(R.string.ledger_share, total.category.name, percent(total.cents, expenses)),
+                            stringResource(R.string.ledger_share, total.category.name, Money.percent(total.cents, expenses)),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(start = 8.dp),
                         )
@@ -341,7 +345,7 @@ private fun ExpensesByCategory(byCategory: List<CategoryTotal>, expenses: Long) 
 
 /** A bar filled to [share] in [color]. */
 @Composable
-private fun Bar(share: Float, color: Color) {
+internal fun Bar(share: Float, color: Color) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -418,14 +422,11 @@ internal fun SignedAmount(kind: BookingKind, cents: Long) {
     )
 }
 
-/** [part] of [whole] in whole percent. */
-private fun percent(part: Long, whole: Long): Int = if (whole == 0L) 0 else (part * 100.0 / whole).roundToInt()
-
 /**
  * The colour of the [index]th category: mid tones that stand out on the light background as on the dark one, after
  * the last of them the first again.
  */
-private fun sliceColor(index: Int): Color = SLICE_COLORS[index % SLICE_COLORS.size]
+internal fun sliceColor(index: Int): Color = SLICE_COLORS[index % SLICE_COLORS.size]
 
 private val SLICE_COLORS = listOf(
     // Violet late, as the light and dark designs are lilac.

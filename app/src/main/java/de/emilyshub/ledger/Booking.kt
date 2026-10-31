@@ -8,6 +8,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 import java.time.LocalDate
+import java.time.Year
 import java.time.YearMonth
 
 /** Whether a booking takes money out or brings it in (SPEC.md §13), in the order the screens show them. */
@@ -61,8 +62,8 @@ data class Booking(
 @Entity(tableName = "ledger_closed_months")
 data class ClosedMonth(@PrimaryKey val month: YearMonth)
 
-/** A month in the archive, with what came in and went out. */
-data class ArchivedMonth(val month: YearMonth, val income: Long, val expenses: Long) {
+/** A month with what came in and went out: in the archive, or in the year overview (SPEC.md §13). */
+data class MonthSums(val month: YearMonth, val income: Long, val expenses: Long) {
     val balance: Long get() = income - expenses
 }
 
@@ -89,4 +90,17 @@ data class MonthSummary(
     val bookings: List<BookingWithCategory>,
 ) {
     val balance: Long get() = income - expenses
+}
+
+/**
+ * A year of the household book (SPEC.md §13): each of its months, January first, with what came in and went out, and
+ * its expenses by category, the largest first. Months open and closed count the same.
+ */
+data class YearSummary(val year: Year, val months: List<MonthSums>, val expensesByCategory: List<CategoryTotal>) {
+    val income: Long get() = months.sumOf { it.income }
+    val expenses: Long get() = months.sumOf { it.expenses }
+    val balance: Long get() = income - expenses
+
+    /** The share of the year's expenses that [total] has, in whole percent. */
+    fun shareOf(total: CategoryTotal): Int = Money.percent(total.cents, expenses)
 }

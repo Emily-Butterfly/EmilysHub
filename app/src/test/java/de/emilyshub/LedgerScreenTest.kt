@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -313,6 +314,40 @@ class LedgerScreenTest {
             compose.waitForIdle()
 
             assertEquals("Lebensmittel liegt damit 12,50 € über Budget.", ShadowToast.getTextOfLatestToast())
+        }
+    }
+
+    @Test
+    fun `the year overview has each month with its sums and the year's expenses by category, and opens a month`() {
+        book("Gehalt", BookingKind.Income, "2.500", "2026-03-01")
+        book("Wohnen", BookingKind.Expense, "850", "2026-03-02")
+        book("Lebensmittel", BookingKind.Expense, "150", "2026-10-12")
+        book("Freizeit", BookingKind.Expense, "40", "2025-12-31")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Jahresübersicht 2026").performClick()
+
+            compose.onNodeWithText("2026").assertIsDisplayed()
+            // The year's sums.
+            compose.onNodeWithText("2.500,00 €").assertIsDisplayed()
+            compose.onNodeWithText("1.000,00 €").assertIsDisplayed()
+            compose.onNodeWithText("1.500,00 €").assertIsDisplayed()
+            ledgerList().performScrollToNode(hasText("Einnahmen 2.500,00 € · Ausgaben 850,00 € · Saldo 1.650,00 €"))
+            ledgerList().performScrollToNode(hasText("850,00 € · 85 %"))
+            compose.onNodeWithText("150,00 € · 15 %").assertExists()
+
+            ledgerList().performScrollToNode(hasContentDescription("Voriges Jahr"))
+            compose.onNodeWithContentDescription("Voriges Jahr").performClick()
+            compose.onNodeWithText("2025").assertIsDisplayed()
+            ledgerList().performScrollToNode(hasText("40,00 € · 100 %"))
+            ledgerList().performScrollToNode(hasContentDescription("Nächstes Jahr"))
+            compose.onNodeWithContentDescription("Nächstes Jahr").performClick()
+
+            ledgerList().performScrollToNode(hasText("März"))
+            compose.onNodeWithText("März").performClick()
+            compose.onNodeWithText("März 2026").assertIsDisplayed()
+            ledgerList().performScrollToNode(hasText("Wohnen · 100 %"))
         }
     }
 

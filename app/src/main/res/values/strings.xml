@@ -669,6 +669,14 @@
     <string name="booking_month_closed">%1$s ist abgeschlossen: Buchungen darin lassen sich erst ändern, wenn er wieder offen ist.</string>
     <string name="category_delete_locked">„%1$s“ hat Buchungen oder ein Budget in abgeschlossenen Monaten. Sie lässt sich erst löschen, wenn diese wieder offen sind.</string>
     <string name="ledger_archive_open">Monat ansehen</string>
+    <string name="ledger_year_open">Jahresübersicht %1$d</string>
+    <string name="ledger_year">Jahresübersicht</string>
+    <string name="ledger_year_previous">Voriges Jahr</string>
+    <string name="ledger_year_next">Nächstes Jahr</string>
+    <string name="ledger_year_months">Monate</string>
+    <string name="ledger_year_by_category">Ausgaben je Kategorie im Jahr</string>
+    <string name="ledger_year_share">%1$s · %2$d %%</string>
+    <string name="ledger_year_no_expenses">In diesem Jahr gibt es noch keine Ausgaben.</string>
     <plurals name="ledger_enter_skipped">
         <item quantity="one">Ausgelassene Fixbuchung eintragen</item>
         <item quantity="other">%1$d ausgelassene Fixbuchungen eintragen</item>

@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Month
+import java.time.Year
 import java.time.YearMonth
 import kotlin.coroutines.CoroutineContext
 
@@ -61,6 +63,15 @@ class Ledger(
                 summary(bookings, budgets)
             },
         )
+    }.flowOn(io)
+
+    /**
+     * The [year]'s months with their sums and its expenses by category (SPEC.md §13), the fixed ones due by today
+     * entered first. Months open and closed count the same.
+     */
+    fun year(year: Year): Flow<YearSummary> = flow {
+        enterDue()
+        emitAll(dao.observeBetween(year.atDay(1), year.atMonth(Month.DECEMBER).atEndOfMonth()).map { yearSummary(year, it) })
     }.flowOn(io)
 
     /** Today, the day a new booking is dated, and a new fixed one comes on. */
@@ -216,7 +227,7 @@ class Ledger(
     suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
 
     /** The months closed, the latest first, each with its sums (SPEC.md §13). */
-    fun archive(): Flow<List<ArchivedMonth>> = flow {
+    fun archive(): Flow<List<MonthSums>> = flow {
         emitAll(dao.observeArchive().map { months -> months.sortedByDescending { it.month } })
     }.flowOn(io)
 
@@ -428,4 +439,14 @@ internal fun summary(bookings: List<BookingWithCategory>, budgets: Map<LedgerCat
             .sortedWith(compareByDescending<CategoryTotal> { it.cents }.thenBy(InputText.byName) { it.category.name }),
         bookings = bookings.sortedWith(compareByDescending<BookingWithCategory> { it.booking.date }.thenByDescending { it.booking.id }),
     )
+}
+
+/** The sums of [bookings], the [year]'s, each of its months, and its expenses by category, as a month has them. */
+internal fun yearSummary(year: Year, bookings: List<BookingWithCategory>): YearSummary {
+    val byMonth = bookings.groupBy { YearMonth.from(it.booking.date) }
+    val months = Month.entries.map { year.atMonth(it) }.map { month ->
+        val sums = summary(byMonth[month].orEmpty())
+        MonthSums(month, sums.income, sums.expenses)
+    }
+    return YearSummary(year, months, summary(bookings).expensesByCategory)
 }

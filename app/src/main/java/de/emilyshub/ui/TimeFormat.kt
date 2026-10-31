@@ -34,3 +34,8 @@ private val MONTH_AND_YEAR: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL
 
 /** A month, as a calendar names it: Oktober 2026. */
 fun YearMonth.monthAndYear(): String = MONTH_AND_YEAR.format(this)
+
+private val MONTH_NAME: DateTimeFormatter = DateTimeFormatter.ofPattern("LLLL", Locale.GERMAN)
+
+/** A month by its name alone, as a calendar names it: Oktober. */
+fun YearMonth.monthName(): String = MONTH_NAME.format(this)

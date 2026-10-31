@@ -58,6 +58,7 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
+import de.emilyshub.ui.ledger.LedgerYearScreen
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.RecurringEditorScreen
@@ -97,6 +98,7 @@ import de.emilyshub.ui.wishes.WishReviewScreen
 import de.emilyshub.ui.wishes.WishlistScreen
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.launch
+import java.time.Year
 
 /**
  * The whole UI. Nothing is drawn before the settings are known, not even the theme, and nothing but
@@ -240,6 +242,8 @@ private fun AppShell(
     var bookingEditor by rememberSaveable { mutableStateOf<BookingEditorTarget?>(null) }
     var recurringOpen by rememberSaveable { mutableStateOf(false) }
     var ledgerArchiveOpen by rememberSaveable { mutableStateOf(false) }
+    // The year overview shown, if it is.
+    var ledgerYear by rememberSaveable { mutableStateOf<Year?>(null) }
     var recurringEditor by rememberSaveable { mutableStateOf<RecurringEditorTarget?>(null) }
     // Here, so that it stays while a booking is open.
     var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
@@ -259,6 +263,7 @@ private fun AppShell(
     val noteTarget = noteEditor
     val bookingTarget = bookingEditor
     val recurringTarget = recurringEditor
+    val yearShown = ledgerYear
     val statisticsRoutine = statisticsRoutineId
     // A note opened from the editor of what it is linked to goes back there, with what was typed there kept.
     val editors = rememberSaveableStateHolder()
@@ -332,6 +337,19 @@ private fun AppShell(
                 onBack = { ledgerArchiveOpen = false },
             )
         }
+        yearShown != null -> {
+            BackHandler { ledgerYear = null }
+            LedgerYearScreen(
+                ledger = ledger,
+                year = yearShown,
+                onYearChange = { ledgerYear = it },
+                onOpenMonth = {
+                    ledgerMonth = it
+                    ledgerYear = null
+                },
+                onBack = { ledgerYear = null },
+            )
+        }
         ledgerCategoriesOpen -> {
             BackHandler { ledgerCategoriesOpen = false }
             LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
@@ -347,6 +365,7 @@ private fun AppShell(
                 onOpenCategories = { ledgerCategoriesOpen = true },
                 onOpenRecurring = { recurringOpen = true },
                 onOpenArchive = { ledgerArchiveOpen = true },
+                onOpenYear = { ledgerYear = Year.from(ledgerMonth) },
                 onBack = { ledgerOpen = false },
             )
         }
