@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.notes.GeneralTab
@@ -113,4 +114,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM recurring_bookings")
     fun recurringBookings(): List<RecurringBooking>
+
+    @Query("SELECT * FROM ledger_closed_months")
+    fun closedMonths(): List<ClosedMonth>
 }

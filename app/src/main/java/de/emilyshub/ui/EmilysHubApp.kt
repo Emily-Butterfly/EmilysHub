@@ -57,6 +57,7 @@ import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
+import de.emilyshub.ui.ledger.LedgerArchiveScreen
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.RecurringEditorScreen
@@ -238,6 +239,7 @@ private fun AppShell(
     var ledgerCategoriesOpen by rememberSaveable { mutableStateOf(false) }
     var bookingEditor by rememberSaveable { mutableStateOf<BookingEditorTarget?>(null) }
     var recurringOpen by rememberSaveable { mutableStateOf(false) }
+    var ledgerArchiveOpen by rememberSaveable { mutableStateOf(false) }
     var recurringEditor by rememberSaveable { mutableStateOf<RecurringEditorTarget?>(null) }
     // Here, so that it stays while a booking is open.
     var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
@@ -319,6 +321,17 @@ private fun AppShell(
             BackHandler { recurringOpen = false }
             RecurringListScreen(ledger, onOpen = { recurringEditor = it }, onBack = { recurringOpen = false })
         }
+        ledgerArchiveOpen -> {
+            BackHandler { ledgerArchiveOpen = false }
+            LedgerArchiveScreen(
+                ledger,
+                onOpen = {
+                    ledgerMonth = it
+                    ledgerArchiveOpen = false
+                },
+                onBack = { ledgerArchiveOpen = false },
+            )
+        }
         ledgerCategoriesOpen -> {
             BackHandler { ledgerCategoriesOpen = false }
             LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
@@ -333,6 +346,7 @@ private fun AppShell(
                 onCreate = { bookingEditor = BookingEditorTarget.New },
                 onOpenCategories = { ledgerCategoriesOpen = true },
                 onOpenRecurring = { recurringOpen = true },
+                onOpenArchive = { ledgerArchiveOpen = true },
                 onBack = { ledgerOpen = false },
             )
         }

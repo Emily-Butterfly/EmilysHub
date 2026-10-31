@@ -2,11 +2,13 @@ package de.emilyshub.ledger
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.time.YearMonth
 
 @Dao
 interface LedgerDao {
@@ -68,6 +70,22 @@ interface LedgerDao {
     @Transaction
     @Query("SELECT * FROM bookings WHERE date BETWEEN :from AND :to")
     fun observeBetween(from: LocalDate, to: LocalDate): Flow<List<BookingWithCategory>>
+
+    @Transaction
+    @Query("SELECT * FROM bookings")
+    fun observeAllBookings(): Flow<List<BookingWithCategory>>
+
+    @Query("SELECT * FROM ledger_closed_months")
+    fun observeClosed(): Flow<List<ClosedMonth>>
+
+    @Query("SELECT * FROM ledger_closed_months")
+    suspend fun closed(): List<ClosedMonth>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun close(month: ClosedMonth)
+
+    @Query("DELETE FROM ledger_closed_months WHERE month = :month")
+    suspend fun reopen(month: YearMonth)
 
     @Query("SELECT * FROM bookings WHERE id = :id")
     suspend fun get(id: Long): Booking?

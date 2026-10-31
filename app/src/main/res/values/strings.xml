@@ -654,4 +654,17 @@
     <string name="recurring_delete_title">Fixbuchung löschen?</string>
     <string name="recurring_delete_text">Es kommen keine weiteren; die schon eingetragenen bleiben.</string>
     <string name="recurring_edit_hint">Änderungen gelten ab dem nächsten Eintrag von heute an; die schon eingetragenen bleiben, wie sie sind.</string>
+    <string name="ledger_archive">Archiv</string>
+    <string name="ledger_archive_empty">Noch kein Monat abgeschlossen. Einen vergangenen Monat schließt du in seiner Ansicht ab.</string>
+    <string name="ledger_close">Monat abschließen</string>
+    <string name="ledger_close_title">%1$s abschließen?</string>
+    <string name="ledger_close_text">Der Monat wandert ins Archiv und ist dann nur noch zu lesen. Du kannst ihn wieder öffnen.</string>
+    <string name="ledger_close_confirm">Abschließen</string>
+    <string name="ledger_closed">Abgeschlossen – nur zum Lesen</string>
+    <string name="ledger_reopen">Wieder öffnen</string>
+    <string name="ledger_reopen_title">%1$s wieder öffnen?</string>
+    <string name="ledger_reopen_text">Seine Buchungen lassen sich dann wieder anlegen, ändern und löschen.</string>
+    <string name="ledger_still_open">Noch offen</string>
+    <string name="ledger_archive_sums">Einnahmen %1$s · Ausgaben %2$s · Saldo %3$s</string>
+    <string name="booking_month_closed">%1$s ist abgeschlossen: Buchungen darin lassen sich erst ändern, wenn er wieder offen ist.</string>
 </resources>

@@ -7,6 +7,7 @@ import de.emilyshub.data.NameProblem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -71,9 +72,15 @@ class Ledger(
     /** How many bookings and fixed bookings the category has, which deleting it moves. */
     suspend fun usesOf(categoryId: Long): Int = withContext(io) { dao.countIn(categoryId) + dao.countTemplatesIn(categoryId) }
 
-    /** Saves a new booking; refuses a draft with problems, which the editor shows before. */
+    /**
+     * Saves a new booking; refuses a draft with problems, which the editor shows before, and one dated in a month
+     * closed, which it tells.
+     */
     suspend fun create(draft: BookingDraft): Long = write {
-        database().withTransaction { dao.insert(checked(draft)) }
+        database().withTransaction {
+            requireOpen(draft.date)
+            dao.insert(checked(draft))
+        }
     }
 
     /** Saves the booking anew, as [create] does a new one. */
@@ -81,12 +88,63 @@ class Ledger(
         database().withTransaction {
             // One entered from a fixed booking stays marked so; the template stays as it is.
             val before = dao.get(id) ?: return@withTransaction
+            // Neither changed in a month closed, nor moved out of one or into one.
+            requireOpen(before.date)
+            requireOpen(draft.date)
             dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
         }
     }
 
-    /** Deletes the booking; the editor asks first. */
-    suspend fun delete(id: Long) = write { dao.delete(id) }
+    /** Deletes the booking; the editor asks first. One in a month closed stays. */
+    suspend fun delete(id: Long) = write {
+        database().withTransaction {
+            val booking = dao.get(id) ?: return@withTransaction
+            requireOpen(booking.date)
+            dao.delete(id)
+        }
+    }
+
+    /** Whether [month] is closed (SPEC.md §13), only to read. */
+    fun isClosed(month: YearMonth): Flow<Boolean> = closedMonths().map { month in it }
+
+    /** The months closed (SPEC.md §13), only to read. */
+    fun closedMonths(): Flow<Set<YearMonth>> = flow {
+        emitAll(dao.observeClosed().map { closed -> closed.map { it.month }.toSet() })
+    }.flowOn(io)
+
+    /** Whether [month] can be closed: one gone by, or the current one from its last day on. */
+    fun canClose(month: YearMonth): Boolean = !month.atEndOfMonth().isAfter(today())
+
+    /** Closes [month]: it goes to the archive, only to read; the screen asks first. */
+    suspend fun close(month: YearMonth) = write {
+        require(canClose(month)) { "$month has not ended yet" }
+        dao.close(ClosedMonth(month))
+    }
+
+    /** Opens the closed [month] again; the screen asks first. */
+    suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
+
+    /** The months closed, the latest first, each with its sums (SPEC.md §13). */
+    fun archive(): Flow<List<ArchivedMonth>> = flow {
+        emitAll(
+            dao.observeClosed().combine(dao.observeAllBookings()) { closed, bookings ->
+                val byMonth = bookings.groupBy { YearMonth.from(it.booking.date) }
+                closed.map { ArchivedMonth(it.month, summary(byMonth[it.month].orEmpty())) }.sortedByDescending { it.month }
+            },
+        )
+    }.flowOn(io)
+
+    /** The months before this one with bookings that are still open, the latest first, to find them easily. */
+    fun openEarlierMonths(): Flow<List<YearMonth>> = flow {
+        emitAll(
+            dao.observeClosed().combine(dao.observeAllBookings()) { closed, bookings ->
+                val shut = closed.map { it.month }.toSet()
+                bookings.map { YearMonth.from(it.booking.date) }.distinct()
+                    .filter { it.isBefore(thisMonth()) && it !in shut }
+                    .sortedDescending()
+            },
+        )
+    }.flowOn(io)
 
     /** A new category of [kind] named [name] on a single line; refuses a name with a problem. */
     suspend fun createCategory(kind: BookingKind, name: String): Long = write {
@@ -168,7 +226,9 @@ class Ledger(
             dao.templates().forEach { template ->
                 val due = template.dueDates().takeWhile { !it.isAfter(today) }.toList()
                 if (due.isEmpty()) return@forEach
-                due.forEach { date ->
+                // None into a month closed, nor later once it is opened again.
+                val closed = dao.closed().map { it.month }.toSet()
+                due.filter { YearMonth.from(it) !in closed }.forEach { date ->
                     dao.insert(Booking(0, template.amountCents, date, template.categoryId, template.description, template.id))
                 }
                 dao.updateTemplate(template.copy(enteredThrough = YearMonth.from(due.last())))
@@ -209,6 +269,10 @@ class Ledger(
         return Booking(
             amountCents = checkNotNull(draft.cents), date = draft.date, categoryId = category.id, description = draft.cleanedDescription,
         )
+    }
+
+    private suspend fun requireOpen(date: LocalDate) {
+        require(dao.closed().none { it.month == YearMonth.from(date) }) { "${YearMonth.from(date)} is closed" }
     }
 
     private suspend fun checkedTemplate(draft: RecurringDraft): RecurringBooking {

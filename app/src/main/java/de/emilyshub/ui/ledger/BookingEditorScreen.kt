@@ -53,7 +53,9 @@ import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.monthAndYear
 import java.io.Serializable
+import java.time.YearMonth
 
 /** What the booking editor opens: a new booking, or one saved already. */
 sealed interface BookingEditorTarget : Serializable {
@@ -80,6 +82,9 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
+    val closedMonths by remember(ledger) { ledger.closedMonths() }.collectAsState(initial = emptySet())
+    // The month of the booking as saved, which locks it too while closed.
+    var savedMonth by rememberSaveable { mutableStateOf<YearMonth?>(null) }
 
     if (!loaded && bookingId != null) {
         LaunchedEffect(bookingId) {
@@ -88,6 +93,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 onClose()
             } else {
                 draft = saved
+                savedMonth = YearMonth.from(saved.date)
                 loaded = true
             }
         }
@@ -95,6 +101,8 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     }
 
     val problems = draft.problems
+    // Neither made, changed nor deleted in a month closed (SPEC.md §13), until it is opened again.
+    val closedMonth = listOfNotNull(savedMonth, YearMonth.from(draft.date)).firstOrNull { it in closedMonths }
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
             closing = true
@@ -103,7 +111,9 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
         }
     }
     val save = {
-        if (problems.isNotEmpty()) {
+        if (closedMonth != null) {
+            Unit
+        } else if (problems.isNotEmpty()) {
             showProblems = true
         } else {
             val saved = draft
@@ -126,12 +136,12 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                     }
                 },
                 actions = {
-                    if (bookingId != null) {
+                    if (bookingId != null && closedMonth == null) {
                         IconButton(onClick = { confirmingDelete = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = save, enabled = closedMonth == null) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -144,6 +154,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            closedMonth?.let { Problem(stringResource(R.string.booking_month_closed, it.monthAndYear())) }
             KindChips(draft.kind) { kind ->
                 // A category of the other kind does not fit any more.
                 draft = draft.copy(kind = kind, categoryId = null)

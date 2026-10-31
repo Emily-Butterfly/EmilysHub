@@ -8,6 +8,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 import java.time.LocalDate
+import java.time.YearMonth
 
 /** Whether a booking takes money out or brings it in (SPEC.md §13), in the order the screens show them. */
 enum class BookingKind(val stored: String) {
@@ -53,6 +54,13 @@ data class Booking(
     /** The fixed booking it was entered from, if any (SPEC.md §13); one deleted since leaves it as it is. */
     @ColumnInfo(name = "recurring_id") val recurringId: Long? = null,
 )
+
+/** A month of the household book closed by hand (SPEC.md §13): in the archive, only to read, until opened again. */
+@Entity(tableName = "ledger_closed_months")
+data class ClosedMonth(@PrimaryKey val month: YearMonth)
+
+/** A month in the archive, with its sums. */
+data class ArchivedMonth(val month: YearMonth, val summary: MonthSummary)
 
 /** A booking with its category. */
 data class BookingWithCategory(

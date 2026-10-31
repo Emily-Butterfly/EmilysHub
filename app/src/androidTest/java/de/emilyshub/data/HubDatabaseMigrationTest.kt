@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.notes.GeneralTab
@@ -665,6 +666,17 @@ class HubDatabaseMigrationTest {
             val draft = RecurringDraft(BookingKind.Expense, "850", 1, "Miete", BookingInterval.Monthly, 1, first)
             val id = ledger.createTemplate(draft)
             assertEquals(id, database.ledger().templates().single().id)
+        }
+    }
+
+    @Test
+    fun `version 29 moves to version 30 where every month is open and then one can be closed`() {
+        createAtVersion(29) {}
+
+        withMigratedDatabase { database ->
+            val september = java.time.YearMonth.of(2026, 9)
+            database.ledger().close(ClosedMonth(september))
+            assertEquals(listOf(ClosedMonth(september)), database.ledger().closed())
         }
     }
 

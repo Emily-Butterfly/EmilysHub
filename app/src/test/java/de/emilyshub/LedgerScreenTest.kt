@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
@@ -217,6 +218,38 @@ class LedgerScreenTest {
         // That of September, the 30th, stays.
         val entered = runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().bookings.single().booking }
         assertEquals(LocalDate.parse("2026-09-30"), entered.date)
+    }
+
+    @Test
+    fun `a month gone by is closed after asking, then only to read, found in the archive, and opened again`() {
+        book("Freizeit", BookingKind.Expense, "20", "2026-09-12", "Konzert")
+
+        launchApp().use {
+            openLedger()
+            // October has not ended: it cannot be closed yet; September is still open.
+            compose.onNodeWithText("Monat abschließen").assertDoesNotExist()
+            compose.onNodeWithText("September 2026").performClick()
+
+            compose.onNodeWithText("Monat abschließen").performClick()
+            compose.onNode(hasText("Abschließen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Abgeschlossen – nur zum Lesen").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Buchung anlegen").assertDoesNotExist()
+
+            ledgerList().performScrollToNode(hasText("Konzert"))
+            compose.onNodeWithText("Konzert").tap()
+            compose.onNodeWithText("September 2026 ist abgeschlossen", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Speichern").assertIsNotEnabled()
+            compose.onNodeWithContentDescription("Löschen").assertDoesNotExist()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.onNodeWithText("Einnahmen 0,00 € · Ausgaben 20,00 € · Saldo −20,00 €").assertIsDisplayed()
+            compose.onNodeWithText("September 2026").performClick()
+            compose.onNodeWithText("Wieder öffnen").performClick()
+            compose.onNode(hasText("Wieder öffnen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Monat abschließen").assertIsDisplayed()
+        }
+        assertEquals(false, runBlocking { app.ledger.isClosed(YearMonth.of(2026, 9)).first() })
     }
 
     private fun openLedger() {

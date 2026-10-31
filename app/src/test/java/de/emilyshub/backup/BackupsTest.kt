@@ -352,6 +352,7 @@ class BackupsTest {
             app.ledger.createTemplate(
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
+            app.ledger.close(YearMonth.of(2026, 9))
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -372,7 +373,9 @@ class BackupsTest {
                 "AND name NOT IN ('android_metadata', 'room_master_table', 'settings') ORDER BY name",
         ).use { cursor -> List(cursor.count) { cursor.moveToNext(); cursor.getString(0) } }
         return tables.associateWith { table ->
-            db.query("SELECT * FROM `$table` ORDER BY 1, 2").use { cursor ->
+            // By the first two columns, or the only one.
+            val order = db.query("SELECT * FROM `$table` LIMIT 0").use { if (it.columnCount > 1) "1, 2" else "1" }
+            db.query("SELECT * FROM `$table` ORDER BY $order").use { cursor ->
                 List(cursor.count) {
                     cursor.moveToNext()
                     List(cursor.columnCount) { column ->
@@ -476,8 +479,15 @@ class BackupsTest {
 
     /** [content] as version 28 made it: without fixed bookings, which came with 29. */
     private fun asOfVersion28(content: JSONObject): JSONObject {
-        content.tables().remove("recurring_bookings")
-        return content.withoutColumns("bookings", "recurring_id").put("schema", 28)
+        val older = asOfVersion29(content)
+        older.tables().remove("recurring_bookings")
+        return older.withoutColumns("bookings", "recurring_id").put("schema", 28)
+    }
+
+    /** [content] as version 29 made it: without months closed, which came with 30. */
+    private fun asOfVersion29(content: JSONObject): JSONObject {
+        content.tables().remove("ledger_closed_months")
+        return content.put("schema", 29)
     }
 
     /**
@@ -523,7 +533,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings")
+        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months")
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000

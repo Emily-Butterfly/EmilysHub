@@ -476,3 +476,10 @@ val MIGRATION_28_29 = object : Migration(28, 29) {
         db.execSQL("ALTER TABLE `bookings` ADD COLUMN `recurring_id` INTEGER")
     }
 }
+
+/** Version 30: months of the household book closed by hand (SPEC.md §13, #46). None is yet: all are open. */
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ledger_closed_months` (`month` TEXT NOT NULL, PRIMARY KEY(`month`))")
+    }
+}

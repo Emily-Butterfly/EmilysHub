@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,11 +33,16 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -54,7 +62,9 @@ import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.MonthSummary
+import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
@@ -77,8 +87,13 @@ fun LedgerScreen(
     onCreate: () -> Unit,
     onOpenCategories: () -> Unit,
     onOpenRecurring: () -> Unit,
+    onOpenArchive: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val closed by remember(ledger, month) { ledger.isClosed(month) }.collectAsState(initial = false)
+    val stillOpen by remember(ledger) { ledger.openEarlierMonths() }.collectAsState(initial = emptyList())
+    var asking by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
     val today = ledger.dayOf(rememberNow(ledger::now))
     val summary by remember(ledger, month, today) { ledger.month(month) }.collectAsState(initial = null)
@@ -93,6 +108,9 @@ fun LedgerScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenArchive) {
+                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.ledger_archive))
+                    }
                     IconButton(onClick = onOpenRecurring) {
                         Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.recurring_title))
                     }
@@ -103,13 +121,37 @@ fun LedgerScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreate) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.booking_create))
+            // Nothing is booked in a month closed.
+            if (!closed) {
+                FloatingActionButton(onClick = onCreate) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.booking_create))
+                }
             }
         },
     ) { contentPadding ->
         LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
             item(key = "month") { MonthSwitch(month, onMonthChange) }
+            // Earlier months not closed yet, to find them easily.
+            val others = stillOpen - month
+            if (others.isNotEmpty()) item(key = "still-open") { StillOpen(others, onMonthChange) }
+            item(key = "closing") {
+                when {
+                    closed -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.ledger_closed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { asking = true }) { Text(stringResource(R.string.ledger_reopen)) }
+                    }
+                    ledger.canClose(month) -> TextButton(onClick = { asking = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                        Text(stringResource(R.string.ledger_close))
+                    }
+                }
+            }
             val shown = summary ?: return@LazyColumn
             item(key = "sums") { Sums(shown) }
             if (shown.expensesByCategory.isNotEmpty()) {
@@ -126,6 +168,39 @@ fun LedgerScreen(
                 }
             }
             items(shown.bookings, key = { it.booking.id }) { BookingRow(it, onClick = { onOpen(it.booking.id) }) }
+        }
+    }
+
+    if (asking) {
+        AlertDialog(
+            onDismissRequest = { asking = false },
+            title = {
+                Text(stringResource(if (closed) R.string.ledger_reopen_title else R.string.ledger_close_title, month.monthAndYear()))
+            },
+            text = { Text(stringResource(if (closed) R.string.ledger_reopen_text else R.string.ledger_close_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        asking = false
+                        val reopening = closed
+                        scope.launchNow { if (reopening) ledger.reopen(month) else ledger.close(month) }
+                    },
+                ) { Text(stringResource(if (closed) R.string.ledger_reopen else R.string.ledger_close_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { asking = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+}
+
+/** The earlier [months] still open, a chip each, which shows it. */
+@Composable
+private fun StillOpen(months: List<YearMonth>, onMonthChange: (YearMonth) -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Text(stringResource(R.string.ledger_still_open), style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            months.forEach { month -> ChoiceChip(month.monthAndYear(), chosen = false) { onMonthChange(month) } }
         }
     }
 }
