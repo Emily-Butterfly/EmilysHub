@@ -5,7 +5,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 ## Ticket mirror in docs/issues/
 
 The slices from SPEC.md are mirrored as markdown: `docs/issues/NN-*.md` matches GitHub issue #NN
-(tracking issue: #29, index in `docs/issues/README.md`). When a ticket's text changes, update both.
+(tracking issues: #29 for v1 and #49 for v1.1, index in `docs/issues/README.md`). When a ticket's text changes, update both.
 
 ## Conventions
 

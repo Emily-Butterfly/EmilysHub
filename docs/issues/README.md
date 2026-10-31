@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issue: #29 **EmilysHub v1**.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8).
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -65,3 +65,28 @@ Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHu
 | 26 | [Suche über alle Bereiche](26-suche.md) | 🤖 | 17, 19, 22 |
 | 27 | [Verschlüsseltes Backup: Export & Import](27-backup-manuell.md) | 🤖 | 03 |
 | 28 | [Automatisches tägliches Backup](28-backup-automatisch.md) | 🤖 | 27 |
+
+## Etappe 8 – Erweiterungen (v1.1)
+
+Abgestimmt im Interview vom 31.10.2026; Sammel-Issue #49. Die Reihenfolge der Nummern ist die vorgeschlagene Reihenfolge fürs Umsetzen.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 31 | [App-Icon: „E“ im Haus](31-icon-e-im-haus.md) | 🤖 | – |
+| 32 | [„Wunschliste“ heißt „Ziele“](32-ziele-statt-wunschliste.md) | 🤖 | – |
+| 33 | [Routine für heute auslassen („Heute nicht“)](33-heute-nicht.md) | 🤖 | – |
+| 34 | [Wiederholungen begrenzen](34-wiederholungen-begrenzen.md) | 🤖 | – |
+| 35 | [To-dos vorher in Heute („Demnächst“)](35-todos-vorher-in-heute.md) | 🤖 | – |
+| 36 | [Vollbild-Wecker für To-dos](36-todo-wecker.md) | 🤖 | – |
+| 37 | [Eigene Weckzeit für To-dos](37-todo-weckzeit.md) | 🤖 | 36 |
+| 38 | [Name auf dem Sperrbildschirm](38-name-auf-sperrbildschirm.md) | 🤖 | 36 |
+| 39 | [Klingelton je Routine und To-do](39-klingelton.md) | 🤖 | 36 |
+| 40 | [Eigene Audiodatei als Ton](40-eigene-tondatei.md) | 🤖 | 39 |
+| 41 | [Routinen koppeln: eine reicht](41-routinen-koppeln.md) | 🤖 | 33 |
+| 42 | [Streak-Flamme in Heute](42-streak-flamme.md) | 🤖 | – |
+| 43 | [Heatmap in Heute](43-heatmap.md) | 🤖 | – |
+| 44 | [Haushaltsbuch: Buchungen, Kategorien, Monatsansicht](44-haushaltsbuch.md) | 🤖 | – |
+| 45 | [Haushaltsbuch: Fixbuchungen](45-haushaltsbuch-fixbuchungen.md) | 🤖 | 44 |
+| 46 | [Haushaltsbuch: Monatsabschluss & Archiv](46-haushaltsbuch-abschluss-archiv.md) | 🤖 | 44, 45 |
+| 47 | [Haushaltsbuch: Budget je Kategorie](47-haushaltsbuch-budget.md) | 🤖 | 44, 46 |
+| 48 | [Haushaltsbuch: Jahresübersicht](48-haushaltsbuch-jahresuebersicht.md) | 🤖 | 44 |
