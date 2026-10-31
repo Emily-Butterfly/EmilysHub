@@ -110,8 +110,12 @@ class BackupsOnDeviceTest {
         )
         (listOf("wishes", "wish_tags") + notes).forEach { tables.remove(it) }
         // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
-        // goals routines hang under, which came with 20.
-        val newer = mapOf("todos" to listOf("goal_id", "recurrence", "next_id"), "routines" to listOf("goal_id", "target"))
+        // goals routines hang under, which came with 20, nor ends of series, which came with 26, nor to-dos shown before
+        // their day, which came with 27.
+        val newer = mapOf(
+            "todos" to listOf("goal_id", "recurrence", "next_id", "ends_after", "ends_on", "series_number", "shows_days_before"),
+            "routines" to listOf("goal_id", "target", "ends_on"),
+        )
         for ((table, names) in newer) {
             val columns = tables.getJSONObject(table).getJSONArray("columns")
             val rows = tables.getJSONObject(table).getJSONArray("rows")
