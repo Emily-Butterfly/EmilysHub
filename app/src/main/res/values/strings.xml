@@ -313,7 +313,7 @@
     <string name="wish_done_on_date">Erledigt am %1$s</string>
     <string name="wishes_filter_empty">Kein Ziel mit dem Tag „%1$s“.</string>
     <string name="wishes_review_open">Rückblick (%1$d)</string>
-    <string name="wishes_review_title">Rückblick</string>
+    <string name="wishes_review_title">Rückblick: erreichte Ziele</string>
     <string name="wishes_review_empty">Noch kein Ziel erreicht.</string>
     <string name="wish_delete_title">Ziel löschen?</string>
     <string name="wish_delete_text">„%1$s“ wird gelöscht. To-dos daran bleiben erhalten.</string>

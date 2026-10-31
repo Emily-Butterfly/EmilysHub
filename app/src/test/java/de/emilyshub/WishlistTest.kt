@@ -109,6 +109,7 @@ class WishlistTest {
 
             compose.onNodeWithText("Bergtour").assertDoesNotExist()
             compose.onNodeWithText("Rückblick (1)").performClick()
+            compose.onNodeWithText("Rückblick: erreichte Ziele").assertIsDisplayed()
             compose.onNodeWithText("Bergtour").assertIsDisplayed()
             compose.onNodeWithText("Erledigt am 23.10.2026").assertIsDisplayed()
 
