@@ -12,8 +12,8 @@ enum class SearchArea { Routines, Todos, Wishes, Notes }
 /** An entry found, by its [title]: [id] opens it in its area. */
 data class SearchHit(val id: Long, val title: String)
 
-/** What was found in one [area], by title. */
-data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>)
+/** What was found in one [area], by title, and how many [more] there are beyond those shown. */
+data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more: Int = 0)
 
 /**
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
@@ -30,7 +30,8 @@ class Search(
     suspend fun find(typed: String): List<SearchGroup> = withContext(io) {
         val words = InputText.comparable(InputText.singleLine(typed).take(MAX_LENGTH)).split(' ').filter(String::isNotEmpty)
         if (words.isEmpty()) return@withContext emptyList()
-        val pattern = patternFor(words.maxBy { it.length })
+        // "ß" beyond ASCII stands for anything, so that an "ss" typed finds one.
+        val pattern = patternFor(words.maxBy { it.length }.replace("ss", "ß"))
         val dao = database().search()
         val found = mapOf(
             SearchArea.Routines to dao.routines(pattern),
@@ -42,8 +43,7 @@ class Search(
             val hits = candidates.filter { candidate -> InputText.comparable(candidate.text).let { text -> words.all { it in text } } }
                 .map { SearchHit(it.id, it.title) }
                 .sortedWith(compareBy(InputText.byName) { it.title })
-                .take(MAX_HITS)
-            if (hits.isEmpty()) null else SearchGroup(area, hits)
+            if (hits.isEmpty()) null else SearchGroup(area, hits.take(MAX_HITS), more = maxOf(hits.size - MAX_HITS, 0))
         }
     }
 
@@ -58,7 +58,8 @@ class Search(
 
         /**
          * "%word%", with the wildcards and the escape character in [word] escaped, and letters beyond ASCII, which the
-         * database compares in their case and may hold in two parts, standing for anything.
+         * database compares in their case and may hold in two parts, standing for anything, as does "ss", which may be
+         * an "ß" there.
          */
         fun patternFor(word: String): String = buildString {
             // Whether what was put last stands for anything, not for a "%" typed.

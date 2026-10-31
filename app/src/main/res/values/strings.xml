@@ -518,6 +518,10 @@
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_copy_hint">Kopiere deine Backups regelmäßig vom Handy weg, etwa auf einen PC oder einen USB-Stick. Geht das Handy verloren oder kaputt, sind sonst auch die Backups weg.</string>
+    <plurals name="search_more">
+        <item quantity="one">Und ein weiterer Treffer – genauer suchen, um ihn zu sehen.</item>
+        <item quantity="other">Und %d weitere Treffer – genauer suchen, um sie zu sehen.</item>
+    </plurals>
     <plurals name="backup_routines">
         <item quantity="one">%d Routine</item>
         <item quantity="other">%d Routinen</item>

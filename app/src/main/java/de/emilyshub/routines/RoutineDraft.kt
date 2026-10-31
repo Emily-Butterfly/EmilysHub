@@ -76,7 +76,7 @@ data class RoutineDraft(
      */
     fun cleaned() = copy(
         name = InputText.singleLine(name),
-        description = description.trim(),
+        description = InputText.multiLine(description).trimStart(),
         times = times.distinct().sorted(),
         followUps = if (followUps.count == 0) FollowUps(count = 0) else followUps,
         window = if (window.untilMidnight) TimeWindow(untilMidnight = true) else window,

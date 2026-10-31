@@ -35,7 +35,7 @@ data class NoteDraft(
         }
 
     /** The title on a single line without surrounding spaces; the text without trailing ones, as Markdown keeps leading ones. */
-    fun cleaned() = copy(title = InputText.singleLine(title), text = text.trimEnd())
+    fun cleaned() = copy(title = InputText.singleLine(title), text = InputText.multiLine(text))
 
     /**
      * The note this draft makes, in [container], at [position] there, [changedAt] then, [pinned] there and [onToday] or

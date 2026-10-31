@@ -64,7 +64,7 @@ data class TodoDraft(
      */
     fun cleaned() = copy(
         title = InputText.singleLine(title),
-        description = description.trim(),
+        description = InputText.multiLine(description).trimStart(),
         checklist = checklist.map(ChecklistDraftItem::cleaned).filter { InputText.isVisible(it.text) },
         recurrence = recurrence.takeIf { due != Due.None },
     )

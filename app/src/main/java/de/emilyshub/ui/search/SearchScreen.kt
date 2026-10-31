@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -44,7 +45,8 @@ import kotlinx.coroutines.delay
 
 /**
  * The search over all areas (SPEC.md §8), reached from every tab: what [query] finds in routines, to-dos, wishes and
- * notes, area by area, looked for anew a moment after typing stops. Tapping an entry opens it in its editor ([onOpen]);
+ * notes, area by area, each with how many more there are beyond those shown, looked for anew a moment after typing
+ * stops. Tapping an entry opens it in its editor ([onOpen]);
  * back from there, the search shows again, as typed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,6 +114,11 @@ fun SearchScreen(
                         }
                         items(group.hits, key = { "${group.area.name} ${it.id}" }) { hit ->
                             HitRow(hit, onClick = { onOpen(group.area, hit.id) })
+                        }
+                        if (group.more > 0) {
+                            item(key = "${group.area.name} more") {
+                                Hint(pluralStringResource(R.plurals.search_more, group.more, group.more))
+                            }
                         }
                     }
                 }

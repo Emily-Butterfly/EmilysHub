@@ -46,7 +46,11 @@ data class WishDraft(
         }
 
     /** Without surrounding spaces; the title and the period on a single line. */
-    fun cleaned() = copy(title = InputText.singleLine(title), description = description.trim(), period = InputText.singleLine(period))
+    fun cleaned() = copy(
+        title = InputText.singleLine(title),
+        description = InputText.multiLine(description).trimStart(),
+        period = InputText.singleLine(period),
+    )
 
     /**
      * The day it came true, if it is done, as of [today]: the one chosen, or today. A day still ahead counts as today, as

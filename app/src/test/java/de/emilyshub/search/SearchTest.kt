@@ -100,6 +100,25 @@ class SearchTest {
     }
 
     @Test
+    fun `characters that print nothing are left out on saving, and a sharp s and ss are found as one another`() = runBlocking {
+        notes.create(NoteDraft("Ein\u200Bkauf", "Die Ha\u00ADfer\u2060milch"))
+        todos.create(TodoDraft("Straße fegen", description = "Vor dem Haus\uFEFF"))
+
+        assertEquals(listOf("Einkauf"), titles(search.find("einkauf hafermilch"), SearchArea.Notes))
+        assertEquals(listOf("Straße fegen"), titles(search.find("STRASSE"), SearchArea.Todos))
+        assertEquals(listOf("Straße fegen"), titles(search.find("strasse haus"), SearchArea.Todos))
+    }
+
+    @Test
+    fun `an area shows at most 50 entries, saying how many more there are`() = runBlocking {
+        repeat(53) { notes.create(NoteDraft("Notiz $it")) }
+
+        val group = search.find("notiz").single()
+
+        assertEquals(50 to 3, group.hits.size to group.more)
+    }
+
+    @Test
     fun `of a to-do coming again only the one now is found`() = runBlocking {
         val due = Due.On(LocalDate.parse("2026-10-01"))
         val rent = todos.create(TodoDraft("Miete überweisen", due = due, recurrence = Recurrence.Monthly(1)))
