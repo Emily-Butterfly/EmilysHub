@@ -20,9 +20,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import de.emilyshub.notes.Block
 import de.emilyshub.notes.Inline
@@ -45,7 +48,41 @@ import de.emilyshub.notes.ListItem
  * and a link shows only its words. A task shows whether it is ticked off, which is changed in the text, by its "[x]".
  */
 fun LazyListScope.markdownBlocks(blocks: List<Block>) {
-    items(blocks) { MarkdownBlock(it) }
+    items(blocks) { block ->
+        // A block written right to left, as in Arabic, puts its bullet, box or quote bar on the right.
+        val direction = if (startsRightToLeft(block)) LayoutDirection.Rtl else LocalLayoutDirection.current
+        CompositionLocalProvider(LocalLayoutDirection provides direction) { MarkdownBlock(block) }
+    }
+}
+
+/** Whether the first letter of [block] with a direction of its own, as Arabic or Hebrew letters have, goes right to left. */
+internal fun startsRightToLeft(block: Block): Boolean {
+    val text = when (block) {
+        is Block.Heading -> plainText(block.text)
+        is Block.Paragraph -> plainText(block.text)
+        is Block.Quote -> plainText(block.text)
+        is Block.Bullets -> block.items.joinToString(" ") { plainText(it.text) }
+        is Block.Numbered -> block.items.joinToString(" ") { plainText(it.text) }
+        // Code reads left to right whatever it holds.
+        is Block.Code, Block.Rule -> ""
+    }
+    return text.firstNotNullOfOrNull { char ->
+        when (Character.getDirectionality(char)) {
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> true
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT -> false
+            else -> null
+        }
+    } ?: false
+}
+
+private fun plainText(parts: List<Inline>): String = parts.joinToString("") { part ->
+    when (part) {
+        is Inline.Text -> part.text
+        is Inline.Code -> part.text
+        is Inline.Bold -> plainText(part.content)
+        is Inline.Italic -> plainText(part.content)
+        is Inline.Link -> plainText(part.content)
+    }
 }
 
 @Composable

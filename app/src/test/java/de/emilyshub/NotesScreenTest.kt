@@ -126,6 +126,22 @@ class NotesScreenTest {
     }
 
     @Test
+    fun `a note is written in Arabic, and its preview shows it as written`() {
+        launchApp().use {
+            openNotes()
+            compose.onNodeWithContentDescription("Notiz anlegen").performClick()
+            field("Titel").performTextInput("الأفعال")
+            field("Text in Markdown").performTextInput("# الماضي\n- **كَتَبَ** يَكْتُبُ")
+            option("Vorschau").performClick()
+            compose.onNode(isHeading() and hasText("الماضي")).assertIsDisplayed()
+            compose.onNodeWithText("كَتَبَ يَكْتُبُ").assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("الأفعال").assertIsDisplayed()
+        }
+        assertEquals(listOf("الأفعال"), runBlocking { app.notes.notebook().first().all().map { it.title } })
+    }
+
+    @Test
     fun `a note needs a title, and without one it is not saved`() {
         launchApp().use {
             openNotes()

@@ -30,10 +30,15 @@ object InputText {
         Normalizer.normalize(text, Normalizer.Form.NFKC).filterNot(::isFormat).lowercase(Locale.GERMAN)
 
     /**
-     * [text] as the search compares it: as [comparable], and "ß" as "ss", so that "STRASSE" finds "Straße"; not for
-     * names, as "Maße" and "Masse" are two words.
+     * [text] as the search compares it: as [comparable], "ß" as "ss", so that "STRASSE" finds "Straße", and Arabic
+     * without its vowel marks and the stretching tatweel, so that "كتب" finds "كَتَبَ"; not for names, as "Maße" and
+     * "Masse" are two words.
      */
-    fun searchable(text: String) = comparable(text).replace("ß", "ss")
+    fun searchable(text: String) = comparable(text).replace("ß", "ss").filterNot(::isArabicMark)
+
+    /** The Arabic vowel and Quranic marks, and the tatweel, which only stretches a word. */
+    private fun isArabicMark(char: Char) =
+        char in '\u064B'..'\u065F' || char == '\u0670' || char in '\u06D6'..'\u06ED' || char == '\u0640'
 
     private fun isFormat(char: Char) = Character.getType(char) == Character.FORMAT.toInt()
 
