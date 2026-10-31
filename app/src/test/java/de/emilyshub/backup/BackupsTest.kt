@@ -353,6 +353,9 @@ class BackupsTest {
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
             app.ledger.close(YearMonth.of(2026, 9))
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "9,99", rent.id, "Streaming", BookingInterval.Monthly, 5, YearMonth.of(2026, 9)),
+            )
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }
     }
@@ -486,8 +489,15 @@ class BackupsTest {
 
     /** [content] as version 29 made it: without months closed, which came with 30. */
     private fun asOfVersion29(content: JSONObject): JSONObject {
-        content.tables().remove("ledger_closed_months")
-        return content.put("schema", 29)
+        val older = asOfVersion30(content)
+        older.tables().remove("ledger_closed_months")
+        return older.put("schema", 29)
+    }
+
+    /** [content] as version 30 made it: without fixed bookings skipped, which came with 31. */
+    private fun asOfVersion30(content: JSONObject): JSONObject {
+        content.tables().remove("ledger_skipped")
+        return content.put("schema", 30)
     }
 
     /**
@@ -533,7 +543,7 @@ class BackupsTest {
         const val PASSWORD = "Flieder und Lila"
         val TODO_TABLES = setOf("todos", "todo_places")
         val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months")
+        val LEDGER_TABLES = listOf("bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months", "ledger_skipped")
         val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
         val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000

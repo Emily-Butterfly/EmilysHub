@@ -669,4 +669,9 @@
     <string name="booking_month_closed">%1$s ist abgeschlossen: Buchungen darin lassen sich erst ändern, wenn er wieder offen ist.</string>
     <string name="category_delete_locked">„%1$s“ hat Buchungen in abgeschlossenen Monaten. Sie lässt sich erst löschen, wenn diese wieder offen sind.</string>
     <string name="ledger_archive_open">Monat ansehen</string>
+    <plurals name="ledger_enter_skipped">
+        <item quantity="one">Ausgelassene Fixbuchung eintragen</item>
+        <item quantity="other">%1$d ausgelassene Fixbuchungen eintragen</item>
+    </plurals>
+    <string name="ledger_skipped_hint">Während der Monat abgeschlossen war, wurde keine Fixbuchung eingetragen.</string>
 </resources>

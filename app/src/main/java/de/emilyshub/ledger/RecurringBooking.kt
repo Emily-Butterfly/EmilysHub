@@ -53,6 +53,9 @@ data class RecurringBooking(
         return if (gone != null && gone.isAfter(previous)) gone else previous
     }
 
+    /** The booking entered from it on [date]. */
+    fun entryOn(date: LocalDate) = Booking(0, amountCents, date, categoryId, description, recurringId = id)
+
     /** The dates it is still to be entered on, from the first after the month last entered. */
     fun dueDates(): Sequence<LocalDate> =
         schedule(interval, day, firstMonth).filter { date -> enteredThrough?.let { YearMonth.from(date).isAfter(it) } ?: true }
@@ -61,6 +64,21 @@ data class RecurringBooking(
         val DAYS = 1..31
     }
 }
+
+/**
+ * A fixed booking not entered on [date], as its month was closed then (SPEC.md §13): offered once the month is open
+ * again. Deleting the fixed booking takes it along.
+ */
+@Entity(
+    tableName = "ledger_skipped",
+    primaryKeys = ["recurring_id", "date"],
+    foreignKeys = [
+        ForeignKey(
+            entity = RecurringBooking::class, parentColumns = ["id"], childColumns = ["recurring_id"], onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class SkippedEntry(@ColumnInfo(name = "recurring_id") val recurringId: Long, val date: LocalDate)
 
 /** A fixed booking with its category. */
 data class RecurringWithCategory(

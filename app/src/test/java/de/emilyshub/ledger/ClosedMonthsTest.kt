@@ -90,6 +90,41 @@ class ClosedMonthsTest {
     }
 
     @Test
+    fun `fixed bookings skipped while closed can be entered once the month is open again, each once`() = runBlocking {
+        ledger.close(september)
+        val rent = ledger.categories().first().single { it.name == "Wohnen" }.id
+        val template = ledger.createTemplate(
+            RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 9)),
+        )
+        // Not while it is closed.
+        assertEquals(0, ledger.skipped(september).first())
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.enterSkipped(september) } }
+
+        ledger.reopen(september)
+        assertEquals(1, ledger.skipped(september).first())
+        ledger.enterSkipped(september)
+        ledger.enterSkipped(september)
+
+        val entered = ledger.month(september).first().bookings.single().booking
+        assertEquals(LocalDate.parse("2026-09-01") to template, entered.date to entered.recurringId)
+        assertEquals(0, ledger.skipped(september).first())
+    }
+
+    @Test
+    fun `a fixed booking deleted no longer offers what it skipped`() = runBlocking {
+        ledger.close(september)
+        val rent = ledger.categories().first().single { it.name == "Wohnen" }.id
+        val template = ledger.createTemplate(
+            RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 9)),
+        )
+        ledger.reopen(september)
+
+        ledger.deleteTemplate(template)
+
+        assertEquals(0, ledger.skipped(september).first())
+    }
+
+    @Test
     fun `the archive lists the months closed, the latest first, with their sums`() = runBlocking {
         book("Freizeit", "8", "2026-08-12")
         book("Freizeit", "20", "2026-09-12")

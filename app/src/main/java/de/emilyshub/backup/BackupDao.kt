@@ -6,6 +6,7 @@ import de.emilyshub.ledger.Booking
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.RecurringBooking
+import de.emilyshub.ledger.SkippedEntry
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -117,4 +118,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM ledger_closed_months")
     fun closedMonths(): List<ClosedMonth>
+
+    @Query("SELECT * FROM ledger_skipped")
+    fun skipped(): List<SkippedEntry>
 }

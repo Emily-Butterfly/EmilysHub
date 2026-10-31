@@ -50,6 +50,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -63,6 +64,7 @@ import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.MonthSummary
+import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
@@ -94,6 +96,7 @@ fun LedgerScreen(
     val closedOrNot by remember(ledger, month) { ledger.isClosed(month) }.collectAsState(initial = null)
     val closed = closedOrNot == true
     val stillOpen by remember(ledger) { ledger.openEarlierMonths() }.collectAsState(initial = emptyList())
+    val skipped by remember(ledger, month) { ledger.skipped(month) }.collectAsState(initial = 0)
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
@@ -154,6 +157,17 @@ fun LedgerScreen(
                         onClick = { confirmingClose = true },
                         modifier = Modifier.padding(horizontal = 8.dp),
                     ) { Text(stringResource(R.string.ledger_close)) }
+                }
+            }
+            // Opened again after it was closed: what was not entered meanwhile, if wanted.
+            if (closedOrNot == false && skipped > 0) {
+                item(key = "skipped") {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        Hint(stringResource(R.string.ledger_skipped_hint))
+                        TextButton(onClick = { scope.launchNow { ledger.enterSkipped(month) } }) {
+                            Text(pluralStringResource(R.plurals.ledger_enter_skipped, skipped, skipped))
+                        }
+                    }
                 }
             }
             val shown = summary ?: return@LazyColumn

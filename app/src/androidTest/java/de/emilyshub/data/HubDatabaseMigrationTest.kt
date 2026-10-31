@@ -10,6 +10,7 @@ import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.SkippedEntry
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -677,6 +678,23 @@ class HubDatabaseMigrationTest {
             val september = java.time.YearMonth.of(2026, 9)
             database.ledger().close(ClosedMonth(september))
             assertEquals(listOf(ClosedMonth(september)), database.ledger().closed())
+        }
+    }
+
+    @Test
+    fun `version 30 moves to version 31 where nothing was skipped and then a skipped one is kept`() {
+        createAtVersion(30) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other) VALUES (1, 'expense', 'Wohnen', 0)")
+            it.execSQL(
+                "INSERT INTO recurring_bookings (id, amount_cents, category_id, description, interval, day, first_month) " +
+                    "VALUES (1, 85000, 1, 'Miete', 'monthly', 1, '2026-09')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val skipped = SkippedEntry(1, LocalDate.parse("2026-09-01"))
+            database.ledger().insertSkipped(listOf(skipped))
+            assertEquals(listOf(skipped), database.ledger().skippedBetween(LocalDate.parse("2026-09-01"), LocalDate.parse("2026-09-30")))
         }
     }
 

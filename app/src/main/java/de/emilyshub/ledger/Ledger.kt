@@ -130,6 +130,30 @@ class Ledger(
         dao.datesIn(categoryId).any { YearMonth.from(it) in closed }
     }
 
+    /**
+     * How many fixed bookings were skipped in [month] while it was closed, to enter now it is open again; none while it
+     * is closed.
+     */
+    fun skipped(month: YearMonth): Flow<Int> = flow {
+        emitAll(
+            dao.observeClosed().combine(dao.observeSkippedBetween(month.atDay(1), month.atEndOfMonth())) { closed, skipped ->
+                if (ClosedMonth(month) in closed) 0 else skipped.size
+            },
+        )
+    }.flowOn(io)
+
+    /** Enters the fixed bookings skipped in [month] while it was closed, as their templates are now, each once. */
+    suspend fun enterSkipped(month: YearMonth) = write {
+        database().withTransaction {
+            requireOpen(month.atDay(1))
+            val (from, to) = month.atDay(1) to month.atEndOfMonth()
+            dao.skippedBetween(from, to).forEach { skipped ->
+                dao.template(skipped.recurringId)?.let { dao.insert(it.entryOn(skipped.date)) }
+            }
+            dao.forgetSkippedBetween(from, to)
+        }
+    }
+
     /** Opens the closed [month] again; the screen asks first. */
     suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
 
@@ -138,12 +162,17 @@ class Ledger(
         emitAll(dao.observeArchive().map { months -> months.sortedByDescending { it.month } })
     }.flowOn(io)
 
-    /** The months before this one with bookings that are still open, the latest first, to find them easily. */
+    /**
+     * The months before this one with bookings, or with fixed bookings skipped, that are still open, the latest first,
+     * to find them easily.
+     */
     fun openEarlierMonths(): Flow<List<YearMonth>> = flow {
         emitAll(
-            dao.observeClosed().combine(dao.observeBookingMonths()) { closed, months ->
+            combine(dao.observeClosed(), dao.observeBookingMonths(), dao.observeSkippedMonths()) { closed, booked, skipped ->
                 val closedMonths = closed.map { it.month }.toSet()
-                months.map(YearMonth::parse).filter { it.isBefore(thisMonth()) && it !in closedMonths }.sortedDescending()
+                (booked + skipped).distinct().map(YearMonth::parse)
+                    .filter { it.isBefore(thisMonth()) && it !in closedMonths }
+                    .sortedDescending()
             },
         )
     }.flowOn(io)
@@ -232,10 +261,10 @@ class Ledger(
             dao.templates().forEach { template ->
                 val due = template.dueDates().takeWhile { !it.isAfter(today) }.toList()
                 if (due.isEmpty()) return@forEach
-                // None into a month closed, nor later once it is opened again.
-                due.filter { YearMonth.from(it) !in closed }.forEach { date ->
-                    dao.insert(Booking(0, template.amountCents, date, template.categoryId, template.description, template.id))
-                }
+                // None into a month closed: those are kept, to be entered by hand once it is opened again.
+                val (skipped, entered) = due.partition { YearMonth.from(it) in closed }
+                entered.forEach { date -> dao.insert(template.entryOn(date)) }
+                dao.insertSkipped(skipped.map { SkippedEntry(template.id, it) })
                 dao.updateTemplate(template.copy(enteredThrough = YearMonth.from(due.last())))
             }
         }

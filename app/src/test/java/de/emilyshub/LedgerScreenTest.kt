@@ -252,6 +252,28 @@ class LedgerScreenTest {
         assertEquals(false, runBlocking { app.ledger.isClosed(YearMonth.of(2026, 9)).first() })
     }
 
+    @Test
+    fun `a month opened again offers the fixed bookings it skipped while closed`() {
+        val rent = runBlocking { app.ledger.categories().first().single { it.name == "Wohnen" }.id }
+        runBlocking {
+            app.ledger.close(YearMonth.of(2026, 9))
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 9)),
+            )
+            app.ledger.reopen(YearMonth.of(2026, 9))
+        }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("September 2026").performClick()
+            compose.onNodeWithText("Ausgelassene Fixbuchung eintragen").performClick()
+
+            compose.onNodeWithText("Ausgelassene Fixbuchung eintragen").assertDoesNotExist()
+            ledgerList().performScrollToNode(hasText("Miete"))
+            compose.onNodeWithText("01.09.2026 · Wohnen · Fixbuchung").assertExists()
+        }
+    }
+
     private fun openLedger() {
         compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
         compose.onNodeWithContentDescription("Haushaltsbuch öffnen").performClick()

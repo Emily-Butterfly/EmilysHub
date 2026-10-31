@@ -483,3 +483,17 @@ val MIGRATION_29_30 = object : Migration(29, 30) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `ledger_closed_months` (`month` TEXT NOT NULL, PRIMARY KEY(`month`))")
     }
 }
+
+/**
+ * Version 31: the fixed bookings skipped while their month was closed (SPEC.md §13, #46), to be entered by hand once it
+ * is open again. None is yet.
+ */
+val MIGRATION_30_31 = object : Migration(30, 31) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_skipped` (`recurring_id` INTEGER NOT NULL, `date` TEXT NOT NULL, " +
+                "PRIMARY KEY(`recurring_id`, `date`), FOREIGN KEY(`recurring_id`) REFERENCES `recurring_bookings`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}

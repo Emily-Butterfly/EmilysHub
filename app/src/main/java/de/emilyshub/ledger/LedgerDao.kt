@@ -100,6 +100,22 @@ interface LedgerDao {
     @Query("DELETE FROM ledger_closed_months WHERE month = :month")
     suspend fun reopen(month: YearMonth)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSkipped(entries: List<SkippedEntry>)
+
+    @Query("SELECT * FROM ledger_skipped WHERE date BETWEEN :from AND :to")
+    suspend fun skippedBetween(from: LocalDate, to: LocalDate): List<SkippedEntry>
+
+    @Query("SELECT * FROM ledger_skipped WHERE date BETWEEN :from AND :to")
+    fun observeSkippedBetween(from: LocalDate, to: LocalDate): Flow<List<SkippedEntry>>
+
+    /** The months with fixed bookings skipped, as "2026-10". */
+    @Query("SELECT DISTINCT substr(date, 1, 7) FROM ledger_skipped")
+    fun observeSkippedMonths(): Flow<List<String>>
+
+    @Query("DELETE FROM ledger_skipped WHERE date BETWEEN :from AND :to")
+    suspend fun forgetSkippedBetween(from: LocalDate, to: LocalDate)
+
     @Query("SELECT * FROM bookings WHERE id = :id")
     suspend fun get(id: Long): Booking?
 
