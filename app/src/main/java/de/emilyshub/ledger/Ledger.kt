@@ -445,8 +445,8 @@ internal fun summary(bookings: List<BookingWithCategory>, budgets: Map<LedgerCat
 internal fun yearSummary(year: Year, bookings: List<BookingWithCategory>): YearSummary {
     val byMonth = bookings.groupBy { YearMonth.from(it.booking.date) }
     val months = Month.entries.map { year.atMonth(it) }.map { month ->
-        val sums = summary(byMonth[month].orEmpty())
-        MonthSums(month, sums.income, sums.expenses)
+        val (income, expenses) = byMonth[month].orEmpty().partition { it.category.kind == BookingKind.Income }
+        MonthSums(month, income.sumOf { it.booking.amountCents }, expenses.sumOf { it.booking.amountCents })
     }
     return YearSummary(year, months, summary(bookings).expensesByCategory)
 }
