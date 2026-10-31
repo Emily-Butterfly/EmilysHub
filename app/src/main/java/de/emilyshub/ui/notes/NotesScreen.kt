@@ -104,7 +104,7 @@ fun NotesScreen(
             TabBar(notebook.tabs, shown, onSelect = { onViewChange(NotesView(it)) }, onManageTabs)
             val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding())
             if (here == null) {
-                AllNotes(notebook, bottom, onOpenNote)
+                AllNotes(notes, notebook, bottom, onOpenNote)
             } else {
                 if (here.folderId != null) PathBar(notebook, here, onOpenFolder)
                 ContainerContents(notes, notebook, here, bottom, onOpenFolder, onOpenNote)
@@ -167,18 +167,49 @@ private fun PathBar(notebook: Notebook, here: Container, onOpenFolder: (Long?) -
 
 /** Every note, the one changed last first, each with where it lies. */
 @Composable
-private fun AllNotes(notebook: Notebook, contentPadding: PaddingValues, onOpenNote: (Long) -> Unit) {
+private fun AllNotes(notes: Notes, notebook: Notebook, contentPadding: PaddingValues, onOpenNote: (Long) -> Unit) {
+    var moving by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scope = rememberCoroutineScope()
     val all = notebook.all()
     if (all.isEmpty()) {
         PlaceholderScreen(stringResource(R.string.notes_empty), contentPadding)
         return
     }
     LazyColumn(contentPadding = contentPadding.plusFabSpace()) {
-        items(all, key = { it.id }) { note ->
+        // By place, as in a folder: so that one pinned, going up, does not take the list along out of sight.
+        items(all) { note ->
             val lyingIn = pathName(notebook.containerOf(note), notebook)
-            NoteRow(note, depth = 0, lyingIn = lyingIn, menu = emptyList(), onClick = { onOpenNote(note.id) })
+            NoteRow(note, depth = 0, lyingIn = lyingIn, menu = noteMenu(notes, note, onMove = { moving = note.id }), onClick = {
+                onOpenNote(note.id)
+            })
         }
     }
+    moving?.let(notebook::note)?.let { note ->
+        ContainerChoiceDialog(
+            notebook = notebook,
+            current = notebook.containerOf(note),
+            onChoose = { to ->
+                moving = null
+                scope.launchNow { notes.moveNote(note.id, to) }
+            },
+            onDismiss = { moving = null },
+        )
+    }
+}
+
+/** What the menu of a note offers: to pin it where it lies, or loosen it, the same on Heute, and to move it elsewhere. */
+@Composable
+private fun noteMenu(notes: Notes, note: Note, onMove: () -> Unit): List<MenuEntry> {
+    val scope = rememberCoroutineScope()
+    return listOf(
+        MenuEntry(stringResource(if (note.pinned) R.string.note_unpin else R.string.note_pin)) {
+            scope.launchNow { notes.pinNote(note.id, !note.pinned) }
+        },
+        MenuEntry(stringResource(if (note.onToday) R.string.note_unpin_today else R.string.note_pin_today)) {
+            scope.launchNow { notes.pinOnToday(note.id, !note.onToday) }
+        },
+        MenuEntry(stringResource(R.string.note_move), onClick = onMove),
+    )
 }
 
 /**
@@ -228,19 +259,28 @@ private fun ContainerContents(
     }
 
     val sort = notebook.sortOf(here)
-    Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { creating = true }) { Text(stringResource(R.string.note_folder_create)) }
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = { choosingSort = true }) { Text(stringResource(R.string.note_sort, sortName(sort))) }
-    }
-    val shownLines = lines(here, depth = 0)
     val rename = stringResource(R.string.note_folder_rename_confirm)
     val moveElsewhere = stringResource(R.string.note_move)
     val delete = stringResource(R.string.delete)
     val pin = stringResource(R.string.note_pin)
     val unpin = stringResource(R.string.note_unpin)
-    val onToday = stringResource(R.string.note_pin_today)
-    val offToday = stringResource(R.string.note_unpin_today)
+
+    /** What the menu of [folder] offers, with [order], the ways to move it up and down, before deleting. */
+    fun folderMenu(folder: NoteFolder, order: List<MenuEntry> = emptyList()) = listOf(
+        MenuEntry(rename) { renaming = folder.id },
+        MenuEntry(if (folder.pinned) unpin else pin) { scope.launchNow { notes.pinFolder(folder.id, !folder.pinned) } },
+        MenuEntry(moveElsewhere) { movingFolder = folder.id },
+    ) + order + MenuEntry(delete) { deleting = folder.id }
+
+    val openFolder = here.folderId?.let(notebook::folder)
+    Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { creating = true }) { Text(stringResource(R.string.note_folder_create)) }
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = { choosingSort = true }) { Text(stringResource(R.string.note_sort, sortName(sort))) }
+        // The folder open, to be renamed, pinned, moved or deleted from within too.
+        if (openFolder != null) MoreMenu(openFolder.name, folderMenu(openFolder))
+    }
+    val shownLines = lines(here, depth = 0)
     if (shownLines.isEmpty()) {
         PlaceholderScreen(
             stringResource(if (here.folderId == null) R.string.notes_tab_empty else R.string.notes_folder_empty),
@@ -267,13 +307,7 @@ private fun ContainerContents(
                             hasContents = !notebook.isEmpty(folder.inside),
                             expanded = folder.id in expanded,
                             onToggle = { expanded = if (folder.id in expanded) expanded - folder.id else expanded + folder.id },
-                            menu = listOf(
-                                MenuEntry(rename) { renaming = folder.id },
-                                MenuEntry(if (folder.pinned) unpin else pin) {
-                                    scope.launchNow { notes.pinFolder(folder.id, !folder.pinned) }
-                                },
-                                MenuEntry(moveElsewhere) { movingFolder = folder.id },
-                            ) + order + MenuEntry(delete) { deleting = folder.id },
+                            menu = folderMenu(folder, order),
                             onClick = { onOpenFolder(folder.id) },
                         )
                     }
@@ -289,15 +323,7 @@ private fun ContainerContents(
                             note = note,
                             depth = line.depth,
                             lyingIn = null,
-                            menu = listOf(
-                                MenuEntry(if (note.pinned) unpin else pin) {
-                                    scope.launchNow { notes.pinNote(note.id, !note.pinned) }
-                                },
-                                MenuEntry(if (note.onToday) offToday else onToday) {
-                                    scope.launchNow { notes.pinOnToday(note.id, !note.onToday) }
-                                },
-                                MenuEntry(moveElsewhere) { movingNote = note.id },
-                            ) + order,
+                            menu = noteMenu(notes, note, onMove = { movingNote = note.id }) + order,
                             onClick = { onOpenNote(note.id) },
                         )
                     }
@@ -369,6 +395,8 @@ private fun ContainerContents(
             hasContents = !notebook.isEmpty(folder.inside),
             onDelete = { withContents ->
                 deleting = null
+                // The folder open deleted, its parent shows.
+                if (folder.id == here.folderId) onOpenFolder(notebook.containerOf(folder).folderId)
                 scope.launchNow {
                     if (withContents) notes.deleteFolderWithContents(folder.id) else notes.deleteFolderMovingUp(folder.id)
                 }

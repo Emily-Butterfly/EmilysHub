@@ -193,6 +193,11 @@ class BackupsTest {
             "a sort the app cannot read" to { it.setFirst("note_folders", "sort", "zufällig") },
             "a folder within itself" to { it.setFirst("note_folders", "parent_id", it.rowsOf("note_folders").getJSONArray(0)[0]) },
             "a note in another tab than its folder" to { it.setFirst("note_folders", "tab_id", JSONObject.NULL) },
+            "a note without a title" to { it.setFirst("notes", "title", " ") },
+            "a note too long" to { it.setFirst("notes", "text", "x".repeat(NoteDraft.TEXT_MAX + 1)) },
+            "a tab named as a tab the app has" to { it.setFirst("note_tabs", "name", "Alle") },
+            "two tabs of the same name" to { it.rowsOf("note_tabs").put(JSONArray(listOf(99, "arabisch", 5, "changed"))) },
+            "a folder without a name" to { it.setFirst("note_folders", "name", "") },
             "a time the app cannot read" to { it.setFirst("routines", "times", "halb acht") },
             "a date the app cannot read" to { it.setFirst("occurrences", "date", "2026-02-30") },
         )

@@ -4,6 +4,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.notes.notesHoldTogether
+import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -128,8 +129,8 @@ class Backups(
     }
 
     /**
-     * Every one of the [tables] read as the app reads it; a value it cannot read makes the backup damaged, as do folders
-     * of notes that do not lie as the app keeps them.
+     * Every one of the [tables] read as the app reads it; a value it cannot read makes the backup damaged, as do notes,
+     * folders and tabs that do not lie as the app keeps them or break the rules its editors keep.
      */
     private fun HubDatabase.readBack(tables: Set<String>) {
         val dao = backup()
@@ -150,7 +151,10 @@ class Backups(
             // What the type converters throw on what they cannot read, such as an unknown status or a date that is none.
             throw BackupException(BackupProblem.Damaged, e)
         }
-        if (!notesHoldTogether(dao.noteFolders(), dao.notes())) throw BackupException(BackupProblem.Damaged)
+        val (folders, notes) = dao.noteFolders() to dao.notes()
+        if (!notesHoldTogether(folders, notes) || !notesKeepTheRules(dao.noteTabs(), folders, notes)) {
+            throw BackupException(BackupProblem.Damaged)
+        }
     }
 
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->

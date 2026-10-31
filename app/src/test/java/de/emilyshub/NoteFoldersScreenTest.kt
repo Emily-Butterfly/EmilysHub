@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.notes.Container
@@ -140,6 +141,51 @@ class NoteFoldersScreenTest {
         }
         val book = runBlocking { app.notes.notebook().first() }
         assertEquals(emptyList<Any>(), book.all() + book.foldersIn(Container()))
+    }
+
+    @Test
+    fun `the folder open has a menu of its own, and deleted shows the level above`() {
+        val grammar = runBlocking { app.notes.createFolder("Grammatik", Container()) }
+        runBlocking { app.notes.createFolder("Verben", Container(folderId = grammar)) }
+
+        launchApp().use {
+            openNotes()
+            tab("Allgemein").performClick()
+            compose.onNodeWithText("Grammatik").performClick()
+            compose.onNodeWithText("Verben").performClick()
+            more("Verben")
+            compose.onNodeWithText("Umbenennen").performClick()
+            compose.onNode(hasSetTextAction() and hasText("Name des Ordners")).performTextReplacement("Verbformen")
+            compose.onNode(hasText("Umbenennen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Verbformen").assertIsDisplayed()
+
+            more("Verbformen")
+            compose.onNodeWithText("Löschen").performClick()
+            compose.onNode(hasText("Löschen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Verbformen").assertDoesNotExist()
+            compose.onNodeWithText("In diesem Ordner liegt noch nichts.").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a note is pinned and moved from Alle too, those pinned showing first there`() {
+        val recipes = runBlocking { app.notes.createTab("Rezepte") }
+        runBlocking { app.notes.create(NoteDraft("Alt")) }
+        app.clock.now += Duration.ofMinutes(1)
+        runBlocking { app.notes.create(NoteDraft("Neu")) }
+        val old = runBlocking { app.notes.notebook().first().all().last().id }
+
+        launchApp().use {
+            openNotes()
+            assertOrder("Neu", "Alt")
+            more("Alt")
+            compose.onNodeWithText("Anpinnen").performClick()
+            assertOrder("Alt", "Neu")
+            more("Alt")
+            compose.onNodeWithText("Verschieben nach…").performClick()
+            choice("Rezepte").performClick()
+        }
+        assertEquals(recipes, runBlocking { app.notes.get(old)?.tabId })
     }
 
     @Test

@@ -87,3 +87,13 @@ fun notesHoldTogether(folders: List<NoteFolder>, notes: List<Note>): Boolean {
     }
     return true
 }
+
+/**
+ * Whether [tabs], [folders] and [notes] keep the rules the editors keep them to, as a backup is checked strictly (SPEC.md
+ * §9, §10): each name and title there and not too long, no tab named as one the app has nor as another, no text too
+ * long.
+ */
+fun notesKeepTheRules(tabs: List<NoteTab>, folders: List<NoteFolder>, notes: List<Note>): Boolean =
+    tabs.all { tab -> tabNameProblem(tab.name, tabs - tab) == null } &&
+        folders.all { folderNameProblem(it.name) == null } &&
+        notes.all { NoteDraft(it.title, it.text).problems.isEmpty() }

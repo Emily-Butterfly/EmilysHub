@@ -71,8 +71,8 @@ class Notebook(
         return found
     }
 
-    /** All notes of all tabs, the one changed last first. */
-    fun all(): List<Note> = notes.sortedWith(lastChangedFirst)
+    /** All notes of all tabs, those pinned first, each the one changed last first. */
+    fun all(): List<Note> = notes.sortedWith(lastChangedFirst).sortedBy { !it.pinned }
 
     /** [container], or the top of its tab if the folder is gone or no longer in it, or of "Allgemein" if the tab is gone. */
     fun stillThere(container: Container): Container {

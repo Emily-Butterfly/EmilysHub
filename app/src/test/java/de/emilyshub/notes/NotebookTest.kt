@@ -110,7 +110,7 @@ class NotebookTest {
     }
 
     @Test
-    fun `all notes of all tabs show the one changed last first`() {
+    fun `all notes of all tabs show those pinned first, each the one changed last first`() {
         val book = Notebook(
             tabs = listOf(arabic),
             folders = listOf(folder(10, "Grammatik")),
@@ -118,11 +118,12 @@ class NotebookTest {
                 note(20, "Alt", changedAt = at("07:00")),
                 note(21, "Neu", tab = null, changedAt = at("09:00")),
                 note(22, "Mitte", folder = 10, changedAt = at("08:00")),
+                note(23, "Angepinnt", changedAt = at("06:00")).copy(pinned = true),
             ),
             generalSort = NoteSort.Name,
         )
 
-        assertEquals(listOf("Neu", "Mitte", "Alt"), book.all().map { it.title })
+        assertEquals(listOf("Angepinnt", "Neu", "Mitte", "Alt"), book.all().map { it.title })
     }
 
     private fun folder(
