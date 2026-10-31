@@ -176,6 +176,18 @@ class AlarmTest {
     }
 
     @Test
+    fun `the alarm goes away once its routine is dropped for the day somewhere else`() = runBlocking {
+        openAlarm().use { scenario ->
+            compose.waitForIdle()
+
+            app.routines.dropForToday(app.routines.dueOn(app.routines.today()).first().single().occurrenceId)
+            idle()
+
+            assertClosed(scenario)
+        }
+    }
+
+    @Test
     fun `closing the alarm leaves the reminder, also on the lock screen`() {
         keyguard.setKeyguardLocked(true)
 

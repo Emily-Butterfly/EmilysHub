@@ -69,8 +69,8 @@ import de.emilyshub.ui.rememberNow
 import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
-import java.time.LocalDate
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 
 /**
  * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
@@ -319,7 +319,14 @@ private fun DueRoutineRow(
             if (routine.waitingFor.isNotEmpty()) {
                 Hint(stringResource(R.string.today_waiting_for, routine.waitingFor.joinToString(stringResource(R.string.names_or))))
             }
-            routine.status.label?.let { Hint(stringResource(it)) }
+            routine.status.label?.let { label ->
+                // Dropped is how the day ended, as missed would: in the color of the calendar's mark for it.
+                if (routine.status == OccurrenceStatus.Dropped) {
+                    Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                } else {
+                    Hint(stringResource(label))
+                }
+            }
         }
         when (routine.status) {
             OccurrenceStatus.Open -> {

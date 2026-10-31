@@ -108,7 +108,7 @@ enum class OccurrenceStatus(val stored: String) {
     Dropped("dropped"),
     ;
 
-    /** Whether its occurrence's checklist can be ticked: not once it was skipped or missed. */
+    /** Whether its occurrence's checklist can be ticked: not once it was skipped, missed or dropped. */
     val checklistTickable: Boolean get() = this == Open || this == Done
 }
 

@@ -200,6 +200,19 @@ class RemindersTest {
     }
 
     @Test
+    fun `undone, a routine dropped for the day reminds again as planned`() = runBlocking {
+        app.routine("Wasser trinken", "07:30", "12:00")
+        goOffAt("2026-10-23T07:30")
+        putOff("Heute nicht")
+
+        app.routines.reopen(app.routines.dueOn(app.routines.today()).first().last().occurrenceId)
+        idle()
+
+        goOffAt("2026-10-23T12:00")
+        assertEquals(listOf("Wasser trinken"), titles())
+    }
+
+    @Test
     fun `a time to put off by that would come back after the time window has ended is refused`() = runBlocking {
         app.routine("Lesen", "23:30", window = TimeWindow(untilMidnight = true))
         goOffAt("2026-10-23T23:30")

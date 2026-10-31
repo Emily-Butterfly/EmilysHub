@@ -128,10 +128,9 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         // Only what comes back before the time window ends, and "Heute nicht" after it: Android shows three actions at most,
         // so two times at most. With no time left, "Später" still offers "Heute nicht".
         val choices = reminder.putOffChoices(clock.instant()).take(2)
-        val offering = offeringPutOff
         val text: String
         val actions: List<Notification.Action>
-        if (offering) {
+        if (offeringPutOff) {
             text = context.getString(R.string.reminder_put_off_when)
             actions = putOffActions(choices, about) +
                 action(context.getString(R.string.reminder_drop), ReminderReceiver.ACTION_DROP, about)
@@ -147,7 +146,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         val alarm = reminder.fullScreen && context.fullScreenAlarmsAllowed()
         // Only when it pops up: shown again quietly, it does not fill the screen again.
         val fullScreen = alert && alarm
-        return builder(reminder.name, text, alert, offering)
+        return builder(reminder.name, text, alert, offeringPutOff)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)

@@ -325,7 +325,43 @@ class RoutinesTest {
 
             assertEquals(listOf("22:00 Lesen: Dropped", "08:00 Lesen: Dropped", "22:00 Lesen: Dropped"), dueOn(tomorrow))
             assertEquals(listOf("08:00 Lesen: Missed", "22:00 Lesen: Dropped"), dueOn(today))
+
+            // Undone once yesterday's time window has ended: that one is missed, today's are open again.
+            clock.now = berlin("2026-10-24T02:30")
+            routines.reopen(routines.dueOn(tomorrow).first().first().occurrenceId)
+            assertEquals(listOf("08:00 Lesen: Open", "22:00 Lesen: Open"), dueOn(tomorrow))
+            assertEquals(listOf("08:00 Lesen: Missed", "22:00 Lesen: Missed"), dueOn(today))
         }
+
+    @Test
+    fun `Heute nicht leaves skipped occurrences as they are, and does nothing from one already answered`() = runBlocking {
+        routines.create(draft("Wasser trinken", "08:00", "12:00", "20:00"))
+        routines.skip(occurrenceAt("08:00"))
+        routines.markDone(occurrenceAt("12:00"))
+
+        routines.dropForToday(occurrenceAt("12:00"))
+        assertEquals(
+            listOf("08:00 Wasser trinken: Skipped", "12:00 Wasser trinken: Done", "20:00 Wasser trinken: Open"),
+            dueOn(today),
+        )
+
+        routines.dropForToday(occurrenceAt("20:00"))
+        assertEquals(
+            listOf("08:00 Wasser trinken: Skipped", "12:00 Wasser trinken: Done", "20:00 Wasser trinken: Dropped"),
+            dueOn(today),
+        )
+    }
+
+    @Test
+    fun `a time added to a routine dropped for the day is dropped too, and comes from tomorrow`() = runBlocking {
+        val water = routines.create(draft("Wasser trinken", "12:00"))
+        routines.dropForToday(occurrenceAt("12:00"))
+
+        routines.update(water, draft("Wasser trinken", "12:00", "18:00"))
+
+        assertEquals(listOf("12:00 Wasser trinken: Dropped", "18:00 Wasser trinken: Dropped"), dueOn(today))
+        assertEquals(listOf("12:00 Wasser trinken: Open", "18:00 Wasser trinken: Open"), dueOn(today.plusDays(1)))
+    }
 
     @Test
     fun `undoing Heute nicht opens again what is still in its time window and misses the rest`() = runBlocking {

@@ -231,7 +231,8 @@ class Routines(
      */
     suspend fun dropForToday(occurrenceId: Long) = write {
         database().withTransaction {
-            val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
+            // From an occurrence still open only: one answered meanwhile, say in the app, leaves the day as it is.
+            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status == OccurrenceStatus.Open } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
             val open = onHeute(routine).filter { it.status == OccurrenceStatus.Open }
             settlingGoal(routine.id) { dao.setStatuses(open.map { it.id }, OccurrenceStatus.Dropped) }
@@ -251,13 +252,7 @@ class Routines(
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
             settlingGoal(routine.id) {
                 when (occurrence.status) {
-                    OccurrenceStatus.Dropped -> onHeute(routine).filter { it.status == OccurrenceStatus.Dropped }.forEach {
-                        if (routine.windowEnded(it, now(), clock.zone)) {
-                            dao.setStatus(it.id, OccurrenceStatus.Missed)
-                        } else {
-                            reopen(it, routine)
-                        }
-                    }
+                    OccurrenceStatus.Dropped -> undoDrop(routine)
                     OccurrenceStatus.Done -> {
                         dao.deleteTicks(occurrenceId)
                         reopen(occurrence, routine)
@@ -266,6 +261,21 @@ class Routines(
                 }
             }
         }
+    }
+
+    /**
+     * Undoes "Heute nicht" of the [routine]: what it dropped today and yesterday is open again while its time window is
+     * open, and missed once that has ended, as it would have been without.
+     */
+    private suspend fun undoDrop(routine: Routine) {
+        val today = today()
+        val dropped = (dao.occurrencesOn(routine.id, today.minusDays(1)) + dao.occurrencesOn(routine.id, today))
+            .filter { it.status == OccurrenceStatus.Dropped }
+        val (ended, open) = dropped.partition { routine.windowEnded(it, now(), clock.zone) }
+        dao.setStatuses(ended.map { it.id }, OccurrenceStatus.Missed)
+        dao.setStatuses(open.map { it.id }, OccurrenceStatus.Open)
+        // Only once none is dropped any more, so that a time planned anew comes open.
+        open.map { it.date }.distinct().forEach { date -> replan(routine, date, dao.occurrencesOn(routine.id, date), now()) }
     }
 
     /** The [routine]'s occurrences on Heute: today's, and yesterday's still in their time window. */
@@ -517,7 +527,9 @@ class Routines(
         val changes = replanDay(occurrences, routine.timesOn(date)) { isDueAtOrAfter(now, date, it, clock.zone) }
         changes.moved.forEach { (id, time) -> dao.moveOccurrence(id, time) }
         dao.deleteOccurrences(changes.removed)
-        dao.insertOccurrences(changes.added.map { routine.occurrenceAt(date, it) })
+        // A time added to a day the routine was dropped for ("Heute nicht") is dropped too.
+        val status = if (occurrences.any { it.status == OccurrenceStatus.Dropped }) OccurrenceStatus.Dropped else OccurrenceStatus.Open
+        dao.insertOccurrences(changes.added.map { routine.occurrenceAt(date, it).copy(status = status) })
     }
 
     private fun checked(draft: RoutineDraft): RoutineDraft {
