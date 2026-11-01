@@ -77,12 +77,6 @@ class Ledger(
     /** Today, the day a new booking is dated, and a new fixed one comes on. */
     fun today(): LocalDate = LocalDate.now(clock)
 
-    /** Now, so that a screen can tell when the day changes. */
-    fun now(): Instant = clock.instant()
-
-    /** The day of [instant] here. */
-    fun dayOf(instant: Instant): LocalDate = instant.atZone(clock.zone).toLocalDate()
-
     /** The month of today, which the household book opens on. */
     fun thisMonth(): YearMonth = YearMonth.now(clock)
 

@@ -30,13 +30,14 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.YearSummary
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.monthName
-import de.emilyshub.ui.rememberNow
+import de.emilyshub.ui.rememberToday
 import java.time.Year
 import java.time.YearMonth
 
@@ -49,13 +50,14 @@ import java.time.YearMonth
 @Composable
 fun LedgerYearScreen(
     ledger: Ledger,
+    day: Day,
     year: Year,
     onYearChange: (Year) -> Unit,
     onOpenMonth: (YearMonth) -> Unit,
     onBack: () -> Unit,
 ) {
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
-    val today = ledger.dayOf(rememberNow(ledger::now))
+    val today = rememberToday(day)
     val summary by remember(ledger, year, today) { ledger.year(year) }.collectAsState(initial = null)
     Scaffold(
         topBar = {

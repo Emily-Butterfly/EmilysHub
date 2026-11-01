@@ -623,9 +623,6 @@ class Routines(
     /** The local date now; it changes at midnight in the phone's current time zone. */
     fun today(): LocalDate = today(clock.instant(), clock.zone)
 
-    /** How long until the next local day begins. */
-    fun timeUntilTomorrow(): Duration = Duration.between(clock.instant(), today().plusDays(1).atStartOfDay(clock.zone))
-
     private fun now(): Instant = clock.instant()
 
     /** The first day with an occurrence whose time window may still be open after [after]: it can run into the next day. */

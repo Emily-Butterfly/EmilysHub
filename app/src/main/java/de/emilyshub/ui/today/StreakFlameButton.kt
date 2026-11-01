@@ -7,9 +7,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -19,21 +16,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.routines.Routines
-import de.emilyshub.stats.RoutineHistory
-import de.emilyshub.stats.flame
+import de.emilyshub.stats.StreakFlame
 import de.emilyshub.ui.theme.FlameOrange
-import java.time.LocalDate
 
 /**
- * The flame in the top bar of Heute (SPEC.md §1): the days of the overall streak of the statistics, grey while
- * [today] is still open, lit once it counts; tapping it opens the statistics ([onOpenStatistics]). None without a
- * streak. It follows what is done, undone, skipped, dropped or missed as the occurrences change, and the change of day.
+ * The flame in the top bar of Heute (SPEC.md §1): the days of the overall streak of the statistics ([flame]), grey
+ * while today is still open, lit once it counts; tapping it opens the statistics ([onOpenStatistics]). It follows
+ * what is done, undone, skipped, dropped or missed, and the change of day, as Heute does.
  */
 @Composable
-fun StreakFlameButton(today: LocalDate, routines: Routines, onOpenStatistics: () -> Unit) {
-    val history by remember(routines) { routines.history() }.collectAsState(initial = null)
-    val flame = remember(history, today) { history?.let { RoutineHistory(it).flame(today) } } ?: return
+fun StreakFlameButton(flame: StreakFlame, onOpenStatistics: () -> Unit) {
     val look = if (flame.todayOpen) {
         FlameLook(R.plurals.today_streak_open, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
     } else {

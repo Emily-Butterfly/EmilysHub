@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingWithCategory
@@ -70,7 +71,7 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
-import de.emilyshub.ui.rememberNow
+import de.emilyshub.ui.rememberToday
 import java.time.YearMonth
 
 /**
@@ -82,6 +83,7 @@ import java.time.YearMonth
 @Composable
 fun LedgerScreen(
     ledger: Ledger,
+    day: Day,
     month: YearMonth,
     onMonthChange: (YearMonth) -> Unit,
     onOpen: (Long) -> Unit,
@@ -100,7 +102,7 @@ fun LedgerScreen(
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
-    val today = ledger.dayOf(rememberNow(ledger::now))
+    val today = rememberToday(day)
     val summary by remember(ledger, month, today) { ledger.month(month) }.collectAsState(initial = null)
 
     Scaffold(

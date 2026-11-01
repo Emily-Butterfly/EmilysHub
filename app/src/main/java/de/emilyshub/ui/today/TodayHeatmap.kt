@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,10 +38,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.routines.OccurrenceStatus
-import de.emilyshub.routines.Routines
 import de.emilyshub.stats.Heatmap
-import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.numericDayAndMonth
 import de.emilyshub.ui.theme.heatmapColors
@@ -51,27 +47,13 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 
 /**
- * Under the entries of Heute, what was done each day of the last six months up to [today] (SPEC.md §1): the
- * occurrences of routines done, archived ones' too, and the to-dos ticked off, those in the archive too; one deleted
- * for good no more. A box a day, in four levels of lilac, the weeks as columns from Monday to Sunday, the current one
- * on the right; as wide as there is room, so that it never scrolls sideways. Tapping a day says when and how much.
+ * Under the entries of Heute, what was done each day of the last six months ([heatmap], SPEC.md §1): the occurrences
+ * of routines done, archived ones' too, and the to-dos ticked off, those in the archive too; one deleted for good no
+ * more. A box a day, in four levels of lilac, the weeks as columns from Monday to Sunday, the current one on the right;
+ * as wide as there is room, so that it never scrolls sideways. Tapping a day says when and how much.
  */
 @Composable
-fun TodayHeatmap(today: LocalDate, routines: Routines, todos: Todos, modifier: Modifier = Modifier) {
-    val history by remember(routines) { routines.history() }.collectAsState(initial = null)
-    val archived by remember(todos) { todos.archived() }.collectAsState(initial = null)
-    // Read anew as Heute recomposes, so that the to-dos move to their days in a new time zone.
-    val zone = todos.zone()
-    val heatmap = remember(history, archived, today, zone) {
-        val occurrences = history ?: return@remember null
-        val ticked = archived ?: return@remember null
-        Heatmap.of(
-            today = today,
-            routinesDone = occurrences.filter { it.status == OccurrenceStatus.Done }.map { it.date },
-            todosDone = ticked.mapNotNull { it.doneAt },
-            zone = zone,
-        )
-    } ?: return
+fun TodayHeatmap(heatmap: Heatmap, modifier: Modifier = Modifier) {
     var selected by rememberSaveable { mutableStateOf<LocalDate?>(null) }
     // Worked out once for all the boxes, not in each of them as one is tapped.
     val colors = heatmapColors()

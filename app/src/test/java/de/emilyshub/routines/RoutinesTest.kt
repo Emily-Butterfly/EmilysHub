@@ -558,15 +558,6 @@ class RoutinesTest {
     }
 
     @Test
-    fun `the day the clocks spring forward lasts 23 hours, the day they fall back 25`() {
-        clock.now = Instant.parse("2027-03-27T23:00:00Z") // midnight starting Sunday, 28 March, in Berlin
-        assertEquals(Duration.ofHours(23), routines.timeUntilTomorrow())
-
-        clock.now = Instant.parse("2026-10-24T22:00:00Z") // midnight starting Sunday, 25 October, in Berlin
-        assertEquals(Duration.ofHours(25), routines.timeUntilTomorrow())
-    }
-
-    @Test
     fun `on the night the clocks spring forward, a routine in the skipped hour comes after one at three`() = runBlocking {
         val springForward = LocalDate.parse("2027-03-28")
         clock.now = Instant.parse("2027-03-27T23:00:00Z") // midnight in Berlin

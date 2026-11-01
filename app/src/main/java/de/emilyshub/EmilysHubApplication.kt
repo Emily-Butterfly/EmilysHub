@@ -36,6 +36,7 @@ import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
+import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -45,6 +46,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
 import java.security.SecureRandom
+import java.time.Clock
 
 /** Open so that Robolectric tests can swap the parts that only work on a device. */
 open class EmilysHubApplication : Application() {
@@ -73,6 +75,15 @@ open class EmilysHubApplication : Application() {
 
     /** What sounds for each reminder, by its tone and the defaults in the settings. */
     val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones) }
+
+    /** The phone's clock; the tests set their own. */
+    open val clock: Clock = DeviceClock
+
+    /** The time of day for all that shows it, turning as the phone's clock changes. */
+    val day: Day by lazy { Day(clock, clockChanges(this)) }
+
+    /** Heute (SPEC.md §1), from the routines, to-dos and notes, for the day it is. */
+    val heute: Heute by lazy { Heute(routines, todos, notes, day) }
 
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 

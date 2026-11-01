@@ -1,9 +1,5 @@
 package de.emilyshub.ui.today
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,153 +22,132 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.emilyshub.R
-import de.emilyshub.backup.NightlyBackups
-import de.emilyshub.notes.Notes
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
-import de.emilyshub.routines.Routines
+import de.emilyshub.today.Heute
+import de.emilyshub.today.HeuteDay
+import de.emilyshub.today.RoutineOffer
 import de.emilyshub.today.TodayEntry
-import de.emilyshub.today.todayList
+import de.emilyshub.today.covered
+import de.emilyshub.today.offer
+import de.emilyshub.today.tickable
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.DueTodo
 import de.emilyshub.todos.RecurrenceEnd
-import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.endText
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.PinnedNotes
-import de.emilyshub.ui.rememberNow
-import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
 import de.emilyshub.ui.todos.upcomingText
-import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 /**
- * [today]'s routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
- * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
- * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]); one while the last backup is over 30 days old or
- * failed, which leads to the backups ([onOpenBackups]); the notes pinned here, which open with a tap ([onOpenNote]);
- * and under it all, what was done each day of the last six months ([TodayHeatmap]).
+ * Heute as [day] has it (SPEC.md §1, Heute-Übersicht): the day's routines and to-dos in their order, to tick off, or
+ * skip a routine, through [heute]; above them the [warnings], while something the reminders need from Android is
+ * lacking or the backups are amiss; the notes pinned here, which open with a tap ([onOpenNote]); the to-dos shown
+ * before their day under "Demnächst"; and under it all, what was done each day of the last six months
+ * ([TodayHeatmap]). Nothing until all of it is there, so that Heute does not say there is nothing before it comes.
  */
 @Composable
 fun TodayScreen(
-    today: LocalDate,
-    routines: Routines,
-    todos: Todos,
-    notes: Notes,
-    nightlyBackups: NightlyBackups,
+    day: HeuteDay?,
+    heute: Heute,
     contentPadding: PaddingValues,
-    onOpenStatus: () -> Unit,
-    onOpenBackups: () -> Unit,
+    warnings: @Composable () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
-    // Looked at anew each minute, so that a to-do turning overdue moves to the top.
-    val now = rememberNow(todos::now)
-    val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
-    val dueTodos by remember(today, now) { todos.dueOn(today, now) }.collectAsState(initial = null)
-    val list = dueRoutines?.let { routinesDue -> dueTodos?.let { todosDue -> todayList(routinesDue, todosDue, today) } }
-    val upcomingTodos by remember(today, now) { todos.upcoming(today, now) }.collectAsState(initial = null)
-    val upcoming = upcomingTodos.orEmpty()
-    val pinned by remember(notes) { notes.onToday() }.collectAsState(initial = emptyList())
-    when {
-        // Until all is there, so that Heute does not say there is nothing before "Demnächst" comes.
-        list == null || upcomingTodos == null -> Unit
-        list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty() -> Column(
+    day ?: return
+    val scope = rememberCoroutineScope()
+    val act: Act = remember(heute, scope) { { action -> scope.launchNow { heute.action() } } }
+    val (today, list, upcoming, pinned) = day
+    if (list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty()) {
+        Column(
             Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
-            SetupWarning(routines, todos, onCheck = onOpenStatus)
-            BackupWarningCard(nightlyBackups, onOpen = onOpenBackups)
+            warnings()
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
             // What was done stays in view on a day with nothing due (SPEC.md §1).
-            TodayHeatmap(today, routines, todos)
+            TodayHeatmap(day.heatmap)
         }
-        else -> LazyColumn(contentPadding = contentPadding) {
-            item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
-            item(key = "backup-warning") { BackupWarningCard(nightlyBackups, onOpen = onOpenBackups) }
-            if (pinned.isNotEmpty()) {
-                item(key = "pinned-notes") {
-                    PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { notes.pinOnToday(it, pinned = false) })
-                }
-            }
-            if (list.isEmpty()) {
-                item(key = "nothing-due") {
-                    Text(
-                        text = stringResource(R.string.today_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
-            items(list, key = { it.key }) { entry ->
-                when (entry) {
-                    is TodayEntry.OfRoutine -> RoutineEntry(entry.routine, today, routines)
-                    is TodayEntry.OfTodo -> TodoEntry(entry.todo, today, todos)
-                }
-            }
-            // Under the day's own entries, those due some days on that are to show before (SPEC.md §1).
-            if (upcoming.isNotEmpty()) {
-                item(key = "upcoming") { SectionTitle(stringResource(R.string.today_upcoming)) }
-                items(upcoming, key = { "upcoming:${it.todoId}" }) { todo -> TodoEntry(todo, today, todos, upcoming = true) }
-            }
-            // Under all of the day's entries and those to come, what was done in the last six months (SPEC.md §1).
-            item(key = "heatmap") { TodayHeatmap(today, routines, todos) }
+        return
+    }
+    LazyColumn(contentPadding = contentPadding) {
+        item(key = "warnings") { Column { warnings() } }
+        if (pinned.isNotEmpty()) {
+            item(key = "pinned-notes") { PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { act { unpin(it) } }) }
         }
+        if (list.isEmpty()) {
+            item(key = "nothing-due") {
+                Text(
+                    text = stringResource(R.string.today_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
+        items(list, key = { it.key }) { entry ->
+            when (entry) {
+                is TodayEntry.OfRoutine -> RoutineEntry(entry, today, act)
+                is TodayEntry.OfTodo -> TodoEntry(entry, today, act)
+            }
+        }
+        // Under the day's own entries, those due some days on that are to show before (SPEC.md §1).
+        if (upcoming.isNotEmpty()) {
+            item(key = "upcoming") { SectionTitle(stringResource(R.string.today_upcoming)) }
+            items(upcoming, key = { "upcoming:${it.todo.todoId}" }) { entry -> TodoEntry(entry, today, act, upcoming = true) }
+        }
+        // Under all of the day's entries and those to come, what was done in the last six months (SPEC.md §1).
+        item(key = "heatmap") { TodayHeatmap(day.heatmap) }
     }
 }
 
+/** Heute as [heute] has it while it shows, collected only then, and read anew on return to the app; null until it is all there. */
+@Composable
+fun rememberHeute(heute: Heute): HeuteDay? =
+    remember(heute) { heute.day() }.collectAsStateWithLifecycle(initialValue = null).value
+
+/** Runs what is done with Heute, to the end even if Heute goes. */
+private typealias Act = (suspend Heute.() -> Unit) -> Unit
+
 /** A routine's occurrence on Heute, with its checklist under it. */
 @Composable
-private fun RoutineEntry(routine: DueRoutine, today: LocalDate, routines: Routines) {
-    val scope = rememberCoroutineScope()
+private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act) {
+    val routine = entry.routine
     Column {
         DueRoutineRow(
             routine = routine,
             fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
-            onDoneChange = { done ->
-                scope.launchNow {
-                    if (done) routines.markDone(routine.occurrenceId) else routines.reopen(routine.occurrenceId)
-                }
-            },
-            onSkip = { scope.launchNow { routines.skip(routine.occurrenceId) } },
-            onDrop = { scope.launchNow { routines.dropForToday(routine.occurrenceId) } },
-            onReopen = { scope.launchNow { routines.reopen(routine.occurrenceId) } },
+            onDoneChange = { done -> act { setDone(entry, done) } },
+            onSkip = { act { skip(routine) } },
+            onDrop = { act { drop(routine) } },
+            onUndo = { act { undo(routine) } },
         )
-        routine.checklist.forEach { entry ->
-            ChecklistRow(entry, tickable = routine.status.checklistTickable) { ticked ->
-                scope.launchNow { routines.tick(routine.occurrenceId, entry.itemId, ticked) }
-            }
+        routine.checklist.forEach { item ->
+            ChecklistRow(item, tickable = routine.status.checklistTickable) { ticked -> act { tick(entry, item.itemId, ticked) } }
         }
     }
 }
@@ -182,17 +157,12 @@ private fun RoutineEntry(routine: DueRoutine, today: LocalDate, routines: Routin
  * here, ticked, for the day.
  */
 @Composable
-private fun TodoEntry(todo: DueTodo, today: LocalDate, todos: Todos, upcoming: Boolean = false) {
-    val scope = rememberCoroutineScope()
+private fun TodoEntry(entry: TodayEntry.OfTodo, today: LocalDate, act: Act, upcoming: Boolean = false) {
+    val todo = entry.todo
     Column {
-        DueTodoRow(
-            todo = todo,
-            today = today,
-            upcoming = upcoming,
-            onDoneChange = { done -> scope.launchNow { if (done) todos.markDone(todo.todoId) else todos.reopen(todo.todoId) } },
-        )
-        todo.checklist.forEach { entry ->
-            ChecklistRow(entry, tickable = true) { ticked -> scope.launchNow { todos.tick(todo.todoId, entry.itemId, ticked) } }
+        DueTodoRow(todo = todo, today = today, upcoming = upcoming, onDoneChange = { done -> act { setDone(entry, done) } })
+        todo.checklist.forEach { item ->
+            ChecklistRow(item, tickable = true) { ticked -> act { tick(entry, item.itemId, ticked) } }
         }
     }
 }
@@ -251,52 +221,6 @@ private val TodayEntry.key: String
         is TodayEntry.OfTodo -> "todo:${todo.todoId}"
     }
 
-/**
- * Today's date, kept current while Heute shows: at midnight, on return to the app, and when the phone's clock or time
- * zone changes, after a flight for example. One for the whole of Heute, its list and its flame alike.
- */
-@Composable
-internal fun rememberToday(routines: Routines): LocalDate {
-    var today by remember { mutableStateOf(routines.today()) }
-    var clockChanges by remember { mutableIntStateOf(0) }
-    LifecycleResumeEffect(routines) {
-        today = routines.today()
-        onPauseOrDispose {}
-    }
-    OnClockChange {
-        today = routines.today()
-        clockChanges++
-    }
-    // Restarted after a clock change, since the wait until midnight was measured on the old clock.
-    LaunchedEffect(routines, clockChanges) {
-        while (true) {
-            delay(routines.timeUntilTomorrow().toMillis() + MIDNIGHT_MARGIN_MILLIS)
-            today = routines.today()
-        }
-    }
-    return today
-}
-
-/** Calls [onChange] when the time, the time zone or the date is changed by hand or by the network. */
-@Composable
-private fun OnClockChange(onChange: () -> Unit) {
-    val context = LocalContext.current
-    val currentOnChange by rememberUpdatedState(onChange)
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) = currentOnChange()
-        }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-            addAction(Intent.ACTION_DATE_CHANGED)
-        }
-        // Not exported: the system still delivers its own broadcasts, other apps cannot send any (SPEC.md §9).
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        onDispose { context.unregisterReceiver(receiver) }
-    }
-}
-
 /** Ticking the box marks it done, unticking undoes that; a skipped one offers to undo instead. */
 @Composable
 private fun DueRoutineRow(
@@ -305,13 +229,11 @@ private fun DueRoutineRow(
     onDoneChange: (Boolean) -> Unit,
     onSkip: () -> Unit,
     onDrop: () -> Unit,
-    onReopen: () -> Unit,
+    onUndo: () -> Unit,
 ) {
     val done = routine.status == OccurrenceStatus.Done
-    // Done by another of its group (SPEC.md §2): as good as done, until that one is undone.
-    val covered = routine.coveredBy != null
-    // Missed is how it ended, and one dropped is undone first: neither can be ticked off.
-    val tickable = routine.status != OccurrenceStatus.Missed && routine.status != OccurrenceStatus.Dropped && !covered
+    val covered = routine.covered
+    val tickable = routine.tickable
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -357,14 +279,13 @@ private fun DueRoutineRow(
                 }
             }
         }
-        when (routine.status) {
-            OccurrenceStatus.Open -> {
+        when (routine.offer) {
+            RoutineOffer.SkipOrDrop -> {
                 TextButton(onClick = onSkip) { Text(stringResource(R.string.today_skip)) }
                 MoreMenu(routine.name, onDrop)
             }
-            OccurrenceStatus.Skipped, OccurrenceStatus.Dropped ->
-                if (!covered) TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
-            OccurrenceStatus.Done, OccurrenceStatus.Missed -> Unit
+            RoutineOffer.Undo -> TextButton(onClick = onUndo) { Text(stringResource(R.string.today_undo)) }
+            RoutineOffer.None -> Unit
         }
     }
 }
@@ -397,6 +318,3 @@ private val OccurrenceStatus.label: Int?
         OccurrenceStatus.Dropped -> R.string.status_dropped
         OccurrenceStatus.Open, OccurrenceStatus.Done -> null
     }
-
-/** The day may only just have changed when the delay ends early, so it waits a little longer. */
-private const val MIDNIGHT_MARGIN_MILLIS = 1_000L

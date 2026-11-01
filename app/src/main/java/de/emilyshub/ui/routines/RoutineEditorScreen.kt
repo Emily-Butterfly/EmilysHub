@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
@@ -61,6 +62,7 @@ import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.rememberToday
 import de.emilyshub.ui.reminders.ToneField
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
@@ -82,6 +84,7 @@ sealed interface RoutineEditorTarget : Serializable {
 @Composable
 fun RoutineEditorScreen(
     routines: Routines,
+    day: Day,
     wishes: Wishes,
     tags: Tags,
     places: Places,
@@ -107,7 +110,7 @@ fun RoutineEditorScreen(
     // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val today = remember(routines) { routines.today() }
+    val today = rememberToday(day)
 
     if (!loaded && routineId != null) {
         LaunchedEffect(routineId) {

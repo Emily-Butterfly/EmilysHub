@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
@@ -33,6 +34,7 @@ import de.emilyshub.stats.DoneRate
 import de.emilyshub.stats.RoutineHistory
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.rememberToday
 import java.time.LocalDate
 
 /**
@@ -40,7 +42,7 @@ import java.time.LocalDate
  * done rate of the last 30 days, the archived ones too, as what they did stays. Tapping one opens its own ([onOpenRoutine]).
  */
 @Composable
-fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: () -> Unit) {
+fun StatisticsScreen(routines: Routines, day: Day, onOpenRoutine: (Long) -> Unit, onBack: () -> Unit) {
     val history by remember(routines) { routines.history() }.collectAsState(initial = null)
     val allRoutines by remember(routines) { routines.all() }.collectAsState(initial = null)
     StatisticsScaffold(stringResource(R.string.statistics_title), onBack) { contentPadding ->
@@ -50,7 +52,7 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
             PlaceholderScreen(stringResource(R.string.statistics_empty), contentPadding)
             return@StatisticsScaffold
         }
-        val today = routines.today()
+        val today = rememberToday(day)
         val overall = remember(all) { RoutineHistory(all) }
         val byRoutine = remember(all) { all.groupBy { it.routineId }.mapValues { (_, outcomes) -> RoutineHistory(outcomes) } }
         Column(
@@ -90,14 +92,14 @@ fun StatisticsScreen(routines: Routines, onOpenRoutine: (Long) -> Unit, onBack: 
 
 /** The statistics of one routine (SPEC.md §8): its streaks, its done rates, and a calendar of how its due days ended. */
 @Composable
-fun RoutineStatisticsScreen(routines: Routines, routineId: Long, onBack: () -> Unit) {
+fun RoutineStatisticsScreen(routines: Routines, day: Day, routineId: Long, onBack: () -> Unit) {
     val history by remember(routines, routineId) { routines.history(routineId) }.collectAsState(initial = null)
     val allRoutines by remember(routines) { routines.all() }.collectAsState(initial = null)
     val routine = allRoutines?.find { it.id == routineId }
     StatisticsScaffold(routine?.name.orEmpty(), onBack) { contentPadding ->
         val occurrences = history ?: return@StatisticsScaffold
         if (routine == null) return@StatisticsScaffold
-        val today = routines.today()
+        val today = rememberToday(day)
         val routineHistory = remember(occurrences) { RoutineHistory(occurrences) }
         Column(
             Modifier

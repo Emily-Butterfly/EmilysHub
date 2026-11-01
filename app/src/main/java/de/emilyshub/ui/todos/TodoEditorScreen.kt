@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
@@ -91,6 +92,7 @@ sealed interface TodoEditorTarget : Serializable {
 @Composable
 fun TodoEditorScreen(
     todos: Todos,
+    day: Day,
     wishes: Wishes,
     tags: Tags,
     places: Places,
@@ -207,7 +209,7 @@ fun TodoEditorScreen(
             )
             DueFields(
                 due = draft.due,
-                today = todos.today(),
+                today = day.today(),
                 start = todos.nextFullHour(),
                 onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
             )
@@ -234,7 +236,7 @@ fun TodoEditorScreen(
             WakeFields(
                 wake = cleaned.wake,
                 due = draft.due,
-                today = todos.today(),
+                today = day.today(),
                 start = todos.nextFullHour(),
                 past = cleaned.wake?.let { todos.isPast(it, cleaned.due) } == true,
                 onChange = { draft = draft.copy(wake = it) },

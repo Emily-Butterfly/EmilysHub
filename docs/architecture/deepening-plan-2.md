@@ -30,7 +30,23 @@ Looked at and left alone: `Migrations.kt`/`HubDatabase.kt`, whose churn is the a
 
 ## 4 · The day as one module
 
-**Status:** not started.
+**Status:** done in its core, with #1 in one commit. `Day.kt` with `now`, `zone`, `today`, `dayOf`, `minutes()` and
+`dates()`, the system's broadcasts as `clockChanges(context)`; `DayTest` holds the minute tick, midnight and clock
+changes on virtual time. `EmilysHubApplication` builds `day` once from `open val clock`, which `TestApplication`
+overrides with its `TestClock`.
+
+- **Steps 1–4 done.** `rememberToday(routines)` and its broadcast receiver are gone; `ui/Now.kt` keeps two one-line
+  helpers over `day.minutes()` and `day.dates()`, collected with `collectAsStateWithLifecycle`, and no wait of its own.
+  Heute, the To-dos list and archive, the Haushaltsbuch month and year, the statistics and the routine, to-do and wish
+  editors take `day`. Gone: `Routines.timeUntilTomorrow` (and its test of 23- and 25-hour days, which no longer has a
+  subject: the day turns with the minute), `Todos.now`/`zone`/`dayOf`, `Ledger.now`/`dayOf`, and `Wishes.today`
+  (private now).
+- **Behaviour changed, on purpose**: the routine and wish editors and the statistics follow the day while they show,
+  rather than keeping the day they were opened on.
+- **Step 5 holds as it was**: the month and year of the Haushaltsbuch are restarted by `rememberToday(day)`, which
+  changes once a day, as `dayOf(now)` did.
+- **Left for #2**: `Routines.today` (24 tests), `Todos.today`/`isPast`/`nextFullHour`, `Ledger.today`/`thisMonth`, which
+  the editors and `AlarmActivity` still ask.
 
 ### Why
 
@@ -104,7 +120,17 @@ The domain modules keep their `Clock` for what they write: a `Day` is built on t
 
 ## 1 · Heute as one deep module
 
-**Status:** not started.
+**Status:** done. `today/Heute.kt`: `day()` gives one `HeuteDay` (date, entries, upcoming, pinned, flame, heatmap) from
+one clock, never mixing two days; `setDone`, `tick`, `skip`, `drop`, `undo` and `unpin` are what Heute does.
+`DueRoutine.tickable`, `covered` and `offer` (`RoutineOffer`) hold what an occurrence offers, moved out of
+`DueRoutineRow`. `HeuteTest` holds order, midnight, zone, overdue, flame, heatmap, the mixed-day walk and the offers
+without Compose.
+
+- `TopLevelScaffold` collects `heute.day()` once while Heute shows (`rememberHeute`), and hands the flame and the day to
+  `StreakFlameButton` and `TodayScreen`, which only draw. `TodayHeatmap` draws a `Heatmap`.
+- The warnings are a slot of `TodayScreen` filled by `TopLevelScaffold`, so that `ui/today/` takes neither `Routines`,
+  `Todos`, `Notes` nor `NightlyBackups`.
+- The routines' occurrences are read anew only when the day turns; the to-dos each minute, as before.
 
 ### Why
 

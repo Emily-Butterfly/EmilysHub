@@ -327,17 +327,13 @@ class Todos(
     /** Whether [wake], for a to-do [due] then, is gone by now, so that saving it would not wake after all. */
     fun isPast(wake: WakeTime, due: Due): Boolean = wake.moment(due, clock.zone)?.isAfter(now()) == false
 
-    /** The time now, for what changes as time goes by: a to-do turning overdue. */
-    fun now(): Instant = clock.instant()
-
-    /** The phone's time zone, in which a moment falls on a day. */
-    fun zone(): ZoneId = clock.zone
+    private fun now(): Instant = clock.instant()
 
     /** The local date now; it changes at midnight in the phone's current time zone. */
     fun today(): LocalDate = dayOf(now())
 
     /** The local date of [moment], such as the day a to-do was ticked off. */
-    fun dayOf(moment: Instant): LocalDate = today(moment, clock.zone)
+    private fun dayOf(moment: Instant): LocalDate = today(moment, clock.zone)
 
     /** The next full hour, for a time due to start from: 08:00 at 07:10, and midnight of the next day at 23:10. */
     fun nextFullHour(): LocalDateTime = LocalDateTime.now(clock).truncatedTo(ChronoUnit.HOURS).plusHours(1)

@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.Todos
@@ -42,7 +43,7 @@ import de.emilyshub.ui.numericDate
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoArchiveScreen(todos: Todos, onOpen: (Long) -> Unit, onBack: () -> Unit) {
+fun TodoArchiveScreen(todos: Todos, day: Day, onOpen: (Long) -> Unit, onBack: () -> Unit) {
     val archived by remember(todos) { todos.archived() }.collectAsState(initial = null)
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
@@ -66,7 +67,7 @@ fun TodoArchiveScreen(todos: Todos, onOpen: (Long) -> Unit, onBack: () -> Unit) 
                 items(list, key = { it.id }) { todo ->
                     ArchivedRow(
                         todo = todo,
-                        doneOn = todo.doneAt?.let { todos.dayOf(it).numericDate() }.orEmpty(),
+                        doneOn = todo.doneAt?.let { day.dayOf(it).numericDate() }.orEmpty(),
                         onRestore = { scope.launchNow { todos.reopen(todo.id) } },
                         onDelete = { deleting = todo.id },
                         onClick = { onOpen(todo.id) },

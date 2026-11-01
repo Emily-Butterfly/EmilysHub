@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
@@ -53,9 +54,11 @@ import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
+import de.emilyshub.today.Heute
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
+import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -85,6 +88,7 @@ import de.emilyshub.ui.search.SearchScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
 import de.emilyshub.ui.stats.StatisticsScreen
+import de.emilyshub.ui.status.SetupWarning
 import de.emilyshub.ui.status.StatusScreen
 import de.emilyshub.ui.status.rememberUse
 import de.emilyshub.ui.tags.TagsScreen
@@ -92,7 +96,7 @@ import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.TodayScreen
-import de.emilyshub.ui.today.rememberToday
+import de.emilyshub.ui.today.rememberHeute
 import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
@@ -126,6 +130,8 @@ fun EmilysHubApp(
     search: Search,
     ledger: Ledger,
     tones: ToneCollection,
+    day: Day,
+    heute: Heute,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -158,6 +164,8 @@ fun EmilysHubApp(
                     search = search,
                     ledger = ledger,
                     tones = tones,
+                    day = day,
+                    heute = heute,
                     onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
@@ -218,6 +226,8 @@ private fun AppShell(
     search: Search,
     ledger: Ledger,
     tones: ToneCollection,
+    day: Day,
+    heute: Heute,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
@@ -252,6 +262,8 @@ private fun AppShell(
         TopLevelScaffold(
             routines = routines,
             todos = todos,
+            day = day,
+            heute = heute,
             wishes = wishes,
             tags = tags,
             routineTagFilter = routineTagFilter,
@@ -291,12 +303,13 @@ private fun AppShell(
         when (top) {
             is Destination.NoteEditor -> NoteEditorScreen(notes, tags, top.target, onClose = back)
             is Destination.TodoEditor -> TodoEditorScreen(
-                todos, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
+                todos, day, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
             )
             Destination.TodoArchive ->
-                TodoArchiveScreen(todos, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back)
+                TodoArchiveScreen(todos, day, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back)
             is Destination.WishEditor -> WishEditorScreen(
                 wishes = wishes,
+                day = day,
                 todos = todos,
                 tags = tags,
                 notes = notes,
@@ -317,6 +330,7 @@ private fun AppShell(
                 LedgerArchiveScreen(ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
             is Destination.LedgerYear -> LedgerYearScreen(
                 ledger = ledger,
+                day = day,
                 year = top.year,
                 onYearChange = { stack = stack.replaceTop(Destination.LedgerYear(it)) },
                 onOpenMonth = { open(Destination.Ledger(it)) },
@@ -325,6 +339,7 @@ private fun AppShell(
             Destination.LedgerCategories -> LedgerCategoriesScreen(ledger, onBack = back)
             is Destination.Ledger -> LedgerScreen(
                 ledger = ledger,
+                day = day,
                 month = top.month,
                 onMonthChange = { stack = stack.replaceTop(Destination.Ledger(it)) },
                 onOpen = { open(Destination.BookingEditor(BookingEditorTarget.Edit(it))) },
@@ -364,12 +379,12 @@ private fun AppShell(
                 onBack = back,
             )
             is Destination.RoutineEditor -> RoutineEditorScreen(
-                routines, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
+                routines, day, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
             )
             Destination.RoutineArchive -> ArchiveScreen(routines, onBack = back)
-            is Destination.RoutineStatistics -> RoutineStatisticsScreen(routines, top.routineId, onBack = back)
+            is Destination.RoutineStatistics -> RoutineStatisticsScreen(routines, day, top.routineId, onBack = back)
             Destination.Statistics ->
-                StatisticsScreen(routines, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
+                StatisticsScreen(routines, day, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
             is Destination.Search -> SearchScreen(
                 search = search,
                 query = top.query,
@@ -393,6 +408,8 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: (
 private fun TopLevelScaffold(
     routines: Routines,
     todos: Todos,
+    day: Day,
+    heute: Heute,
     wishes: Wishes,
     tags: Tags,
     routineTagFilter: Long?,
@@ -424,8 +441,9 @@ private fun TopLevelScaffold(
     onOpenStatus: () -> Unit,
     onOpenBackups: () -> Unit,
 ) {
-    // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together.
-    val today = if (current == TopLevelDestination.Today) rememberToday(routines) else null
+    // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together; none until
+    // all of it is there.
+    val heuteDay = if (current == TopLevelDestination.Today) rememberHeute(heute) else null
     Scaffold(
         topBar = {
             TopAppBar(
@@ -434,7 +452,7 @@ private fun TopLevelScaffold(
                 },
                 actions = {
                     // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
-                    if (today != null) StreakFlameButton(today, routines, onOpenStatistics)
+                    heuteDay?.flame?.let { StreakFlameButton(it, onOpenStatistics) }
                     // The household book is reached from the notes (SPEC.md §13).
                     if (current == TopLevelDestination.Notes) {
                         IconButton(onClick = onOpenLedger) {
@@ -465,14 +483,13 @@ private fun TopLevelScaffold(
     ) { contentPadding ->
         when (current) {
             TopLevelDestination.Today -> TodayScreen(
-                today = checkNotNull(today),
-                routines = routines,
-                todos = todos,
-                notes = notes,
-                nightlyBackups = nightlyBackups,
+                day = heuteDay,
+                heute = heute,
                 contentPadding = contentPadding,
-                onOpenStatus = onOpenStatus,
-                onOpenBackups = onOpenBackups,
+                warnings = {
+                    SetupWarning(routines, todos, onCheck = onOpenStatus)
+                    BackupWarningCard(nightlyBackups, onOpen = onOpenBackups)
+                },
                 onOpenNote = { onOpenNote(NoteEditorTarget.Edit(it)) },
             )
             TopLevelDestination.Routines -> RoutinesScreen(
@@ -488,6 +505,7 @@ private fun TopLevelScaffold(
             )
             TopLevelDestination.Todos -> TodosScreen(
                 todos = todos,
+                day = day,
                 tags = tags,
                 order = todoOrder,
                 onOrderChange = onTodoOrderChange,

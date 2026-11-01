@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.Tags
@@ -65,6 +66,7 @@ import java.time.LocalDate
 @Composable
 fun TodosScreen(
     todos: Todos,
+    day: Day,
     tags: Tags,
     order: TodoOrder,
     onOrderChange: (TodoOrder) -> Unit,
@@ -83,8 +85,8 @@ fun TodosScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     // Looked at anew each minute, so that a to-do turning overdue says so.
-    val now = rememberNow(todos::now)
-    val today = todos.dayOf(now)
+    val now = rememberNow(day)
+    val today = day.dayOf(now)
     val doneMessage = stringResource(R.string.todo_done)
     val undoLabel = stringResource(R.string.undo)
 

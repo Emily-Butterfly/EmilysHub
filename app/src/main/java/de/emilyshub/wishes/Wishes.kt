@@ -141,7 +141,7 @@ class Wishes(
     }
 
     /** The day it is now, which a wish done comes true on unless another is chosen, and none after. */
-    fun today(): LocalDate = LocalDate.now(clock)
+    private fun today(): LocalDate = LocalDate.now(clock)
 
     private fun tree(): Flow<List<Goal>> =
         flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), GoalTree::build)) }.flowOn(io)

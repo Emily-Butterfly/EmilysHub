@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
@@ -58,16 +59,17 @@ import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.rememberToday
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
 import de.emilyshub.wishes.toDraft
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.flowOf
 import java.io.Serializable
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 /** Which wish the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface WishEditorTarget : Serializable {
@@ -88,6 +90,7 @@ sealed interface WishEditorTarget : Serializable {
 @Composable
 fun WishEditorScreen(
     wishes: Wishes,
+    day: Day,
     todos: Todos,
     tags: Tags,
     notes: Notes,
@@ -237,7 +240,7 @@ fun WishEditorScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            val today = wishes.today()
+            val today = rememberToday(day)
             StatusField(
                 status = draft.status,
                 doneOn = draft.copy(status = WishStatus.Done).cameTrueOn(today) ?: today,

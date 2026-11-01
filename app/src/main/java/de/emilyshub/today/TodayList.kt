@@ -9,9 +9,16 @@ import java.time.LocalDateTime
 
 /** An entry of Heute (SPEC.md §1): an occurrence of a routine, or a to-do. */
 sealed interface TodayEntry {
-    data class OfRoutine(val routine: DueRoutine) : TodayEntry
+    /** The routine's name, or the to-do's title. */
+    val name: String
 
-    data class OfTodo(val todo: DueTodo) : TodayEntry
+    data class OfRoutine(val routine: DueRoutine) : TodayEntry {
+        override val name: String get() = routine.name
+    }
+
+    data class OfTodo(val todo: DueTodo) : TodayEntry {
+        override val name: String get() = todo.title
+    }
 }
 
 /**
@@ -25,7 +32,7 @@ fun todayList(routines: List<DueRoutine>, todos: List<DueTodo>, today: LocalDate
         compareBy<TodayEntry> { it.group(today) }
             .thenBy { it.time() }
             .thenBy { if (it is TodayEntry.OfRoutine) 0 else 1 }
-            .thenBy(InputText.byName) { it.name() },
+            .thenBy(InputText.byName) { it.name },
     )
 }
 
@@ -50,11 +57,6 @@ private fun TodayEntry.time(): LocalDateTime = when (this) {
         is Due.On -> due.date.atStartOfDay()
         is Due.At -> due.date.atTime(due.time)
     }
-}
-
-private fun TodayEntry.name(): String = when (this) {
-    is TodayEntry.OfRoutine -> routine.name
-    is TodayEntry.OfTodo -> todo.title
 }
 
 private const val OVERDUE = 0
