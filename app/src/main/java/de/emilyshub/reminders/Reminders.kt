@@ -7,6 +7,7 @@ import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Reminder
 import de.emilyshub.routines.Routines
 import de.emilyshub.todos.Todos
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Clock
@@ -125,7 +126,7 @@ class Reminders(
         val source = sourceOf(about)
         when (answer) {
             Answer.Done -> source.done(about.id)
-            Answer.OfferDone -> if (source.joint) offer(about, Offering.Done)
+            Answer.OfferDone -> offer(about, Offering.Done, onlyIf = DueReminder::joint)
             Answer.OfferPutOff -> offer(about, Offering.PutOff)
             is Answer.PutOff -> putOff(about, answer.by)
             Answer.Skip -> source.skip(about.id)
@@ -133,11 +134,14 @@ class Reminders(
         }
     }
 
-    /** The reminder about [about] offers [offering] instead, quietly; one answered meanwhile goes away. */
-    private suspend fun offer(about: Alarmed, offering: Offering) = lock.withLock {
+    /**
+     * The reminder about [about] offers [offering] instead, quietly, if it is one it offers [onlyIf] is for; one answered
+     * meanwhile goes away.
+     */
+    private suspend fun offer(about: Alarmed, offering: Offering, onlyIf: (DueReminder) -> Boolean = { true }) = lock.withLock {
         when (val reminder = stillDue(about)) {
             null -> screen.cancel(about)
-            else -> screen.show(reminder, alert = false, offering)
+            else -> if (onlyIf(reminder)) screen.show(reminder, alert = false, offering)
         }
     }
 
@@ -150,7 +154,7 @@ class Reminders(
         val reminder = stillDue(about)
         val now = clock.instant()
         when {
-            reminder == null || by !in source.putOffChoices(reminder, now) -> update()
+            reminder == null || by !in reminder.putOffChoices(now) -> update()
             else -> source.putOff(about.id, until = now + by)
         }
     }
@@ -159,6 +163,7 @@ class Reminders(
     private suspend fun stillDue(about: Alarmed): DueReminder? =
         sourceOf(about).stillDue(listOf(about)).firstOrNull { it.about == about }
 
+    /** Of the [sources], the one whose reminder [about] is. */
     private fun sourceOf(about: Alarmed): ReminderSource = sources.single { it.owns(about) }
 
     /** A reminder to try out (SPEC.md §11), in [PROBE_DELAY], by an alarm as the reminders come: also with the app closed. */
@@ -167,8 +172,11 @@ class Reminders(
     /** The reminder to try out pops up. */
     fun showProbe() = screen.showProbe()
 
-    /** What "Später" offers for [reminder] now. */
-    fun putOffChoices(reminder: Reminder): List<Duration> = reminder.putOffChoices(clock.instant())
+    /** The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is not. */
+    fun reminder(about: Alarmed): Flow<DueReminder?> = sourceOf(about).reminder(about.id)
+
+    /** What "Später" offers for [reminder] now: before its time window ends, for a routine's; any time, for a to-do's. */
+    fun putOffChoices(reminder: DueReminder): List<Duration> = reminder.putOffChoices(clock.instant())
 
     /**
      * Shows the reminders on the screen as they are now, takes down those no longer due, sets the alarm for what comes
@@ -189,7 +197,8 @@ class Reminders(
             else -> alarm.set(next)
         }
         // A tone no routine or to-do has any more takes its channel along, once no reminder on the screen is on it.
-        screen.tidyChannels(inUse = (sources.flatMap { it.tones() } + Tone.Standard).distinct().map { sounds.notification(it) })
+        val tones = (sources.flatMap { it.tones() } + Tone.Standard).distinct()
+        screen.tidyChannels(inUse = tones.map { sounds.notification(it) })
         arrivals.watch(on = sources.any { it.watchesPlaces() })
         keepLookingAround(on = todos.needsLookingAround() && mayLookAround())
     }
@@ -249,4 +258,4 @@ class Reminders(
 }
 
 /** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before the time window ends. */
-fun Reminder.putOffChoices(now: Instant): List<Duration> = Reminders.PUT_OFF_CHOICES.filter { (now + it).isBefore(windowEnd) }
+fun Reminder.putOffChoices(now: Instant): List<Duration> = DueReminder.OfOccurrence(this).putOffChoices(now)

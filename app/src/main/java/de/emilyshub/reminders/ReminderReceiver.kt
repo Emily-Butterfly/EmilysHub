@@ -14,26 +14,13 @@ import kotlinx.coroutines.launch
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
-        val about = intent.occurrenceId()?.let(Alarmed::Occurrence) ?: intent.todoId()?.let(Alarmed::Todo)
-        val minutes = intent.getLongExtra(EXTRA_MINUTES, 0)
-        val putOffBy = Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }
-        // An answer to a reminder, as its full-screen alarm gives them too; none without what it is about.
-        val answer: Answer? = when (intent.action) {
-            ACTION_DONE -> Answer.Done
-            ACTION_OFFER_PUT_OFF -> Answer.OfferPutOff
-            ACTION_OFFER_DONE -> Answer.OfferDone
-            ACTION_PUT_OFF -> putOffBy?.let(Answer::PutOff)
-            ACTION_SKIP -> Answer.Skip
-            ACTION_DROP -> Answer.Drop
-            else -> null
-        }
         val work: (suspend () -> Unit)? = when (intent.action) {
             ACTION_REMIND -> suspend { app.reminders.remind() }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
             ACTION_PROBE -> suspend { app.reminders.showProbe() }
-            else -> if (answer != null && about != null) suspend { app.reminders.answer(about, answer) } else null
+            else -> intent.answer()?.let { (about, answer) -> suspend { app.reminders.answer(about, answer) } }
         }
         if (work != null) finishInBackground(app, work)
     }
@@ -68,6 +55,26 @@ class ReminderReceiver : BroadcastReceiver() {
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"
         const val EXTRA_MINUTES = "minutes"
     }
+}
+
+/**
+ * The answer to a reminder an action of its notification gives, and what it is about, as its full-screen alarm gives
+ * them too; none without one of those actions, without what it is about, or with a time to put off by that "Später"
+ * does not offer.
+ */
+private fun Intent.answer(): Pair<Alarmed, Answer>? {
+    val about = occurrenceId()?.let(Alarmed::Occurrence) ?: todoId()?.let(Alarmed::Todo) ?: return null
+    val minutes = getLongExtra(ReminderReceiver.EXTRA_MINUTES, 0)
+    val answer = when (action) {
+        ReminderReceiver.ACTION_DONE -> Answer.Done
+        ReminderReceiver.ACTION_OFFER_PUT_OFF -> Answer.OfferPutOff
+        ReminderReceiver.ACTION_OFFER_DONE -> Answer.OfferDone
+        ReminderReceiver.ACTION_PUT_OFF -> Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }?.let(Answer::PutOff)
+        ReminderReceiver.ACTION_SKIP -> Answer.Skip
+        ReminderReceiver.ACTION_DROP -> Answer.Drop
+        else -> null
+    }
+    return answer?.let { about to it }
 }
 
 /** The occurrence that the intents of a reminder, its actions and its alarm, are about. */

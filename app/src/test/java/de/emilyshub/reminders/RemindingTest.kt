@@ -43,7 +43,7 @@ class RemindingTest {
     private val screen = FakeReminderScreen()
     private val routines = Routines({ database }, clock, Dispatchers.Unconfined, onChange = { reminders.update() })
     private val todos = Todos({ database }, clock, Dispatchers.Unconfined, onChange = { reminders.update() })
-    private val sounds = Sounds(FakeTones(), { DefaultTones() }, routines, todos)
+    private val sounds = Sounds(FakeTones(), { DefaultTones() })
     private val reminders: Reminders = Reminders(
         ApplicationProvider.getApplicationContext(),
         routines,
@@ -118,11 +118,13 @@ class RemindingTest {
         routines.create(routine("Vitamine", "07:30"))
         clock.now = berlin("07:50")
         reminders.remind()
-        val vitamins = occurrenceOf("Vitamine")
-        // Ticked off in the app, while its reminder was still up.
-        screen.onScreen[Alarmed.Occurrence(vitamins)]?.let { shown -> routines.markDone(vitamins); screen.onScreen[shown.reminder.about] = shown }
+        val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
+        // Ticked off in the app, while its notification was still up and could be tapped: as the screen was before.
+        val stillUp = screen.onScreen.getValue(vitamins)
+        routines.markDone(vitamins.id)
+        screen.onScreen[vitamins] = stillUp
 
-        reminders.answer(Alarmed.Occurrence(vitamins), Answer.OfferPutOff)
+        reminders.answer(vitamins, Answer.OfferPutOff)
 
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
     }
@@ -202,6 +204,19 @@ class RemindingTest {
             listOf("Laufen" to OccurrenceStatus.Skipped, "Yoga" to OccurrenceStatus.Done),
             routines.dueOn(today).first().map { it.name to it.status },
         )
+    }
+
+    @Test
+    fun `a reminder of one routine alone is not asked which one was done`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        clock.now = berlin("07:35")
+        reminders.remind()
+        val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
+
+        reminders.answer(vitamins, Answer.OfferDone)
+
+        assertEquals(Offering.Actions, screen.offering(vitamins))
     }
 
     @Test

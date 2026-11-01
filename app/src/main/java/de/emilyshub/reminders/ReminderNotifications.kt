@@ -41,7 +41,11 @@ import java.util.UUID
  * notification tone on the usual one, any other tone on one of its own, as Android fixes a channel's sound once it is
  * made. A full-screen alarm that rings comes on the quiet one, as it plays its tone over and over itself.
  */
-class ReminderNotifications(private val context: Context, private val clock: Clock, private val sounds: Sounds) : ReminderScreen {
+class ReminderNotifications(
+    private val context: Context,
+    private val clock: Clock,
+    private val sounds: Sounds,
+) : ReminderScreen {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
     /**
@@ -76,6 +80,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         manager.notify(PROBE_TAG, ID, notification)
     }
 
+    /** What the reminders on the screen are about, by their tags. */
     override fun shown(): List<Alarmed> =
         shownTagged(TAG_PREFIX).map(Alarmed::Occurrence) + shownTagged(TODO_TAG_PREFIX).map(Alarmed::Todo)
 
@@ -344,8 +349,6 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
      * intents under the name [idExtra].
      */
     private data class ReminderOf(val tag: String, val idExtra: String, val id: Long)
-
-    /** What a reminder offers: its actions, when to come back after "Später", or which one after "Erledigt". */
 
     private companion object {
         const val TAG_PREFIX = "occurrence:"

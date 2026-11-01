@@ -72,7 +72,7 @@ open class EmilysHubApplication : Application() {
     open val toneCollection: ToneCollection by lazy { ToneCollection(tones, PhoneToneFiles(this), { database.settings() }) }
 
     /** What sounds for each reminder, by its tone and the defaults in the settings. */
-    val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones, routines, todos) }
+    val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones) }
 
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 

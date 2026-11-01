@@ -3,7 +3,8 @@ package de.emilyshub.reminders
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Routines
 import de.emilyshub.todos.Todos
-import java.time.Duration
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 
 /**
@@ -28,6 +29,9 @@ internal interface ReminderSource {
     /** What of its own waits for places it is bound to no more, to pop up now. */
     suspend fun release()
 
+    /** The reminder with [id] as it changes while it is still due; none once it is not. */
+    fun reminder(id: Long): Flow<DueReminder?>
+
     /** Of the reminders about [shown], those of its own still due, as they are now. */
     suspend fun stillDue(shown: Collection<Alarmed>): List<DueReminder>
 
@@ -43,14 +47,8 @@ internal interface ReminderSource {
     /** Marks the thing its reminder with [id] is about done. */
     suspend fun done(id: Long)
 
-    /** What "Später" offers for [reminder] at [now]. */
-    fun putOffChoices(reminder: DueReminder, now: Instant): List<Duration>
-
     /** Puts the reminder with [id] off until [until]. */
     suspend fun putOff(id: Long, until: Instant)
-
-    /** Whether its reminders may be joint ones, which ask which one was done ([Answer.OfferDone]). */
-    val joint: Boolean
 
     /** "Überspringen" on the reminder with [id]; nothing for what is never skipped. */
     suspend fun skip(id: Long)
@@ -74,6 +72,8 @@ internal class RoutineReminding(private val routines: Routines) : ReminderSource
         routines.releaseFromPlaces()
     }
 
+    override fun reminder(id: Long) = routines.reminder(id).map { it?.let(DueReminder::OfOccurrence) }
+
     override suspend fun stillDue(shown: Collection<Alarmed>) =
         routines.stillDue(shown.filter(::owns).map { it.id }).map(DueReminder::OfOccurrence)
 
@@ -85,13 +85,8 @@ internal class RoutineReminding(private val routines: Routines) : ReminderSource
 
     override suspend fun done(id: Long) = routines.markDone(id)
 
-    override fun putOffChoices(reminder: DueReminder, now: Instant) =
-        (reminder as DueReminder.OfOccurrence).reminder.putOffChoices(now)
-
     // A joint reminder is put off, skipped and dropped for all it reminds of (SPEC.md §3).
     override suspend fun putOff(id: Long, until: Instant) = routines.putOffTogether(id, until)
-
-    override val joint = true
 
     override suspend fun skip(id: Long) = routines.skipTogether(id)
 
@@ -113,6 +108,8 @@ internal class TodoReminding(private val todos: Todos) : ReminderSource {
         todos.releaseFromPlaces()
     }
 
+    override fun reminder(id: Long) = todos.reminder(id).map { it?.let(DueReminder::OfTodo) }
+
     override suspend fun stillDue(shown: Collection<Alarmed>) =
         todos.stillDue(shown.filter(::owns).map { it.id }).map(DueReminder::OfTodo)
 
@@ -124,11 +121,7 @@ internal class TodoReminding(private val todos: Todos) : ReminderSource {
 
     override suspend fun done(id: Long) = todos.markDone(id)
 
-    override fun putOffChoices(reminder: DueReminder, now: Instant) = Reminders.PUT_OFF_CHOICES
-
     override suspend fun putOff(id: Long, until: Instant) = todos.putOff(id, until)
-
-    override val joint = false
 
     override suspend fun skip(id: Long) = Unit
 

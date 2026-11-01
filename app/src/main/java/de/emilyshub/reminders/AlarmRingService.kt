@@ -59,13 +59,10 @@ class AlarmRingService : Service() {
         }
         // A newer alarm rings with its own tone.
         ringStart?.cancel()
-        ringStart = scope.launch { app.ringer.start(app.sounds.alarmOf(alarmed)) }
+        ringStart = scope.launch { app.ringer.start(app.sounds.alarmOf(app.reminders.reminder(alarmed).first())) }
         if (alarmed !in ringingFor) {
             ringingFor[alarmed] = scope.launch {
-                when (alarmed) {
-                    is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).first { it == null }
-                    is Alarmed.Todo -> app.todos.reminder(alarmed.id).first { it == null }
-                }
+                app.reminders.reminder(alarmed).first { it == null }
                 ringingFor.remove(alarmed)
                 if (ringingFor.isEmpty()) stop()
             }

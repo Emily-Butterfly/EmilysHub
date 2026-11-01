@@ -128,7 +128,30 @@ streak, every move settles the goals of all routines of the group.
 
 ## 1 · One Erinnerung module for routines and to-dos
 
-**Status:** next, after #2.
+**Status:** done in its core (commits `dc1d49f`, `2d615e9` and the review fixes after them); two steps left as they are,
+on purpose.
+
+- **Steps 2 and 3 done.** `ReminderSource` with `RoutineReminding` and `TodoReminding`; `Reminders` loops over them.
+  One answer path, `Reminders.answer(about, Answer)`, for the notification's receiver and the full-screen alarm alike;
+  what writes runs outside the lock, inside `answer`. The ring service, `Sounds` and the alarm ask
+  `Reminders.reminder(about)`, no longer the routines or to-dos.
+- **Step 1 as a wrapper.** `DueReminder` wraps `Reminder` and `TodoReminder` with what both have (what it is about,
+  title, full screen, tone, joint, window end) rather than one data shape: a routine's and a to-do's notification and
+  alarm say different things (time window and joint choices against due date and places), and keep their own fields.
+  `Alarmed` is the key. What "Später" offers is one rule over the window end, for both.
+- **Step 4: the seam, not the split.** `ReminderScreen`, with `ReminderNotifications` on the phone and
+  `FakeReminderScreen` in the tests, and `Offering` part of it. What a reminder offers stays in the notification's
+  extras: it must outlive the app's process, which Android ends between an action and the next, and the notification
+  is what outlives it. Building each kind's notification stays in the adapter.
+- **Step 5: beside, not instead.** `RemindingTest` (through the fake screen) covers what `Reminders` does with both
+  kinds and every answer. `RemindersTest` and `JointReminderTest` stay as they are, as the end-to-end tests through
+  Android's notifications and alarms, which the fake cannot stand in for.
+- **Step 6 not done.** `Reminders` still takes `routines` and `todos` and makes its sources, and looks around through
+  `todos`, which only to-dos need.
+
+Done when, as it stands: no branching on routine against to-do outside the two sources, save where a reminder is drawn
+(`ReminderNotifications`, `AlarmActivity.screenOf`), as each kind looks different. A new way to remind touches the
+reminder of its kind, its source, `DueReminder` if both have it, and the drawing of its kind.
 
 ### Why
 

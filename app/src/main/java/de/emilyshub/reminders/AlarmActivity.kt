@@ -30,6 +30,7 @@ import de.emilyshub.ui.theme.isDark
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -171,7 +172,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ringUntil = until
         val first = queue.firstOrNull()
         ringStart?.cancel()
-        ringStart = lifecycleScope.launch { app.ringer.start(first?.let { app.sounds.alarmOf(it) } ?: Sound.PhoneDefault) }
+        ringStart = lifecycleScope.launch { app.ringer.start(first?.let { app.sounds.alarmOf(app.reminders.reminder(it).first()) } ?: Sound.PhoneDefault) }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ringLimit = lifecycleScope.launch {
             delay(until - now())
@@ -212,30 +213,30 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     }
 
     /** What the alarm shows of the occurrence or to-do while it is due, as it changes; null once it is not. */
-    private fun showingOf(alarmed: Alarmed): Flow<Showing?> = when (alarmed) {
-        is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).map { reminder ->
-            reminder?.let {
-                val dueAt = getString(R.string.reminder_due_at, it.dueAt.clockTime())
-                val onLockScreen = LockScreenShown(it.title, dueAt).takeIf { _ -> it.titleOnLockScreen }
-                val each = if (it.together.isEmpty()) {
-                    emptyList()
-                } else {
-                    it.occurrences.sortedWith(compareBy(InputText.byName) { joint -> joint.name }).map { joint ->
-                        AlarmChoice(joint.occurrenceId, joint.name)
-                    }
+    private fun showingOf(alarmed: Alarmed): Flow<Showing?> = app.reminders.reminder(alarmed).map { due ->
+        due?.let { Showing(alarmed, screenOf(it)) { app.reminders.putOffChoices(it) } }
+    }
+
+    /** How [due] fills the screen: a routine's with its time, those of a joint one to choose from; a to-do's as it reminds. */
+    private fun screenOf(due: DueReminder): AlarmShown = when (due) {
+        is DueReminder.OfOccurrence -> {
+            val reminder = due.reminder
+            val dueAt = getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
+            val onLockScreen = LockScreenShown(reminder.title, dueAt).takeIf { reminder.titleOnLockScreen }
+            val each = if (reminder.together.isEmpty()) {
+                emptyList()
+            } else {
+                reminder.occurrences.sortedWith(compareBy(InputText.byName) { joint -> joint.name }).map { joint ->
+                    AlarmChoice(joint.occurrenceId, joint.name)
                 }
-                val screen = AlarmShown(alarmed.key, it.title, dueAt, skippable = true, onLockScreen, each)
-                Showing(alarmed, screen) { app.reminders.putOffChoices(it) }
             }
+            AlarmShown(due.about.key, reminder.title, dueAt, skippable = true, onLockScreen, each)
         }
-        is Alarmed.Todo -> app.todos.reminder(alarmed.id).map { reminder ->
-            reminder?.let {
-                val today = app.todos.today()
-                val onLockScreen = LockScreenShown(it.title, resources.lockScreenText(it, today)).takeIf { _ -> it.nameOnLockScreen }
-                val screen = AlarmShown(alarmed.key, it.title, resources.reminderText(it, today), skippable = false, onLockScreen)
-                // Any of them, as a to-do has no time window.
-                Showing(alarmed, screen) { Reminders.PUT_OFF_CHOICES }
-            }
+        is DueReminder.OfTodo -> {
+            val reminder = due.reminder
+            val today = app.todos.today()
+            val onLockScreen = LockScreenShown(reminder.title, resources.lockScreenText(reminder, today)).takeIf { reminder.nameOnLockScreen }
+            AlarmShown(due.about.key, reminder.title, resources.reminderText(reminder, today), skippable = false, onLockScreen)
         }
     }
 
