@@ -166,12 +166,12 @@ interface RoutineDao {
     @Query("DELETE FROM occurrences WHERE id IN (:ids)")
     suspend fun deleteOccurrences(ids: Collection<Long>)
 
-    /** Sets the status of an occurrence not [missed]: once missed, it stays so. Skipped by no other then. */
-    @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id = :id AND status != :missed")
-    suspend fun setStatus(id: Long, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
-
-    @Query("UPDATE occurrences SET status = :status WHERE id IN (:ids)")
-    suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus)
+    /**
+     * Sets the status of the occurrences [ids] not [missed]: once missed, one stays so. Skipped by no other then. Only
+     * [OccurrenceLifecycle] calls this, which keeps what hangs on a status.
+     */
+    @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id IN (:ids) AND status != :missed")
+    suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
 
     /** The routines in the coupled group [coupling], whatever their status. */
     @Query("SELECT id FROM routines WHERE coupling = :coupling")

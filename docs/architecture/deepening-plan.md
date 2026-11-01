@@ -14,7 +14,11 @@ step says so. Each step is one commit.
 
 ## 2 · One place where a Fälligkeit changes status (occurrence lifecycle)
 
-**Status:** in progress.
+**Status:** done. `routines/OccurrenceLifecycle.kt`; `OccurrenceLifecycleTest` (200 seeded walks) and
+`RoutinesSeamTest` hold it. On its first run, the invariant test found a bug that the refactor fixes: `skipTogether`
+on an occurrence done meanwhile (a joint reminder's "Überspringen" tapped after ticking it off on Heute) left what it
+had covered "skipped by" one no longer done. Every move now also keeps the two rules the single-occurrence query had:
+once missed, an occurrence stays missed, and one moved is covered by no other any more.
 
 ### Why
 
