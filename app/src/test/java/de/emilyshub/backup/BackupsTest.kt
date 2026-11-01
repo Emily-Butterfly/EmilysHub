@@ -30,6 +30,7 @@ import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.WakeTime
 import de.emilyshub.wish
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +52,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 
 /**
@@ -204,6 +206,19 @@ class BackupsTest {
 
         restore(older)
         assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
+    }
+
+    @Test
+    fun `a backup from before wake times loads without them, and a backup now keeps them`() {
+        app.todo("Müll", due = Due.On(LocalDate.parse("2026-10-30")), wake = WakeTime.Before(1, LocalTime.of(18, 0)))
+        val now = exported()
+        val older = sealed(asOfVersion33(contentOf(now)))
+
+        restore(now)
+        assertEquals(listOf(WakeTime.Before(1, LocalTime.of(18, 0))), runBlocking { app.todos.open().first() }.map { it.todo.wake })
+
+        restore(older)
+        assertEquals(listOf(null), runBlocking { app.todos.open().first() }.map { it.todo.wake })
     }
 
     @Test
@@ -537,7 +552,12 @@ class BackupsTest {
     }
 
     /** [content] as version 32 made it: without full-screen alarms for to-dos, which came with 33. */
-    private fun asOfVersion32(content: JSONObject): JSONObject = content.withoutColumns("todos", "full_screen").put("schema", 32)
+    private fun asOfVersion32(content: JSONObject): JSONObject =
+        asOfVersion33(content).withoutColumns("todos", "full_screen").put("schema", 32)
+
+    /** [content] as version 33 made it: without wake times for to-dos, which came with 34. */
+    private fun asOfVersion33(content: JSONObject): JSONObject =
+        content.withoutColumns("todos", "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time").put("schema", 33)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

@@ -20,6 +20,7 @@ enum class TodoProblem {
     EndTimesOutOfRange,
     EndDateTooEarly,
     ShowsDaysBeforeOutOfRange,
+    WakeDaysOutOfRange,
 }
 
 /**
@@ -48,6 +49,8 @@ data class TodoDraft(
     val showsDaysBefore: Int? = null,
     /** Whether its reminder comes as a full-screen alarm (SPEC.md §5); without a time, only on arrival at a place. */
     val fullScreen: Boolean = false,
+    /** When it wakes besides when it is due, if it does (SPEC.md §5); some days before only with a [due] day, left out without. */
+    val wake: WakeTime? = null,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -70,12 +73,13 @@ data class TodoDraft(
                     is RecurrenceEnd.OnDate -> if (due.date?.let(end.date::isBefore) == true) add(TodoProblem.EndDateTooEarly)
                 }
                 if (showsDaysBefore != null && showsDaysBefore !in SHOWS_DAYS_BEFORE) add(TodoProblem.ShowsDaysBeforeOutOfRange)
+                if (wake is WakeTime.Before && wake.days !in WakeTime.DAYS_BEFORE) add(TodoProblem.WakeDaysOutOfRange)
             }
         }
 
     /**
      * Without surrounding spaces; the title and each checklist item on a single line, empty items left out; without a
-     * recurrence unless due.
+     * recurrence unless due, nor waking some days before.
      */
     fun cleaned() = copy(
         title = InputText.singleLine(title),
@@ -84,6 +88,7 @@ data class TodoDraft(
         recurrence = recurrence.takeIf { due != Due.None },
         end = end.takeIf { recurrence != null && due != Due.None } ?: RecurrenceEnd.Never,
         showsDaysBefore = showsDaysBefore.takeIf { due != Due.None },
+        wake = wake.takeIf { it !is WakeTime.Before || due != Due.None },
     )
 
     /**
@@ -108,7 +113,7 @@ data class TodoDraft(
             seriesNumber = seriesNumber,
             showsDaysBefore = showsDaysBefore,
             fullScreen = fullScreen,
-        )
+        ).withWake(wake)
 
     companion object {
         const val TITLE_MAX = 80
@@ -122,5 +127,5 @@ data class TodoDraft(
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
-    end, showsDaysBefore, fullScreen,
+    end, showsDaysBefore, fullScreen, wake,
 )

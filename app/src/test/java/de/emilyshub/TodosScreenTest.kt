@@ -28,6 +28,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.Priority
 import de.emilyshub.todos.Due
+import de.emilyshub.todos.WakeTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -166,6 +167,44 @@ class TodosScreenTest {
             compose.onNodeWithText("Speichern").performClick()
         }
         assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.fullScreen } })
+    }
+
+    @Test
+    fun `a to-do wakes some days before it is due, which the editor and the list say`() {
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Müll")
+            option("Fester Zeitpunkt").performScrollTo().assertIsDisplayed()
+            option("Einige Tage vor der Fälligkeit").assertDoesNotExist()
+            option("Datum").tap()
+            compose.onNode(hasText("Am") and hasClickAction()).tap()
+            compose.onNode(hasText("27", substring = true) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+            option("Einige Tage vor der Fälligkeit").tap()
+            compose.onNodeWithText("Wecker: Mo, 26.10., 18:00").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Wecker: Mo, 26.10., 18:00").assertIsDisplayed()
+        }
+        assertEquals(listOf(WakeTime.Before(1, LocalTime.of(18, 0))), runBlocking { app.todos.open().first().map { it.todo.wake } })
+    }
+
+    @Test
+    fun `a fixed wake time gone by already is pointed out in the editor`() {
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Anrufen")
+            option("Fester Zeitpunkt").tap()
+            compose.onNodeWithText("Wecker: heute, 08:00").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("schon vorbei", substring = true).assertDoesNotExist()
+
+            compose.onNode(hasText("08:00") and hasClickAction()).tap()
+            typeTime(hour = "06", minute = "30")
+
+            compose.onNodeWithText("schon vorbei", substring = true).performScrollTo().assertIsDisplayed()
+        }
     }
 
     @Test

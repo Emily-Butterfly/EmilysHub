@@ -40,6 +40,7 @@ import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
+import de.emilyshub.todos.WakeTime
 import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
 import kotlinx.coroutines.flow.first
@@ -730,6 +731,25 @@ class HubDatabaseMigrationTest {
 
             database.todos().update(call.copy(fullScreen = true))
             assertEquals(true, database.todos().get(1)?.fullScreen)
+        }
+    }
+
+    @Test
+    fun `version 33 moves to version 34 where no to-do wakes and then one can`() {
+        createAtVersion(33) {
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, due_date, priority, reminds_at_due_time, waiting, away, series_number, " +
+                    "full_screen) VALUES (1, 'Müll', '', '2026-10-30', 'normal', 0, 0, 0, 1, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val bins = checkNotNull(database.todos().get(1))
+            assertEquals(null, bins.wake)
+            assertEquals(false, bins.reminding.remindsAtWakeTime)
+
+            database.todos().update(bins.withWake(WakeTime.Before(1, java.time.LocalTime.of(18, 0))))
+            assertEquals(WakeTime.Before(1, java.time.LocalTime.of(18, 0)), database.todos().get(1)?.wake)
         }
     }
 

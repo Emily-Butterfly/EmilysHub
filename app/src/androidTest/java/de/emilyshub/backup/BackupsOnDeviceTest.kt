@@ -115,10 +115,12 @@ class BackupsOnDeviceTest {
         (listOf("wishes", "wish_tags") + ledger + notes).forEach { tables.remove(it) }
         // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
         // goals routines hang under, which came with 20, nor ends of series, which came with 26, nor to-dos shown before
-        // their day, which came with 27, nor their full-screen alarms, which came with 33.
+        // their day, which came with 27, nor their full-screen alarms, which came with 33, nor their wake times, which
+        // came with 34.
         val newer = mapOf(
             "todos" to listOf(
                 "goal_id", "recurrence", "next_id", "ends_after", "ends_on", "series_number", "shows_days_before", "full_screen",
+                "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time",
             ),
             "routines" to listOf("goal_id", "target", "ends_on"),
         )

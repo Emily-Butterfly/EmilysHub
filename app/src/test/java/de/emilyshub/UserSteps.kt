@@ -24,6 +24,7 @@ import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.TodoDraft
+import de.emilyshub.todos.WakeTime
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.runBlocking
@@ -92,10 +93,11 @@ fun TestApplication.todo(
     end: RecurrenceEnd = RecurrenceEnd.Never,
     showsDaysBefore: Int? = null,
     fullScreen: Boolean = false,
+    wake: WakeTime? = null,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
     val draft = TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal)
-    todos.create(draft.copy(recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen))
+    todos.create(draft.copy(recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen, wake = wake))
 }
 
 /** A tag, set up before the test opens the app. */

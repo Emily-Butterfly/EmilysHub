@@ -227,6 +227,14 @@ fun TodoEditorScreen(
                     )
                 }
             }
+            WakeFields(
+                wake = cleaned.wake,
+                due = draft.due,
+                today = todos.today(),
+                start = todos.nextFullHour(),
+                past = cleaned.wake?.let { todos.isPast(it, cleaned.due) } == true,
+                onChange = { draft = draft.copy(wake = it) },
+            )
             PlacesField(
                 places = places,
                 selected = draft.placeIds,

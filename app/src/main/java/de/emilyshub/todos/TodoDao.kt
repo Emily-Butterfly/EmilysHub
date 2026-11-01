@@ -54,8 +54,11 @@ interface TodoDao {
     suspend fun setDoneAt(id: Long, doneAt: Instant?)
 
     /** Sets its reminder anew, as it is saved: not put off or popped up, [waiting] for its places if it has any. */
-    @Query("UPDATE todos SET reminds_at_due_time = :remindsAtDueTime, remind_at = NULL, waiting = :waiting, away = 0 WHERE id = :id")
-    suspend fun rearm(id: Long, remindsAtDueTime: Boolean, waiting: Boolean)
+    @Query(
+        "UPDATE todos SET reminds_at_due_time = :remindsAtDueTime, reminds_at_wake_time = :remindsAtWakeTime, " +
+            "remind_at = NULL, waiting = :waiting, away = 0 WHERE id = :id",
+    )
+    suspend fun rearm(id: Long, remindsAtDueTime: Boolean, remindsAtWakeTime: Boolean, waiting: Boolean)
 
     @Query("UPDATE todos SET remind_at = :until WHERE id = :id")
     suspend fun putOff(id: Long, until: Instant)

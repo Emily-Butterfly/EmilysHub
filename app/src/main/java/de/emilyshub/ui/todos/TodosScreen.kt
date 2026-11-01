@@ -228,6 +228,9 @@ private fun TodoRow(
                     }
                 }
                 todo.recurrence?.let { Text(recurrenceText(it, todo.end, todo.seriesNumber)) }
+                todo.wake?.localMoment(todo.due)?.let {
+                    Text(stringResource(R.string.todo_wake_label, LocalResources.current.wakeText(it, today)))
+                }
                 PriorityNote(todo.priority)
                 LocalResources.current.placesLabel(details.placeNames)?.let { Text(it) }
                 if (tagNames.isNotEmpty()) Text(tagNames.joinToString(" · "))

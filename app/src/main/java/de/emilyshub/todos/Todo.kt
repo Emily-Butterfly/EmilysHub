@@ -74,7 +74,35 @@ data class Todo(
     @ColumnInfo(name = "shows_days_before") val showsDaysBefore: Int? = null,
     /** Whether its reminder comes as a full-screen alarm, like an alarm clock, wherever it comes (SPEC.md §3, §5). */
     @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
+    /** With a [wakeTime]: it wakes so many days before it is due, as [WakeTime.Before] has it. */
+    @ColumnInfo(name = "wake_days_before") val wakeDaysBefore: Int? = null,
+    /** With a [wakeTime] and no [wakeDaysBefore]: the day it wakes on, as [WakeTime.At] has it. */
+    @ColumnInfo(name = "wake_date") val wakeDate: LocalDate? = null,
+    /** The time it wakes at, if it wakes at all besides when it is due (SPEC.md §5); see [wake]. */
+    @ColumnInfo(name = "wake_time") val wakeTime: LocalTime? = null,
 ) {
+    /** How it wakes, from [wakeDaysBefore], [wakeDate] and [wakeTime]; none if it does not. */
+    val wake: WakeTime?
+        get() {
+            val time = wakeTime ?: return null
+            return wakeDaysBefore?.let { WakeTime.Before(it, time) } ?: wakeDate?.let { WakeTime.At(it, time) }
+        }
+
+    /** The to-do waking as [wake] says, or not at all without. */
+    fun withWake(wake: WakeTime?): Todo = copy(
+        wakeDaysBefore = (wake as? WakeTime.Before)?.days,
+        wakeDate = (wake as? WakeTime.At)?.date,
+        wakeTime = wake?.time,
+    )
+
+    /**
+     * The next of its series, due on [nextDue]: as it is, open, reminding as one just saved, the next number of its
+     * series. Waking some days before it is due comes along; a fixed moment to wake was for this one only.
+     */
+    fun comingNext(nextDue: LocalDate): Todo =
+        copy(id = 0, dueDate = nextDue, doneAt = null, nextId = null, reminding = Reminding(), seriesNumber = seriesNumber + 1)
+            .withWake(wake as? WakeTime.Before)
+
     /** When its series ends, from [endsAfter] and [endsOn]. */
     val end: RecurrenceEnd
         get() = endsAfter?.let(RecurrenceEnd::AfterTimes) ?: endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
@@ -97,14 +125,15 @@ data class Todo(
 
 /**
  * Where a to-do's reminder stands (SPEC.md §3, §4). It pops up at its due time if it had one still ahead when that was
- * saved ([remindsAtDueTime]), so that a time gone by already does not pop up. Bound to places, it is [waiting] for them until
- * it has popped up: at its time if there, otherwise on arriving at one, from its time or day on, or from the start
- * without either. It pops up anywhere at [remindAt]: when it was put off to ("Später"), or on arrival, by the alarm.
- * Looking around, the app notes when it has seen the device surely [away] from its places: surely at one again after
- * that, it has arrived.
+ * saved ([remindsAtDueTime]), so that a time gone by already does not pop up; so too at its wake time
+ * ([remindsAtWakeTime]). Bound to places, it is [waiting] for them until it has popped up: at its time if there,
+ * otherwise on arriving at one, from its time or day on, or from the start without either. It pops up anywhere at
+ * [remindAt]: when it was put off to ("Später"), or on arrival, by the alarm. Looking around, the app notes when it has
+ * seen the device surely [away] from its places: surely at one again after that, it has arrived.
  */
 data class Reminding(
     @ColumnInfo(name = "reminds_at_due_time", defaultValue = "0") val remindsAtDueTime: Boolean = false,
+    @ColumnInfo(name = "reminds_at_wake_time", defaultValue = "0") val remindsAtWakeTime: Boolean = false,
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
     @ColumnInfo(defaultValue = "0") val away: Boolean = false,
@@ -177,8 +206,8 @@ data class TodoWithDetails(
     /** The names of its places, in alphabetical order. */
     val placeNames: List<String> get() = places.map { it.name }.sortedWith(InputText.byName)
 
-    /** Whether it reminds at all: at its time, or at its places. */
-    val reminds: Boolean get() = todo.due is Due.At || places.isNotEmpty()
+    /** Whether it reminds at all: at its time, at its wake time, or at its places. */
+    val reminds: Boolean get() = todo.due is Due.At || todo.wake != null || places.isNotEmpty()
 
     /** Whether it waits for its places, to pop up on arriving at one; with none left, it waits for nothing. */
     val waitsForPlaces: Boolean get() = todo.reminding.waiting && places.isNotEmpty()

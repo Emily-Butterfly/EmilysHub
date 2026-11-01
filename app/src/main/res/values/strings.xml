@@ -302,6 +302,14 @@
     <string name="todo_day_time">%1$s, %2$s</string>
     <string name="todo_weekday_date">%1$s, %2$s</string>
     <string name="todo_day_ahead">%1$s · in %2$d Tagen</string>
+    <string name="todo_wake_title">Weckzeit</string>
+    <string name="todo_wake_none">Keine</string>
+    <string name="todo_wake_before">Einige Tage vor der Fälligkeit</string>
+    <string name="todo_wake_at">Fester Zeitpunkt</string>
+    <string name="todo_wake_days">Tage vorher (0 = am Fälligkeitstag)</string>
+    <string name="todo_wake_label">Wecker: %1$s</string>
+    <string name="todo_wake_summary">Zur Weckzeit kommt die Erinnerung, zur Fälligkeit trotzdem noch einmal.</string>
+    <string name="todo_wake_past">Diese Weckzeit ist schon vorbei und weckt nicht mehr.</string>
     <string name="todo_full_screen_no_time">Ohne Uhrzeit klingelt der Vollbild-Alarm nur beim Ankommen an einem Ort.</string>
     <string name="todo_show_title">In Heute zeigen</string>
     <string name="todo_show_on_day">Am Fälligkeitstag</string>

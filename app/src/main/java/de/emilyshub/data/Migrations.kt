@@ -521,3 +521,16 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `full_screen` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * Version 34: a to-do can wake besides when it is due (SPEC.md §5, #37), some days before or at a fixed moment, and
+ * remembers whether it does so still. None wakes yet.
+ */
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `wake_days_before` INTEGER")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `wake_date` TEXT")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `wake_time` TEXT")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `reminds_at_wake_time` INTEGER NOT NULL DEFAULT 0")
+    }
+}

@@ -19,6 +19,7 @@ import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.reminders.AlarmRingService
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.WakeTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -191,6 +192,25 @@ class TodoAlarmTest {
 
         assertFalse("ringing", app.ringer.ringing)
         assertTrue("stopped", shadowOf(ringing.get()).isStoppedBySelf)
+    }
+
+    @Test
+    fun `at its wake time it rings as an alarm, and again when it is due`() {
+        app.todo(
+            "Müll",
+            Due.At(today.plusDays(1), LocalTime.of(7, 0)),
+            fullScreen = true,
+            wake = WakeTime.Before(1, LocalTime.of(18, 0)),
+        )
+
+        goOffAt("2026-10-23T18:00")
+        assertNotNull("full-screen", reminder("Müll").fullScreenIntent)
+        assertRings()
+        shadowOf(app).clearStartedServices()
+
+        goOffAt("2026-10-24T07:00")
+        assertNotNull("full-screen", reminder("Müll").fullScreenIntent)
+        assertRings()
     }
 
     @Test
