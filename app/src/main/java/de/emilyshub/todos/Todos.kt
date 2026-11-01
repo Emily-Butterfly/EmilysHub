@@ -23,6 +23,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
 
@@ -321,6 +322,9 @@ class Todos(
 
     /** The time now, for what changes as time goes by: a to-do turning overdue. */
     fun now(): Instant = clock.instant()
+
+    /** The phone's time zone, in which a moment falls on a day. */
+    fun zone(): ZoneId = clock.zone
 
     /** The local date now; it changes at midnight in the phone's current time zone. */
     fun today(): LocalDate = dayOf(now())

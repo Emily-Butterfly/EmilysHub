@@ -32,6 +32,25 @@
         <item quantity="one">Streak %d Tag, heute noch offen</item>
         <item quantity="other">Streak %d Tage, heute noch offen</item>
     </plurals>
+    <string name="today_heatmap">Erledigt, letzte 6 Monate</string>
+    <!-- A day of the heatmap tapped: "Mi, 14.10.: 5 erledigt". -->
+    <string name="today_heatmap_day">%1$s, %2$s: %3$d erledigt</string>
+    <!-- A day of the heatmap as TalkBack reads it: "Mittwoch, 14. Oktober: 5 erledigt". -->
+    <string name="today_heatmap_day_spoken">%1$s: %2$d erledigt</string>
+    <string-array name="months_short">
+        <item>Jan</item>
+        <item>Feb</item>
+        <item>Mär</item>
+        <item>Apr</item>
+        <item>Mai</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Aug</item>
+        <item>Sep</item>
+        <item>Okt</item>
+        <item>Nov</item>
+        <item>Dez</item>
+    </string-array>
     <string name="today_todo">To-do</string>
     <string name="today_todo_at">To-do, %1$s</string>
     <string name="today_todo_due">To-do, fällig: %1$s</string>

@@ -1,8 +1,11 @@
 package de.emilyshub.ui.theme
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 /** Light scheme: Flieder (lilac). Fixed on purpose – no Material You (SPEC.md §1). */
 internal val FliederColorScheme = lightColorScheme(
@@ -86,3 +89,15 @@ internal val LilaColorScheme = darkColorScheme(
 
 /** The streak's flame once today counts (SPEC.md §1): in both schemes alike, as a flame is orange. */
 internal val FlameOrange = Color(0xFFE8650E)
+
+/** The heatmap's empty days and its four levels of lilac, on the light scheme: each step clearly apart (SPEC.md §1). */
+private val HeatmapFlieder = listOf(Color(0xFFE7DDF0), Color(0xFFC9B3EE), Color(0xFFA27FDB), Color(0xFF7A55BE), Color(0xFF4A2A85))
+
+/** The heatmap's empty days and its four levels on the dark scheme, from dim to bright. */
+private val HeatmapLila = listOf(Color(0xFF2E2638), Color(0xFF4E3A78), Color(0xFF7457AE), Color(0xFFA688DE), Color(0xFFD9C4FF))
+
+/** The heatmap's colors, empty first, then the levels, for the scheme in use. */
+@Composable
+internal fun heatmapColors(): List<Color> = if (MaterialTheme.colorScheme.surface.luminance() < HALF) HeatmapLila else HeatmapFlieder
+
+private const val HALF = 0.5f

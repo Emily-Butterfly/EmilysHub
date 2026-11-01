@@ -80,7 +80,8 @@ import java.time.LocalDate
  * [today]'s routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
  * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
  * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]); one while the last backup is over 30 days old or
- * failed, which leads to the backups ([onOpenBackups]); and the notes pinned here, which open with a tap ([onOpenNote]).
+ * failed, which leads to the backups ([onOpenBackups]); the notes pinned here, which open with a tap ([onOpenNote]);
+ * and under it all, what was done each day of the last six months ([TodayHeatmap]).
  */
 @Composable
 fun TodayScreen(
@@ -113,6 +114,8 @@ fun TodayScreen(
             SetupWarning(routines, todos, onCheck = onOpenStatus)
             BackupWarningCard(nightlyBackups, onOpen = onOpenBackups)
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
+            // What was done stays in view on a day with nothing due (SPEC.md §1).
+            TodayHeatmap(today, routines, todos)
         }
         else -> LazyColumn(contentPadding = contentPadding) {
             item(key = "setup-warning") { SetupWarning(routines, todos, onCheck = onOpenStatus) }
@@ -143,6 +146,8 @@ fun TodayScreen(
                 item(key = "upcoming") { SectionTitle(stringResource(R.string.today_upcoming)) }
                 items(upcoming, key = { "upcoming:${it.todoId}" }) { todo -> TodoEntry(todo, today, todos, upcoming = true) }
             }
+            // Under all of the day's entries and those to come, what was done in the last six months (SPEC.md §1).
+            item(key = "heatmap") { TodayHeatmap(today, routines, todos) }
         }
     }
 }
