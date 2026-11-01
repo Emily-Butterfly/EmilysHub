@@ -290,7 +290,16 @@ month-from-year logic was fixed twice.
 
 ## 4 · Derive the backup check from the schema
 
-**Status:** last. Worth doing when the next schema change comes.
+**Status:** done but for step 1, which stays as it is on purpose. `BackupMigration.dataColumnsOf(version)` reads the
+tables and columns of a version from the schema Room exported for it; `BackupLayoutTest` holds it, and that the
+current version's are the app's own database's, so that a schema not exported fails. `BackupsTest`'s `asOf(version, …)`
+replaces the 21 `asOfVersionN` by hand, and `BackupsOnDeviceTest` derives what version 16 had the same way. The
+checklist for a schema change is `docs/agents/schema-change.md`.
+
+- **Step 1 not done**: `Backups.readBack` keeps one read per table through `BackupDao`. It reads each table as its
+  entity, through Room's type converters, which is what finds a value the app cannot read; Room makes such a read only
+  for a DAO method of that type, not for a table named at run time. It grows with a new table, not a new column, and
+  its `check(reads.keys == tables)` fails every backup test until it is there.
 
 ### Why
 

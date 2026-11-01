@@ -2,6 +2,7 @@ package de.emilyshub.backup
 
 import android.content.Context
 import android.database.Cursor
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.HubDatabase
@@ -100,36 +101,17 @@ class BackupsOnDeviceTest {
     }
 
     /**
-     * [content] as version 16 made it, the first that made backups: without the wishes, which came with 17, nor the notes,
-     * which came with 21, their folders, which came with 22, their links, which came with 23, and their tags.
+     * [content] as version 16 made it, the first that made backups (SPEC.md §10): only the tables and columns it had, as
+     * Room exported its schema, so that a schema change needs nothing here.
      */
     private fun asOfVersion16(content: JSONObject): JSONObject {
+        val layout = BackupMigration(context) { FrameworkSQLiteOpenHelperFactory() }.dataColumnsOf(16)
         val tables = content.getJSONObject("tables")
-        val notes = listOf(
-            "note_tabs", "notes", "note_folders", "note_general_tab", "note_goals", "note_todos", "note_routines", "note_tags",
-        )
-        // Nor the household book, which came with 28.
-        val ledger = listOf(
-            "ledger_categories", "bookings", "recurring_bookings", "ledger_closed_months", "ledger_skipped", "ledger_closed_budgets",
-        )
-        (listOf("wishes", "wish_tags") + ledger + notes).forEach { tables.remove(it) }
-        // Nor the goals to-dos hang under, which came with 18, nor to-dos coming again, which came with 19, nor the
-        // goals routines hang under, which came with 20, nor ends of series, which came with 26, nor to-dos shown before
-        // their day, which came with 27, nor their full-screen alarms, which came with 33, nor their wake times, which
-        // came with 34, nor names on the lock screen, which came with 35, nor tones, which came with 36, nor
-        // couplings, which came with 37.
-        val newer = mapOf(
-            "todos" to listOf(
-                "goal_id", "recurrence", "next_id", "ends_after", "ends_on", "series_number", "shows_days_before", "full_screen",
-                "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time", "name_on_lock_screen", "tone",
-            ),
-            "routines" to listOf("goal_id", "target", "ends_on", "name_on_lock_screen", "tone", "coupling"),
-            "occurrences" to listOf("covered_by"),
-        )
-        for ((table, names) in newer) {
+        tables.keys().asSequence().toList().filter { it !in layout }.forEach(tables::remove)
+        for ((table, kept) in layout) {
             val columns = tables.getJSONObject(table).getJSONArray("columns")
             val rows = tables.getJSONObject(table).getJSONArray("rows")
-            for (name in names) {
+            for (name in List(columns.length(), columns::getString) - kept.toSet()) {
                 val index = (0 until columns.length()).first { columns.getString(it) == name }
                 columns.remove(index)
                 for (row in 0 until rows.length()) rows.getJSONArray(row).remove(index)

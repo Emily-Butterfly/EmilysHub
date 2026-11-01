@@ -58,14 +58,18 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
         }
     }
 
+    /**
+     * The tables of the app's data in [version] and their columns, as Room exported its schema: what a backup made by
+     * that version holds (SPEC.md §10), the settings aside, which belong to the device.
+     */
+    internal fun dataColumnsOf(version: Int): Map<String, List<String>> =
+        schemaOf(version).getJSONArray("entities").objects()
+            .associate { entity -> entity.getString("tableName") to entity.getJSONArray("fields").objects().map { it.getString("columnName") } }
+            .filterKeys { it != SETTINGS }
+
     /** The statements that lay out the tables, indices and views of the database of [version], as Room exported it. */
     private fun layoutOf(version: Int): List<String> {
-        val schema = try {
-            context.assets.open("$SCHEMAS/$version.json").use { String(it.readBytes()) }
-        } catch (e: FileNotFoundException) {
-            throw BackupException(BackupProblem.OlderVersion, e)
-        }
-        val database = JSONObject(schema).getJSONObject("database")
+        val database = schemaOf(version)
         val tables = database.getJSONArray("entities").objects().flatMap { entity ->
             val table = entity.getString("tableName")
             val indices = entity.optJSONArray("indices")?.objects().orEmpty().map { index ->
@@ -77,6 +81,16 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
             view.getString("createSql").replace(VIEW_NAME, view.getString("viewName"))
         }
         return tables + views
+    }
+
+    /** The database of [version] as Room exported its schema (in the assets); none for a version the app never had. */
+    private fun schemaOf(version: Int): JSONObject {
+        val schema = try {
+            context.assets.open("$SCHEMAS/$version.json").use { String(it.readBytes()) }
+        } catch (e: FileNotFoundException) {
+            throw BackupException(BackupProblem.OlderVersion, e)
+        }
+        return JSONObject(schema).getJSONObject("database")
     }
 
     /** Only in memory, so that nothing of the backup reaches the disk unencrypted. */
@@ -103,6 +117,9 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
     private companion object {
         /** Where Room exports the schemas to, named after the database class, which R8 may rename in the app. */
         const val SCHEMAS = "de.emilyshub.data.HubDatabase"
+
+        /** The table of the settings, which a backup leaves out ([DataTables]). */
+        const val SETTINGS = "settings"
         const val TABLE_NAME = "\${TABLE_NAME}"
         const val INDEX_NAME = "\${INDEX_NAME}"
         const val VIEW_NAME = "\${VIEW_NAME}"

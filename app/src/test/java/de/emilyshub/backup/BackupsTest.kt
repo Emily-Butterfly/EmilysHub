@@ -2,6 +2,7 @@ package de.emilyshub.backup
 
 import android.app.AlarmManager
 import android.content.Context
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
@@ -134,7 +135,7 @@ class BackupsTest {
     @Test
     fun `a backup of an older app version is brought up to this one, as an update of the app would`() {
         val made = someOfEverything(before19 = true)
-        val file = sealed(asOfVersion16(contentOf(exported())))
+        val file = sealed(asOf(16, contentOf(exported())))
         changeEverything()
 
         val backup = open(file)
@@ -151,7 +152,7 @@ class BackupsTest {
     @Test
     fun `a backup several versions old goes through each migration on the way`() {
         val made = someOfEverything(before19 = true)
-        val file = sealed(asOfVersion14(contentOf(exported())))
+        val file = sealed(asOf(14, contentOf(exported())))
         changeEverything()
 
         restore(file)
@@ -170,7 +171,7 @@ class BackupsTest {
         runBlocking { app.todos.markDone(market) }
         runBlocking { app.todos.markDone(app.todos.open().first().single().todo.id) }
         app.todo("Steuer machen")
-        val file = sealed(asOfVersion25(contentOf(exported())))
+        val file = sealed(asOf(25, contentOf(exported())))
 
         restore(file)
 
@@ -185,7 +186,7 @@ class BackupsTest {
     @Test
     fun `a backup from before budgets loads without them, its months closed with none`() {
         val made = someOfEverything()
-        val file = sealed(asOfVersion31(contentOf(exported())))
+        val file = sealed(asOf(31, contentOf(exported())))
         changeEverything()
 
         restore(file)
@@ -200,7 +201,7 @@ class BackupsTest {
     fun `a backup from before full-screen to-dos loads with their alarms off, and a backup now keeps them`() {
         app.todo("Arzt anrufen", fullScreen = true)
         val now = exported()
-        val older = sealed(asOfVersion32(contentOf(now)))
+        val older = sealed(asOf(32, contentOf(now)))
 
         restore(now)
         assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
@@ -213,7 +214,7 @@ class BackupsTest {
     fun `a backup from before wake times loads without them, and a backup now keeps them`() {
         app.todo("Müll", due = Due.On(LocalDate.parse("2026-10-30")), wake = WakeTime.Before(1, LocalTime.of(18, 0)))
         val now = exported()
-        val older = sealed(asOfVersion33(contentOf(now)))
+        val older = sealed(asOf(33, contentOf(now)))
 
         restore(now)
         assertEquals(listOf(WakeTime.Before(1, LocalTime.of(18, 0))), runBlocking { app.todos.open().first() }.map { it.todo.wake })
@@ -227,7 +228,7 @@ class BackupsTest {
         app.routine("Arzttermin", "07:30", nameOnLockScreen = true)
         app.todo("Arzt anrufen", nameOnLockScreen = true)
         val now = exported()
-        val older = sealed(asOfVersion34(contentOf(now)))
+        val older = sealed(asOf(34, contentOf(now)))
 
         restore(now)
         assertEquals(listOf(true), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
@@ -244,7 +245,7 @@ class BackupsTest {
         app.routine("Vitamine", "07:30", tone = morning)
         app.todo("Arzt anrufen", tone = Tone.Silent)
         val now = exported()
-        val older = sealed(asOfVersion35(contentOf(now)))
+        val older = sealed(asOf(35, contentOf(now)))
 
         restore(now)
         assertEquals(listOf(morning), runBlocking { app.routines.inUse().first() }.map { it.tone })
@@ -261,7 +262,7 @@ class BackupsTest {
         app.routine("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home))
         runBlocking { app.routines.markDone(app.routines.dueOn(app.routines.today()).first().first().occurrenceId) }
         val now = exported()
-        val older = sealed(asOfVersion36(contentOf(now)))
+        val older = sealed(asOf(36, contentOf(now)))
 
         restore(now)
         assertEquals(1, runBlocking { app.routines.coupledWith(home) }.size)
@@ -506,130 +507,19 @@ class BackupsTest {
 
     private fun key() = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
 
-    /** [content] as version 16 made it, the first that made backups: without the wishes, which came with 17. */
-    private fun asOfVersion16(content: JSONObject): JSONObject {
-        val older = asOfVersion17(content)
-        WISH_TABLES.forEach { older.tables().remove(it) }
-        return older.put("schema", 16)
-    }
-
-    /** [content] as version 17 made it: without goals, which came with 18. */
-    private fun asOfVersion17(content: JSONObject): JSONObject {
-        val older = asOfVersion18(content).withoutColumns("wishes", "parent_id", "manual_progress").withoutColumns("todos", "goal_id")
-        return older.put("schema", 17)
-    }
-
-    /** [content] as version 18 made it: without to-dos coming again, which came with 19. */
-    private fun asOfVersion18(content: JSONObject): JSONObject =
-        asOfVersion19(content).withoutColumns("todos", "recurrence", "next_id").put("schema", 18)
-
-    /** [content] as version 19 made it: without routines under goals, which came with 20. */
-    private fun asOfVersion19(content: JSONObject): JSONObject =
-        asOfVersion20(content).withoutColumns("routines", "goal_id", "target").put("schema", 19)
-
-    /** [content] as version 20 made it: without notes, which came with 21. */
-    private fun asOfVersion20(content: JSONObject): JSONObject {
-        val older = asOfVersion21(content)
-        NOTE_TABLES.forEach { older.tables().remove(it) }
-        return older.put("schema", 20)
-    }
-
-    /** [content] as version 21 made it: without folders of notes, nor the order in them and in tabs, which came with 22. */
-    private fun asOfVersion21(content: JSONObject): JSONObject {
-        val older = asOfVersion22(content)
-        older.tables().remove("note_folders")
-        older.tables().remove("note_general_tab")
-        return older.withoutColumns("notes", "folder_id", "position").withoutColumns("note_tabs", "sort").put("schema", 21)
-    }
-
-    /** [content] as version 22 made it: without notes pinned, nor linked, which came with 23. */
-    private fun asOfVersion22(content: JSONObject): JSONObject {
-        val older = asOfVersion23(content)
-        LINK_TABLES.forEach { older.tables().remove(it) }
-        return older.withoutColumns("notes", "pinned", "on_today").withoutColumns("note_folders", "pinned").put("schema", 22)
-    }
-
-    /** [content] as version 23 made it: without tags of notes, which came with 24. */
-    private fun asOfVersion23(content: JSONObject): JSONObject {
-        val older = asOfVersion25(content)
-        older.tables().remove("note_tags")
-        return older.put("schema", 23)
-    }
-
-    /** [content] as version 25 made it: without ends of series, which came with 26. */
-    private fun asOfVersion25(content: JSONObject): JSONObject =
-        asOfVersion26(content)
-            .withoutColumns("todos", "ends_after", "ends_on", "series_number")
-            .withoutColumns("routines", "ends_on")
-            .put("schema", 25)
-
-    /** [content] as version 26 made it: without to-dos shown before their day, which came with 27. */
-    private fun asOfVersion26(content: JSONObject): JSONObject =
-        asOfVersion27(content).withoutColumns("todos", "shows_days_before").put("schema", 26)
-
-    /** [content] as version 27 made it: without the household book, which came with 28. */
-    private fun asOfVersion27(content: JSONObject): JSONObject {
-        val older = asOfVersion28(content)
-        LEDGER_TABLES.forEach { older.tables().remove(it) }
-        return older.put("schema", 27)
-    }
-
-    /** [content] as version 28 made it: without fixed bookings, which came with 29. */
-    private fun asOfVersion28(content: JSONObject): JSONObject {
-        val older = asOfVersion29(content)
-        older.tables().remove("recurring_bookings")
-        return older.withoutColumns("bookings", "recurring_id").put("schema", 28)
-    }
-
-    /** [content] as version 29 made it: without months closed, which came with 30. */
-    private fun asOfVersion29(content: JSONObject): JSONObject {
-        val older = asOfVersion30(content)
-        older.tables().remove("ledger_closed_months")
-        return older.put("schema", 29)
-    }
-
-    /** [content] as version 30 made it: without fixed bookings skipped, which came with 31. */
-    private fun asOfVersion30(content: JSONObject): JSONObject {
-        val older = asOfVersion31(content)
-        older.tables().remove("ledger_skipped")
-        return older.put("schema", 30)
-    }
-
-    /** [content] as version 31 made it: without budgets, which came with 32. */
-    private fun asOfVersion31(content: JSONObject): JSONObject {
-        val older = asOfVersion32(content)
-        older.tables().remove("ledger_closed_budgets")
-        return older.withoutColumns("ledger_categories", "budget_cents").put("schema", 31)
-    }
-
-    /** [content] as version 32 made it: without full-screen alarms for to-dos, which came with 33. */
-    private fun asOfVersion32(content: JSONObject): JSONObject =
-        asOfVersion33(content).withoutColumns("todos", "full_screen").put("schema", 32)
-
-    /** [content] as version 33 made it: without wake times for to-dos, which came with 34. */
-    private fun asOfVersion33(content: JSONObject): JSONObject =
-        asOfVersion34(content).withoutColumns("todos", "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time").put("schema", 33)
-
-    /** [content] as version 34 made it: without names on the lock screen, which came with 35. */
-    private fun asOfVersion34(content: JSONObject): JSONObject =
-        asOfVersion35(content).withoutColumns("routines", "name_on_lock_screen").withoutColumns("todos", "name_on_lock_screen").put("schema", 34)
-
-    /** [content] as version 36 made it: without coupled routines, which came with 37. */
-    private fun asOfVersion36(content: JSONObject): JSONObject =
-        content.withoutColumns("routines", "coupling").withoutColumns("occurrences", "covered_by").put("schema", 36)
-
-    /** [content] as version 35 made it: without tones, which came with 36. */
-    private fun asOfVersion35(content: JSONObject): JSONObject =
-        asOfVersion36(content).withoutColumns("routines", "tone").withoutColumns("todos", "tone").put("schema", 35)
-
     /**
-     * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and
-     * places, which came with 15 and 16. A test of a migration over several versions.
+     * [content] as [version] made it (SPEC.md §10): only the tables and columns that version had, as Room exported its
+     * schema, so that a schema change needs nothing here.
      */
-    private fun asOfVersion14(content: JSONObject): JSONObject {
-        val older = asOfVersion16(content).withoutColumns("todos", "away", "reminds_at_due_time", "remind_at", "waiting")
-        older.tables().remove("todo_places")
-        return older.put("schema", 14)
+    private fun asOf(version: Int, content: JSONObject): JSONObject {
+        val layout = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() }.dataColumnsOf(version)
+        val tables = content.tables()
+        tables.keys().asSequence().toList().filter { it !in layout }.forEach(tables::remove)
+        for ((table, columns) in layout) {
+            val names = content.table(table).getJSONArray("columns").let { all -> List(all.length(), all::getString) }
+            content.withoutColumns(table, *(names - columns.toSet()).toTypedArray())
+        }
+        return content.put("schema", version)
     }
 
     private fun JSONObject.withoutColumns(table: String, vararg names: String) = apply {
