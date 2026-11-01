@@ -29,6 +29,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.Tone
+import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.reminders.ToneKind
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
@@ -358,6 +360,43 @@ class RoutineEditingTest {
             compose.onNodeWithText("Speichern").performClick()
         }
         assertEquals(Tone.Standard, savedRoutines().single().tone)
+    }
+
+    @Test
+    fun `an audio file of one's own becomes a tone of the phone, for alarms and notifications, and the routine's tone`() {
+        app.toneFiles.add("content://downloads/1", "Morgenlied.mp3")
+
+        launchApp().use { scenario ->
+            newRoutine("Vitamine")
+            compose.onNodeWithText("Eigene Datei…").performScrollTo().performClick()
+            val request = scenario.pickFile(Uri.parse("content://downloads/1"))
+            assertEquals(Intent.ACTION_OPEN_DOCUMENT, request.action)
+            assertEquals(listOf("audio/*"), request.getStringArrayExtra(Intent.EXTRA_MIME_TYPES)?.toList())
+            tone().assertTextContains("Morgenlied")
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        val copy = app.toneFiles.copies.single()
+        assertEquals(ToneKind.Any, copy.kind)
+        assertEquals(Tone.Of(copy.uri), savedRoutines().single().tone)
+    }
+
+    @Test
+    fun `a file that is no audio, or larger than 20 MB, is turned down with a hint and leaves the tone as it was`() {
+        app.toneFiles.add("content://downloads/1", "Liste.pdf", playable = false)
+        app.toneFiles.add("content://downloads/2", "Hörbuch.mp3", bytes = ByteArray(ToneCollection.MAX_BYTES + 1))
+
+        launchApp().use { scenario ->
+            newRoutine("Vitamine")
+            compose.onNodeWithText("Eigene Datei…").performScrollTo().performClick()
+            scenario.pickFile(Uri.parse("content://downloads/1"))
+            compose.onNodeWithText("keine abspielbare Audiodatei", substring = true).performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("Eigene Datei…").performScrollTo().performClick()
+            scenario.pickFile(Uri.parse("content://downloads/2"))
+            compose.onNodeWithText("größer als 20 MB", substring = true).performScrollTo().assertIsDisplayed()
+            tone().assertTextContains("Standard")
+        }
+        assertEquals(emptyList<Any>(), app.toneFiles.copies)
     }
 
     @Test

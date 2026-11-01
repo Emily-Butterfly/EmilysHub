@@ -54,6 +54,17 @@ fun ActivityScenario<MainActivity>.pickTone(picked: Uri?): Intent {
     return checkNotNull(request)
 }
 
+/**
+ * Answers the app's request to Android's file dialog, which it opened last, with [file]. Returns the request, as the app
+ * made it.
+ */
+fun ActivityScenario<MainActivity>.pickFile(file: Uri): Intent {
+    var request: Intent? = null
+    onActivity { request = shadowOf(it).nextStartedActivityForResult.intent }
+    onActivity { shadowOf(it).receiveResult(checkNotNull(request), Activity.RESULT_OK, Intent().setData(file)) }
+    return checkNotNull(request)
+}
+
 /** Leaves the app the way the home button does, lets [whileAway] happen, and opens it again. */
 fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
     moveToState(Lifecycle.State.CREATED)

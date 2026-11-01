@@ -47,7 +47,7 @@ import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.Tone
-import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.search.SearchArea
@@ -123,7 +123,7 @@ fun EmilysHubApp(
     nightlyBackups: NightlyBackups,
     search: Search,
     ledger: Ledger,
-    tones: ToneLibrary,
+    tones: ToneCollection,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -215,7 +215,7 @@ private fun AppShell(
     nightlyBackups: NightlyBackups,
     search: Search,
     ledger: Ledger,
-    tones: ToneLibrary,
+    tones: ToneCollection,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,

@@ -42,7 +42,7 @@ import de.emilyshub.R
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
 import de.emilyshub.reminders.Tone
-import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.ui.reminders.DefaultToneSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +53,7 @@ fun SettingsScreen(
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
     onLookAroundChange: (Boolean) -> Unit,
-    tones: ToneLibrary,
+    tones: ToneCollection,
     onAlarmToneChange: (Tone) -> Unit,
     onNotificationToneChange: (Tone) -> Unit,
     onOpenStatus: () -> Unit,

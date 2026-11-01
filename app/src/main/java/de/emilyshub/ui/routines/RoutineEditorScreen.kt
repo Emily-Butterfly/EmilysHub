@@ -43,7 +43,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
-import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -87,7 +87,7 @@ fun RoutineEditorScreen(
     places: Places,
     notes: Notes,
     target: RoutineEditorTarget,
-    tones: ToneLibrary,
+    tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {

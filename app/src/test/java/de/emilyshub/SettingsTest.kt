@@ -18,6 +18,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -27,6 +28,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.DefaultTones
 import de.emilyshub.reminders.Tone
+import de.emilyshub.reminders.ToneKind
 import de.emilyshub.ui.theme.FliederColorScheme
 import de.emilyshub.ui.theme.LilaColorScheme
 import kotlinx.coroutines.runBlocking
@@ -166,6 +168,21 @@ class SettingsTest {
             alarmTone().assertTextContains("Ton des Handys")
         }
         assertEquals(Tone.Standard, runBlocking { app.settings.defaultTones() }.alarm)
+    }
+
+    @Test
+    fun `a default tone can be an audio file of one's own, copied as a tone of its kind`() {
+        app.toneFiles.add("content://downloads/1", "Gong.ogg")
+
+        launchApp().use { scenario ->
+            openSettings()
+            compose.onAllNodesWithText("Eigene Datei…")[1].performScrollTo().performClick()
+            scenario.pickFile(Uri.parse("content://downloads/1"))
+            notificationTone().assertTextContains("Gong")
+        }
+        val copy = app.toneFiles.copies.single()
+        assertEquals(ToneKind.Notification, copy.kind)
+        assertEquals(Tone.Of(copy.uri), runBlocking { app.settings.defaultTones() }.notification)
     }
 
     private fun openSettings() {

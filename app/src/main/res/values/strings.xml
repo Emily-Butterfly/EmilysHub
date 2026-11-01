@@ -163,6 +163,10 @@
     <string name="tone_reset">Zurück auf Standard</string>
     <string name="tone_missing">Dieser Ton ist nicht mehr auf dem Handy, daher gilt der Standard.</string>
     <string name="tone_missing_phone">Dieser Ton ist nicht mehr auf dem Handy, daher gilt der Ton des Handys.</string>
+    <string name="tone_own_file">Eigene Datei…</string>
+    <string name="tone_file_not_audio">Das ist keine abspielbare Audiodatei.</string>
+    <string name="tone_file_too_large">Die Datei ist größer als 20 MB.</string>
+    <string name="tone_file_failed">Android hat die Datei nicht in die Töne übernommen.</string>
     <string name="settings_alarm_tone">Ton für Vollbild-Alarme</string>
     <string name="settings_notification_tone">Ton für Benachrichtigungen</string>
     <string name="reminder_channel_description">Pop-ups zur Uhrzeit deiner Routinen und To-dos, auch beim Ankommen an ihren Orten</string>

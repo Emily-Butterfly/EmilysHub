@@ -16,8 +16,10 @@ import de.emilyshub.places.FakeWifi
 import de.emilyshub.places.Locator
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
+import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.FakeAuthenticator
@@ -43,6 +45,8 @@ class TestApplication : EmilysHubApplication() {
     override val authenticator = FakeAuthenticator()
     override val ringer = FakeRinger()
     override val tones = FakeTones()
+    val toneFiles = FakeToneFiles(tones)
+    override val toneCollection = ToneCollection(tones, toneFiles, { settingsDao }, Dispatchers.Unconfined)
 
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))

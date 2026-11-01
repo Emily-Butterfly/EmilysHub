@@ -20,9 +20,11 @@ import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.AlarmSound
+import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.reminders.Sounds
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.reminders.ToneLibrary
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
@@ -65,6 +67,9 @@ open class EmilysHubApplication : Application() {
 
     /** The phone's tones (SPEC.md §3). */
     open val tones: ToneLibrary by lazy { PhoneTones(this) }
+
+    /** The phone's tones as the app chooses from them, with audio files of one's own brought into them. */
+    open val toneCollection: ToneCollection by lazy { ToneCollection(tones, PhoneToneFiles(this), { database.settings() }) }
 
     /** What sounds for each reminder, by its tone and the defaults in the settings. */
     val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones, routines, todos) }

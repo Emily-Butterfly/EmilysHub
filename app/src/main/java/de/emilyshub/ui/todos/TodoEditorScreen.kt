@@ -46,7 +46,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
-import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
@@ -96,7 +96,7 @@ fun TodoEditorScreen(
     places: Places,
     notes: Notes,
     target: TodoEditorTarget,
-    tones: ToneLibrary,
+    tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
