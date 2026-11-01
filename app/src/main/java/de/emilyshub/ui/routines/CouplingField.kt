@@ -54,6 +54,7 @@ fun CouplingField(routines: Routines, routineId: Long?, times: Int, selected: Se
     }
 }
 
+/** What coupling means, or why it cannot be, under the chips. */
 @Composable
 private fun Hint(text: String) {
     Text(

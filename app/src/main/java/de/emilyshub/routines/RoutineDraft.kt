@@ -135,7 +135,7 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
     fun cleaned() = copy(text = InputText.singleLine(text))
 }
 
-/** The routine with its [checklist], tags, places and the routines it is [coupledWith] as the editor starts out with it. */
+/** The routine with its [checklist], tags, places and the routines it is [coupledWith], as the editor starts out. */
 fun Routine.toDraft(
     checklist: List<ChecklistItem>,
     tagIds: Set<Long>,

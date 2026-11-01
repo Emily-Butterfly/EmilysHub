@@ -341,12 +341,14 @@ private fun DueRoutineRow(
             }
             if (covered) {
                 Hint(stringResource(R.string.status_covered, routine.coveredBy.orEmpty()))
-            } else routine.status.label?.let { label ->
-                // Dropped is how the day ended, as missed would: in the color of the calendar's mark for it.
-                if (routine.status == OccurrenceStatus.Dropped) {
-                    Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                } else {
-                    Hint(stringResource(label))
+            } else {
+                routine.status.label?.let { label ->
+                    // Dropped is how the day ended, as missed would: in the color of the calendar's mark for it.
+                    if (routine.status == OccurrenceStatus.Dropped) {
+                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Hint(stringResource(label))
+                    }
                 }
             }
         }

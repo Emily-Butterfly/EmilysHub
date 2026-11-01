@@ -21,8 +21,8 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.clockTime
-import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmChoice
+import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
 import de.emilyshub.ui.reminders.LockScreenShown
 import de.emilyshub.ui.theme.EmilysHubTheme

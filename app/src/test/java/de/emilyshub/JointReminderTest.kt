@@ -90,6 +90,16 @@ class JointReminderTest {
     }
 
     @Test
+    fun `the first of them skipped on Heute, the reminder stays for the other`() {
+        coupled("Laufen", "Yoga")
+        goOffAt("2026-10-23T07:30")
+
+        runBlocking { app.routines.skip(app.routines.dueOn(app.routines.today()).first().single { it.name == "Laufen" }.occurrenceId) }
+
+        assertEquals(listOf("Yoga"), reminders().map { it.extras.getString(Notification.EXTRA_TITLE) })
+    }
+
+    @Test
     fun `skip is for all of them`() {
         coupled("Laufen", "Yoga")
         goOffAt("2026-10-23T07:30")

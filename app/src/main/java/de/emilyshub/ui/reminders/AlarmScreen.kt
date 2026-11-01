@@ -54,7 +54,8 @@ data class LockScreenShown(val title: String, val text: String?)
  * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig", or the name and time
  * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown],
  * with "Erledigt · Später", and "Überspringen · Heute nicht" for a routine; for coupled routines due together, a
- * "done" for each of them ([onDoneOf]) instead of "Erledigt", the rest for all of them; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
+ * "done" for each of them ([onDoneOf]) instead of "Erledigt", the rest for all of them; after "Später" the choice
+ * when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
 fun AlarmScreen(

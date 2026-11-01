@@ -139,7 +139,7 @@ class Reminders(
         when {
             reminder == null || by !in putOffChoices(reminder) -> update()
             // A joint reminder is put off for all it reminds of (SPEC.md §3).
-            else -> routines.together(occurrenceId).forEach { routines.putOff(it, until = clock.instant() + by) }
+            else -> routines.putOffTogether(occurrenceId, until = clock.instant() + by)
         }
     }
 

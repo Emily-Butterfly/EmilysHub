@@ -177,6 +177,7 @@ interface RoutineDao {
     @Query("SELECT id FROM routines WHERE coupling = :coupling")
     suspend fun inCoupling(coupling: Long): List<Long>
 
+    /** Puts the routines [ids] into the coupled group [coupling], or into none. */
     @Query("UPDATE routines SET coupling = :coupling WHERE id IN (:ids)")
     suspend fun setCoupling(ids: Collection<Long>, coupling: Long?)
 
@@ -197,6 +198,15 @@ interface RoutineDao {
     /** Skips [ids] as the occurrence [by] was done (SPEC.md §2). */
     @Query("UPDATE occurrences SET status = :skipped, covered_by = :by WHERE id IN (:ids)")
     suspend fun cover(ids: Collection<Long>, by: Long, skipped: OccurrenceStatus = OccurrenceStatus.Skipped)
+
+    /** Opens again what the occurrences of the routine [routineId] skipped as they were done. */
+    @Query(
+        """
+        UPDATE occurrences SET status = :open, covered_by = NULL
+        WHERE covered_by IN (SELECT id FROM occurrences WHERE routine_id = :routineId)
+        """,
+    )
+    suspend fun uncoverAllBy(routineId: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
 
     /** Opens again what the occurrence [by] skipped as it was done. */
     @Query("UPDATE occurrences SET status = :open, covered_by = NULL WHERE covered_by = :by")

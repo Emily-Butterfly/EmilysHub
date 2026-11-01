@@ -192,11 +192,14 @@ data class Reminder(
     val title: String
         get() = occurrences.map { it.name }.sortedWith(InputText.byName).joinToString(" · ")
 
-    /** Whether the lock screen may show its [title] and time: only if each routine it reminds of allows its name there. */
+    /** Whether the lock screen may show its [title] and time: only if each routine it reminds of allows it. */
     val titleOnLockScreen: Boolean get() = occurrences.all { it.nameOnLockScreen }
 }
 
-/** An occurrence a joint reminder reminds of (SPEC.md §3), with its routine's [name] and whether it allows it on the lock screen. */
+/**
+ * An occurrence a joint reminder reminds of (SPEC.md §3), with its routine's [name] and whether that allows its name on
+ * the lock screen.
+ */
 data class JointOccurrence(val occurrenceId: Long, val name: String, val nameOnLockScreen: Boolean)
 
 /**

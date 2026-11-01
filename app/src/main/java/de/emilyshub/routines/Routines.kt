@@ -207,6 +207,8 @@ class Routines(
         database().withTransaction {
             val part = partOf(id)
             val coupling = dao.get(id)?.coupling
+            // What it skipped by being done comes back, as there is nothing to undo then.
+            dao.uncoverAllBy(routineId = id)
             dao.delete(id)
             coupling?.let { dissolveIfAlone(it) }
             settleGoals(part, GoalPart.None)
@@ -253,14 +255,15 @@ class Routines(
      * open on Heute, the later ones of today and one of yesterday still in its time window too, is dropped; none of
      * them reminds any more. Those done, skipped or missed stay as they are.
      */
-    suspend fun dropForToday(occurrenceId: Long) = write {
-        database().withTransaction {
-            // From an occurrence still open only: one answered meanwhile, say in the app, leaves the day as it is.
-            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status == OccurrenceStatus.Open } ?: return@withTransaction
-            val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
-            val open = onHeute(routine).filter { it.status == OccurrenceStatus.Open }
-            settlingGoal(routine.id) { dao.setStatuses(open.map { it.id }, OccurrenceStatus.Dropped) }
-        }
+    suspend fun dropForToday(occurrenceId: Long) = write { database().withTransaction { drop(occurrenceId) } }
+
+    /** "Heute nicht" for the routine of the occurrence, as [dropForToday] has it. */
+    private suspend fun drop(occurrenceId: Long) {
+        // From an occurrence still open only: one answered meanwhile, say in the app, leaves the day as it is.
+        val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status == OccurrenceStatus.Open } ?: return
+        val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return
+        val open = onHeute(routine).filter { it.status == OccurrenceStatus.Open }
+        settlingGoal(routine.id) { dao.setStatuses(open.map { it.id }, OccurrenceStatus.Dropped) }
     }
 
     /**
@@ -450,12 +453,14 @@ class Routines(
 
     /**
      * Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are
-     * now, each together with those coupled with it due at the same time as well.
+     * now, each together with those coupled with it due at the same time as well, also of one no longer due itself.
      */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        val due = dao.occurrencesWithRoutines(occurrenceIds).filter { it.isDue(now) }
-        joined((due + due.flatMap { dueTogetherWith(it, now) }).distinctBy { it.occurrence.id })
+        val shown = dao.occurrencesWithRoutines(occurrenceIds)
+        // Of one no longer due, say skipped on Heute, the others its joint reminder reminded of stay too.
+        val due = shown.filter { it.isDue(now) } + shown.flatMap { dueTogetherWith(it, now) }
+        joined(due.distinctBy { it.occurrence.id })
     }
 
     /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
@@ -466,22 +471,36 @@ class Routines(
         emitAll(reminders)
     }.flowOn(io)
 
-    /**
-     * The occurrence and those coupled with it due at the same time, still open (SPEC.md §3): what "Später",
-     * "Überspringen" and "Heute nicht" of their joint reminder are for. Only it, if it is not coupled.
-     */
-    suspend fun together(occurrenceId: Long): List<Long> = withContext(io) {
-        val open = dao.occurrencesWithRoutines(listOf(occurrenceId)).singleOrNull() ?: return@withContext emptyList()
-        listOf(occurrenceId) + coupledAtTheSameTime(open).map { it.occurrence.id }
+    /** Skips the occurrence and those coupled with it in their joint reminder, all at once. */
+    suspend fun skipTogether(occurrenceId: Long) = write {
+        database().withTransaction {
+            togetherWith(occurrenceId).forEach { id ->
+                val occurrence = dao.occurrence(id) ?: return@forEach
+                settlingGoal(occurrence.routineId) { dao.setStatus(id, OccurrenceStatus.Skipped) }
+            }
+        }
     }
 
-    /** Skips the occurrence and those [together] with it in their joint reminder. */
-    suspend fun skipTogether(occurrenceId: Long) = together(occurrenceId).forEach { skip(it) }
+    /** "Heute nicht" for the routines of the occurrence and those coupled with it in their joint reminder, at once. */
+    suspend fun dropTogether(occurrenceId: Long) = write {
+        database().withTransaction { togetherWith(occurrenceId).forEach { drop(it) } }
+    }
 
-    /** "Heute nicht" for the routine of the occurrence and those [together] with it in their joint reminder. */
-    suspend fun dropTogether(occurrenceId: Long) = together(occurrenceId).forEach { dropForToday(it) }
+    /** Puts the occurrence and those coupled with it in their joint reminder off ("Später") until [until], at once. */
+    suspend fun putOffTogether(occurrenceId: Long, until: Instant) = write {
+        database().withTransaction { togetherWith(occurrenceId).forEach { dao.putOff(it, until) } }
+    }
 
-    /** The open occurrences of the other active routines coupled with [open]'s, due on the same day at the same time. */
+    /**
+     * The occurrence and those coupled with it due with it now, which its joint reminder reminds of; only it, if none.
+     * None once it is gone.
+     */
+    private suspend fun togetherWith(occurrenceId: Long): List<Long> {
+        val open = dao.occurrencesWithRoutines(listOf(occurrenceId)).singleOrNull() ?: return emptyList()
+        return listOf(occurrenceId) + dueTogetherWith(open, now()).map { it.occurrence.id }
+    }
+
+    /** The open occurrences of the other active routines coupled with [open]'s due on the same day at the same time. */
     private suspend fun coupledAtTheSameTime(open: OccurrenceOfRoutine): List<OccurrenceOfRoutine> {
         val coupling = open.routine.coupling ?: return emptyList()
         val (occurrence) = open
@@ -490,8 +509,9 @@ class Routines(
         }
     }
 
-    /** Those [coupledAtTheSameTime] with [open] that are to be reminded of now too. */
-    private suspend fun dueTogetherWith(open: OccurrenceOfRoutine, now: Instant) = coupledAtTheSameTime(open).filter { it.isDue(now) }
+    /** Those [coupledAtTheSameTime] with [open] that are to be reminded of now too: not those waiting for a place. */
+    private suspend fun dueTogetherWith(open: OccurrenceOfRoutine, now: Instant) =
+        coupledAtTheSameTime(open).filter { it.isDue(now) && !it.occurrence.waiting }
 
     /**
      * The reminders of [due], in their order: one for each, but one for those of coupled routines due at the same time,
@@ -505,8 +525,9 @@ class Routines(
             if (group.first().occurrence.id != open.occurrence.id) return@mapNotNull null
             val others = group.drop(1)
             reminderOf(open).copy(
-                // One with a full-screen alarm makes it one.
+                // One with a full-screen alarm makes it one; "Später" comes back before any of their windows end.
                 fullScreen = group.any { it.routine.fullScreen },
+                windowEnd = group.minOf { it.routine.windowEnd(it.occurrence, clock.zone) },
                 together = others.map { JointOccurrence(it.occurrence.id, it.routine.name, it.routine.nameOnLockScreen) },
             )
         }
@@ -524,7 +545,11 @@ class Routines(
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
-            settlingGoal(occurrence.routineId) { dao.setStatus(occurrenceId, status) }
+            settlingGoal(occurrence.routineId) {
+                // Skipped once done, what it skipped of its group by being done comes back.
+                if (occurrence.status == OccurrenceStatus.Done && status != OccurrenceStatus.Done) dao.uncover(by = occurrenceId)
+                dao.setStatus(occurrenceId, status)
+            }
             if (status == OccurrenceStatus.Done) coverOthers(occurrenceId)
         }
     }
@@ -556,9 +581,9 @@ class Routines(
     }
 
     /**
-     * Couples the routine with [wanted] (SPEC.md §2), its group up to then [coupling]: those of them that have one time a
-     * day, as it then has, make its group, taken out of any other they were in. Those of its group no longer wanted are
-     * out of it; a group left with one routine is none.
+     * Couples the routine with [wanted] (SPEC.md §2), its group up to then [coupling]: those of them that have one time
+     * a day, as it then has, make its group, taken out of any other they were in. Those of its group no longer wanted
+     * are out of it; a group left with one routine is none.
      */
     private suspend fun saveCoupling(routineId: Long, coupling: Long?, wanted: Set<Long>) {
         val members = (wanted - routineId).filter { dao.get(it)?.times?.size == 1 }.toSet()

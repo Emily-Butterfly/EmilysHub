@@ -142,6 +142,22 @@ class CouplingTest {
         }
 
     @Test
+    fun `the one done skipped, or its routine deleted, the others are open again`() = runBlocking {
+        val home = routines.create(draft("Tabletten zu Hause", "08:00"))
+        val work = routines.create(draft("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home)))
+        routines.markDone(occurrenceOf("Tabletten zu Hause"))
+
+        routines.skip(occurrenceOf("Tabletten zu Hause"))
+        assertEquals(listOf("Skipped", "Open"), statusesOn(today))
+
+        routines.reopen(occurrenceOf("Tabletten zu Hause"))
+        routines.markDone(occurrenceOf("Tabletten auf der Arbeit"))
+        routines.delete(work)
+        assertEquals(listOf("08:00 Tabletten zu Hause: Open"), dueOn(today))
+        assertEquals(null, routines.dueOn(today).first().single().coveredBy)
+    }
+
+    @Test
     fun `undone after every time window of the group is over, the others are missed with it`() = runBlocking {
         val home = routines.create(draft("Tabletten zu Hause", "08:00", window = TimeWindow(hours = 2)))
         routines.create(draft("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home), window = TimeWindow(hours = 2)))

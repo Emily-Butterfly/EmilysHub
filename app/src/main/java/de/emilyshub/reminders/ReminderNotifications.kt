@@ -53,7 +53,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     /** "Später": the reminder offers when to come back instead of its actions, without a sound. */
     suspend fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, Offering.PutOff)
 
-    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was instead of its actions, without a sound. */
+    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was instead, without a sound. */
     suspend fun offerDone(reminder: Reminder) = post(reminder, alert = false, Offering.Done)
 
     fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
@@ -358,7 +358,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
      */
     private data class ReminderOf(val tag: String, val idExtra: String, val id: Long)
 
-    /** What a reminder offers: its actions, when to come back after "Später", or which one was done after "Erledigt". */
+    /** What a reminder offers: its actions, when to come back after "Später", or which one after "Erledigt". */
     private enum class Offering { Actions, PutOff, Done }
 
     private companion object {
