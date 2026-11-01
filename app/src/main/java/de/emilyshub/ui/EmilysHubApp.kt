@@ -57,6 +57,8 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
+import de.emilyshub.ui.navigation.BackStack
+import de.emilyshub.ui.navigation.Destination
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -102,7 +104,6 @@ import de.emilyshub.ui.wishes.WishReviewScreen
 import de.emilyshub.ui.wishes.WishlistScreen
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.launch
-import java.time.Year
 
 /**
  * The whole UI. Nothing is drawn before the settings are known, not even the theme, and nothing but
@@ -229,206 +230,122 @@ private fun AppShell(
     onRemindersAsked: () -> Unit,
 ) {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
-    var settingsOpen by rememberSaveable { mutableStateOf(false) }
-    var routineEditor by rememberSaveable { mutableStateOf<RoutineEditorTarget?>(null) }
-    var archiveOpen by rememberSaveable { mutableStateOf(false) }
-    var statisticsOpen by rememberSaveable { mutableStateOf(false) }
-    var searchOpen by rememberSaveable { mutableStateOf(false) }
-    // Here, so that it stays while an entry found is open.
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var statisticsRoutineId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var tagsOpen by rememberSaveable { mutableStateOf(false) }
-    var placesOpen by rememberSaveable { mutableStateOf(false) }
-    var statusOpen by rememberSaveable { mutableStateOf(false) }
-    var backupsOpen by rememberSaveable { mutableStateOf(false) }
-    var todoEditor by rememberSaveable { mutableStateOf<TodoEditorTarget?>(null) }
-    var todoArchiveOpen by rememberSaveable { mutableStateOf(false) }
-    var wishEditor by rememberSaveable { mutableStateOf<WishEditorTarget?>(null) }
-    var wishReviewOpen by rememberSaveable { mutableStateOf(false) }
+    // The screens open over the tabs, each going back to the one it was opened from.
+    var stack by rememberSaveable { mutableStateOf(BackStack()) }
+    val open = { destination: Destination -> stack = stack.push(destination) }
+    val back = { stack = stack.pop() }
+    // Here, so that they stay while an entry is open and while another tab shows.
     var wishTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
-    var noteEditor by rememberSaveable { mutableStateOf<NoteEditorTarget?>(null) }
-    var noteTabsOpen by rememberSaveable { mutableStateOf(false) }
-    var ledgerOpen by rememberSaveable { mutableStateOf(false) }
-    var ledgerCategoriesOpen by rememberSaveable { mutableStateOf(false) }
-    var bookingEditor by rememberSaveable { mutableStateOf<BookingEditorTarget?>(null) }
-    var recurringOpen by rememberSaveable { mutableStateOf(false) }
-    var ledgerArchiveOpen by rememberSaveable { mutableStateOf(false) }
-    // The year overview shown, if it is.
-    var ledgerYear by rememberSaveable { mutableStateOf<Year?>(null) }
-    // A month opened from the overview, which back goes to; the month it was opened from, which back from it goes to.
-    var ledgerMonthFromYear by rememberSaveable { mutableStateOf(false) }
-    var ledgerMonthBeforeYear by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
-    var recurringEditor by rememberSaveable { mutableStateOf<RecurringEditorTarget?>(null) }
-    // Here, so that it stays while a booking is open.
-    var ledgerMonth by rememberSaveable { mutableStateOf(ledger.thisMonth()) }
-    // Here, so that it stays while a note is open and while another area shows.
     var notesView by rememberSaveable { mutableStateOf(NotesView()) }
-    // Here, so that they stay while a to-do is open and while another tab shows.
     var todoOrder by rememberSaveable { mutableStateOf(TodoOrder.ByDue) }
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
-    var placeEditor by rememberSaveable { mutableStateOf<PlaceEditorTarget?>(null) }
-    // Here, so that it stays while a routine is open and while another tab shows.
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    val editor = routineEditor
-    val placeTarget = placeEditor
-    val todoTarget = todoEditor
-    val wishTarget = wishEditor
-    val noteTarget = noteEditor
-    val bookingTarget = bookingEditor
-    val recurringTarget = recurringEditor
-    val yearShown = ledgerYear
-    val statisticsRoutine = statisticsRoutineId
-    // A note opened from the editor of what it is linked to goes back there, with what was typed there kept.
-    val editors = rememberSaveableStateHolder()
-    ForgetClosedEditor(editors, "todo", todoTarget)
-    ForgetClosedEditor(editors, "wish", wishTarget)
-    ForgetClosedEditor(editors, "routine", editor)
-    val openNote = { id: Long -> noteEditor = NoteEditorTarget.Edit(id) }
-    when {
-        noteTarget != null -> {
-            BackHandler { noteEditor = null }
-            NoteEditorScreen(notes, tags, noteTarget, onClose = { noteEditor = null })
-        }
-        todoTarget != null -> {
-            BackHandler { todoEditor = null }
-            editors.SaveableStateProvider(editorKey("todo", todoTarget)) {
-                TodoEditorScreen(
-                    todos, wishes, tags, places, notes, todoTarget, tones, onClose = { todoEditor = null }, onOpenNote = openNote,
-                )
-            }
-        }
-        todoArchiveOpen -> {
-            BackHandler { todoArchiveOpen = false }
-            TodoArchiveScreen(todos, onOpen = { todoEditor = TodoEditorTarget.Edit(it) }, onBack = { todoArchiveOpen = false })
-        }
-        // Opened from the list or the review, the editor goes back there.
-        wishTarget != null -> {
-            BackHandler { wishEditor = null }
-            // A new editor for each wish, so that one opened from another starts afresh.
-            editors.SaveableStateProvider(editorKey("wish", wishTarget)) {
-                WishEditorScreen(
-                    wishes = wishes,
-                    todos = todos,
-                    tags = tags,
-                    notes = notes,
-                    target = wishTarget,
-                    onClose = { wishEditor = null },
-                    onOpenNote = openNote,
-                    onOpenWish = { wishEditor = it },
-                    onOpenTodo = {
-                        wishEditor = null
-                        todoEditor = TodoEditorTarget.Edit(it)
-                    },
-                )
-            }
-        }
-        wishReviewOpen -> {
-            BackHandler { wishReviewOpen = false }
-            WishReviewScreen(wishes, onOpen = { wishEditor = WishEditorTarget.Edit(it) }, onBack = { wishReviewOpen = false })
-        }
-        // Each opened from the one below it, it goes back there: a booking, the household book, the notes.
-        bookingTarget != null -> {
-            BackHandler { bookingEditor = null }
-            BookingEditorScreen(ledger, bookingTarget, onClose = { bookingEditor = null })
-        }
-        recurringTarget != null -> {
-            BackHandler { recurringEditor = null }
-            RecurringEditorScreen(ledger, recurringTarget, onClose = { recurringEditor = null })
-        }
-        recurringOpen -> {
-            BackHandler { recurringOpen = false }
-            RecurringListScreen(ledger, onOpen = { recurringEditor = it }, onBack = { recurringOpen = false })
-        }
-        ledgerArchiveOpen -> {
-            BackHandler { ledgerArchiveOpen = false }
-            LedgerArchiveScreen(
-                ledger,
-                onOpen = {
-                    ledgerMonth = it
-                    ledgerArchiveOpen = false
-                },
-                onBack = { ledgerArchiveOpen = false },
+    // What a screen keeps while one opened from it covers it: what was typed in an editor a note was opened from, say.
+    val screens = rememberSaveableStateHolder()
+    ForgetClosedScreens(screens, stack)
+    val openNote = { id: Long -> open(Destination.NoteEditor(NoteEditorTarget.Edit(id))) }
+    val top = stack.top
+    if (top == null) {
+        // Heute is the start screen: back from any other area returns there before leaving the app.
+        BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
+        TopLevelScaffold(
+            routines = routines,
+            todos = todos,
+            wishes = wishes,
+            tags = tags,
+            routineTagFilter = routineTagFilter,
+            onRoutineTagFilterChange = { routineTagFilter = it },
+            todoOrder = todoOrder,
+            onTodoOrderChange = { todoOrder = it },
+            todoTagFilter = todoTagFilter,
+            onTodoTagFilterChange = { todoTagFilter = it },
+            onOpenTodo = { open(Destination.TodoEditor(it)) },
+            onOpenTodoArchive = { open(Destination.TodoArchive) },
+            wishTagFilter = wishTagFilter,
+            onWishTagFilterChange = { wishTagFilter = it },
+            onOpenWish = { open(Destination.WishEditor(it)) },
+            onOpenWishReview = { open(Destination.WishReview) },
+            notes = notes,
+            nightlyBackups = nightlyBackups,
+            notesView = notesView,
+            onNotesViewChange = { notesView = it },
+            onOpenNote = { open(Destination.NoteEditor(it)) },
+            onOpenNoteTabs = { open(Destination.NoteTabs) },
+            onOpenLedger = { open(Destination.Ledger(ledger.thisMonth())) },
+            current = current,
+            onSelect = { current = it },
+            onOpenSettings = { open(Destination.Settings) },
+            onOpenSearch = { open(Destination.Search()) },
+            onOpenRoutine = { open(Destination.RoutineEditor(it)) },
+            onOpenArchive = { open(Destination.RoutineArchive) },
+            onOpenStatistics = { open(Destination.Statistics) },
+            onOpenStatus = { open(Destination.Status) },
+            onOpenBackups = { open(Destination.Backups) },
+        )
+        if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
+        return
+    }
+    BackHandler(onBack = back)
+    screens.SaveableStateProvider(top.stateKey) {
+        when (top) {
+            is Destination.NoteEditor -> NoteEditorScreen(notes, tags, top.target, onClose = back)
+            is Destination.TodoEditor -> TodoEditorScreen(
+                todos, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
             )
-        }
-        yearShown != null && !ledgerMonthFromYear -> {
-            val closeYear = {
-                ledgerYear = null
-                ledgerMonth = ledgerMonthBeforeYear
-            }
-            BackHandler(onBack = closeYear)
-            LedgerYearScreen(
+            Destination.TodoArchive -> TodoArchiveScreen(todos, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back)
+            is Destination.WishEditor -> WishEditorScreen(
+                wishes = wishes,
+                todos = todos,
+                tags = tags,
+                notes = notes,
+                target = top.target,
+                onClose = back,
+                onOpenNote = openNote,
+                // A new editor for each wish, so that one opened from another starts afresh.
+                onOpenWish = { stack = stack.replaceTop(Destination.WishEditor(it)) },
+                // The to-do made of it in its place, going back where it would.
+                onOpenTodo = { stack = stack.replaceTop(Destination.TodoEditor(TodoEditorTarget.Edit(it))) },
+            )
+            Destination.WishReview -> WishReviewScreen(wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
+            is Destination.BookingEditor -> BookingEditorScreen(ledger, top.target, onClose = back)
+            is Destination.RecurringEditor -> RecurringEditorScreen(ledger, top.target, onClose = back)
+            Destination.Recurring -> RecurringListScreen(ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
+            Destination.LedgerArchive -> LedgerArchiveScreen(ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
+            is Destination.LedgerYear -> LedgerYearScreen(
                 ledger = ledger,
-                year = yearShown,
-                onYearChange = { ledgerYear = it },
-                onOpenMonth = {
-                    ledgerMonth = it
-                    ledgerMonthFromYear = true
-                },
-                onBack = closeYear,
+                year = top.year,
+                onYearChange = { stack = stack.replaceTop(Destination.LedgerYear(it)) },
+                onOpenMonth = { open(Destination.Ledger(it)) },
+                onBack = back,
             )
-        }
-        ledgerCategoriesOpen -> {
-            BackHandler { ledgerCategoriesOpen = false }
-            LedgerCategoriesScreen(ledger, onBack = { ledgerCategoriesOpen = false })
-        }
-        ledgerOpen -> {
-            // Opened from the overview, it goes back there.
-            val closeMonth = { if (ledgerMonthFromYear) ledgerMonthFromYear = false else ledgerOpen = false }
-            BackHandler(onBack = closeMonth)
-            LedgerScreen(
+            Destination.LedgerCategories -> LedgerCategoriesScreen(ledger, onBack = back)
+            is Destination.Ledger -> LedgerScreen(
                 ledger = ledger,
-                month = ledgerMonth,
-                onMonthChange = { ledgerMonth = it },
-                onOpen = { bookingEditor = BookingEditorTarget.Edit(it) },
-                onCreate = { bookingEditor = BookingEditorTarget.New },
-                onOpenCategories = { ledgerCategoriesOpen = true },
-                onOpenRecurring = { recurringOpen = true },
-                onOpenArchive = { ledgerArchiveOpen = true },
-                onOpenYear = {
-                    // From a month opened from an overview, back goes where it would from that one.
-                    if (!ledgerMonthFromYear) ledgerMonthBeforeYear = ledgerMonth
-                    ledgerMonthFromYear = false
-                    ledgerYear = Year.from(ledgerMonth)
-                },
-                onBack = closeMonth,
+                month = top.month,
+                onMonthChange = { stack = stack.replaceTop(Destination.Ledger(it)) },
+                onOpen = { open(Destination.BookingEditor(BookingEditorTarget.Edit(it))) },
+                onCreate = { open(Destination.BookingEditor(BookingEditorTarget.New)) },
+                onOpenCategories = { open(Destination.LedgerCategories) },
+                onOpenRecurring = { open(Destination.Recurring) },
+                onOpenArchive = { open(Destination.LedgerArchive) },
+                onOpenYear = { stack = stack.openLedgerYear() },
+                onBack = back,
             )
-        }
-        noteTabsOpen -> {
-            BackHandler { noteTabsOpen = false }
-            NoteTabsScreen(notes, onBack = { noteTabsOpen = false })
-        }
-        // Each opened from the one below it, it goes back there: the place editor, the places, the settings.
-        placeTarget != null -> {
-            BackHandler { placeEditor = null }
-            PlaceEditorScreen(places, wifi, location, placeTarget, onClose = { placeEditor = null })
-        }
-        placesOpen -> {
-            BackHandler { placesOpen = false }
-            PlacesScreen(
+            Destination.NoteTabs -> NoteTabsScreen(notes, onBack = back)
+            is Destination.PlaceEditor -> PlaceEditorScreen(places, wifi, location, top.target, onClose = back)
+            Destination.Places -> PlacesScreen(
                 places = places,
                 wifi = wifi,
                 location = location,
-                onOpen = { placeEditor = PlaceEditorTarget.Edit(it) },
-                onCreate = { placeEditor = PlaceEditorTarget.New },
-                onBack = { placesOpen = false },
+                onOpen = { open(Destination.PlaceEditor(PlaceEditorTarget.Edit(it))) },
+                onCreate = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) },
+                onBack = back,
             )
-        }
-        statusOpen -> {
-            BackHandler { statusOpen = false }
-            StatusScreen(routines, todos, onProbe, onBack = { statusOpen = false })
-        }
-        tagsOpen -> {
-            BackHandler { tagsOpen = false }
-            TagsScreen(tags, onBack = { tagsOpen = false })
-        }
-        backupsOpen -> {
-            BackHandler { backupsOpen = false }
-            BackupScreen(backups, nightlyBackups, onBack = { backupsOpen = false })
-        }
-        settingsOpen -> {
-            BackHandler { settingsOpen = false }
-            SettingsScreen(
+            Destination.Status -> StatusScreen(routines, todos, onProbe, onBack = back)
+            Destination.Tags -> TagsScreen(tags, onBack = back)
+            Destination.Backups -> BackupScreen(backups, nightlyBackups, onBack = back)
+            Destination.Settings -> SettingsScreen(
                 settings = settings,
                 canAuthenticate = canAuthenticate,
                 onDesignChange = onDesignChange,
@@ -437,100 +354,36 @@ private fun AppShell(
                 tones = tones,
                 onAlarmToneChange = onAlarmToneChange,
                 onNotificationToneChange = onNotificationToneChange,
-                onOpenStatus = { statusOpen = true },
-                onOpenPlaces = { placesOpen = true },
-                onOpenTags = { tagsOpen = true },
-                onOpenBackups = { backupsOpen = true },
-                onBack = { settingsOpen = false },
+                onOpenStatus = { open(Destination.Status) },
+                onOpenPlaces = { open(Destination.Places) },
+                onOpenTags = { open(Destination.Tags) },
+                onOpenBackups = { open(Destination.Backups) },
+                onBack = back,
             )
-        }
-        editor != null -> {
-            BackHandler { routineEditor = null }
-            editors.SaveableStateProvider(editorKey("routine", editor)) {
-                RoutineEditorScreen(
-                    routines, wishes, tags, places, notes, editor, tones, onClose = { routineEditor = null }, onOpenNote = openNote,
-                )
-            }
-        }
-        archiveOpen -> {
-            BackHandler { archiveOpen = false }
-            ArchiveScreen(routines, onBack = { archiveOpen = false })
-        }
-        // A routine's statistics go back to those of all routines.
-        statisticsRoutine != null -> {
-            BackHandler { statisticsRoutineId = null }
-            RoutineStatisticsScreen(routines, statisticsRoutine, onBack = { statisticsRoutineId = null })
-        }
-        statisticsOpen -> {
-            BackHandler { statisticsOpen = false }
-            StatisticsScreen(routines, onOpenRoutine = { statisticsRoutineId = it }, onBack = { statisticsOpen = false })
-        }
-        // After the editors, which an entry found opens on top of it.
-        searchOpen -> {
-            val close = {
-                searchOpen = false
-                searchQuery = ""
-            }
-            BackHandler(onBack = close)
-            SearchScreen(
+            is Destination.RoutineEditor -> RoutineEditorScreen(
+                routines, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
+            )
+            Destination.RoutineArchive -> ArchiveScreen(routines, onBack = back)
+            is Destination.RoutineStatistics -> RoutineStatisticsScreen(routines, top.routineId, onBack = back)
+            Destination.Statistics -> StatisticsScreen(routines, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
+            is Destination.Search -> SearchScreen(
                 search = search,
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
+                query = top.query,
+                onQueryChange = { stack = stack.search(it) },
+                // An entry found opens over the search, which keeps what was searched for.
                 onOpen = { area, id ->
-                    when (area) {
-                        SearchArea.Routines -> routineEditor = RoutineEditorTarget.Edit(id)
-                        SearchArea.Todos -> todoEditor = TodoEditorTarget.Edit(id)
-                        SearchArea.Wishes -> wishEditor = WishEditorTarget.Edit(id)
-                        SearchArea.Notes -> noteEditor = NoteEditorTarget.Edit(id)
-                        SearchArea.Bookings -> bookingEditor = BookingEditorTarget.Edit(id)
-                    }
+                    open(
+                        when (area) {
+                            SearchArea.Routines -> Destination.RoutineEditor(RoutineEditorTarget.Edit(id))
+                            SearchArea.Todos -> Destination.TodoEditor(TodoEditorTarget.Edit(id))
+                            SearchArea.Wishes -> Destination.WishEditor(WishEditorTarget.Edit(id))
+                            SearchArea.Notes -> Destination.NoteEditor(NoteEditorTarget.Edit(id))
+                            SearchArea.Bookings -> Destination.BookingEditor(BookingEditorTarget.Edit(id))
+                        },
+                    )
                 },
-                onBack = close,
+                onBack = back,
             )
-        }
-        else -> {
-            // Heute is the start screen: back from any other area returns there before leaving the app.
-            BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
-            TopLevelScaffold(
-                routines = routines,
-                todos = todos,
-                wishes = wishes,
-                tags = tags,
-                routineTagFilter = routineTagFilter,
-                onRoutineTagFilterChange = { routineTagFilter = it },
-                todoOrder = todoOrder,
-                onTodoOrderChange = { todoOrder = it },
-                todoTagFilter = todoTagFilter,
-                onTodoTagFilterChange = { todoTagFilter = it },
-                onOpenTodo = { todoEditor = it },
-                onOpenTodoArchive = { todoArchiveOpen = true },
-                wishTagFilter = wishTagFilter,
-                onWishTagFilterChange = { wishTagFilter = it },
-                onOpenWish = { wishEditor = it },
-                onOpenWishReview = { wishReviewOpen = true },
-                notes = notes,
-                nightlyBackups = nightlyBackups,
-                notesView = notesView,
-                onNotesViewChange = { notesView = it },
-                onOpenNote = { noteEditor = it },
-                onOpenNoteTabs = { noteTabsOpen = true },
-                onOpenLedger = {
-                    ledgerMonth = ledger.thisMonth()
-                    ledgerYear = null
-                    ledgerMonthFromYear = false
-                    ledgerOpen = true
-                },
-                current = current,
-                onSelect = { current = it },
-                onOpenSettings = { settingsOpen = true },
-                onOpenSearch = { searchOpen = true },
-                onOpenRoutine = { routineEditor = it },
-                onOpenArchive = { archiveOpen = true },
-                onOpenStatistics = { statisticsOpen = true },
-                onOpenStatus = { statusOpen = true },
-                onOpenBackups = { backupsOpen = true },
-            )
-            if (!settings.remindersAsked) AskOnceSomethingReminds(routines, todos, onRemindersAsked)
         }
     }
 }
@@ -678,17 +531,15 @@ private fun TopLevelScaffold(
 }
 
 /**
- * Forgets what the editor [kind] kept while a note was open on top of it, once it is closed, so that opening it again
- * starts afresh.
+ * Forgets what a screen kept once it is closed, gone from the [stack], so that opening it again starts afresh; one
+ * covered by another keeps it.
  */
 @Composable
-private fun ForgetClosedEditor(editors: SaveableStateHolder, kind: String, target: Any?) {
-    var open by remember { mutableStateOf<Any?>(null) }
-    LaunchedEffect(target) {
-        open?.takeIf { it != target }?.let { editors.removeState(editorKey(kind, it)) }
-        open = target
+private fun ForgetClosedScreens(screens: SaveableStateHolder, stack: BackStack) {
+    var kept by remember { mutableStateOf(emptySet<String>()) }
+    val open = stack.entries.map { it.stateKey }.toSet()
+    LaunchedEffect(open) {
+        (kept - open).forEach(screens::removeState)
+        kept = open
     }
 }
-
-/** Under what the editor [kind] keeps what was typed for [target]. */
-private fun editorKey(kind: String, target: Any) = "$kind $target"

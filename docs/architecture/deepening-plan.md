@@ -240,7 +240,15 @@ silent bug.
 
 ## 3 · A back stack for the app shell
 
-**Status:** after #5.
+**Status:** done but for step 5. `ui/navigation/Destination.kt` (one case per screen over the tabs, with what it
+shows) and `ui/navigation/BackStack.kt` (push, pop, replace the top, and the household book's rules: the year from a
+month, a month from the archive), held by `BackStackTest` without Compose. `AppShell` keeps one saved `BackStack`
+instead of 30 flags, draws what is on top, and pops it on back; the tab-local filters and views stay as they were.
+Every screen keeps what was typed and scrolled while one opened from it covers it, not only the editors, and forgets it
+once closed.
+
+- Steps 1–4 done in one commit rather than by groups: the flags' order of `when` branches had to go at once.
+- Step 5 not done: `TopLevelScaffold` keeps its parameters, one `onOpenX` each, now each a push.
 
 ### Why
 
