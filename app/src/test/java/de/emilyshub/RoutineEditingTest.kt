@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
@@ -14,6 +17,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isHeading
@@ -411,6 +415,57 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine can be coupled with others of one time a day, and the group shows from each of them`() {
+        val home = app.routine("Tabletten zu Hause", "08:00")
+        app.routine("Wasser", "08:00", "12:00")
+
+        launchApp().use {
+            newRoutine("Tabletten auf der Arbeit")
+            coupling("Wasser").assertDoesNotExist()
+            coupling("Tabletten zu Hause").performScrollTo().assertIsNotSelected().performClick()
+            compose.onNodeWithText("Eine davon erledigt reicht für den Tag", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Tabletten zu Hause").performClick()
+            coupling("Tabletten auf der Arbeit").performScrollTo().assertIsSelected()
+        }
+        assertEquals(1, runBlocking { app.routines.coupledWith(home) }.size)
+    }
+
+    @Test
+    fun `a routine with several times a day cannot be coupled, which the editor says`() {
+        app.routine("Tabletten zu Hause", "08:00")
+        app.routine("Wasser", "08:00", "12:00")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Wasser").performClick()
+            compose.onNodeWithText("Nur Routinen mit genau einer Uhrzeit am Tag", substring = true).performScrollTo().assertIsDisplayed()
+            coupling("Tabletten zu Hause").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `a coupled routine gets no second time without leaving its group, which the editor says`() {
+        val home = app.routine("Tabletten zu Hause", "08:00")
+        app.routine("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home))
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Tabletten auf der Arbeit").performClick()
+            addTime("12", "00")
+            compose.onNodeWithText("erst die Kopplung lösen", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routine bearbeiten").assertIsDisplayed()
+
+            coupling("Tabletten zu Hause").performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(emptySet<Long>(), runBlocking { app.routines.coupledWith(home) })
+    }
+
+    @Test
     fun `a routine can sound a full-screen alarm instead, which is off by default`() {
         app.fullScreenAlarmsAllowed = true
 
@@ -710,6 +765,10 @@ class RoutineEditingTest {
 
 
     private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
+
+    private fun coupling(name: String) = compose.onNode(
+        hasText(name) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox) and hasAnyAncestor(hasTestTag("coupling")),
+    )
 
     private fun tone() = compose.onNode(hasClickAction() and hasText("Ton"))
 

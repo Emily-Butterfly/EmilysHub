@@ -115,7 +115,10 @@ fun RoutineEditorScreen(
             if (routine == null) {
                 onClose()
             } else {
-                draft = routine.toDraft(routines.checklist(routineId), routines.tagIdsOf(routineId), routines.placeIdsOf(routineId))
+                draft = routine.toDraft(
+                    routines.checklist(routineId), routines.tagIdsOf(routineId), routines.placeIdsOf(routineId),
+                    routines.coupledWith(routineId),
+                )
                 original = draft
                 status = routine.status
                 loaded = true
@@ -250,6 +253,7 @@ fun RoutineEditorScreen(
             )
             if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
+            CouplingField(routines, routineId, draft.times.size, draft.coupledWith, onChange = { draft = draft.copy(coupledWith = it) })
             RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
             if (draft.repetition !is Repetition.Once) {
                 val end = draft.endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never

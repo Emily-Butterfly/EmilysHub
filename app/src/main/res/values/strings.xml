@@ -81,6 +81,10 @@
     <string name="routine_window_summary">So lange lässt sich eine Fälligkeit nachholen, danach gilt sie als verpasst.</string>
     <string name="routine_window_hours">Zeitfenster in Stunden</string>
     <string name="routine_window_until_midnight">Bis Mitternacht</string>
+    <string name="routine_coupling">Gekoppelt mit…</string>
+    <string name="routine_coupling_summary">Eine davon erledigt reicht für den Tag: die anderen gelten dann als übersprungen.</string>
+    <string name="routine_coupling_one_time">Nur Routinen mit genau einer Uhrzeit am Tag lassen sich koppeln.</string>
+    <string name="routine_coupling_needs_one_time">Gekoppelt hat eine Routine genau eine Uhrzeit am Tag. Für eine weitere erst die Kopplung lösen.</string>
     <string name="routine_full_screen">Vollbild-Alarm</string>
     <string name="routine_full_screen_summary">Wie ein Wecker, auch auf dem Sperrbildschirm</string>
     <string name="routine_full_screen_not_allowed">Android erlaubt gerade keine Vollbild-Alarme, daher kommt die Erinnerung als normale Benachrichtigung.</string>
