@@ -200,6 +200,8 @@ class Routines(
             val today = today()
             // Today may have occurrences of it from before, ticked off: the times still ahead are added to them.
             replan(routine, today, dao.occurrencesOn(id, today), now)
+            // One of them done counts for its group again.
+            lifecycle.coverOn(today)
         }
     }
 
@@ -638,6 +640,7 @@ class Routines(
             routine.plannedTimesOn(date, clock.zone).map { routine.occurrenceAt(date, it) }
         }
         dao.insertOccurrences(occurrences)
+        if (occurrences.isNotEmpty()) lifecycle.coverOn(date)
     }
 
     /** Brings the routine's [occurrences] on [date] in line with its times from [now] on. */
@@ -648,6 +651,7 @@ class Routines(
         // A time added to a day the routine was dropped for ("Heute nicht") is dropped too.
         val status = if (occurrences.any { it.status == OccurrenceStatus.Dropped }) OccurrenceStatus.Dropped else OccurrenceStatus.Open
         dao.insertOccurrences(changes.added.map { routine.occurrenceAt(date, it).copy(status = status) })
+        if (changes.added.isNotEmpty()) lifecycle.coverOn(date)
     }
 
     private fun checked(draft: RoutineDraft): RoutineDraft {

@@ -250,6 +250,43 @@ class CouplingTest {
         assertEquals(listOf("18:00 Laufen: Open", "18:00 Yoga: Open"), dueOn(today))
     }
 
+    @Test
+    fun `one skipped and undone on a day another of its group was done is skipped by that one`() = runBlocking {
+        val running = routines.create(draft("Laufen", "08:00"))
+        routines.create(draft("Yoga", "09:00", coupledWith = setOf(running)))
+        clock.now = berlin("2026-10-23T08:30")
+        routines.skip(occurrenceOf("Yoga"))
+        routines.markDone(occurrenceOf("Laufen"))
+
+        routines.reopen(occurrenceOf("Yoga"))
+
+        val yoga = routines.dueOn(today).first().single { it.name == "Yoga" }
+        assertEquals(OccurrenceStatus.Skipped to "Laufen", yoga.status to yoga.coveredBy)
+    }
+
+    @Test
+    fun `one missed is skipped by another of its group done later that day, and missed again once that is undone`() = runBlocking {
+        val running = routines.create(draft("Laufen", "08:00")) // open until 12:00
+        routines.create(draft("Yoga", "18:00", coupledWith = setOf(running)))
+        routines.skip(occurrenceOf("Yoga"))
+        clock.now = berlin("2026-10-23T12:30")
+        routines.markMissed(since = berlin("2026-10-23T07:00"))
+        assertEquals(listOf("08:00 Laufen: Missed", "18:00 Yoga: Skipped"), dueOn(today))
+
+        routines.reopen(occurrenceOf("Yoga"))
+        routines.markDone(occurrenceOf("Yoga"))
+
+        val laufen = routines.dueOn(today).first().single { it.name == "Laufen" }
+        assertEquals(OccurrenceStatus.Skipped to "Yoga", laufen.status to laufen.coveredBy)
+
+        routines.reopen(occurrenceOf("Yoga"))
+        routines.markMissed(since = berlin("2026-10-23T12:30"))
+        assertEquals("open again while Yoga can still be done", listOf("08:00 Laufen: Open", "18:00 Yoga: Open"), dueOn(today))
+        clock.now = berlin("2026-10-23T22:30")
+        routines.markMissed(since = berlin("2026-10-23T12:30"))
+        assertEquals(listOf("08:00 Laufen: Missed", "18:00 Yoga: Missed"), dueOn(today))
+    }
+
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.zone).toInstant()
 
     private fun draft(

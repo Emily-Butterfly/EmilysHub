@@ -26,6 +26,7 @@ import kotlin.random.Random
  * time passing so that windows end. After every step, the rules that every status change must keep:
  *
  * - one skipped by another of its group was skipped by one that is done, of the same group, on the same day;
+ * - on a day one of a group is done, none of the others is open or missed: they are skipped by it;
  * - a routine with a target makes its goal done exactly while it has reached that target.
  *
  * A failure names the seed and the steps that led to it, so that the walk can be replayed.
@@ -159,6 +160,16 @@ class OccurrenceLifecycleTest {
                 }
                 problem?.let { fail(it, step, "occurrence $covered, covered by $by") }
             }
+            val routinesById = database.backup().routines().associateBy { it.id }
+            occurrences.values
+                .filter { routinesById[it.routineId]?.let { r -> r.status == RoutineStatus.Active && r.coupling != null } == true }
+                .groupBy { routinesById.getValue(it.routineId).coupling to it.date }
+                .forEach { (_, day) ->
+                    val done = day.firstOrNull { it.status == OccurrenceStatus.Done } ?: return@forEach
+                    day.firstOrNull { it.routineId != done.routineId && it.status in NOT_COVERED }?.let { left ->
+                        fail("${left.status} on a day another of its group was done", step, "occurrence $left, done $done")
+                    }
+                }
             val routine = database.routines().get(goalRoutine) ?: return
             val reached = GoalRoutine.of(RoutineWithOutcomes(routine, database.routines().outcomesOf(goalRoutine)))?.reached
             val done = wishes.get(goal)?.status == WishStatus.Done
@@ -186,6 +197,7 @@ class OccurrenceLifecycleTest {
     }
 
     private companion object {
+        val NOT_COVERED = setOf(OccurrenceStatus.Open, OccurrenceStatus.Missed)
         const val WALKS = 200
         const val STEPS = 30
     }

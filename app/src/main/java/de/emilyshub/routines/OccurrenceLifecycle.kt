@@ -6,16 +6,18 @@ import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.settleGoals
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * Where an occurrence's status changes (SPEC.md §2, §6), and the only place that writes one: whatever [Routines] does
  * to an occurrence, ticking it off, skipping, undoing, "Heute nicht", missing it, comes here as a [move], which keeps
  * what hangs on a status:
  *
- * - one done skips what of the other active routines coupled with its routine is open on its day ("covers" it), also
- *   once their time window is over, and one no longer done gives that back;
- * - each routine touched has the goal it is part of settled, once, as reaching its target, or no more, may finish that
- *   goal or open it again.
+ * - on a day one of a coupled group is done, what of the other active routines of the group is open or missed that day
+ *   is skipped by it ("covered"), also once their time window is over, and one undone then comes back so too; one no
+ *   longer done gives back what it covered, open again, to be missed as [missNow] has it;
+ * - each routine touched, those of its group too, has the goal it is part of settled, once, as reaching its target, or
+ *   no more, may finish that goal or open it again.
  *
  * It also has which open occurrences are missed now ([missNow]), and what a routine takes along when it is [delete]d.
  * Until goal settling has a module of its own, it settles the goals of routines changed in the editor too
@@ -30,15 +32,28 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
      * any more. Those gone are left out, and those missed too: once missed, an occurrence stays so.
      */
     suspend fun move(ids: Collection<Long>, status: OccurrenceStatus) {
-        val occurrences = dao.occurrencesWithRoutines(ids.distinct()).map { it.occurrence }.filter { it.status != OccurrenceStatus.Missed }
-        if (occurrences.isEmpty()) return
-        settling(occurrences.map { it.routineId }) {
+        val moving = dao.occurrencesWithRoutines(ids.distinct()).filter { it.occurrence.status != OccurrenceStatus.Missed }
+        if (moving.isEmpty()) return
+        val movingIds = moving.map { it.occurrence.id }
+        val days = moving.mapNotNull { (occurrence, routine) -> routine.coupling?.let { CoupledDay(it, occurrence.date) } }.distinct()
+        settling(moving.map { it.routine.id } + days.flatMap { dao.inCoupling(it.coupling) }) {
             // No longer done, what they skipped of their group by being done comes back; asked of every one, not only
             // those done, so that one left skipped by an occurrence no longer done, as an older version did, is too.
-            if (status != OccurrenceStatus.Done) dao.uncover(by = occurrences.map { it.id })
-            dao.setStatuses(occurrences.map { it.id }, status)
-            if (status == OccurrenceStatus.Done) occurrences.forEach { cover(it) }
+            if (status != OccurrenceStatus.Done) dao.uncover(by = movingIds)
+            dao.setStatuses(movingIds, status)
+            days.forEach { cover(it) }
         }
+    }
+
+    /**
+     * Covers, on [date], what is open or missed of the coupled routines while another of their group is done, as [move]
+     * does: once occurrences were planned there, which come open, or a routine set aside is active again, whose
+     * occurrence done there counts again.
+     */
+    suspend fun coverOn(date: LocalDate) {
+        val couplings = dao.withStatus(RoutineStatus.Active).mapNotNull { it.coupling }.distinct()
+        if (couplings.isEmpty()) return
+        settling(couplings.flatMap { dao.inCoupling(it) }) { couplings.forEach { cover(CoupledDay(it, date)) } }
     }
 
     /**
@@ -74,16 +89,18 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
     suspend fun settleCreated(routineId: Long) = settleGoals(GoalPart.None, partOf(routineId))
 
     /**
-     * The [done] occurrence covers what of the other active routines coupled with its routine is open on its day
-     * (SPEC.md §2): skipped by it, and reminding no more.
+     * On the [day] one of the group is done, what of its other active routines is open or missed is skipped by it
+     * (SPEC.md §2), and reminds no more; nothing while none is done.
      */
-    private suspend fun cover(done: Occurrence) {
-        val coupling = dao.get(done.routineId)?.coupling ?: return
-        val others = dao.coupledOn(coupling, done.date)
-            .map { it.occurrence }
-            .filter { it.routineId != done.routineId && it.status == OccurrenceStatus.Open }
+    private suspend fun cover(day: CoupledDay) {
+        val occurrences = dao.coupledOn(day.coupling, day.date).map { it.occurrence }
+        val done = occurrences.firstOrNull { it.status == OccurrenceStatus.Done } ?: return
+        val others = occurrences.filter { it.routineId != done.routineId && it.status in COVERABLE }
         dao.cover(others.map { it.id }, by = done.id)
     }
+
+    /** A day of a coupled group, the [coupling]. */
+    private data class CoupledDay(val coupling: Long, val date: LocalDate)
 
     /**
      * Whether the [open] occurrence, its time window over, can still be done for by another active routine coupled
@@ -110,4 +127,9 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) =
         database().settleGoals(before, after, today(clock.instant(), clock.zone))
+
+    private companion object {
+        /** What one done covers of its group: missed too, as the day was done after all. */
+        val COVERABLE = setOf(OccurrenceStatus.Open, OccurrenceStatus.Missed)
+    }
 }

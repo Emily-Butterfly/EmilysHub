@@ -63,6 +63,7 @@ Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen 
 
 - Gekoppelte Routinen bilden eine Gruppe; eine Routine gehört zu höchstens einer.
 - Ist eine Routine der Gruppe an einem Tag erledigt, gelten die anderen an dem Tag als **übersprungen** („durch Laufen erledigt“); ihre Erinnerungen kommen nicht mehr. Rückgängig machen bringt sie zurück, solange ihr Zeitfenster läuft.
+- Das gilt für alles, was an dem Tag noch offen oder schon **verpasst** ist, und für eine Routine, deren „Überspringen“ an dem Tag rückgängig gemacht wird: Sie gilt dann gleich als durch die erledigte übersprungen.
 - Überspringen und „Heute nicht“ betreffen nur die eine Routine, außer im gemeinsamen Alarm (§3).
 
 ## 3. Erinnerungen (Pop-ups)

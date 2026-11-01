@@ -110,15 +110,19 @@ interface is one idea: **move these occurrences to that status**. Behind it:
 - `OccurrenceLifecycleTest` passes with at least 200 walks of 30 operations each, all seeded and reproducible.
 - `CouplingTest`, `RoutinesTest`, `RoutineGoalsTest`, `GoalsTest`, `JointReminderTest` and `RemindersTest` pass unchanged.
 
-### Open questions (behaviour, not refactor)
+### Decided (1 November 2026)
 
-- **(a) Undoing a skip while another of the group is done.** B is skipped, then A of its group is done (B is not
-  covered, as it was not open), then B's skip is undone. B is open again, reminds, and may be missed, although A was
-  done that day. Should a reopened B be covered by A at once?
-- **(b) Missed, then another of the group done.** A's window ends while B is skipped, so A is missed. Then B's skip is
-  undone and B is done. A stays missed on a day the group was done. Should B being done turn A from missed into covered?
+Both former open questions were answered "yes", and are now rules of `OccurrenceLifecycle` (`cover`, `coverOn`), in
+SPEC.md §2:
 
-Both are one-line rules inside `OccurrenceLifecycle.move` once step 3 is in: that is the point of the module.
+- **(a)** One whose skip is undone on a day another of its group was done is skipped by that one at once.
+- **(b)** One missed is skipped by another of its group done later that day, and comes back, to be missed again as
+  `missNow` has it, once that is undone.
+
+The rule behind both: on a day one of a group is done, none of the others is open or missed. The lifecycle applies it
+after every move, and `Routines` after planning a day, replanning one, or bringing a routine back, whose occurrence done
+then counts again. `OccurrenceLifecycleTest` holds it as an invariant, and as a missed one turning skipped can change a
+streak, every move settles the goals of all routines of the group.
 
 ---
 
