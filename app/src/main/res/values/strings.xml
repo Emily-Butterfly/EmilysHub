@@ -35,6 +35,7 @@
     <string name="today_waiting_for">Wartet auf %1$s</string>
     <string name="names_or">" oder "</string>
     <string name="today_undo">Rückgängig</string>
+    <string name="status_covered">durch %1$s erledigt</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>
     <string name="status_dropped">Ausgelassen</string>

@@ -173,6 +173,26 @@ class TodayTest {
     }
 
     @Test
+    fun `one of coupled routines ticked off, the other is struck through as done by it, until that is undone`() {
+        val home = app.routine("Tabletten zu Hause", "08:00")
+        app.routine("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home))
+
+        launchApp().use {
+            row("Tabletten zu Hause").performClick()
+            assertEquals(
+                listOf("08:00 Tabletten zu Hause", "09:00 Tabletten auf der Arbeit durch Tabletten zu Hause erledigt"),
+                rows(),
+            )
+            row("Tabletten auf der Arbeit").assertIsNotEnabled()
+            compose.onNodeWithText("Rückgängig").assertDoesNotExist()
+
+            row("Tabletten zu Hause").performClick()
+            assertEquals(listOf("08:00 Tabletten zu Hause", "09:00 Tabletten auf der Arbeit"), rows())
+            assertEquals(listOf(OccurrenceStatus.Open, OccurrenceStatus.Open), statuses())
+        }
+    }
+
+    @Test
     fun `Heute nicht in the menu of an entry drops the routine for the day, until it is undone`() {
         app.routine("Wasser trinken", "18:00", "21:00")
 

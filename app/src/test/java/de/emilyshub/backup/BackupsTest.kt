@@ -256,6 +256,23 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps coupled routines and what one done skipped, and one from before loads without couplings`() {
+        val home = app.routine("Tabletten zu Hause", "08:00")
+        app.routine("Tabletten auf der Arbeit", "09:00", coupledWith = setOf(home))
+        runBlocking { app.routines.markDone(app.routines.dueOn(app.routines.today()).first().first().occurrenceId) }
+        val now = exported()
+        val older = sealed(asOfVersion36(contentOf(now)))
+
+        restore(now)
+        assertEquals(1, runBlocking { app.routines.coupledWith(home) }.size)
+        assertEquals("Tabletten zu Hause", runBlocking { app.routines.dueOn(app.routines.today()).first() }.last().coveredBy)
+
+        restore(older)
+        assertEquals(emptySet<Long>(), runBlocking { app.routines.coupledWith(home) })
+        assertEquals(null, runBlocking { app.routines.dueOn(app.routines.today()).first() }.last().coveredBy)
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the wishes are tables too many for then.
@@ -597,9 +614,13 @@ class BackupsTest {
     private fun asOfVersion34(content: JSONObject): JSONObject =
         asOfVersion35(content).withoutColumns("routines", "name_on_lock_screen").withoutColumns("todos", "name_on_lock_screen").put("schema", 34)
 
+    /** [content] as version 36 made it: without coupled routines, which came with 37. */
+    private fun asOfVersion36(content: JSONObject): JSONObject =
+        content.withoutColumns("routines", "coupling").withoutColumns("occurrences", "covered_by").put("schema", 36)
+
     /** [content] as version 35 made it: without tones, which came with 36. */
     private fun asOfVersion35(content: JSONObject): JSONObject =
-        content.withoutColumns("routines", "tone").withoutColumns("todos", "tone").put("schema", 35)
+        asOfVersion36(content).withoutColumns("routines", "tone").withoutColumns("todos", "tone").put("schema", 35)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

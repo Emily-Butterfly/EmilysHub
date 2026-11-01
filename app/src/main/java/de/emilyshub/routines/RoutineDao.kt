@@ -166,12 +166,41 @@ interface RoutineDao {
     @Query("DELETE FROM occurrences WHERE id IN (:ids)")
     suspend fun deleteOccurrences(ids: Collection<Long>)
 
-    /** Sets the status of an occurrence not [missed]: once missed, it stays so. */
-    @Query("UPDATE occurrences SET status = :status WHERE id = :id AND status != :missed")
+    /** Sets the status of an occurrence not [missed]: once missed, it stays so. Skipped by no other then. */
+    @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id = :id AND status != :missed")
     suspend fun setStatus(id: Long, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
 
     @Query("UPDATE occurrences SET status = :status WHERE id IN (:ids)")
     suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus)
+
+    /** The routines in the coupled group [coupling], whatever their status. */
+    @Query("SELECT id FROM routines WHERE coupling = :coupling")
+    suspend fun inCoupling(coupling: Long): List<Long>
+
+    @Query("UPDATE routines SET coupling = :coupling WHERE id IN (:ids)")
+    suspend fun setCoupling(ids: Collection<Long>, coupling: Long?)
+
+    /** The highest number a coupled group has; none if there is none. */
+    @Query("SELECT MAX(coupling) FROM routines")
+    suspend fun lastCoupling(): Long?
+
+    /** The occurrences on [date] of the active routines of the coupled group [coupling], each with its routine. */
+    @Transaction
+    @Query(
+        """
+        SELECT occurrences.* FROM occurrences JOIN routines ON routines.id = occurrences.routine_id
+        WHERE routines.coupling = :coupling AND routines.status = :active AND occurrences.date = :date
+        """,
+    )
+    suspend fun coupledOn(coupling: Long, date: LocalDate, active: RoutineStatus = RoutineStatus.Active): List<OccurrenceOfRoutine>
+
+    /** Skips [ids] as the occurrence [by] was done (SPEC.md §2). */
+    @Query("UPDATE occurrences SET status = :skipped, covered_by = :by WHERE id IN (:ids)")
+    suspend fun cover(ids: Collection<Long>, by: Long, skipped: OccurrenceStatus = OccurrenceStatus.Skipped)
+
+    /** Opens again what the occurrence [by] skipped as it was done. */
+    @Query("UPDATE occurrences SET status = :open, covered_by = NULL WHERE covered_by = :by")
+    suspend fun uncover(by: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
 
     /** The occurrences from [from] to [to], each with its routine and checklist. */
     @Transaction

@@ -93,10 +93,12 @@ fun TestApplication.routine(
     endsOn: LocalDate? = null,
     nameOnLockScreen: Boolean = false,
     tone: Tone = Tone.Standard,
+    coupledWith: Set<Long> = emptySet(),
 ): Long = runBlocking {
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
         checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, nameOnLockScreen, tone,
+        coupledWith,
     )
     routines.create(draft)
 }

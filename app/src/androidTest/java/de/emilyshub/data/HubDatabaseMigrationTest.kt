@@ -807,6 +807,29 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 36 moves to version 37 where no routine is coupled and then two can be`() {
+        createAtVersion(36) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (1, 'Tabletten zu Hause', '', '08:00', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (2, 'Tabletten auf der Arbeit', '', '09:00', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (1, 2, '2026-10-23', '09:00', 'skipped')")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(null, database.routines().get(1)?.coupling)
+            assertEquals(null, database.routines().occurrence(1)?.coveredBy)
+
+            database.routines().setCoupling(listOf(1L, 2L), 1)
+            assertEquals(listOf(1L, 2L), database.routines().inCoupling(1).sorted())
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

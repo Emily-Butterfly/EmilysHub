@@ -550,3 +550,15 @@ val MIGRATION_35_36 = object : Migration(35, 36) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `tone` TEXT NOT NULL DEFAULT ''")
     }
 }
+
+/**
+ * Version 37: routines can be coupled (SPEC.md §2, #41), one of a group done being enough for the day, and an
+ * occurrence remembers the one whose being done skipped it. None is coupled yet.
+ */
+val MIGRATION_36_37 = object : Migration(36, 37) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `coupling` INTEGER")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routines_coupling` ON `routines` (`coupling`)")
+        db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `covered_by` INTEGER")
+    }
+}

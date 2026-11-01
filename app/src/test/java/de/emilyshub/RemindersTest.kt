@@ -119,6 +119,20 @@ class RemindersTest {
     }
 
     @Test
+    fun `one of coupled routines done, the reminder of the other goes, and it reminds no more that day`() {
+        val home = app.routine("Tabletten zu Hause", "07:30")
+        app.routine("Tabletten auf der Arbeit", "07:40", coupledWith = setOf(home))
+        goOffAt("2026-10-23T07:40")
+        assertEquals(setOf("Tabletten zu Hause", "Tabletten auf der Arbeit"), titles().toSet())
+
+        tap("Erledigt", on = "Tabletten zu Hause")
+
+        assertEquals(emptyList<String>(), titles())
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Skipped), statuses())
+        assertEquals("not before tomorrow", berlin("2026-10-24T07:30"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
     fun `routines due at the same time each get a reminder of their own`() {
         app.routine("Vitamine", "07:30")
         app.routine("Lüften", "07:30")

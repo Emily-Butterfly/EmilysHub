@@ -22,6 +22,9 @@ enum class DraftProblem {
     ChecklistItemTooLong,
     TargetOutOfRange,
     EndDateTooEarly,
+
+    /** Coupled with others (SPEC.md §2), it has to have exactly one time a day. */
+    CoupledNeedsOneTime,
 }
 
 /**
@@ -54,6 +57,11 @@ data class RoutineDraft(
     val nameOnLockScreen: Boolean = false,
     /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
     val tone: Tone = Tone.Standard,
+    /**
+     * The other routines it is coupled with (SPEC.md §2), all of its group; none: it is in none. Only with one time a
+     * day, as are they: one with several is left out on saving, as is one deleted meanwhile.
+     */
+    val coupledWith: Set<Long> = emptySet(),
 ) : Serializable {
 
     /** Its [problems], and an end before [today], which is no longer to come. */
@@ -79,6 +87,7 @@ data class RoutineDraft(
                 if (checklist.size > CHECKLIST_MAX) add(DraftProblem.ChecklistTooLong)
                 if (checklist.any { InputText.lengthOf(it.text) > CHECKLIST_ITEM_MAX }) add(DraftProblem.ChecklistItemTooLong)
                 target?.let { if (it.count !in RoutineTarget.COUNTS) add(DraftProblem.TargetOutOfRange) }
+                if (coupledWith.isNotEmpty() && times.size != 1) add(DraftProblem.CoupledNeedsOneTime)
             }
         }
 
@@ -126,8 +135,14 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
     fun cleaned() = copy(text = InputText.singleLine(text))
 }
 
-/** The routine with its [checklist], tags and places as the editor starts out with it. */
-fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = RoutineDraft(
+/** The routine with its [checklist], tags, places and the routines it is [coupledWith] as the editor starts out with it. */
+fun Routine.toDraft(
+    checklist: List<ChecklistItem>,
+    tagIds: Set<Long>,
+    placeIds: Set<Long>,
+    coupledWith: Set<Long> = emptySet(),
+) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
     checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, nameOnLockScreen, tone,
+    coupledWith,
 )

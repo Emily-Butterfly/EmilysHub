@@ -303,8 +303,10 @@ private fun DueRoutineRow(
     onReopen: () -> Unit,
 ) {
     val done = routine.status == OccurrenceStatus.Done
+    // Done by another of its group (SPEC.md §2): as good as done, until that one is undone.
+    val covered = routine.coveredBy != null
     // Missed is how it ended, and one dropped is undone first: neither can be ticked off.
-    val tickable = routine.status != OccurrenceStatus.Missed && routine.status != OccurrenceStatus.Dropped
+    val tickable = routine.status != OccurrenceStatus.Missed && routine.status != OccurrenceStatus.Dropped && !covered
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -329,7 +331,7 @@ private fun DueRoutineRow(
             Text(
                 text = routine.name,
                 style = priorityNameStyle(routine.priority),
-                textDecoration = if (done) TextDecoration.LineThrough else null,
+                textDecoration = if (done || covered) TextDecoration.LineThrough else null,
             )
             routine.endsOn?.let { endText(RecurrenceEnd.OnDate(it))?.let { until -> Hint(until) } }
             PriorityNote(routine.priority)
@@ -337,7 +339,9 @@ private fun DueRoutineRow(
             if (routine.waitingFor.isNotEmpty()) {
                 Hint(stringResource(R.string.today_waiting_for, routine.waitingFor.joinToString(stringResource(R.string.names_or))))
             }
-            routine.status.label?.let { label ->
+            if (covered) {
+                Hint(stringResource(R.string.status_covered, routine.coveredBy.orEmpty()))
+            } else routine.status.label?.let { label ->
                 // Dropped is how the day ended, as missed would: in the color of the calendar's mark for it.
                 if (routine.status == OccurrenceStatus.Dropped) {
                     Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
@@ -352,7 +356,7 @@ private fun DueRoutineRow(
                 MoreMenu(routine.name, onDrop)
             }
             OccurrenceStatus.Skipped, OccurrenceStatus.Dropped ->
-                TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
+                if (!covered) TextButton(onClick = onReopen) { Text(stringResource(R.string.today_undo)) }
             OccurrenceStatus.Done, OccurrenceStatus.Missed -> Unit
         }
     }

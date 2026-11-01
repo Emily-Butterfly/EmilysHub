@@ -79,6 +79,7 @@ class Routines(
                 saveChecklist(id, cleaned.checklist)
                 saveTags(id, cleaned.tagIds)
                 savePlaces(id, cleaned.placeIds)
+                saveCoupling(id, coupling = null, cleaned.coupledWith)
                 plan(today())
                 settleGoals(GoalPart.None, partOf(id))
             }
@@ -95,6 +96,9 @@ class Routines(
 
     /** The places the routine pops up at (SPEC.md §4); none: everywhere. */
     suspend fun placeIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.placeIdsOf(routineId).toSet() }
+
+    /** The other routines of the group the routine is coupled with (SPEC.md §2), paused and archived ones too. */
+    suspend fun coupledWith(routineId: Long): Set<Long> = withContext(io) { othersCoupledWith(routineId) }
 
     /**
      * The tones the routines have (SPEC.md §3), each once, for their reminders' channels; archived ones too, as they may
@@ -134,10 +138,11 @@ class Routines(
             val goalId = database().wishes().stillThere(changes.goalId)
             val plannedFrom = if (rescheduled) now else routine.plannedFrom
             val changed = changes.copy(goalId = goalId).cleaned().toRoutine(id, plannedFrom, routine.status)
-            dao.update(changed)
+            dao.update(changed.copy(coupling = routine.coupling))
             saveChecklist(id, changes.checklist)
             saveTags(id, changes.tagIds)
             savePlaces(id, changes.placeIds)
+            saveCoupling(id, routine.coupling, changes.coupledWith)
             settleGoals(part, partOf(id))
             // One paused or archived has nothing ahead to plan anew.
             if (changed.status != RoutineStatus.Active) return@withTransaction
@@ -201,7 +206,9 @@ class Routines(
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             val part = partOf(id)
+            val coupling = dao.get(id)?.coupling
             dao.delete(id)
+            coupling?.let { dissolveIfAlone(it) }
             settleGoals(part, GoalPart.None)
         }
     }
@@ -214,6 +221,8 @@ class Routines(
         plan(date)
         val list = dao.observeOccurrencesWithChecklists(from = date.minusDays(1), to = date).map { all ->
             val now = now()
+            // One done that skipped others is due the same day, so it is among them.
+            val names = all.associate { it.occurrence.id to it.routine.name }
             val catchingUp = today(now, clock.zone) == date
             all.filter { (occurrence, routine) ->
                 routine.status == RoutineStatus.Active &&
@@ -227,6 +236,7 @@ class Routines(
                         checklist = due.entries(),
                         waitingFor = due.waitingFor(),
                         endsOn = routine.endsOn,
+                        coveredBy = occurrence.coveredBy?.let(names::get),
                     )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
@@ -262,7 +272,9 @@ class Routines(
      */
     suspend fun reopen(occurrenceId: Long) = write {
         database().withTransaction {
-            val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status != OccurrenceStatus.Missed } ?: return@withTransaction
+            // One skipped by another of its group comes back with that one undone.
+            val occurrence = dao.occurrence(occurrenceId)
+                ?.takeIf { it.status != OccurrenceStatus.Missed && it.coveredBy == null } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
             settlingGoal(routine.id) {
                 when (occurrence.status) {
@@ -353,8 +365,9 @@ class Routines(
         val now = now()
         planDays(from = today(since, clock.zone), to = today(now, clock.zone))
         database().withTransaction {
-            val missed = dao.allOpen(OccurrenceStatus.Open).filter { (occurrence, routine) ->
-                routine.windowEnded(occurrence, now, clock.zone)
+            val missed = dao.allOpen(OccurrenceStatus.Open).filter { open ->
+                // One coupled is not missed while another of its group can still be done that day.
+                open.routine.windowEnded(open.occurrence, now, clock.zone) && !stillCovered(open, now)
             }
             // A day missed now may undo a streak reached by another time that day, and so open its goal again.
             val parts = missed.map { it.routine.id }.distinct().associateWith { partOf(it) }
@@ -459,7 +472,65 @@ class Routines(
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId) ?: return@withTransaction
             settlingGoal(occurrence.routineId) { dao.setStatus(occurrenceId, status) }
+            if (status == OccurrenceStatus.Done) coverOthers(occurrenceId)
         }
+    }
+
+    /**
+     * The occurrence was done (SPEC.md §2): what of the other active routines coupled with its routine is open on its
+     * day is skipped by it, also once its time window is over, and reminds no more. Nothing once it is not done, as
+     * one missed stays so.
+     */
+    private suspend fun coverOthers(occurrenceId: Long) {
+        val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status == OccurrenceStatus.Done } ?: return
+        val coupling = dao.get(occurrence.routineId)?.coupling ?: return
+        val others = dao.coupledOn(coupling, occurrence.date)
+            .map { it.occurrence }
+            .filter { it.routineId != occurrence.routineId && it.status == OccurrenceStatus.Open }
+        dao.cover(others.map { it.id }, by = occurrenceId)
+    }
+
+    /**
+     * Whether the [open] occurrence, its time window over, can still be done for by another active routine coupled
+     * with it (SPEC.md §2): one open on its day whose time window is not. Until none can, it is not missed.
+     */
+    private suspend fun stillCovered(open: OccurrenceOfRoutine, now: Instant): Boolean {
+        val coupling = open.routine.coupling ?: return false
+        return dao.coupledOn(coupling, open.occurrence.date).any { other ->
+            other.occurrence.id != open.occurrence.id && other.occurrence.status == OccurrenceStatus.Open &&
+                !other.routine.windowEnded(other.occurrence, now, clock.zone)
+        }
+    }
+
+    /**
+     * Couples the routine with [wanted] (SPEC.md §2), its group up to then [coupling]: those of them that have one time a
+     * day, as it then has, make its group, taken out of any other they were in. Those of its group no longer wanted are
+     * out of it; a group left with one routine is none.
+     */
+    private suspend fun saveCoupling(routineId: Long, coupling: Long?, wanted: Set<Long>) {
+        val members = (wanted - routineId).filter { dao.get(it)?.times?.size == 1 }.toSet()
+        val before = coupling?.let { dao.inCoupling(it).toSet() }.orEmpty()
+        if (members.isEmpty()) {
+            dao.setCoupling(listOf(routineId), null)
+            coupling?.let { dissolveIfAlone(it) }
+            return
+        }
+        val group = coupling ?: ((dao.lastCoupling() ?: 0) + 1)
+        val left = members.mapNotNull { dao.get(it)?.coupling }.filter { it != group }.toSet()
+        dao.setCoupling(before - members - routineId, null)
+        dao.setCoupling(members + routineId, group)
+        left.forEach { dissolveIfAlone(it) }
+    }
+
+    /** The group [coupling] is none once one routine is left in it. */
+    private suspend fun dissolveIfAlone(coupling: Long) {
+        val members = dao.inCoupling(coupling)
+        if (members.size < 2) dao.setCoupling(members, null)
+    }
+
+    private suspend fun othersCoupledWith(routineId: Long): Set<Long> {
+        val coupling = dao.get(routineId)?.coupling ?: return emptySet()
+        return dao.inCoupling(coupling).toSet() - routineId
     }
 
     /**
@@ -485,15 +556,22 @@ class Routines(
 
     private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 
-    /** Opens the [routine]'s occurrence again, as [reopen] describes. */
+    /**
+     * Opens the [routine]'s occurrence again, as [reopen] describes, and what it skipped of its group as it was done:
+     * open again, or missed with it once none of the group can be done that day any more, as [markMissed] has it.
+     */
     private suspend fun reopen(occurrence: Occurrence, routine: Routine) {
+        dao.uncover(by = occurrence.id)
         dao.setStatus(occurrence.id, OccurrenceStatus.Open)
         replan(routine, occurrence.date, dao.occurrencesOn(routine.id, occurrence.date), now())
     }
 
     /** Ticks the open occurrence off once every one of the checklist's [items] is ticked off on it. */
     private suspend fun tickOffIfAllTicked(occurrenceId: Long, items: List<Long>) {
-        if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) dao.setStatus(occurrenceId, OccurrenceStatus.Done)
+        if (items.isNotEmpty() && dao.ticks(occurrenceId).containsAll(items)) {
+            dao.setStatus(occurrenceId, OccurrenceStatus.Done)
+            coverOthers(occurrenceId)
+        }
     }
 
     /** Binds the routine to its places; bound to none, what waits for them pops up with [releaseFromPlaces]. */

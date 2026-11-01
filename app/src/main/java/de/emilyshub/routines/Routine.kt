@@ -26,7 +26,7 @@ import java.time.ZonedDateTime
     foreignKeys = [
         ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
     ],
-    indices = [Index(value = ["goal_id"])],
+    indices = [Index(value = ["goal_id"]), Index(value = ["coupling"])],
 )
 data class Routine(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -63,6 +63,11 @@ data class Routine(
     @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
     /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
     @ColumnInfo(defaultValue = "''") val tone: Tone = Tone.Standard,
+    /**
+     * The group of routines it is coupled with (SPEC.md §2), by its number, if it is: one of them done on a day is
+     * enough for all of them. Set by [Routines] from [RoutineDraft.coupledWith], never by the draft itself.
+     */
+    val coupling: Long? = null,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
     fun timesOn(date: LocalDate): List<LocalTime> =
@@ -141,6 +146,8 @@ data class Occurrence(
     @ColumnInfo(name = "remind_at") val remindAt: Instant? = null,
     /** Whether it waits for its routine's places: it came due elsewhere and pops up on arrival (SPEC.md §4). */
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
+    /** Skipped as one of its coupled routines was done that day (SPEC.md §2): that one's occurrence, by its id. */
+    @ColumnInfo(name = "covered_by") val coveredBy: Long? = null,
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
@@ -177,7 +184,8 @@ data class Reminder(
 
 /**
  * An occurrence on the Heute list, with its routine's name, the moment it is due, its routine's checklist, and the
- * names of the places it waits for, if it waits, and its last day, if it ends.
+ * names of the places it waits for, if it waits, its last day, if it ends, and the name of the routine coupled with it
+ * whose being done skipped it, if one did.
  */
 data class DueRoutine(
     val occurrenceId: Long,
@@ -189,4 +197,5 @@ data class DueRoutine(
     val checklist: List<ChecklistEntry> = emptyList(),
     val waitingFor: List<String> = emptyList(),
     val endsOn: LocalDate? = null,
+    val coveredBy: String? = null,
 )
