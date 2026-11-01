@@ -197,7 +197,17 @@ files.
 
 ## 5 · Ziel settling without caller snapshots
 
-**Status:** after #1. The routine side is mostly absorbed by #2 already.
+**Status:** done. `wishes/GoalWatch.kt`: what changes a to-do, routine or goal names it to the watch before
+(`todo`, `routine`, `goal`) or once it made it (`…Added`), and the watch settles their goals as they are at the end. A
+watch within another, in the same transaction, joins it and settles once, at the end of the outer one, so that a part
+closed and opened again leaves its goal as the user set it. `GoalWatchTest` holds that, and `GoalSeamTest` that
+nothing outside `wishes/` holds a `GoalPart` or settles a goal itself.
+
+- One part in the place of another is not a part added and one gone: a to-do opened again taking its place back from
+  the next of its series names that with `todoTakingPlaceOf`, and `deleteMovingPartsUp`, inside `wishes/`, settles its
+  goal explicitly, as all its parts take the place of the goal deleted.
+- `OccurrenceLifecycle.settling` and `settleCreated` stay as the routines' way to the watch; how a routine counts
+  towards its goal moved into the watch.
 
 ### Why
 

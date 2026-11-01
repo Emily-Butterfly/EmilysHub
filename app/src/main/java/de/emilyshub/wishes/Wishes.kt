@@ -75,11 +75,13 @@ class Wishes(
     suspend fun create(draft: WishDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            val parentId = dao.stillThere(cleaned.parentId)
-            val id = dao.insert(cleaned.copy(parentId = parentId).toWish(today()))
-            saveTags(id, cleaned.tagIds)
-            settleGoals(GoalPart.None, GoalPart(parentId, open = cleaned.status != WishStatus.Done))
-            id
+            database().watchingGoals(today()) { watch ->
+                val parentId = dao.stillThere(cleaned.parentId)
+                val id = dao.insert(cleaned.copy(parentId = parentId).toWish(today()))
+                watch.goalAdded(id)
+                saveTags(id, cleaned.tagIds)
+                id
+            }
         }
     }
 
@@ -90,24 +92,28 @@ class Wishes(
     suspend fun update(id: Long, draft: WishDraft) = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            val wish = dao.get(id) ?: return@withTransaction
+            if (dao.get(id) == null) return@withTransaction
             val parentId = dao.stillThere(cleaned.parentId)
             if (parentId != null) {
                 val parents = dao.all().associate { it.id to it.parentId }
                 require(GoalTree.canHangUnder(id, parentId, parents::get)) { "A goal cannot hang under itself" }
             }
-            dao.update(cleaned.copy(parentId = parentId).toWish(today(), id))
-            saveTags(id, cleaned.tagIds)
-            settleGoals(wish.asPart(), GoalPart(parentId, open = cleaned.status != WishStatus.Done))
+            database().watchingGoals(today()) { watch ->
+                watch.goal(id)
+                dao.update(cleaned.copy(parentId = parentId).toWish(today(), id))
+                saveTags(id, cleaned.tagIds)
+            }
         }
     }
 
     /** Deletes the wish for good, with its tags and its subgoals; the to-dos and routines of all of them stay, at no goal. */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
-            val wish = dao.get(id) ?: return@withTransaction
-            dao.delete(id)
-            settleGoals(wish.asPart(), GoalPart.None)
+            if (dao.get(id) == null) return@withTransaction
+            database().watchingGoals(today()) { watch ->
+                watch.goal(id)
+                dao.delete(id)
+            }
         }
     }
 
@@ -123,8 +129,8 @@ class Wishes(
             dao.moveTodos(from = id, to = wish.parentId)
             dao.moveRoutines(from = id, to = wish.parentId)
             dao.delete(id)
-            // In its place, its parts: open if one of them is.
-            settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen))
+            // In its place, its parts: open if one of them is. Not through the watch, as they take its place, one for all.
+            database().settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen), today())
         }
     }
 
@@ -146,8 +152,6 @@ class Wishes(
      */
     private fun goalRoutines(): Flow<List<GoalRoutine>> =
         database().routines().observeWithGoal().distinctUntilChanged().map { all -> all.mapNotNull(GoalRoutine::of) }
-
-    private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
 
     private fun Wish.asPart() = GoalPart(parentId, open = status != WishStatus.Done)
 

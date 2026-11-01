@@ -21,7 +21,7 @@ class RoutinesSeamTest {
     @Test
     fun `the routines settle their goals only through the occurrence lifecycle`() {
         val bypassing = sources(File(MAIN, "de/emilyshub/routines")).filterKeys { it != LIFECYCLE }
-            .filterValues { "settleGoals(" in it }.keys
+            .filterValues { "watchingGoals(" in it || "settleGoals(" in it }.keys
 
         assertEquals("To go through OccurrenceLifecycle instead", emptySet<String>(), bypassing)
     }

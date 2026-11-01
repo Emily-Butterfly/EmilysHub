@@ -9,8 +9,8 @@ import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.dueAt
 import de.emilyshub.routines.today
-import de.emilyshub.wishes.GoalPart
-import de.emilyshub.wishes.settleGoals
+import de.emilyshub.wishes.GoalWatch
+import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -104,13 +104,16 @@ class Todos(
     suspend fun create(draft: TodoDraft): Long = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            val goalId = database().wishes().stillThere(cleaned.goalId)
-            dao.insert(cleaned.copy(goalId = goalId).toTodo()).also { id ->
-                saveChecklist(id, cleaned.checklist)
-                saveTags(id, cleaned.tagIds)
-                savePlaces(id, cleaned.placeIds)
-                rearm(id, cleaned.due, cleaned.wake)
-                settleGoals(GoalPart.None, GoalPart(goalId, open = true))
+            watchingGoals { watch ->
+                val goalId = database().wishes().stillThere(cleaned.goalId)
+                dao.insert(cleaned.copy(goalId = goalId).toTodo()).also { id ->
+                    // First, as all of its checklist ticked off ticks it off at once.
+                    watch.todoAdded(id)
+                    saveChecklist(id, cleaned.checklist)
+                    saveTags(id, cleaned.tagIds)
+                    savePlaces(id, cleaned.placeIds)
+                    rearm(id, cleaned.due, cleaned.wake)
+                }
             }
         }
     }
@@ -122,17 +125,19 @@ class Todos(
     suspend fun update(id: Long, draft: TodoDraft) = write {
         val cleaned = checked(draft)
         database().withTransaction {
-            val todo = dao.get(id) ?: return@withTransaction
-            val placesBefore = dao.placeIdsOf(id).toSet()
-            val goalId = database().wishes().stillThere(cleaned.goalId)
-            dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId, todo.seriesNumber))
-            settleGoals(todo.asPart(), todo.copy(goalId = goalId).asPart())
-            saveTags(id, cleaned.tagIds)
-            savePlaces(id, cleaned.placeIds)
-            val placesChanged = dao.placeIdsOf(id).toSet() != placesBefore
-            if (cleaned.due != todo.due || cleaned.wake != todo.wake || placesChanged) rearm(id, cleaned.due, cleaned.wake)
-            // Last, as all of it ticked off brings the next of one coming again, with its tags and places as saved.
-            saveChecklist(id, cleaned.checklist)
+            watchingGoals { watch ->
+                val todo = dao.get(id) ?: return@watchingGoals
+                watch.todo(id)
+                val placesBefore = dao.placeIdsOf(id).toSet()
+                val goalId = database().wishes().stillThere(cleaned.goalId)
+                dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId, todo.seriesNumber))
+                saveTags(id, cleaned.tagIds)
+                savePlaces(id, cleaned.placeIds)
+                val placesChanged = dao.placeIdsOf(id).toSet() != placesBefore
+                if (cleaned.due != todo.due || cleaned.wake != todo.wake || placesChanged) rearm(id, cleaned.due, cleaned.wake)
+                // Last, as all of it ticked off brings the next of one coming again, with its tags and places as saved.
+                saveChecklist(id, cleaned.checklist)
+            }
         }
     }
 
@@ -162,9 +167,11 @@ class Todos(
     /** Deletes the to-do for good, with its checklist, tags and places; its goal is settled without it. */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
-            val todo = dao.get(id) ?: return@withTransaction
-            dao.delete(id)
-            settleGoals(todo)
+            if (dao.get(id) == null) return@withTransaction
+            watchingGoals { watch ->
+                watch.todo(id)
+                dao.delete(id)
+            }
         }
     }
 
@@ -409,7 +416,8 @@ class Todos(
      * place in its goal, which stays as it is: the one done stays in the goal as a part done before, no part of it any
      * more.
      */
-    private suspend fun finish(todo: Todo) {
+    private suspend fun finish(todo: Todo) = watchingGoals { watch ->
+        watch.todo(todo.id)
         val doneAt = now()
         val recurrence = todo.recurrence
         val due = todo.dueDate
@@ -417,8 +425,7 @@ class Todos(
         // Not again without a recurrence, nor once its series has come as often or as long as its end allows.
         if (nextDue == null || !todo.comesAgainOn(nextDue)) {
             dao.setDoneAt(todo.id, doneAt)
-            settleGoals(todo.asPart(), todo.copy(doneAt = doneAt).asPart())
-            return
+            return@watchingGoals
         }
         val next = todo.comingNext(nextDue)
         val nextId = dao.insert(next)
@@ -436,14 +443,15 @@ class Todos(
      * with the next changed or ticked off since, it opens as a to-do of its own, coming again no more, so that the series
      * goes on once only.
      */
-    private suspend fun openAgain(todo: Todo) {
+    private suspend fun openAgain(todo: Todo) = watchingGoals { watch ->
         val next = todo.nextId?.let { dao.get(it) }
         val takingBack = next != null && isAsItCame(next, todo)
+        // Taking its place back from the next, it is a part of its goal as the next was: nothing changes for that.
+        if (takingBack) watch.todoTakingPlaceOf(todo.id, replaced = checkNotNull(next).id) else watch.todo(todo.id)
         val reopened = todo.copy(doneAt = null, nextId = null, recurrence = todo.recurrence.takeIf { next == null || takingBack })
         if (takingBack) dao.delete(checkNotNull(next).id)
         dao.update(reopened)
         rearm(todo.id, todo.due, todo.wake)
-        settleGoals(if (takingBack) checkNotNull(next).asPart() else todo.asPart(), reopened.asPart())
     }
 
     /**
@@ -482,13 +490,8 @@ class Todos(
         if (dao.get(todoId)?.doneAt == null) doneIfAllTicked(todoId)
     }
 
-    /** Settles the goals of the to-do (SPEC.md §6) after a change to it, as it was [before]. */
-    private suspend fun settleGoals(before: Todo) = settleGoals(before.asPart(), dao.get(before.id)?.asPart() ?: GoalPart.None)
-
-    private suspend fun settleGoals(before: GoalPart, after: GoalPart) = database().settleGoals(before, after, today())
-
-    /** The to-do as a part of its goal: one ticked off whose next came in its place counts no more. */
-    private fun Todo.asPart() = GoalPart(goalId, open = doneAt == null, counts = nextId == null)
+    /** Runs [change] to to-dos, which it names to the watch, and settles their goals (SPEC.md §6) once it is over. */
+    private suspend fun <T> watchingGoals(change: suspend (GoalWatch) -> T): T = database().watchingGoals(today(), change)
 
     private suspend fun saveTags(todoId: Long, tagIds: Set<Long>) {
         dao.untagAll(todoId)

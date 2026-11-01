@@ -1,9 +1,8 @@
 package de.emilyshub.routines
 
 import de.emilyshub.data.HubDatabase
-import de.emilyshub.wishes.GoalPart
-import de.emilyshub.wishes.GoalRoutine
-import de.emilyshub.wishes.settleGoals
+import de.emilyshub.wishes.GoalWatch
+import de.emilyshub.wishes.watchingGoals
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -72,21 +71,20 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
      * Deletes the routine [routineId] with its occurrences, after giving back what they skipped of its group by being
      * done, as there is nothing to undo then; its goal is settled without it (SPEC.md §6).
      */
-    suspend fun delete(routineId: Long) {
-        val part = partOf(routineId)
+    suspend fun delete(routineId: Long) = watchingGoals { watch ->
+        watch.routine(routineId)
         dao.uncoverAllBy(routineId = routineId)
         dao.delete(routineId)
-        settleGoals(part, GoalPart.None)
     }
 
     /** Runs [change] to the routines [routineIds], then settles the goals they are part of (SPEC.md §6). */
-    suspend fun <T> settling(routineIds: Collection<Long>, change: suspend () -> T): T {
-        val parts = routineIds.distinct().associateWith { partOf(it) }
-        return change().also { parts.forEach { (routineId, part) -> settleGoals(part, partOf(routineId)) } }
+    suspend fun <T> settling(routineIds: Collection<Long>, change: suspend () -> T): T = watchingGoals { watch ->
+        routineIds.distinct().forEach { watch.routine(it) }
+        change()
     }
 
     /** Settles the goal of the routine [routineId], just created, as a part new to it. */
-    suspend fun settleCreated(routineId: Long) = settleGoals(GoalPart.None, partOf(routineId))
+    suspend fun settleCreated(routineId: Long) = watchingGoals { watch -> watch.routineAdded(routineId) }
 
     /**
      * On the [day] one of the group is done, what of its other active routines is open or missed is skipped by it
@@ -114,19 +112,9 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
         }
     }
 
-    /**
-     * The routine as a part of its goal (SPEC.md §6): counting with a target, and open while it has not reached that;
-     * one without a target only shows with its goal.
-     */
-    private suspend fun partOf(routineId: Long): GoalPart {
-        val routine = dao.get(routineId) ?: return GoalPart.None
-        if (routine.goalId == null || routine.target == null) return GoalPart(routine.goalId, open = false, counts = false)
-        val reached = GoalRoutine.of(RoutineWithOutcomes(routine, dao.outcomesOf(routineId)))?.reached ?: false
-        return GoalPart(routine.goalId, open = !reached)
-    }
-
-    private suspend fun settleGoals(before: GoalPart, after: GoalPart) =
-        database().settleGoals(before, after, today(clock.instant(), clock.zone))
+    /** Runs [change], which names the routines it changes to the watch, and settles their goals (SPEC.md §6) at the end. */
+    private suspend fun <T> watchingGoals(change: suspend (GoalWatch) -> T): T =
+        database().watchingGoals(today(clock.instant(), clock.zone), change)
 
     private companion object {
         /** What one done covers of its group: missed too, as the day was done after all. */
