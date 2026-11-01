@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.Routines
@@ -102,8 +103,8 @@ class RemindingTest {
         reminders.remind()
         val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
 
-        reminders.offerPutOff(vitamins.id)
-        reminders.offerTodoPutOff(call)
+        reminders.answer(vitamins, Answer.OfferPutOff)
+        reminders.answer(Alarmed.Todo(call), Answer.OfferPutOff)
         reminders.update()
 
         assertEquals(Offering.PutOff, screen.offering(vitamins))
@@ -121,7 +122,7 @@ class RemindingTest {
         // Ticked off in the app, while its reminder was still up.
         screen.onScreen[Alarmed.Occurrence(vitamins)]?.let { shown -> routines.markDone(vitamins); screen.onScreen[shown.reminder.about] = shown }
 
-        reminders.offerPutOff(vitamins)
+        reminders.answer(Alarmed.Occurrence(vitamins), Answer.OfferPutOff)
 
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
     }
@@ -134,7 +135,7 @@ class RemindingTest {
         reminders.remind()
         val vitamins = occurrenceOf("Vitamine")
 
-        reminders.putOff(vitamins, Duration.ofMinutes(30))
+        reminders.answer(Alarmed.Occurrence(vitamins), Answer.PutOff(Duration.ofMinutes(30)))
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
 
         clock.now = berlin("08:20")
@@ -142,10 +143,86 @@ class RemindingTest {
         assertEquals(listOf(Alarmed.Occurrence(vitamins), Alarmed.Occurrence(vitamins)), screen.alerted)
     }
 
+    @Test
+    fun `"Erledigt" marks a routine's occurrence and a to-do done alike, and takes their reminders down`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+        val vitamins = occurrenceOf("Vitamine")
+
+        reminders.answer(Alarmed.Occurrence(vitamins), Answer.Done)
+        reminders.answer(Alarmed.Todo(call), Answer.Done)
+
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+        assertEquals(OccurrenceStatus.Done, routines.dueOn(today).first().single().status)
+        assertEquals(true, todos.dueOn(today, clock.now).first().single().done)
+    }
+
+    @Test
+    fun `skipping and "Heute nicht" answer a routine's reminder, and leave a to-do's as it is, as a to-do is never skipped`() =
+        runBlocking {
+            reminders.update()
+            routines.create(routine("Vitamine", "07:30"))
+            routines.create(routine("Lesen", "07:40"))
+            val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+            clock.now = berlin("07:50")
+            reminders.remind()
+
+            reminders.answer(Alarmed.Occurrence(occurrenceOf("Vitamine")), Answer.Skip)
+            reminders.answer(Alarmed.Occurrence(occurrenceOf("Lesen")), Answer.Drop)
+            reminders.answer(Alarmed.Todo(call), Answer.Skip)
+            reminders.answer(Alarmed.Todo(call), Answer.Drop)
+
+            assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+            assertEquals(
+                listOf("Vitamine" to OccurrenceStatus.Skipped, "Lesen" to OccurrenceStatus.Dropped),
+                routines.dueOn(today).first().sortedBy { it.dueAt }.map { it.name to it.status },
+            )
+            assertEquals(false, todos.dueOn(today, clock.now).first().single().done)
+        }
+
+    @Test
+    fun `a joint reminder asks which one was done, and that one done skips the others`() = runBlocking {
+        reminders.update()
+        val running = routines.create(routine("Laufen", "07:30"))
+        routines.create(routine("Yoga", "07:30", coupledWith = setOf(running)))
+        clock.now = berlin("07:35")
+        reminders.remind()
+        val joint = screen.onScreen.keys.single()
+
+        reminders.answer(joint, Answer.OfferDone)
+        assertEquals(Offering.Done, screen.offering(joint))
+
+        reminders.answer(Alarmed.Occurrence(occurrenceOf("Yoga")), Answer.Done)
+
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+        assertEquals(
+            listOf("Laufen" to OccurrenceStatus.Skipped, "Yoga" to OccurrenceStatus.Done),
+            routines.dueOn(today).first().map { it.name to it.status },
+        )
+    }
+
+    @Test
+    fun `put off by a time not offered, a reminder stays as it is`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+        val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
+
+        reminders.answer(vitamins, Answer.PutOff(Duration.ofMinutes(7)))
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(Duration.ofMinutes(7)))
+
+        assertEquals(setOf(vitamins, Alarmed.Todo(call)), screen.onScreen.keys)
+    }
+
     private suspend fun occurrenceOf(name: String) = routines.dueOn(today).first().single { it.name == name }.occurrenceId
 
     private fun berlin(time: String): Instant = LocalDateTime.of(today, LocalTime.parse(time)).atZone(clock.zone).toInstant()
 
-    private fun routine(name: String, time: String) =
-        RoutineDraft(name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily)
+    private fun routine(name: String, time: String, coupledWith: Set<Long> = emptySet()) =
+        RoutineDraft(name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily, coupledWith = coupledWith)
 }

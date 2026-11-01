@@ -104,15 +104,13 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                     putOffChoices = shown?.putOffChoices?.invoke().orEmpty(),
                     locked = locked,
                     onUnlock = ::unlock,
-                    onDone = { answer(ofOccurrence = app.routines::markDone, ofTodo = app.todos::markDone) },
+                    onDone = { answer(Answer.Done) },
                     // One of a joint alarm: that one done skips the others (SPEC.md §2).
-                    onDoneOf = { id -> answer(ofOccurrence = { app.routines.markDone(id) }) },
-                    onPutOff = { by: Duration ->
-                        answer(ofOccurrence = { app.reminders.putOff(it, by) }, ofTodo = { app.reminders.putOffTodo(it, by) })
-                    },
+                    onDoneOf = { id -> answer(Answer.Done, about = Alarmed.Occurrence(id)) },
+                    onPutOff = { by: Duration -> answer(Answer.PutOff(by)) },
                     // For all a joint alarm rings for (SPEC.md §3).
-                    onSkip = { answer(ofOccurrence = app.routines::skipTogether) },
-                    onDrop = { answer(ofOccurrence = app.routines::dropTogether) },
+                    onSkip = { answer(Answer.Skip) },
+                    onDrop = { answer(Answer.Drop) },
                     onClose = {
                         silence()
                         finish()
@@ -259,19 +257,15 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     )
 
     /**
-     * Goes on to the next in the queue and does the work on the one shown, [ofOccurrence] or [ofTodo], to the end even
-     * if the alarm closes. In that order, so that the work being done cannot take the next one out of the queue too.
-     * Nothing for one without such work, as a to-do is never skipped.
+     * Goes on to the next in the queue and gives the [answer] to the one shown, or to [about] of it, the one of a joint
+     * alarm chosen, to the end even if the alarm closes. In that order, so that the answer cannot take the next one out
+     * of the queue too.
      */
-    private fun answer(ofOccurrence: suspend (Long) -> Unit, ofTodo: (suspend (Long) -> Unit)? = null) {
+    private fun answer(answer: Answer, about: Alarmed? = null) {
         val alarmed = showing?.alarmed ?: return
-        val work = when (alarmed) {
-            is Alarmed.Occurrence -> ofOccurrence
-            is Alarmed.Todo -> ofTodo ?: return
-        }
         silence()
         drop(alarmed)
-        app.background.launch { work(alarmed.id) }
+        app.background.launch { app.reminders.answer(about ?: alarmed, answer) }
     }
 
     /** What the alarm shows of [alarmed]: its [screen], and what "Später" offers now. */

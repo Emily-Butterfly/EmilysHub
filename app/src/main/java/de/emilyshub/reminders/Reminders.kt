@@ -110,28 +110,28 @@ class Reminders(
         }
     }
 
-    /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
-    suspend fun offerPutOff(occurrenceId: Long) = offer(Alarmed.Occurrence(occurrenceId), Offering.PutOff)
-
-    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was; one answered meanwhile goes away. */
-    suspend fun offerDone(occurrenceId: Long) = offer(Alarmed.Occurrence(occurrenceId), Offering.Done)
-
-    /** "Später" on a to-do's reminder: it asks when to come back, out of [PUT_OFF_CHOICES]; one done meanwhile goes away. */
-    suspend fun offerTodoPutOff(todoId: Long) = offer(Alarmed.Todo(todoId), Offering.PutOff)
-
     /**
-     * Puts the reminder off [by] one of its [putOffChoices]: it comes back then, and its follow-ups after that.
-     * Only one that has come due and is still open, and only to before its time window ends; otherwise it
-     * stays as it is, and one answered meanwhile goes away.
+     * Does what [answer] asks of the reminder about [about], from its notification or its full-screen alarm alike:
+     *
+     * - "Erledigt" marks it done; on a joint reminder, the one chosen, after it asked which one it was;
+     * - "Später" asks when to come back, and the choice puts it off then, and its follow-ups after that: only one that has
+     *   come due and is still open, and only by a choice it offers now, else it stays as it is;
+     * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do.
+     *
+     * Asking anything of one answered meanwhile takes it down. What writes to the routines or to-dos runs outside the
+     * lock, as their change brings the reminders up to date, which takes it.
      */
-    suspend fun putOff(occurrenceId: Long, by: Duration) = putOff(Alarmed.Occurrence(occurrenceId), by)
-
-    /**
-     * Puts the to-do's reminder off [by] one of the [PUT_OFF_CHOICES], any of them, as a to-do has no time window: it
-     * comes back then, anywhere. Only one that has popped up and is still open; otherwise it stays as it is, and one done
-     * meanwhile goes away.
-     */
-    suspend fun putOffTodo(todoId: Long, by: Duration) = putOff(Alarmed.Todo(todoId), by)
+    suspend fun answer(about: Alarmed, answer: Answer) {
+        val source = sourceOf(about)
+        when (answer) {
+            Answer.Done -> source.done(about.id)
+            Answer.OfferDone -> if (source.joint) offer(about, Offering.Done)
+            Answer.OfferPutOff -> offer(about, Offering.PutOff)
+            is Answer.PutOff -> putOff(about, answer.by)
+            Answer.Skip -> source.skip(about.id)
+            Answer.Drop -> source.drop(about.id)
+        }
+    }
 
     /** The reminder about [about] offers [offering] instead, quietly; one answered meanwhile goes away. */
     private suspend fun offer(about: Alarmed, offering: Offering) = lock.withLock {
@@ -143,7 +143,7 @@ class Reminders(
 
     /**
      * Puts the reminder about [about] off [by] one of the choices its source offers now; anything else, or one no longer
-     * due, leaves it as it is, and brings the screen up to date. Outside the lock, as putting off reports a change.
+     * due, leaves it as it is, and brings the screen up to date.
      */
     private suspend fun putOff(about: Alarmed, by: Duration) {
         val source = sourceOf(about)

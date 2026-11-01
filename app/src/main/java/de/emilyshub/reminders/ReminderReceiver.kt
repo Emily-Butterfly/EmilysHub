@@ -14,29 +14,26 @@ import kotlinx.coroutines.launch
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
-        val occurrence = intent.occurrenceId()
-        val todo = intent.todoId()
+        val about = intent.occurrenceId()?.let(Alarmed::Occurrence) ?: intent.todoId()?.let(Alarmed::Todo)
         val minutes = intent.getLongExtra(EXTRA_MINUTES, 0)
         val putOffBy = Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }
-
-        /** The work on the occurrence's reminder, or else on the to-do's; none without either. */
-        fun onEither(ofOccurrence: suspend (Long) -> Unit, ofTodo: suspend (Long) -> Unit): (suspend () -> Unit)? =
-            occurrence?.let { suspend { ofOccurrence(it) } } ?: todo?.let { suspend { ofTodo(it) } }
-
+        // An answer to a reminder, as its full-screen alarm gives them too; none without what it is about.
+        val answer: Answer? = when (intent.action) {
+            ACTION_DONE -> Answer.Done
+            ACTION_OFFER_PUT_OFF -> Answer.OfferPutOff
+            ACTION_OFFER_DONE -> Answer.OfferDone
+            ACTION_PUT_OFF -> putOffBy?.let(Answer::PutOff)
+            ACTION_SKIP -> Answer.Skip
+            ACTION_DROP -> Answer.Drop
+            else -> null
+        }
         val work: (suspend () -> Unit)? = when (intent.action) {
             ACTION_REMIND -> suspend { app.reminders.remind() }
-            ACTION_DONE -> onEither(app.routines::markDone, app.todos::markDone)
-            ACTION_OFFER_PUT_OFF -> onEither(app.reminders::offerPutOff, app.reminders::offerTodoPutOff)
-            ACTION_OFFER_DONE -> occurrence?.let { suspend { app.reminders.offerDone(it) } }
-            ACTION_PUT_OFF -> putOffBy?.let { by -> onEither({ app.reminders.putOff(it, by) }, { app.reminders.putOffTodo(it, by) }) }
-            // For all a joint reminder reminds of (SPEC.md §3), for the one alone otherwise.
-            ACTION_SKIP -> occurrence?.let { suspend { app.routines.skipTogether(it) } }
-            ACTION_DROP -> occurrence?.let { suspend { app.routines.dropTogether(it) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
             ACTION_PROBE -> suspend { app.reminders.showProbe() }
-            else -> null
+            else -> if (answer != null && about != null) suspend { app.reminders.answer(about, answer) } else null
         }
         if (work != null) finishInBackground(app, work)
     }

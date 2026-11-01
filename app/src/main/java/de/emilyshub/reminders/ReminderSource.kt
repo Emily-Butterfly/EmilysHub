@@ -48,6 +48,15 @@ internal interface ReminderSource {
 
     /** Puts the reminder with [id] off until [until]. */
     suspend fun putOff(id: Long, until: Instant)
+
+    /** Whether its reminders may be joint ones, which ask which one was done ([Answer.OfferDone]). */
+    val joint: Boolean
+
+    /** "Überspringen" on the reminder with [id]; nothing for what is never skipped. */
+    suspend fun skip(id: Long)
+
+    /** "Heute nicht" on the reminder with [id]; nothing for what has none. */
+    suspend fun drop(id: Long)
 }
 
 /** The routines' occurrences as a [ReminderSource]: they run out, are missed, and come in joint reminders. */
@@ -79,8 +88,14 @@ internal class RoutineReminding(private val routines: Routines) : ReminderSource
     override fun putOffChoices(reminder: DueReminder, now: Instant) =
         (reminder as DueReminder.OfOccurrence).reminder.putOffChoices(now)
 
-    // A joint reminder is put off for all it reminds of (SPEC.md §3).
+    // A joint reminder is put off, skipped and dropped for all it reminds of (SPEC.md §3).
     override suspend fun putOff(id: Long, until: Instant) = routines.putOffTogether(id, until)
+
+    override val joint = true
+
+    override suspend fun skip(id: Long) = routines.skipTogether(id)
+
+    override suspend fun drop(id: Long) = routines.dropTogether(id)
 }
 
 /** The to-dos as a [ReminderSource]: they never run out, so any time to put off by, and wait until done. */
@@ -112,4 +127,10 @@ internal class TodoReminding(private val todos: Todos) : ReminderSource {
     override fun putOffChoices(reminder: DueReminder, now: Instant) = Reminders.PUT_OFF_CHOICES
 
     override suspend fun putOff(id: Long, until: Instant) = todos.putOff(id, until)
+
+    override val joint = false
+
+    override suspend fun skip(id: Long) = Unit
+
+    override suspend fun drop(id: Long) = Unit
 }
