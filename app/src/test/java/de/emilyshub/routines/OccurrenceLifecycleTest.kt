@@ -124,7 +124,8 @@ class OccurrenceLifecycleTest {
         }
 
         private suspend fun pauseOrResume(): String {
-            val routine = group.filter { it != goalRoutine }.random(random)
+            // The goal's too, so that what a pause marks missed is held up against the goal.
+            val routine = group.random(random)
             return when (routines.get(routine)?.status) {
                 RoutineStatus.Active -> "pause($routine)".also { routines.pause(routine) }
                 else -> "resume($routine)".also { routines.resume(routine) }

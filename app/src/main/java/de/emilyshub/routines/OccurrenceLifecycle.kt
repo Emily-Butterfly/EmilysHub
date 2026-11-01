@@ -17,24 +17,25 @@ import java.time.Instant
  * - each routine touched has the goal it is part of settled, once, as reaching its target, or no more, may finish that
  *   goal or open it again.
  *
- * It also has which open occurrences are missed now ([missNow]), and what a routine takes along when it is deleted
- * ([removing]). Every call runs in the caller's transaction.
+ * It also has which open occurrences are missed now ([missNow]), and what a routine takes along when it is [delete]d.
+ * Until goal settling has a module of its own, it settles the goals of routines changed in the editor too
+ * ([settling], [settleCreated]). Every call runs in the caller's transaction.
  */
 internal class OccurrenceLifecycle(private val database: () -> HubDatabase, private val clock: Clock) {
 
     private val dao get() = database().routines()
 
     /**
-     * Moves the occurrences [ids] to [status], as the class describes; one moved is skipped by no other any more. Those
-     * gone are left out, and those missed too: once missed, an occurrence stays so.
+     * Moves the occurrences [ids] to [status], as the class describes (SPEC.md §2, §6); one moved is skipped by no other
+     * any more. Those gone are left out, and those missed too: once missed, an occurrence stays so.
      */
     suspend fun move(ids: Collection<Long>, status: OccurrenceStatus) {
-        val occurrences = ids.distinct().mapNotNull { dao.occurrence(it) }.filter { it.status != OccurrenceStatus.Missed }
+        val occurrences = dao.occurrencesWithRoutines(ids.distinct()).map { it.occurrence }.filter { it.status != OccurrenceStatus.Missed }
         if (occurrences.isEmpty()) return
         settling(occurrences.map { it.routineId }) {
-            // No longer done, what it skipped of its group by being done comes back.
-            occurrences.filter { it.status == OccurrenceStatus.Done && status != OccurrenceStatus.Done }
-                .forEach { dao.uncover(by = it.id) }
+            // No longer done, what they skipped of their group by being done comes back; asked of every one, not only
+            // those done, so that one left skipped by an occurrence no longer done, as an older version did, is too.
+            if (status != OccurrenceStatus.Done) dao.uncover(by = occurrences.map { it.id })
             dao.setStatuses(occurrences.map { it.id }, status)
             if (status == OccurrenceStatus.Done) occurrences.forEach { cover(it) }
         }
@@ -53,17 +54,17 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
     }
 
     /**
-     * Runs [delete], which deletes the routine [routineId] with its occurrences, after giving back what they skipped
-     * of its group by being done, as there is nothing to undo then; its goal is settled without it.
+     * Deletes the routine [routineId] with its occurrences, after giving back what they skipped of its group by being
+     * done, as there is nothing to undo then; its goal is settled without it (SPEC.md §6).
      */
-    suspend fun removing(routineId: Long, delete: suspend () -> Unit) {
+    suspend fun delete(routineId: Long) {
         val part = partOf(routineId)
         dao.uncoverAllBy(routineId = routineId)
-        delete()
+        dao.delete(routineId)
         settleGoals(part, GoalPart.None)
     }
 
-    /** Runs [change] to the routines [routineIds], then settles the goals they are part of. */
+    /** Runs [change] to the routines [routineIds], then settles the goals they are part of (SPEC.md §6). */
     suspend fun <T> settling(routineIds: Collection<Long>, change: suspend () -> T): T {
         val parts = routineIds.distinct().associateWith { partOf(it) }
         return change().also { parts.forEach { (routineId, part) -> settleGoals(part, partOf(routineId)) } }
@@ -97,8 +98,8 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
     }
 
     /**
-     * The routine as a part of its goal (SPEC.md §6): counting with a target, and open while it has not reached that; one
-     * without a target only shows with its goal.
+     * The routine as a part of its goal (SPEC.md §6): counting with a target, and open while it has not reached that;
+     * one without a target only shows with its goal.
      */
     private suspend fun partOf(routineId: Long): GoalPart {
         val routine = dao.get(routineId) ?: return GoalPart.None

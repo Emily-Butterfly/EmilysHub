@@ -167,8 +167,8 @@ interface RoutineDao {
     suspend fun deleteOccurrences(ids: Collection<Long>)
 
     /**
-     * Sets the status of the occurrences [ids] not [missed]: once missed, one stays so. Skipped by no other then. Only
-     * [OccurrenceLifecycle] calls this, which keeps what hangs on a status.
+     * Sets the status of the occurrences [ids] not [missed]: once missed, one stays so. One set so is no longer skipped
+     * by another of its group ([cover]). Only [OccurrenceLifecycle] calls this, which keeps what hangs on a status.
      */
     @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id IN (:ids) AND status != :missed")
     suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
@@ -208,9 +208,9 @@ interface RoutineDao {
     )
     suspend fun uncoverAllBy(routineId: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
 
-    /** Opens again what the occurrence [by] skipped as it was done. */
-    @Query("UPDATE occurrences SET status = :open, covered_by = NULL WHERE covered_by = :by")
-    suspend fun uncover(by: Long, open: OccurrenceStatus = OccurrenceStatus.Open)
+    /** Opens again what the occurrences [by] skipped as they were done. */
+    @Query("UPDATE occurrences SET status = :open, covered_by = NULL WHERE covered_by IN (:by)")
+    suspend fun uncover(by: Collection<Long>, open: OccurrenceStatus = OccurrenceStatus.Open)
 
     /** The occurrences from [from] to [to], each with its routine and checklist. */
     @Transaction

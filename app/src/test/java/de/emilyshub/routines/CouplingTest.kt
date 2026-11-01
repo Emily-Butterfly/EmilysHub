@@ -220,6 +220,36 @@ class CouplingTest {
         assertEquals(listOf(OccurrenceStatus.Skipped), routines.history(work).first().filter { it.date == today }.map { it.status })
     }
 
+    @Test
+    fun `skipping a joint reminder of one ticked off meanwhile skips all it reminded of, none left skipped by it`() = runBlocking {
+        val running = routines.create(draft("Laufen", "18:00"))
+        routines.create(draft("Yoga", "18:00", coupledWith = setOf(running)))
+        clock.now = berlin("2026-10-23T18:05")
+        routines.markDone(occurrenceOf("Laufen")) // on Heute: Yoga is skipped by it
+
+        // "Überspringen" on their joint reminder, tapped before it went away.
+        routines.skipTogether(occurrenceOf("Laufen"))
+
+        assertEquals(listOf("18:00 Laufen: Skipped", "18:00 Yoga: Skipped"), dueOn(today))
+        routines.reopen(occurrenceOf("Yoga"))
+        assertEquals("Yoga is skipped by itself, so it can be undone", listOf("18:00 Laufen: Skipped", "18:00 Yoga: Open"), dueOn(today))
+    }
+
+    @Test
+    fun `one left skipped by an occurrence no longer done, as an older version did, comes back once that is undone`() = runBlocking {
+        val running = routines.create(draft("Laufen", "18:00"))
+        routines.create(draft("Yoga", "18:00", coupledWith = setOf(running)))
+        clock.now = berlin("2026-10-23T18:05")
+        val done = occurrenceOf("Laufen")
+        routines.markDone(done)
+        // As "Überspringen" on their joint reminder left it before: Laufen skipped, Yoga still skipped by it.
+        database.routines().setStatuses(listOf(done), OccurrenceStatus.Skipped)
+
+        routines.reopen(done)
+
+        assertEquals(listOf("18:00 Laufen: Open", "18:00 Yoga: Open"), dueOn(today))
+    }
+
     private fun berlin(localDateTime: String): Instant = LocalDateTime.parse(localDateTime).atZone(clock.zone).toInstant()
 
     private fun draft(

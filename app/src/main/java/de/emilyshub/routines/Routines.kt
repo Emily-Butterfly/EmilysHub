@@ -207,7 +207,7 @@ class Routines(
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             val coupling = dao.get(id)?.coupling
-            lifecycle.removing(id) { dao.delete(id) }
+            lifecycle.delete(id)
             coupling?.let { dissolveIfAlone(it) }
         }
     }
@@ -458,11 +458,23 @@ class Routines(
     }.flowOn(io)
 
     /**
-     * Skips the occurrence and those coupled with it in their joint reminder, all at once; one done meanwhile gives back
-     * what it skipped of its group, as skipping it on Heute does.
+     * Skips the occurrence and those coupled with it in their joint reminder, all at once (SPEC.md §3). One ticked off
+     * meanwhile, say on Heute while the reminder still showed, takes along what it skipped of the reminder by being done,
+     * so that all it reminded of are skipped, and none is left skipped by one no longer done.
      */
     suspend fun skipTogether(occurrenceId: Long) = write {
-        database().withTransaction { lifecycle.move(togetherWith(occurrenceId), OccurrenceStatus.Skipped) }
+        database().withTransaction {
+            lifecycle.move(togetherWith(occurrenceId) + coveredAtItsTime(occurrenceId), OccurrenceStatus.Skipped)
+        }
+    }
+
+    /** What the occurrence, done, skipped of its group due at the same time: those its joint reminder reminded of too. */
+    private suspend fun coveredAtItsTime(occurrenceId: Long): List<Long> {
+        val done = dao.occurrencesWithRoutines(listOf(occurrenceId)).singleOrNull() ?: return emptyList()
+        val coupling = done.routine.coupling ?: return emptyList()
+        return dao.coupledOn(coupling, done.occurrence.date).map { it.occurrence }
+            .filter { it.coveredBy == occurrenceId && it.time == done.occurrence.time }
+            .map { it.id }
     }
 
     /** "Heute nicht" for the routines of the occurrence and those coupled with it in their joint reminder, at once. */

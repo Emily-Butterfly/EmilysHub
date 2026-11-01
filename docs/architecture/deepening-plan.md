@@ -14,11 +14,23 @@ step says so. Each step is one commit.
 
 ## 2 · One place where a Fälligkeit changes status (occurrence lifecycle)
 
-**Status:** done. `routines/OccurrenceLifecycle.kt`; `OccurrenceLifecycleTest` (200 seeded walks) and
-`RoutinesSeamTest` hold it. On its first run, the invariant test found a bug that the refactor fixes: `skipTogether`
-on an occurrence done meanwhile (a joint reminder's "Überspringen" tapped after ticking it off on Heute) left what it
-had covered "skipped by" one no longer done. Every move now also keeps the two rules the single-occurrence query had:
-once missed, an occurrence stays missed, and one moved is covered by no other any more.
+**Status:** done (commits `b55e1d4` and the review fixes after it). `routines/OccurrenceLifecycle.kt` with `move`,
+`missNow` and `delete`, plus `settling`/`settleCreated` for goals of routines changed in the editor until #5 takes
+those. `OccurrenceLifecycleTest` (200 seeded walks of 30 steps) and `RoutinesSeamTest` hold it. `Routines.kt` went from
+727 to about 660 lines, as it gained what joint skipping needs (below).
+
+How it went against the steps:
+
+- **Behaviour changed, on purpose.** On its first run, the invariant test (step 1) found a bug: `skipTogether` wrote the
+  status around the rules, so "Überspringen" on a joint reminder tapped after ticking one of it off on Heute left the
+  others "skipped by" an occurrence no longer done, and they could not be undone. Rather than keep it out as step 1
+  said, the refactor fixes it, as the fix is what the module is for: joint skipping now takes along what the one done
+  covered at its time, so all it reminded of end up skipped (`CouplingTest`). A move away from Done also gives back
+  what an occurrence left covered by an older version. Every move keeps the two rules the old single-occurrence query
+  had: once missed, an occurrence stays missed, and one moved is covered by no other any more.
+- **Coupling membership stays in `Routines`** (`saveCoupling`, `dissolveIfAlone`): it is editing a group, not a status.
+- **One commit** for steps 1–6, as the steps only compile together, and one for the review fixes.
+- `replan` still inserts occurrences as Dropped on a day dropped ("Heute nicht"): new occurrences, not a status change.
 
 ### Why
 
@@ -85,8 +97,8 @@ interface is one idea: **move these occurrences to that status**. Behind it:
    - `skipTogether` → `move(togetherWith(id), Skipped)`, one call
    - `setAside` → `move(ended, Missed)`
    - `markMissed` → `lifecycle.missNow(now)`, which picks with `stillCovered` and calls `move(…, Missed)`
-4. **Deletion.** `delete` calls `lifecycle.forget(routineId)` (uncover all it covered, dissolve its group, settle its
-   goal to None) before `dao.delete`.
+4. **Deletion.** `delete` calls `lifecycle.delete(routineId)` (uncover all it covered, delete, settle its goal to
+   None), then dissolves a group left with one routine.
 5. **Seam guard test** (`RoutinesSeamTest`): `Routines.kt` contains none of `dao.setStatus(`, `dao.setStatuses(`,
    `dao.cover(`, `dao.uncover(`, `dao.uncoverAllBy(`. The lifecycle is the only writer of statuses.
 6. **Tidy.** Remove `settlingGoal` from `Routines`, update the KDoc of `Routines` and of the lifecycle, and run the full
@@ -94,7 +106,7 @@ interface is one idea: **move these occurrences to that status**. Behind it:
 
 ### Done when
 
-- `Routines.kt` has no status writes of its own (guard test green), and is about 100 lines shorter.
+- No module but the lifecycle writes a status, covers or uncovers (guard test green).
 - `OccurrenceLifecycleTest` passes with at least 200 walks of 30 operations each, all seeded and reproducible.
 - `CouplingTest`, `RoutinesTest`, `RoutineGoalsTest`, `GoalsTest`, `JointReminderTest` and `RemindersTest` pass unchanged.
 
