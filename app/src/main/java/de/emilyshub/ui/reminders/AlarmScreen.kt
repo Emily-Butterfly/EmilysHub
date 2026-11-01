@@ -31,22 +31,24 @@ import java.time.Duration
 
 /**
  * What the full-screen alarm shows of what it rings for, a routine or a to-do: its [title] and [text], and whether it can
- * be skipped, as a routine can and a to-do cannot. [key] tells them apart. While the phone is locked, the [title] and
- * [lockedText], its time, if it allows its name on the lock screen, [nameOnLockScreen]; otherwise only that one is due.
+ * be skipped, as a routine can and a to-do cannot. [key] tells them apart. While the phone is locked, what it allows
+ * there, [onLockScreen]; with nothing, only that one is due.
  */
 data class AlarmShown(
     val key: String,
     val title: String,
     val text: String?,
     val skippable: Boolean,
-    val nameOnLockScreen: Boolean = false,
-    val lockedText: String? = null,
+    val onLockScreen: LockScreenShown? = null,
 )
+
+/** What the locked alarm shows of one that allows its name there (SPEC.md §3): the name as [title], and its time, [text]. */
+data class LockScreenShown(val title: String, val text: String?)
 
 /**
  * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig", or the name and time
- * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown], with "Erledigt · Später", and "Überspringen · Heute
- * nicht" for a routine; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
+ * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown],
+ * with "Erledigt · Später", and "Überspringen · Heute nicht" for a routine; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
 fun AlarmScreen(
@@ -73,9 +75,10 @@ fun AlarmScreen(
         ) {
             when {
                 locked -> {
-                    if (shown?.nameOnLockScreen == true) {
-                        Title(shown.title)
-                        shown.lockedText?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
+                    val onLockScreen = shown?.onLockScreen
+                    if (onLockScreen != null) {
+                        Title(onLockScreen.title)
+                        onLockScreen.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
                     } else {
                         Title(stringResource(R.string.reminder_public))
                     }

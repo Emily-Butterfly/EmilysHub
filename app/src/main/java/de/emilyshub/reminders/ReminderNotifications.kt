@@ -27,9 +27,9 @@ import java.time.LocalDate
  * "Später" the choice when to come back, "10 Min. · 30 Min. · 1 Std.", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
- * the content of notifications there; an app cannot make that choice for the user. A routine or to-do that allows its
- * name there shows its name and time in the public version instead, still without actions, and never more of it. A routine with a
- * full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
+ * the content of notifications there; an app cannot make that choice for the user. A routine or to-do that
+ * allows its name there shows its name and time in the public version instead, still without actions, and never
+ * more of it. A routine with a full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
  * One notification per occurrence, tagged with its id. A to-do's reminder offers "Erledigt · Später" only, as a to-do
  * is never skipped (SPEC.md §5), and is tagged with the to-do's id; one with a full-screen alarm fills the screen too.
  */

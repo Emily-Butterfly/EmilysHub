@@ -22,6 +22,7 @@ import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
+import de.emilyshub.ui.reminders.LockScreenShown
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import kotlinx.coroutines.Job
@@ -33,8 +34,8 @@ import java.time.Duration
 
 /**
  * The full-screen alarm of a reminder (SPEC.md §3, §5), over the lock screen too. While the phone is locked it
- * only says "Erinnerung fällig", or the name and time of one that allows them there; once it is unlocked, it shows the routine or to-do with its actions. A newer alarm
- * comes first; once a reminder is answered, here or anywhere else, the alarm shows the next one still due,
+ * only says "Erinnerung fällig", or the name and time of one that allows them there; once it is unlocked, it
+ * shows the routine or to-do with its actions. A newer alarm comes first; once a reminder is answered, here or anywhere else, the alarm shows the next one still due,
  * or goes away. It shows no more than the reminder does, so it is not behind the app lock, and its time on
  * the screen is not time in the app. Routines and to-dos take turns in it alike. Not exported: only the reminder opens
  * it, with its full-screen intent or when it is tapped.
@@ -204,19 +205,16 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).map { reminder ->
             reminder?.let {
                 val dueAt = getString(R.string.reminder_due_at, it.dueAt.clockTime())
-                val screen = AlarmShown(
-                    alarmed.key, it.name, dueAt, skippable = true, nameOnLockScreen = it.nameOnLockScreen, lockedText = dueAt,
-                )
+                val onLockScreen = LockScreenShown(it.name, dueAt).takeIf { _ -> it.nameOnLockScreen }
+                val screen = AlarmShown(alarmed.key, it.name, dueAt, skippable = true, onLockScreen)
                 Showing(alarmed, screen) { app.reminders.putOffChoices(it) }
             }
         }
         is Alarmed.Todo -> app.todos.reminder(alarmed.id).map { reminder ->
             reminder?.let {
                 val today = app.todos.today()
-                val screen = AlarmShown(
-                    alarmed.key, it.title, resources.reminderText(it, today), skippable = false, nameOnLockScreen = it.nameOnLockScreen,
-                    lockedText = resources.lockScreenText(it, today),
-                )
+                val onLockScreen = LockScreenShown(it.title, resources.lockScreenText(it, today)).takeIf { _ -> it.nameOnLockScreen }
+                val screen = AlarmShown(alarmed.key, it.title, resources.reminderText(it, today), skippable = false, onLockScreen)
                 // Any of them, as a to-do has no time window.
                 Showing(alarmed, screen) { Reminders.PUT_OFF_CHOICES }
             }

@@ -85,7 +85,7 @@
     <string name="routine_full_screen_not_allowed">Android erlaubt gerade keine Vollbild-Alarme, daher kommt die Erinnerung als normale Benachrichtigung.</string>
     <string name="routine_full_screen_allow">Erlauben</string>
     <string name="name_on_lock_screen">Name auf dem Sperrbildschirm zeigen</string>
-    <string name="name_on_lock_screen_summary">Statt nur „Erinnerung fällig“ mit Uhrzeit; dann kann jeder den Namen auf dem gesperrten Handy sehen.</string>
+    <string name="name_on_lock_screen_summary">Dann kann jeder Name und Uhrzeit auf dem gesperrten Handy sehen, nicht nur „Erinnerung fällig“.</string>
     <string name="routine_once_gone_by">Schon vorbei: Wähle ein späteres Datum oder eine spätere Uhrzeit.</string>
     <string name="routine_schedule_daily">Täglich um %1$s</string>
     <string name="routine_schedule_weekdays">%1$s um %2$s</string>
