@@ -27,3 +27,4 @@ Je Routine und To-do lässt sich erlauben, dass ihr Name auf dem Sperrbildschirm
 
 - Standard aus.
 - Nur Name und Uhrzeit, keine Aktionen ohne Entsperren.
+- Uhrzeit heißt die Fälligkeit; ein To-do ohne Fälligkeit zeigt nur seinen Namen, auch keine Weckzeit.
