@@ -203,9 +203,12 @@ watch within another, in the same transaction, joins it and settles once, at the
 closed and opened again leaves its goal as the user set it. `GoalWatchTest` holds that, and `GoalSeamTest` that
 nothing outside `wishes/` holds a `GoalPart` or settles a goal itself.
 
-- One part in the place of another is not a part added and one gone: a to-do opened again taking its place back from
-  the next of its series names that with `todoTakingPlaceOf`, and `deleteMovingPartsUp`, inside `wishes/`, settles its
-  goal explicitly, as all its parts take the place of the goal deleted.
+- One part in the place of another is not a part added and one gone: the next of a series takes the place of the one
+  ticked off, and that one takes it back when opened again, both through `todoTakingPlaceOf`, which carries over how
+  the one replaced was at the start of the change, so that one moved to another goal and ticked off by the same save
+  opens that goal with its next. `deleteMovingPartsUp`, inside `wishes/`, settles its goal explicitly, as all its
+  parts take the place of the goal deleted.
+- Making a to-do of a wish goes through `Todos.create`, which names the to-do added; the wish is not changed.
 - `OccurrenceLifecycle.settling` and `settleCreated` stay as the routines' way to the watch; how a routine counts
   towards its goal moved into the watch.
 

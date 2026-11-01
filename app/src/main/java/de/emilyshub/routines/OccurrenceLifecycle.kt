@@ -19,16 +19,16 @@ import java.time.LocalDate
  *   no more, may finish that goal or open it again.
  *
  * It also has which open occurrences are missed now ([missNow]), and what a routine takes along when it is [delete]d.
- * Until goal settling has a module of its own, it settles the goals of routines changed in the editor too
- * ([settling], [settleCreated]). Every call runs in the caller's transaction.
+ * It is the routines' way to the goal watch, for routines changed in the editor too ([settling], [settleCreated]).
+ * Every call runs in the caller's transaction.
  */
 internal class OccurrenceLifecycle(private val database: () -> HubDatabase, private val clock: Clock) {
 
     private val dao get() = database().routines()
 
     /**
-     * Moves the occurrences [ids] to [status], as the class describes (SPEC.md §2, §6); one moved is skipped by no other
-     * any more. Those gone are left out, and those missed too: once missed, an occurrence stays so.
+     * Moves the occurrences [ids] to [status], as the class describes (SPEC.md §2, §6); one moved is skipped by no
+     * other any more. Those gone are left out, and those missed too: once missed, an occurrence stays so.
      */
     suspend fun move(ids: Collection<Long>, status: OccurrenceStatus) {
         val moving = dao.occurrencesWithRoutines(ids.distinct()).filter { it.occurrence.status != OccurrenceStatus.Missed }
@@ -112,7 +112,7 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
         }
     }
 
-    /** Runs [change], which names the routines it changes to the watch, and settles their goals (SPEC.md §6) at the end. */
+    /** Runs [change], which names the routines it changes to the watch, and settles their goals at the end (SPEC.md §6). */
     private suspend fun <T> watchingGoals(change: suspend (GoalWatch) -> T): T =
         database().watchingGoals(today(clock.instant(), clock.zone), change)
 

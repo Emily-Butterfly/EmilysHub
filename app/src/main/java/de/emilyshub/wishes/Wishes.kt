@@ -129,7 +129,7 @@ class Wishes(
             dao.moveTodos(from = id, to = wish.parentId)
             dao.moveRoutines(from = id, to = wish.parentId)
             dao.delete(id)
-            // In its place, its parts: open if one of them is. Not through the watch, as they take its place, one for all.
+            // In its place, its parts: open if one of them is. Not through the watch, as they take its place all at once.
             database().settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen), today())
         }
     }

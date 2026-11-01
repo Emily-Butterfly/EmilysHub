@@ -107,7 +107,7 @@ class Todos(
             watchingGoals { watch ->
                 val goalId = database().wishes().stillThere(cleaned.goalId)
                 dao.insert(cleaned.copy(goalId = goalId).toTodo()).also { id ->
-                    // First, as all of its checklist ticked off ticks it off at once.
+                    // As it is made, before anything else of it, which could name it to the watch as it is then.
                     watch.todoAdded(id)
                     saveChecklist(id, cleaned.checklist)
                     saveTags(id, cleaned.tagIds)
@@ -429,6 +429,8 @@ class Todos(
         }
         val next = todo.comingNext(nextDue)
         val nextId = dao.insert(next)
+        // In its place in its goal: as it was at the start of the change, so that one moved there by it counts as moved.
+        watch.todoTakingPlaceOf(nextId, replaced = todo.id)
         dao.insertChecklistItems(dao.checklist(todo.id).map { it.copy(id = 0, todoId = nextId, ticked = false) })
         dao.tag(nextId, dao.tagIdsOf(todo.id))
         dao.bind(nextId, dao.placeIdsOf(todo.id))
