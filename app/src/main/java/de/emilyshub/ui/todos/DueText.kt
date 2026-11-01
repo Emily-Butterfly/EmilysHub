@@ -43,9 +43,12 @@ fun Resources.dueText(due: Due, today: LocalDate): String? = when (due) {
 }
 
 /** "heute", "morgen" and "gestern"; other days by their date. */
-private fun Resources.dayText(date: LocalDate, today: LocalDate): String = when (date) {
+private fun Resources.dayText(date: LocalDate, today: LocalDate): String = nearDayText(date, today) ?: date.numericDate()
+
+/** "heute", "morgen" and "gestern"; none for other days. */
+internal fun Resources.nearDayText(date: LocalDate, today: LocalDate): String? = when (date) {
     today -> getString(R.string.todo_day_today)
     today.plusDays(1) -> getString(R.string.todo_day_tomorrow)
     today.minusDays(1) -> getString(R.string.todo_day_yesterday)
-    else -> date.numericDate()
+    else -> null
 }

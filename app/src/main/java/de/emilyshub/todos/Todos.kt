@@ -60,7 +60,7 @@ class Todos(
 
     /** As it stands on Heute at [now]: [DueTodo.overdue] as [isOverdue] says, and waiting for its places once its time has come. */
     private fun TodoWithDetails.toDue(now: Instant): DueTodo {
-        val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFrom(todo, now)
+        val waiting = todo.doneAt == null && todo.reminding.waiting && waitsFromDueOrWake(todo, now)
         return DueTodo(
             todo.id, todo.title, todo.due, todo.priority, done = todo.doneAt != null, overdue = isOverdue(todo, now),
             checklist(), if (waiting) placeNames else emptyList(), todo.recurrence, todo.end, todo.seriesNumber,
@@ -200,7 +200,7 @@ class Todos(
      */
     suspend fun arrive(locate: Locate): List<TodoReminder> = withContext(io + NonCancellable) {
         val now = now()
-        val waiting = dao.openWaiting().filter { it.waitsForPlaces && waitsFrom(it.todo, now) }
+        val waiting = dao.openWaiting().filter { it.waitsForPlaces && waitsFromDueOrWake(it.todo, now) }
         if (waiting.isEmpty()) return@withContext emptyList()
         val whereabouts = locate(waiting.flatMap { it.placeIds }.toSet())
         val (arrived, elsewhere) = waiting.partition { whereabouts.allows(it.placeIds) }
@@ -215,7 +215,7 @@ class Todos(
      */
     suspend fun releaseFromPlaces() = withContext(io + NonCancellable) {
         val now = now()
-        val (waitingAlready, ahead) = dao.openWaiting().filter { it.placeIds.isEmpty() }.partition { waitsFrom(it.todo, now) }
+        val (waitingAlready, ahead) = dao.openWaiting().filter { it.placeIds.isEmpty() }.partition { waitsFromDueOrWake(it.todo, now) }
         dao.stopWaiting(ahead.map { it.todo.id })
         popUp(waitingAlready, now)
     }
@@ -236,7 +236,7 @@ class Todos(
         dao.setAway(waiting.filter { !whereabouts.allows(it.placeIds) }.map { it.todo.id }, away = true)
         dao.setAway(there.map { it.todo.id }, away = false)
         val now = now()
-        popUp(arrived.filter { waitsFrom(it.todo, now) }, now)
+        popUp(arrived.filter { waitsFromDueOrWake(it.todo, now) }, now)
     }
 
     /** Whether an open to-do waits for its places, so that arriving at one matters. */
@@ -248,7 +248,7 @@ class Todos(
      */
     suspend fun needsLookingAround(): Boolean = withContext(io) {
         val now = now()
-        dao.openWaiting().any { it.waitsForPlaces && waitsFrom(it.todo, now) && it.places.any { place -> place.area != null } }
+        dao.openWaiting().any { it.waitsForPlaces && waitsFromDueOrWake(it.todo, now) && it.places.any { place -> place.area != null } }
     }
 
     /** Of [ids], the to-dos to remind of now: open and popped up, not put off or set anew since. */
@@ -273,9 +273,13 @@ class Todos(
         dao.open().flatMap { reminderMoments(it.todo) + listOfNotNull(waitBegins(it)) }.filter { it.isAfter(after) }.minOrNull()
     }
 
-    /** When a to-do due on a day, waiting for its places, begins to wait: as its day begins. */
-    private fun waitBegins(details: TodoWithDetails): Instant? =
-        (details.todo.due as? Due.On)?.takeIf { details.waitsForPlaces }?.date?.atStartOfDay(clock.zone)?.toInstant()
+    /**
+     * When a to-do due on a day, waiting for its places, begins to wait: as its day begins, unless it is still to wake,
+     * when it begins to wait at its wake time, as the reminders know already.
+     */
+    private fun waitBegins(details: TodoWithDetails): Instant? = (details.todo.due as? Due.On)
+        ?.takeIf { details.waitsForPlaces && wakeMoment(details.todo) == null }
+        ?.date?.atStartOfDay(clock.zone)?.toInstant()
 
     /**
      * Ticks an item of the to-do's checklist off, or unticks it, and tells whether that ticked the to-do off: with all
@@ -357,11 +361,13 @@ class Todos(
     private fun wakeMoment(todo: Todo): Instant? = todo.wake?.takeIf { todo.reminding.remindsAtWakeTime }?.moment(todo.due, clock.zone)
 
     /**
-     * Whether [todo] waits for its places at [now]: from its time on, from its day on, or always without either; or from
-     * its wake time on, if it is still to wake there.
+     * Whether [todo] waits for its places at [now]: from its time on, from its day on, or always without either. One still
+     * to wake waits from its wake time on instead, or from its due time if that comes first.
      */
-    private fun waitsFrom(todo: Todo, now: Instant): Boolean =
-        waitsFrom(todo.due, now) || wakeMoment(todo)?.isAfter(now) == false
+    private fun waitsFromDueOrWake(todo: Todo, now: Instant): Boolean {
+        val wake = wakeMoment(todo) ?: return waitsFrom(todo.due, now)
+        return !wake.isAfter(now) || (todo.due is Due.At && waitsFrom(todo.due, now))
+    }
 
     /** Whether a to-do [due] then waits for its places at [now]: from its time on, from its day on, or always without. */
     private fun waitsFrom(due: Due, now: Instant): Boolean = when (due) {
@@ -442,7 +448,7 @@ class Todos(
         val recurrence = todo.recurrence ?: return false
         val cameAs = todo.comingNext(recurrence.nextDue(due, dayOf(done))).copy(id = next.id)
         val checklist = dao.checklist(next.id)
-        return next.copy(reminding = todo.reminding) == cameAs &&
+        return next.copy(reminding = Reminding()) == cameAs &&
             checklist.none { it.ticked } &&
             checklist.map { it.text } == dao.checklist(todo.id).map { it.text } &&
             dao.tagIdsOf(next.id).toSet() == dao.tagIdsOf(todo.id).toSet() &&

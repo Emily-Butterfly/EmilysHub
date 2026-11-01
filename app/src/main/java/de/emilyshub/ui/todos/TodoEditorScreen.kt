@@ -243,7 +243,7 @@ fun TodoEditorScreen(
                 onChange = { draft = draft.copy(placeIds = it) },
             )
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
-            if (draft.fullScreen && draft.due !is Due.At) {
+            if (draft.fullScreen && draft.due !is Due.At && cleaned.wake == null) {
                 Text(
                     stringResource(R.string.todo_full_screen_no_time),
                     style = MaterialTheme.typography.bodyMedium,

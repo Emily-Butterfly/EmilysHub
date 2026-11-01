@@ -748,8 +748,8 @@ class HubDatabaseMigrationTest {
             assertEquals(null, bins.wake)
             assertEquals(false, bins.reminding.remindsAtWakeTime)
 
-            database.todos().update(bins.withWake(WakeTime.Before(1, java.time.LocalTime.of(18, 0))))
-            assertEquals(WakeTime.Before(1, java.time.LocalTime.of(18, 0)), database.todos().get(1)?.wake)
+            database.todos().update(bins.withWake(WakeTime.Before(1, LocalTime.of(18, 0))))
+            assertEquals(WakeTime.Before(1, LocalTime.of(18, 0)), database.todos().get(1)?.wake)
         }
     }
 

@@ -151,6 +151,29 @@ class WakingTodosTest {
     }
 
     @Test
+    fun `bound to a place and due on a day, arriving before its wake time is not arriving yet`() = runBlocking {
+        val home = places.create(PlaceDraft("Zuhause", listOf("FritzBox")))
+        val atHome = Whereabouts.At(setOf(home))
+        todo("Müll", Due.On(today), WakeTime.Before(0, time("18:00")), places = setOf(home))
+
+        clock.now = berlin("2026-10-23T08:00")
+        assertEquals(emptyList<String>(), arrive(atHome))
+
+        clock.now = berlin("2026-10-23T19:00")
+        assertEquals(listOf("Müll"), arrive(atHome))
+    }
+
+    @Test
+    fun `ticked off and opened again, a to-do due at a time and waking takes the place of its next once more`() = runBlocking {
+        val id = todo("Müll", Due.At(today.plusDays(1), time("07:00")), WakeTime.Before(1, time("18:00")), recurrence = Recurrence.Daily)
+        todos.markDone(id)
+
+        todos.reopen(id)
+
+        assertEquals(listOf(id), todos.open().first().map { it.todo.id })
+    }
+
+    @Test
     fun `waking some days before needs a due day, at most 30 days`() {
         val draft = TodoDraft("Müll", wake = WakeTime.Before(1, time("18:00")))
 

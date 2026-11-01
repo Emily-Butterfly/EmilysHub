@@ -103,12 +103,7 @@ fun WakeFields(wake: WakeTime?, due: Due, today: LocalDate, start: LocalDateTime
             initial = wake.time,
             onConfirm = { picked ->
                 choosingTime = false
-                onChange(
-                    when (wake) {
-                        is WakeTime.Before -> wake.copy(time = picked)
-                        is WakeTime.At -> wake.copy(time = picked)
-                    },
-                )
+                onChange(wake.at(picked))
             },
             onDismiss = { choosingTime = false },
         )
@@ -121,14 +116,9 @@ fun WakeFields(wake: WakeTime?, due: Due, today: LocalDate, start: LocalDateTime
  */
 fun Resources.wakeText(moment: LocalDateTime, today: LocalDate): String {
     val date = moment.toLocalDate()
-    val day = when (date) {
-        today -> getString(R.string.todo_day_today)
-        today.plusDays(1) -> getString(R.string.todo_day_tomorrow)
-        today.minusDays(1) -> getString(R.string.todo_day_yesterday)
-        else -> {
-            val weekday = getStringArray(R.array.weekdays_short)[date.dayOfWeek.ordinal]
-            getString(R.string.todo_weekday_date, weekday, if (date.year == today.year) date.numericDayAndMonth() else date.numericDate())
-        }
+    val day = nearDayText(date, today) ?: run {
+        val weekday = getStringArray(R.array.weekdays_short)[date.dayOfWeek.ordinal]
+        getString(R.string.todo_weekday_date, weekday, if (date.year == today.year) date.numericDayAndMonth() else date.numericDate())
     }
     return getString(R.string.todo_day_time, day, moment.clockTime())
 }

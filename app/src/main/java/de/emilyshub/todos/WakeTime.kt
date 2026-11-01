@@ -22,6 +22,12 @@ sealed interface WakeTime : Serializable {
     /** On [date] at [time], however it is due. */
     data class At(val date: LocalDate, override val time: LocalTime) : WakeTime
 
+    /** The same, at [time] instead. */
+    fun at(time: LocalTime): WakeTime = when (this) {
+        is Before -> copy(time = time)
+        is At -> copy(time = time)
+    }
+
     /** The day it wakes on for a to-do [due] then; none for [Before] without a due day. */
     fun date(due: Due): LocalDate? = when (this) {
         is Before -> due.date?.minusDays(days.toLong())
