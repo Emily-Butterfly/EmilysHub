@@ -50,15 +50,12 @@ import de.emilyshub.reminders.Tone
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
-import de.emilyshub.search.SearchArea
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
-import de.emilyshub.ui.navigation.BackStack
-import de.emilyshub.ui.navigation.Destination
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -69,6 +66,8 @@ import de.emilyshub.ui.ledger.RecurringEditorScreen
 import de.emilyshub.ui.ledger.RecurringEditorTarget
 import de.emilyshub.ui.ledger.RecurringListScreen
 import de.emilyshub.ui.lock.LockScreen
+import de.emilyshub.ui.navigation.BackStack
+import de.emilyshub.ui.navigation.Destination
 import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.notes.NoteTabsScreen
@@ -241,7 +240,8 @@ private fun AppShell(
     var todoTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var routineTagFilter by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // What a screen keeps while one opened from it covers it: what was typed in an editor a note was opened from, say.
+    // What a screen over the tabs keeps while one opened from it covers it: what was typed in an editor a note was
+    // opened from, say. The tabs keep only what is kept here above.
     val screens = rememberSaveableStateHolder()
     ForgetClosedScreens(screens, stack)
     val openNote = { id: Long -> open(Destination.NoteEditor(NoteEditorTarget.Edit(id))) }
@@ -287,13 +287,14 @@ private fun AppShell(
         return
     }
     BackHandler(onBack = back)
-    screens.SaveableStateProvider(top.stateKey) {
+    screens.SaveableStateProvider(checkNotNull(stack.topStateKey)) {
         when (top) {
             is Destination.NoteEditor -> NoteEditorScreen(notes, tags, top.target, onClose = back)
             is Destination.TodoEditor -> TodoEditorScreen(
                 todos, wishes, tags, places, notes, top.target, tones, onClose = back, onOpenNote = openNote,
             )
-            Destination.TodoArchive -> TodoArchiveScreen(todos, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back)
+            Destination.TodoArchive ->
+                TodoArchiveScreen(todos, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back)
             is Destination.WishEditor -> WishEditorScreen(
                 wishes = wishes,
                 todos = todos,
@@ -307,11 +308,13 @@ private fun AppShell(
                 // The to-do made of it in its place, going back where it would.
                 onOpenTodo = { stack = stack.replaceTop(Destination.TodoEditor(TodoEditorTarget.Edit(it))) },
             )
-            Destination.WishReview -> WishReviewScreen(wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
+            Destination.WishReview ->
+                WishReviewScreen(wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
             is Destination.BookingEditor -> BookingEditorScreen(ledger, top.target, onClose = back)
             is Destination.RecurringEditor -> RecurringEditorScreen(ledger, top.target, onClose = back)
             Destination.Recurring -> RecurringListScreen(ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
-            Destination.LedgerArchive -> LedgerArchiveScreen(ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
+            Destination.LedgerArchive ->
+                LedgerArchiveScreen(ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
             is Destination.LedgerYear -> LedgerYearScreen(
                 ledger = ledger,
                 year = top.year,
@@ -365,23 +368,14 @@ private fun AppShell(
             )
             Destination.RoutineArchive -> ArchiveScreen(routines, onBack = back)
             is Destination.RoutineStatistics -> RoutineStatisticsScreen(routines, top.routineId, onBack = back)
-            Destination.Statistics -> StatisticsScreen(routines, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
+            Destination.Statistics ->
+                StatisticsScreen(routines, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
             is Destination.Search -> SearchScreen(
                 search = search,
                 query = top.query,
                 onQueryChange = { stack = stack.search(it) },
                 // An entry found opens over the search, which keeps what was searched for.
-                onOpen = { area, id ->
-                    open(
-                        when (area) {
-                            SearchArea.Routines -> Destination.RoutineEditor(RoutineEditorTarget.Edit(id))
-                            SearchArea.Todos -> Destination.TodoEditor(TodoEditorTarget.Edit(id))
-                            SearchArea.Wishes -> Destination.WishEditor(WishEditorTarget.Edit(id))
-                            SearchArea.Notes -> Destination.NoteEditor(NoteEditorTarget.Edit(id))
-                            SearchArea.Bookings -> Destination.BookingEditor(BookingEditorTarget.Edit(id))
-                        },
-                    )
-                },
+                onOpen = { area, id -> open(Destination.found(area, id)) },
                 onBack = back,
             )
         }
@@ -531,13 +525,13 @@ private fun TopLevelScaffold(
 }
 
 /**
- * Forgets what a screen kept once it is closed, gone from the [stack], so that opening it again starts afresh; one
- * covered by another keeps it.
+ * Forgets what a screen over the tabs kept once it is closed, gone from the [stack] (SPEC.md §1), so that opening it
+ * again starts afresh; one covered by another keeps it.
  */
 @Composable
 private fun ForgetClosedScreens(screens: SaveableStateHolder, stack: BackStack) {
     var kept by remember { mutableStateOf(emptySet<String>()) }
-    val open = stack.entries.map { it.stateKey }.toSet()
+    val open = stack.stateKeys.toSet()
     LaunchedEffect(open) {
         (kept - open).forEach(screens::removeState)
         kept = open

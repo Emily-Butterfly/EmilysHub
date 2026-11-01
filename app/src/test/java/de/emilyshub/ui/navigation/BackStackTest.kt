@@ -4,6 +4,7 @@ import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.wishes.WishEditorTarget
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -93,6 +94,23 @@ class BackStackTest {
 
         assertEquals(Destination.Ledger(YearMonth.of(2025, 12)), chosen.top)
         assertNull(chosen.pop().top)
+    }
+
+    @Test
+    fun `a routine's statistics open over those of all routines, and go back to them`() {
+        val stack = BackStack().push(Destination.Statistics).push(Destination.RoutineStatistics(5))
+
+        assertEquals(Destination.Statistics, stack.pop().top)
+    }
+
+    @Test
+    fun `two of a kind open at once keep their state apart, and one put in the place of another of it keeps it`() {
+        val months = BackStack().push(Destination.Ledger(october)).openLedgerYear().push(Destination.Ledger(YearMonth.of(2026, 3)))
+
+        assertEquals(3, months.stateKeys.toSet().size)
+        assertEquals(months.topStateKey, months.replaceTop(Destination.Ledger(YearMonth.of(2026, 4))).topStateKey)
+        val wish = BackStack().push(Destination.WishEditor(WishEditorTarget.Edit(4)))
+        assertNotEquals("an editor of another wish starts afresh", wish.topStateKey, wish.replaceTop(Destination.WishEditor(WishEditorTarget.Edit(5))).topStateKey)
     }
 
     @Test

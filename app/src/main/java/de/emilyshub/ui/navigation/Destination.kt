@@ -1,5 +1,6 @@
 package de.emilyshub.ui.navigation
 
+import de.emilyshub.search.SearchArea
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.RecurringEditorTarget
 import de.emilyshub.ui.notes.NoteEditorTarget
@@ -12,13 +13,24 @@ import java.time.Year
 import java.time.YearMonth
 
 /**
- * A screen over the tabs, with what it shows ([BackStack]). Kept as Android keeps a screen's state, so that it outlives
- * the app's process; its [stateKey] tells under what it keeps what was typed and scrolled there while covered.
+ * A screen over the tabs (SPEC.md §1), with what it shows ([BackStack]). Kept as Android keeps a screen's state, so
+ * that it outlives the app's process; its [stateKey] tells under what it keeps what was typed and scrolled there
+ * while covered.
  */
 sealed interface Destination : Serializable {
 
-    /** Under what the screen keeps its state: one per kind, as it shows another month or query; per target for editors. */
-    val stateKey: String get() = javaClass.simpleName
+    /**
+     * Under what the screen keeps its state: its kind, by the name its data class gives it, which shrinking the app
+     * leaves as it is, so that the same screen shows another month or query with it; per target for an [Editor].
+     */
+    val stateKey: String get() = toString().substringBefore('(')
+
+    /** An editor, of what its [target] is: one of something else starts afresh. */
+    sealed interface Editor : Destination {
+        val target: Serializable
+
+        override val stateKey get() = "${toString().substringBefore('(')} $target"
+    }
 
     /** The settings (SPEC.md §1). */
     data object Settings : Destination
@@ -29,10 +41,8 @@ sealed interface Destination : Serializable {
     /** The places (SPEC.md §4). */
     data object Places : Destination
 
-    /** A place's editor. */
-    data class PlaceEditor(val target: PlaceEditorTarget) : Destination {
-        override val stateKey get() = "PlaceEditor $target"
-    }
+    /** A place's editor (SPEC.md §4). */
+    data class PlaceEditor(override val target: PlaceEditorTarget) : Editor
 
     /** The tags (SPEC.md §8). */
     data object Tags : Destination
@@ -41,9 +51,7 @@ sealed interface Destination : Serializable {
     data object Backups : Destination
 
     /** A routine's editor (SPEC.md §2). */
-    data class RoutineEditor(val target: RoutineEditorTarget) : Destination {
-        override val stateKey get() = "RoutineEditor $target"
-    }
+    data class RoutineEditor(override val target: RoutineEditorTarget) : Editor
 
     /** The routines archived (SPEC.md §2). */
     data object RoutineArchive : Destination
@@ -51,58 +59,59 @@ sealed interface Destination : Serializable {
     /** The statistics of all routines (SPEC.md §8). */
     data object Statistics : Destination
 
-    /** A routine's statistics. */
+    /** A routine's statistics (SPEC.md §8). */
     data class RoutineStatistics(val routineId: Long) : Destination
 
     /** The search, with what was typed, kept while an entry found is open (SPEC.md §7). */
     data class Search(val query: String = "") : Destination
 
     /** A to-do's editor (SPEC.md §5). */
-    data class TodoEditor(val target: TodoEditorTarget) : Destination {
-        override val stateKey get() = "TodoEditor $target"
-    }
+    data class TodoEditor(override val target: TodoEditorTarget) : Editor
 
-    /** The to-dos ticked off. */
+    /** The to-dos ticked off, in the archive (SPEC.md §5). */
     data object TodoArchive : Destination
 
     /** A goal's editor (SPEC.md §6). */
-    data class WishEditor(val target: WishEditorTarget) : Destination {
-        override val stateKey get() = "WishEditor $target"
-    }
+    data class WishEditor(override val target: WishEditorTarget) : Editor
 
-    /** The goals come true. */
+    /** The goals come true, in the review (SPEC.md §6). */
     data object WishReview : Destination
 
     /** A note's editor (SPEC.md §7). */
-    data class NoteEditor(val target: NoteEditorTarget) : Destination {
-        override val stateKey get() = "NoteEditor $target"
-    }
+    data class NoteEditor(override val target: NoteEditorTarget) : Editor
 
-    /** The notes' tabs. */
+    /** The notes' tabs (SPEC.md §7). */
     data object NoteTabs : Destination
 
     /** The household book, at a [month] (SPEC.md §13). */
     data class Ledger(val month: YearMonth) : Destination
 
-    /** The household book's overview of a [year]. */
+    /** The household book's overview of a [year] (SPEC.md §13). */
     data class LedgerYear(val year: Year) : Destination
 
-    /** The household book's categories. */
+    /** The household book's categories (SPEC.md §13). */
     data object LedgerCategories : Destination
 
-    /** The months closed, in the archive. */
+    /** The months closed, in the archive (SPEC.md §13). */
     data object LedgerArchive : Destination
 
-    /** The fixed bookings. */
+    /** The fixed bookings (SPEC.md §13). */
     data object Recurring : Destination
 
-    /** A fixed booking's editor. */
-    data class RecurringEditor(val target: RecurringEditorTarget) : Destination {
-        override val stateKey get() = "RecurringEditor $target"
-    }
+    /** A fixed booking's editor (SPEC.md §13). */
+    data class RecurringEditor(override val target: RecurringEditorTarget) : Editor
 
-    /** A booking's editor. */
-    data class BookingEditor(val target: BookingEditorTarget) : Destination {
-        override val stateKey get() = "BookingEditor $target"
+    /** A booking's editor (SPEC.md §13). */
+    data class BookingEditor(override val target: BookingEditorTarget) : Editor
+
+    companion object {
+        /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */
+        fun found(area: SearchArea, id: Long): Destination = when (area) {
+            SearchArea.Routines -> RoutineEditor(RoutineEditorTarget.Edit(id))
+            SearchArea.Todos -> TodoEditor(TodoEditorTarget.Edit(id))
+            SearchArea.Wishes -> WishEditor(WishEditorTarget.Edit(id))
+            SearchArea.Notes -> NoteEditor(NoteEditorTarget.Edit(id))
+            SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
+        }
     }
 }

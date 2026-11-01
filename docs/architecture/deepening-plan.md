@@ -240,14 +240,20 @@ silent bug.
 
 ## 3 · A back stack for the app shell
 
-**Status:** done but for step 5. `ui/navigation/Destination.kt` (one case per screen over the tabs, with what it
-shows) and `ui/navigation/BackStack.kt` (push, pop, replace the top, and the household book's rules: the year from a
-month, a month from the archive), held by `BackStackTest` without Compose. `AppShell` keeps one saved `BackStack`
-instead of 30 flags, draws what is on top, and pops it on back; the tab-local filters and views stay as they were.
-Every screen keeps what was typed and scrolled while one opened from it covers it, not only the editors, and forgets it
-once closed.
+**Status:** done in substance; steps 2 and 3 in a smaller shape, step 5 not done. `ui/navigation/Destination.kt`
+(one case per screen over the tabs, with what it shows; editors by their target) and `ui/navigation/BackStack.kt`
+(push, pop, replace the top, the search's query, and the household book's rules: the year from a month, a month from
+the archive), held by `BackStackTest` without Compose. `AppShell` keeps one saved `BackStack` instead of 28 flags,
+draws what is on top, and pops it on back with one `BackHandler`; the tab-local filters and views stay as they were.
 
-- Steps 1–4 done in one commit rather than by groups: the flags' order of `when` branches had to go at once.
+- Every screen over the tabs keeps what was typed and scrolled while one opened from it covers it, not only the
+  editors, under a key by its place and kind, and forgets it once closed. The tabs themselves keep only what
+  `AppShell` holds for them, as before.
+- The search's query moved into `Destination.Search`, rather than staying beside the stack: it goes with the search
+  when that is closed, as before.
+- No `popTo`, `current` or `isEmpty`, as nothing needs them, and no `Render` of its own: the `when` over the top stays
+  in `AppShell`.
+- Steps 1–4 in one commit rather than by groups: the flags' order of `when` branches had to go at once.
 - Step 5 not done: `TopLevelScaffold` keeps its parameters, one `onOpenX` each, now each a push.
 
 ### Why
