@@ -416,7 +416,7 @@ class Routines(
             dao.setWaiting(waiting.map { (open) -> open.occurrence.id }, waiting = true)
             dao.setWaiting(popping.map { (open) -> open.occurrence.id }, waiting = false)
             val shown = (free + popping).map { (open) -> open.occurrence.id }.toSet()
-            due.filter { (open) -> open.occurrence.id in shown }.map { (open) -> reminderOf(open) }
+            joined(due.filter { (open) -> open.occurrence.id in shown }.map { (open) -> open })
         }
 
     /**
@@ -445,19 +445,72 @@ class Routines(
         val now = now()
         val popping = waiting.filter { !it.routine.windowEnded(it.occurrence, now, clock.zone) }
         dao.popUp(popping.map { it.occurrence.id }, at = now)
-        return popping.sortedWith(compareBy(InputText.byName) { it.routine.name }).map(::reminderOf)
+        return joined(popping.sortedWith(compareBy(InputText.byName) { it.routine.name }))
     }
 
-    /** Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are now. */
+    /**
+     * Of [occurrenceIds], the ones to remind of now, as [Routine.isDue] has it: their reminders may stay, as they are
+     * now, each together with those coupled with it due at the same time as well.
+     */
     suspend fun stillDue(occurrenceIds: Collection<Long>): List<Reminder> = withContext(io) {
         val now = now()
-        dao.occurrencesWithRoutines(occurrenceIds).filter { it.isDue(now) }.map(::reminderOf)
+        val due = dao.occurrencesWithRoutines(occurrenceIds).filter { it.isDue(now) }
+        joined((due + due.flatMap { dueTogetherWith(it, now) }).distinctBy { it.occurrence.id })
     }
 
     /** The occurrence's reminder as it changes while it is still due, as [stillDue] has it; none once it is not. */
     fun reminder(occurrenceId: Long): Flow<Reminder?> = flow {
-        emitAll(dao.observeOccurrenceWithRoutine(occurrenceId).map { it?.takeIf { it.isDue(now()) }?.let(::reminderOf) })
+        val reminders = dao.observeOccurrenceWithRoutine(occurrenceId).map { open ->
+            open?.takeIf { it.isDue(now()) }?.let { joined(listOf(it) + dueTogetherWith(it, now())).firstOrNull() }
+        }
+        emitAll(reminders)
     }.flowOn(io)
+
+    /**
+     * The occurrence and those coupled with it due at the same time, still open (SPEC.md §3): what "Später",
+     * "Überspringen" and "Heute nicht" of their joint reminder are for. Only it, if it is not coupled.
+     */
+    suspend fun together(occurrenceId: Long): List<Long> = withContext(io) {
+        val open = dao.occurrencesWithRoutines(listOf(occurrenceId)).singleOrNull() ?: return@withContext emptyList()
+        listOf(occurrenceId) + coupledAtTheSameTime(open).map { it.occurrence.id }
+    }
+
+    /** Skips the occurrence and those [together] with it in their joint reminder. */
+    suspend fun skipTogether(occurrenceId: Long) = together(occurrenceId).forEach { skip(it) }
+
+    /** "Heute nicht" for the routine of the occurrence and those [together] with it in their joint reminder. */
+    suspend fun dropTogether(occurrenceId: Long) = together(occurrenceId).forEach { dropForToday(it) }
+
+    /** The open occurrences of the other active routines coupled with [open]'s, due on the same day at the same time. */
+    private suspend fun coupledAtTheSameTime(open: OccurrenceOfRoutine): List<OccurrenceOfRoutine> {
+        val coupling = open.routine.coupling ?: return emptyList()
+        val (occurrence) = open
+        return dao.coupledOn(coupling, occurrence.date).filter {
+            it.occurrence.id != occurrence.id && it.occurrence.time == occurrence.time && it.occurrence.status == OccurrenceStatus.Open
+        }
+    }
+
+    /** Those [coupledAtTheSameTime] with [open] that are to be reminded of now too. */
+    private suspend fun dueTogetherWith(open: OccurrenceOfRoutine, now: Instant) = coupledAtTheSameTime(open).filter { it.isDue(now) }
+
+    /**
+     * The reminders of [due], in their order: one for each, but one for those of coupled routines due at the same time,
+     * posted for the first of them (SPEC.md §3).
+     */
+    private fun joined(due: List<OccurrenceOfRoutine>): List<Reminder> {
+        val jointKey = { open: OccurrenceOfRoutine -> open.routine.coupling?.let { Triple(it, open.occurrence.date, open.occurrence.time) } }
+        val groups = due.filter { jointKey(it) != null }.groupBy(jointKey)
+        return due.mapNotNull { open ->
+            val group = groups[jointKey(open)]?.sortedBy { it.occurrence.id } ?: return@mapNotNull reminderOf(open)
+            if (group.first().occurrence.id != open.occurrence.id) return@mapNotNull null
+            val others = group.drop(1)
+            reminderOf(open).copy(
+                // One with a full-screen alarm makes it one.
+                fullScreen = group.any { it.routine.fullScreen },
+                together = others.map { JointOccurrence(it.occurrence.id, it.routine.name, it.routine.nameOnLockScreen) },
+            )
+        }
+    }
 
     private fun OccurrenceOfRoutine.isDue(now: Instant) = routine.isDue(occurrence, now, clock.zone)
 

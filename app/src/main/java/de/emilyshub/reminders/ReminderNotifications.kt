@@ -15,6 +15,7 @@ import android.os.Bundle
 import androidx.core.net.toUri
 import de.emilyshub.MainActivity
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
 import de.emilyshub.ui.clockTime
@@ -44,13 +45,16 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     private val manager = context.getSystemService(NotificationManager::class.java)
 
     /** Pops the reminder up, with a sound even if it is up already: at its time and at each follow-up. */
-    suspend fun show(reminder: Reminder) = post(reminder, alert = true, offeringPutOff = false)
+    suspend fun show(reminder: Reminder) = post(reminder, alert = true, Offering.Actions)
 
-    /** Shows the reminder as it is now, without a sound if it is up already; a choice for "Später" stays up. */
-    suspend fun refresh(reminder: Reminder) = post(reminder, alert = false, offeringPutOff = isOfferingPutOff(reminder.occurrenceId))
+    /** Shows the reminder as it is now, without a sound if it is up already; a choice offered stays up. */
+    suspend fun refresh(reminder: Reminder) = post(reminder, alert = false, offeringOf(tagOf(reminder.occurrenceId)))
 
     /** "Später": the reminder offers when to come back instead of its actions, without a sound. */
-    suspend fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, offeringPutOff = true)
+    suspend fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, Offering.PutOff)
+
+    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was instead of its actions, without a sound. */
+    suspend fun offerDone(reminder: Reminder) = post(reminder, alert = false, Offering.Done)
 
     fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
 
@@ -96,9 +100,9 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         shown.tag?.takeIf { it.startsWith(prefix) }?.removePrefix(prefix)?.toLongOrNull()
     }
 
-    private suspend fun post(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean) {
+    private suspend fun post(reminder: Reminder, alert: Boolean, offering: Offering) {
         val channel = channelFor(reminder.fullScreen, reminder.tone)
-        val notification = notification(reminder, alert, offeringPutOff, channel)
+        val notification = notification(reminder, alert, offering, channel)
         notify(tagOf(reminder.occurrenceId), notification, Alarmed.Occurrence(reminder.occurrenceId))
     }
 
@@ -118,10 +122,16 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         if (fullScreen) AlarmRingService.ring(context, about)
     }
 
-    private fun isOfferingPutOff(occurrenceId: Long) = isOfferingPutOff(tagOf(occurrenceId))
+    private fun isOfferingPutOff(tag: String) = offeringOf(tag) == Offering.PutOff
 
-    private fun isOfferingPutOff(tag: String) = manager.activeNotifications.any {
-        it.tag == tag && it.notification.extras.getBoolean(EXTRA_OFFERING_PUT_OFF)
+    /** What the reminder under [tag] offers now, as it is on the screen; its actions if it is not. */
+    private fun offeringOf(tag: String): Offering {
+        val shown = manager.activeNotifications.firstOrNull { it.tag == tag }?.notification?.extras ?: return Offering.Actions
+        return when {
+            shown.getBoolean(EXTRA_OFFERING_PUT_OFF) -> Offering.PutOff
+            shown.getBoolean(EXTRA_OFFERING_DONE) -> Offering.Done
+            else -> Offering.Actions
+        }
     }
 
     /**
@@ -187,28 +197,40 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         .setCategory(Notification.CATEGORY_REMINDER)
         .build()
 
-    private fun notification(reminder: Reminder, alert: Boolean, offeringPutOff: Boolean, channel: String): Notification {
+    private fun notification(reminder: Reminder, alert: Boolean, offering: Offering, channel: String): Notification {
         val about = ReminderOf(tagOf(reminder.occurrenceId), EXTRA_OCCURRENCE, reminder.occurrenceId)
         // Only what comes back before the time window ends, and "Heute nicht" after it: Android shows three actions at most,
         // so two times at most. With no time left, "Später" still offers "Heute nicht".
         val choices = reminder.putOffChoices(clock.instant()).take(2)
         val dueAt = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
+        val joint = reminder.together.isNotEmpty()
         val text: String
         val actions: List<Notification.Action>
-        if (offeringPutOff) {
-            text = context.getString(R.string.reminder_put_off_when)
-            actions = putOffActions(choices, about) +
-                action(context.getString(R.string.reminder_drop), ReminderReceiver.ACTION_DROP, about)
-        } else {
-            text = dueAt
-            actions = listOf(
-                action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, about),
-                action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
-                action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
-            )
+        when (offering) {
+            Offering.PutOff -> {
+                text = context.getString(R.string.reminder_put_off_when)
+                actions = putOffActions(choices, about) +
+                    action(context.getString(R.string.reminder_drop), ReminderReceiver.ACTION_DROP, about)
+            }
+            // Which one was done: one action for each, by name, as many as Android shows.
+            Offering.Done -> {
+                text = context.getString(R.string.reminder_which_done)
+                actions = reminder.occurrences.sortedWith(compareBy(InputText.byName) { it.name }).take(MAX_ACTIONS).map {
+                    action(it.name, ReminderReceiver.ACTION_DONE, about.copy(id = it.occurrenceId))
+                }
+            }
+            Offering.Actions -> {
+                text = dueAt
+                val done = if (joint) ReminderReceiver.ACTION_OFFER_DONE else ReminderReceiver.ACTION_DONE
+                actions = listOf(
+                    action(context.getString(R.string.reminder_done), done, about),
+                    action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
+                    action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
+                )
+            }
         }
-        val public = if (reminder.nameOnLockScreen) publicVersion(reminder.name, dueAt) else publicVersion()
-        return builder(channel, reminder.name, text, alert, offeringPutOff, public)
+        val public = if (reminder.titleOnLockScreen) publicVersion(reminder.title, dueAt) else publicVersion()
+        return builder(channel, reminder.title, text, alert, offering, public)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
             .asAlarmIf(reminder.fullScreen, Alarmed.Occurrence(reminder.occurrenceId), alert, otherwise = openApp())
@@ -237,7 +259,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         } else {
             publicVersion()
         }
-        return builder(channel, reminder.title, text, alert, offeringPutOff, public)
+        return builder(channel, reminder.title, text, alert, if (offeringPutOff) Offering.PutOff else Offering.Actions, public)
             // Tapped, it opens the app, or its alarm, and stays up: a to-do waits until it is done.
             .asAlarmIf(reminder.fullScreen, Alarmed.Todo(reminder.todoId), alert, otherwise = openApp())
             .setAutoCancel(false)
@@ -275,7 +297,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         title: String,
         text: String?,
         alert: Boolean,
-        offeringPutOff: Boolean,
+        offering: Offering,
         public: Notification,
     ): Notification.Builder =
         Notification.Builder(context, channel)
@@ -286,7 +308,12 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             .setPublicVersion(public)
             .setAutoCancel(true)
             .setOnlyAlertOnce(!alert)
-            .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offeringPutOff) })
+            .addExtras(
+                Bundle().apply {
+                    putBoolean(EXTRA_OFFERING_PUT_OFF, offering == Offering.PutOff)
+                    putBoolean(EXTRA_OFFERING_DONE, offering == Offering.Done)
+                },
+            )
 
     private fun putOffActions(choices: List<Duration>, about: ReminderOf) = choices.map { choice ->
         action(context.putOffLabel(choice), ReminderReceiver.ACTION_PUT_OFF, about, putOffBy = choice)
@@ -296,7 +323,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         val intent = Intent(context, ReminderReceiver::class.java)
             .setAction(action)
             // Tells the intents of different reminders and choices apart, so that each keeps its own extras.
-            .setIdentifier(listOfNotNull(about.tag, putOffBy?.toMinutes()).joinToString(":"))
+            .setIdentifier(listOfNotNull(about.tag, about.id, putOffBy?.toMinutes()).joinToString(":"))
             .putExtra(about.idExtra, about.id)
         putOffBy?.let { intent.putExtra(ReminderReceiver.EXTRA_MINUTES, it.toMinutes()) }
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -329,7 +356,10 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
      * What a reminder and its actions are about, an occurrence or a to-do: its [tag] on the screen, and its [id] in the
      * intents under the name [idExtra].
      */
-    private class ReminderOf(val tag: String, val idExtra: String, val id: Long)
+    private data class ReminderOf(val tag: String, val idExtra: String, val id: Long)
+
+    /** What a reminder offers: its actions, when to come back after "Später", or which one was done after "Erledigt". */
+    private enum class Offering { Actions, PutOff, Done }
 
     private companion object {
         const val TAG_PREFIX = "occurrence:"
@@ -339,6 +369,10 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         const val PROBE_TAG = "probe"
         const val ID = 1
         const val EXTRA_OFFERING_PUT_OFF = "de.emilyshub.extra.OFFERING_PUT_OFF"
+        const val EXTRA_OFFERING_DONE = "de.emilyshub.extra.OFFERING_DONE"
+
+        /** As many actions as Android shows on a notification. */
+        const val MAX_ACTIONS = 3
 
         /** The channels of tones of their own, and of no sound; the usual one does not start so. */
         const val TONE_CHANNEL_PREFIX = "$REMINDER_CHANNEL-"

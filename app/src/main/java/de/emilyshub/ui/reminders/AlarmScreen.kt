@@ -40,7 +40,12 @@ data class AlarmShown(
     val text: String?,
     val skippable: Boolean,
     val onLockScreen: LockScreenShown? = null,
+    /** For a joint reminder of coupled routines (SPEC.md §3), each of them, with a "done" of its own. */
+    val each: List<AlarmChoice> = emptyList(),
 )
+
+/** One of the routines a joint alarm rings for: its occurrence, by its [id], and its routine's [name]. */
+data class AlarmChoice(val id: Long, val name: String)
 
 /** What the locked alarm shows of one that allows its name there (SPEC.md §3): the name as [title], and its time, [text]. */
 data class LockScreenShown(val title: String, val text: String?)
@@ -48,7 +53,8 @@ data class LockScreenShown(val title: String, val text: String?)
 /**
  * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig", or the name and time
  * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown],
- * with "Erledigt · Später", and "Überspringen · Heute nicht" for a routine; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
+ * with "Erledigt · Später", and "Überspringen · Heute nicht" for a routine; for coupled routines due together, a
+ * "done" for each of them ([onDoneOf]) instead of "Erledigt", the rest for all of them; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
 fun AlarmScreen(
@@ -57,6 +63,7 @@ fun AlarmScreen(
     locked: Boolean,
     onUnlock: () -> Unit,
     onDone: () -> Unit,
+    onDoneOf: (Long) -> Unit,
     onPutOff: (Duration) -> Unit,
     onSkip: () -> Unit,
     onDrop: () -> Unit,
@@ -99,7 +106,13 @@ fun AlarmScreen(
                 else -> {
                     Title(shown.title)
                     shown.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
-                    WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
+                    if (shown.each.isEmpty()) {
+                        WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
+                    } else {
+                        shown.each.forEach { choice ->
+                            WideButton(stringResource(R.string.alarm_done_of, choice.name), { onDoneOf(choice.id) }, primary = true)
+                        }
+                    }
                     if (putOffChoices.isNotEmpty()) {
                         WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
                     }

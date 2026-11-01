@@ -111,11 +111,23 @@ class Reminders(
 
     /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
     suspend fun offerPutOff(occurrenceId: Long) = lock.withLock {
-        when (val reminder = routines.stillDue(listOf(occurrenceId)).singleOrNull()) {
+        when (val reminder = stillDue(occurrenceId)) {
             null -> notifications.cancel(occurrenceId)
             else -> notifications.offerPutOff(reminder)
         }
     }
+
+    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was; one answered meanwhile goes away. */
+    suspend fun offerDone(occurrenceId: Long) = lock.withLock {
+        when (val reminder = stillDue(occurrenceId)) {
+            null -> notifications.cancel(occurrenceId)
+            else -> notifications.offerDone(reminder)
+        }
+    }
+
+    /** The reminder of the occurrence still due, alone or the joint one it is posted for; none once it is not. */
+    private suspend fun stillDue(occurrenceId: Long): Reminder? =
+        routines.stillDue(listOf(occurrenceId)).firstOrNull { it.occurrenceId == occurrenceId }
 
     /**
      * Puts the reminder off [by] one of its [putOffChoices]: it comes back then, and its follow-ups after that.
@@ -123,10 +135,11 @@ class Reminders(
      * stays as it is, and one answered meanwhile goes away.
      */
     suspend fun putOff(occurrenceId: Long, by: Duration) {
-        val reminder = routines.stillDue(listOf(occurrenceId)).singleOrNull()
+        val reminder = stillDue(occurrenceId)
         when {
             reminder == null || by !in putOffChoices(reminder) -> update()
-            else -> routines.putOff(occurrenceId, until = clock.instant() + by)
+            // A joint reminder is put off for all it reminds of (SPEC.md §3).
+            else -> routines.together(occurrenceId).forEach { routines.putOff(it, until = clock.instant() + by) }
         }
     }
 

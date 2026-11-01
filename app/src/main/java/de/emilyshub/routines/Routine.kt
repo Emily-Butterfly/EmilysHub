@@ -7,6 +7,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import de.emilyshub.data.InputText
 import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.Wish
 import java.time.Instant
@@ -170,7 +171,8 @@ data class RoutineWithOutcomes(
 /**
  * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
  * [fullScreen] alarm, when its time window ends, whether the lock screen may show its name, [nameOnLockScreen], and
- * its [tone].
+ * its [tone]. With the occurrences of the routines coupled with it due at the same time, [together], it is their
+ * joint reminder (SPEC.md §3), and its occurrence the one it is posted for.
  */
 data class Reminder(
     val occurrenceId: Long,
@@ -180,7 +182,22 @@ data class Reminder(
     val windowEnd: Instant,
     val nameOnLockScreen: Boolean = false,
     val tone: Tone = Tone.Standard,
-)
+    val together: List<JointOccurrence> = emptyList(),
+) {
+    /** Each occurrence it reminds of, its own first, with its routine's name. */
+    val occurrences: List<JointOccurrence>
+        get() = listOf(JointOccurrence(occurrenceId, name, nameOnLockScreen)) + together
+
+    /** What it is called: its routine's name, or those of all it reminds of, by name. */
+    val title: String
+        get() = occurrences.map { it.name }.sortedWith(InputText.byName).joinToString(" · ")
+
+    /** Whether the lock screen may show its [title] and time: only if each routine it reminds of allows its name there. */
+    val titleOnLockScreen: Boolean get() = occurrences.all { it.nameOnLockScreen }
+}
+
+/** An occurrence a joint reminder reminds of (SPEC.md §3), with its routine's [name] and whether it allows it on the lock screen. */
+data class JointOccurrence(val occurrenceId: Long, val name: String, val nameOnLockScreen: Boolean)
 
 /**
  * An occurrence on the Heute list, with its routine's name, the moment it is due, its routine's checklist, and the

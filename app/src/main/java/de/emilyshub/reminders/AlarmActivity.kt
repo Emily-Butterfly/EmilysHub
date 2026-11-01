@@ -18,9 +18,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.reminders.AlarmScreen
+import de.emilyshub.ui.reminders.AlarmChoice
 import de.emilyshub.ui.reminders.AlarmShown
 import de.emilyshub.ui.reminders.LockScreenShown
 import de.emilyshub.ui.theme.EmilysHubTheme
@@ -103,11 +105,14 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                     locked = locked,
                     onUnlock = ::unlock,
                     onDone = { answer(ofOccurrence = app.routines::markDone, ofTodo = app.todos::markDone) },
+                    // One of a joint alarm: that one done skips the others (SPEC.md §2).
+                    onDoneOf = { id -> answer(ofOccurrence = { app.routines.markDone(id) }) },
                     onPutOff = { by: Duration ->
                         answer(ofOccurrence = { app.reminders.putOff(it, by) }, ofTodo = { app.reminders.putOffTodo(it, by) })
                     },
-                    onSkip = { answer(ofOccurrence = app.routines::skip) },
-                    onDrop = { answer(ofOccurrence = app.routines::dropForToday) },
+                    // For all a joint alarm rings for (SPEC.md §3).
+                    onSkip = { answer(ofOccurrence = app.routines::skipTogether) },
+                    onDrop = { answer(ofOccurrence = app.routines::dropTogether) },
                     onClose = {
                         silence()
                         finish()
@@ -213,8 +218,15 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         is Alarmed.Occurrence -> app.routines.reminder(alarmed.id).map { reminder ->
             reminder?.let {
                 val dueAt = getString(R.string.reminder_due_at, it.dueAt.clockTime())
-                val onLockScreen = LockScreenShown(it.name, dueAt).takeIf { _ -> it.nameOnLockScreen }
-                val screen = AlarmShown(alarmed.key, it.name, dueAt, skippable = true, onLockScreen)
+                val onLockScreen = LockScreenShown(it.title, dueAt).takeIf { _ -> it.titleOnLockScreen }
+                val each = if (it.together.isEmpty()) {
+                    emptyList()
+                } else {
+                    it.occurrences.sortedWith(compareBy(InputText.byName) { joint -> joint.name }).map { joint ->
+                        AlarmChoice(joint.occurrenceId, joint.name)
+                    }
+                }
+                val screen = AlarmShown(alarmed.key, it.title, dueAt, skippable = true, onLockScreen, each)
                 Showing(alarmed, screen) { app.reminders.putOffChoices(it) }
             }
         }

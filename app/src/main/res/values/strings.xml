@@ -179,6 +179,8 @@
     <string name="reminder_due_at">Fällig um %1$s</string>
     <string name="reminder_done">Erledigt</string>
     <string name="reminder_put_off">Später</string>
+    <string name="alarm_done_of">%1$s erledigt</string>
+    <string name="reminder_which_done">Welche war es?</string>
     <string name="reminder_put_off_when">Erneut erinnern in …</string>
     <string name="reminder_put_off_minutes">%1$d Min.</string>
     <string name="reminder_put_off_hours">%1$d Std.</string>
