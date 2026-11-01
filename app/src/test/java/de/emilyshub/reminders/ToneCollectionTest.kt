@@ -38,6 +38,18 @@ class ToneCollectionTest {
     }
 
     @Test
+    fun `the same file chosen as a tone of another kind is the same copy, then a tone of both kinds`() {
+        files.add("content://downloads/1", "Gong.ogg")
+
+        val alarm = add("content://downloads/1", ToneKind.Alarm)
+        val notification = add("content://downloads/1", ToneKind.Notification)
+
+        assertEquals(alarm, notification)
+        assertEquals(1, files.copies.size)
+        assertEquals(listOf(files.copies.single().uri to ToneKind.Notification), files.widened)
+    }
+
+    @Test
     fun `a copy deleted from the phone meanwhile is made anew`() {
         files.add("content://downloads/1", "Morgenlied.mp3")
         val first = add("content://downloads/1") as ToneAdding.Added

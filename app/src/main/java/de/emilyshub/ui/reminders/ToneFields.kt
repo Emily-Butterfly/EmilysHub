@@ -51,12 +51,14 @@ fun ToneField(tone: Tone, tones: ToneCollection, onChange: (Tone) -> Unit) {
         },
     )
     if (isMissing(tone, tones)) Problem(stringResource(R.string.tone_missing))
+    val ownFile = rememberOwnFile(tone, tones, ToneKind.Any, onChange)
     Row {
-        OwnFileButton(tones, ToneKind.Any, onChange)
+        TextButton(onClick = ownFile.open) { Text(stringResource(R.string.tone_own_file)) }
         if (tone != Tone.Standard) {
             TextButton(onClick = { onChange(Tone.Standard) }) { Text(stringResource(R.string.tone_reset)) }
         }
     }
+    ownFile.problem?.let { Problem(stringResource(it)) }
 }
 
 /**
@@ -82,17 +84,24 @@ fun DefaultToneSetting(title: String, kind: Int, tone: Tone, tones: ToneCollecti
         modifier = Modifier.clickable { pick(pickerIntent(kind, title, existing, phoneDefault)) },
     )
     if (isMissing(tone, tones)) Problem(stringResource(R.string.tone_missing_phone))
-    OwnFileButton(tones, if (kind == RingtoneManager.TYPE_ALARM) ToneKind.Alarm else ToneKind.Notification, onChange)
+    val ownKind = if (kind == RingtoneManager.TYPE_ALARM) ToneKind.Alarm else ToneKind.Notification
+    val ownFile = rememberOwnFile(tone, tones, ownKind, onChange)
+    TextButton(onClick = ownFile.open) { Text(stringResource(R.string.tone_own_file)) }
+    ownFile.problem?.let { Problem(stringResource(it)) }
 }
+
+/** "Eigene Datei…": what [open]s Android's file dialog, and why the file picked last was turned down, if it was. */
+private class OwnFile(val open: () -> Unit, val problem: Int?)
 
 /**
  * "Eigene Datei…" (SPEC.md §3): an audio file picked in Android's file dialog becomes one of the phone's tones of
- * [kind] and the one chosen; one that does not play, or is too large, is turned down with a hint.
+ * [kind] and the one chosen; one that does not play, or is too large, is turned down with a hint, which stays until
+ * the [tone] changes.
  */
 @Composable
-private fun OwnFileButton(tones: ToneCollection, kind: ToneKind, onChange: (Tone) -> Unit) {
+private fun rememberOwnFile(tone: Tone, tones: ToneCollection, kind: ToneKind, onChange: (Tone) -> Unit): OwnFile {
     val scope = rememberCoroutineScope()
-    var problem by rememberSaveable { mutableStateOf<Int?>(null) }
+    var problem by rememberSaveable(tone) { mutableStateOf<Int?>(null) }
     val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { file ->
         if (file == null) return@rememberLauncherForActivityResult
         scope.launch {
@@ -107,8 +116,7 @@ private fun OwnFileButton(tones: ToneCollection, kind: ToneKind, onChange: (Tone
             }
         }
     }
-    TextButton(onClick = { open.launch(arrayOf("audio/*")) }) { Text(stringResource(R.string.tone_own_file)) }
-    problem?.let { Problem(stringResource(it)) }
+    return OwnFile(open = { open.launch(arrayOf("audio/*")) }, problem = problem)
 }
 
 /** "Lautlos", the tone's name, or [standard] for the default; the name read once for each tone, not every frame. */

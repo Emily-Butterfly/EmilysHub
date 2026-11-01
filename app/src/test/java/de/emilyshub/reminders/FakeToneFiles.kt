@@ -10,6 +10,9 @@ class FakeToneFiles(private val tones: FakeTones) : ToneFiles {
     /** The copies made, in order. */
     val copies = mutableListOf<Copy>()
 
+    /** The copies made a tone of another kind too, by their address, in order. */
+    val widened = mutableListOf<Pair<String, ToneKind>>()
+
     /** A file at [uri], [named] so, with [bytes], and [playable] as audio unless said otherwise. */
     fun add(uri: String, named: String, bytes: ByteArray = named.toByteArray(), playable: Boolean = true) {
         files[uri] = PickedFile(named, "audio/mpeg", bytes, playable)
@@ -23,6 +26,10 @@ class FakeToneFiles(private val tones: FakeTones) : ToneFiles {
         copies += Copy(file.name, kind, uri)
         tones.add(uri, file.title)
         return uri
+    }
+
+    override suspend fun widen(copy: String, kind: ToneKind) {
+        widened += copy to kind
     }
 
     /** A copy of the file [name]d so, made as a tone of [kind], at [uri]. */
