@@ -1,8 +1,10 @@
 package de.emilyshub
 
 import android.Manifest
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -71,7 +73,7 @@ class TodayHeatmapTest {
             day("Mittwoch, 14. Oktober: 1 erledigt").performClick()
 
             compose.onNodeWithText("Mi, 14.10.: 1 erledigt").assertIsDisplayed()
-            day("Mittwoch, 14. Oktober: 1 erledigt").assertIsSelected()
+            day("Mittwoch, 14. Oktober: 1 erledigt").assert(stateDescription("ausgewählt"))
         }
     }
 
@@ -125,6 +127,8 @@ class TodayHeatmapTest {
             assertTrue("The first week at ${firstWeek.left}", firstWeek.left >= 0.dp)
         }
     }
+
+    private fun stateDescription(state: String) = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, state)
 
     /** A day of the heatmap, by what TalkBack reads, scrolled to if Heute scrolls. */
     private fun day(description: String) = run {

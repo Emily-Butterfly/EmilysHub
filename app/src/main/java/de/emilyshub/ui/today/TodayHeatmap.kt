@@ -2,6 +2,7 @@ package de.emilyshub.ui.today
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -170,15 +171,22 @@ private fun WeekdayNames(cell: Dp) {
     }
 }
 
-/** A day's box, in the [color] of its level, read out with its date and count, and as selected once tapped. */
+/**
+ * A day's box, in the [color] of its level, read out with its date and count, and as chosen once tapped; a button, not
+ * a selectable item, as it only shows what it holds below.
+ */
 @Composable
 private fun DayBox(date: LocalDate, color: Color, description: String, cell: Dp, selected: Boolean, onSelect: (LocalDate) -> Unit) {
     val shape = RoundedCornerShape(2.dp)
+    val selectedState = stringResource(R.string.today_heatmap_selected)
     Box(
         Modifier
             .size(cell)
-            .selectable(selected = selected, role = Role.Button, onClick = { onSelect(date) })
-            .semantics { contentDescription = description }
+            .clickable(role = Role.Button, onClick = { onSelect(date) })
+            .semantics {
+                contentDescription = description
+                if (selected) stateDescription = selectedState
+            }
             .padding(1.dp)
             .background(color, shape)
             .then(if (selected) Modifier.border(1.dp, MaterialTheme.colorScheme.onSurface, shape) else Modifier),
