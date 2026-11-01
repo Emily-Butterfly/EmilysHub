@@ -7,6 +7,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.Wish
 import java.time.Instant
 import java.time.LocalDate
@@ -60,6 +61,8 @@ data class Routine(
     @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
     /** Whether the lock screen shows its name and time in its reminders and alarm, not only that one is due (SPEC.md §3, §9). */
     @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
+    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
+    @ColumnInfo(defaultValue = "''") val tone: Tone = Tone.Standard,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
     fun timesOn(date: LocalDate): List<LocalTime> =
@@ -159,7 +162,8 @@ data class RoutineWithOutcomes(
 
 /**
  * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
- * [fullScreen] alarm, when its time window ends, and whether the lock screen may show its name, [nameOnLockScreen].
+ * [fullScreen] alarm, when its time window ends, whether the lock screen may show its name, [nameOnLockScreen], and
+ * its [tone].
  */
 data class Reminder(
     val occurrenceId: Long,
@@ -168,6 +172,7 @@ data class Reminder(
     val fullScreen: Boolean,
     val windowEnd: Instant,
     val nameOnLockScreen: Boolean = false,
+    val tone: Tone = Tone.Standard,
 )
 
 /**

@@ -20,7 +20,10 @@ import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.AlarmSound
+import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.Sounds
+import de.emilyshub.reminders.ToneLibrary
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
@@ -51,12 +54,20 @@ open class EmilysHubApplication : Application() {
         HubDatabase.open(this, key)
     }
 
-    open val settings: AppSettings by lazy { AppSettings({ database.settings() }, onLookAroundChange = ::updateReminders) }
+    open val settings: AppSettings by lazy {
+        AppSettings({ database.settings() }, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
+    }
 
     open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
 
     /** What rings while a full-screen alarm is up. */
     open val ringer: AlarmRinger by lazy { AlarmSound(this) }
+
+    /** The phone's tones (SPEC.md §3). */
+    open val tones: ToneLibrary by lazy { PhoneTones(this) }
+
+    /** What sounds for each reminder, by its tone and the defaults in the settings. */
+    val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones, routines, todos) }
 
     open val routines: Routines by lazy { Routines({ database }, DeviceClock, onChange = ::updateReminders) }
 
@@ -103,7 +114,7 @@ open class EmilysHubApplication : Application() {
     }
 
     open val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::mayLookAround) { database.settings() }
+        Reminders(this, routines, todos, DeviceClock, locator::whereabouts, settings::mayLookAround, sounds) { database.settings() }
     }
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */

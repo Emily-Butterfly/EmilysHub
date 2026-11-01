@@ -1,6 +1,9 @@
 package de.emilyshub
 
 import android.Manifest
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
@@ -25,6 +28,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
@@ -327,6 +331,47 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine has the default tone at first, can have one of the phone's tones or none, and the default again`() {
+        val morning = app.tones.add("content://media/internal/audio/media/12", "Morgentau")
+
+        launchApp().use { scenario ->
+            newRoutine("Vitamine")
+            tone().performScrollTo().assertTextContains("Standard")
+
+            tone().performClick()
+            val request = scenario.pickTone(Uri.parse(morning.uri))
+            assertEquals(RingtoneManager.ACTION_RINGTONE_PICKER, request.action)
+            assertEquals(RingtoneManager.TYPE_ALL, request.getIntExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, 0))
+            assertEquals(true, request.getBooleanExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false))
+            assertEquals(false, request.getBooleanExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true))
+            tone().assertTextContains("Morgentau")
+            compose.onNodeWithText("Speichern").performClick()
+            assertEquals(morning, savedRoutines().single().tone)
+
+            compose.onNodeWithText("Vitamine").performClick()
+            tone().performScrollTo().performClick()
+            val again = scenario.pickTone(picked = null)
+            assertEquals(Uri.parse(morning.uri), uriExtra(again, RingtoneManager.EXTRA_RINGTONE_EXISTING_URI))
+            tone().assertTextContains("Lautlos")
+            compose.onNodeWithText("Zurück auf Standard").performScrollTo().performClick()
+            tone().assertTextContains("Standard")
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(Tone.Standard, savedRoutines().single().tone)
+    }
+
+    @Test
+    fun `a tone no longer on the phone says that the default stands in for it`() {
+        app.routine("Vitamine", "07:30", tone = Tone.Of("content://media/internal/audio/media/99"))
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithText("Vitamine").performClick()
+            compose.onNodeWithText("nicht mehr auf dem Handy", substring = true).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `a routine can sound a full-screen alarm instead, which is off by default`() {
         app.fullScreenAlarmsAllowed = true
 
@@ -626,6 +671,11 @@ class RoutineEditingTest {
 
 
     private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
+
+    private fun tone() = compose.onNode(hasClickAction() and hasText("Ton"))
+
+    @Suppress("DEPRECATION")
+    private fun uriExtra(intent: Intent, name: String): Uri? = intent.getParcelableExtra(name)
 
     private fun nameOnLockScreen() = compose.onNode(isToggleable() and hasText("Name auf dem Sperrbildschirm zeigen"))
 

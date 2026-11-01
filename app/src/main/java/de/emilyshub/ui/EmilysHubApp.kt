@@ -46,6 +46,8 @@ import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
+import de.emilyshub.reminders.Tone
+import de.emilyshub.reminders.ToneLibrary
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.search.SearchArea
@@ -121,6 +123,7 @@ fun EmilysHubApp(
     nightlyBackups: NightlyBackups,
     search: Search,
     ledger: Ledger,
+    tones: ToneLibrary,
     onProbe: () -> Unit,
 ) {
     LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
@@ -152,6 +155,7 @@ fun EmilysHubApp(
                     nightlyBackups = nightlyBackups,
                     search = search,
                     ledger = ledger,
+                    tones = tones,
                     onProbe = onProbe,
                     settings = current,
                     canAuthenticate = authenticator::canAuthenticate,
@@ -163,6 +167,8 @@ fun EmilysHubApp(
                         }
                     },
                     onLookAroundChange = { enabled -> scope.launch { settings.setLookAroundEnabled(enabled) } },
+                    onAlarmToneChange = { tone -> scope.launch { settings.setAlarmTone(tone) } },
+                    onNotificationToneChange = { tone -> scope.launch { settings.setNotificationTone(tone) } },
                     onRemindersAsked = { scope.launch { settings.setRemindersAsked() } },
                 )
             }
@@ -209,12 +215,15 @@ private fun AppShell(
     nightlyBackups: NightlyBackups,
     search: Search,
     ledger: Ledger,
+    tones: ToneLibrary,
     onProbe: () -> Unit,
     settings: Settings,
     canAuthenticate: () -> Boolean,
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
     onLookAroundChange: (Boolean) -> Unit,
+    onAlarmToneChange: (Tone) -> Unit,
+    onNotificationToneChange: (Tone) -> Unit,
     onRemindersAsked: () -> Unit,
 ) {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
@@ -283,7 +292,7 @@ private fun AppShell(
             BackHandler { todoEditor = null }
             editors.SaveableStateProvider(editorKey("todo", todoTarget)) {
                 TodoEditorScreen(
-                    todos, wishes, tags, places, notes, todoTarget, onClose = { todoEditor = null }, onOpenNote = openNote,
+                    todos, wishes, tags, places, notes, todoTarget, tones, onClose = { todoEditor = null }, onOpenNote = openNote,
                 )
             }
         }
@@ -423,6 +432,9 @@ private fun AppShell(
                 onDesignChange = onDesignChange,
                 onAppLockChange = onAppLockChange,
                 onLookAroundChange = onLookAroundChange,
+                tones = tones,
+                onAlarmToneChange = onAlarmToneChange,
+                onNotificationToneChange = onNotificationToneChange,
                 onOpenStatus = { statusOpen = true },
                 onOpenPlaces = { placesOpen = true },
                 onOpenTags = { tagsOpen = true },
@@ -434,7 +446,7 @@ private fun AppShell(
             BackHandler { routineEditor = null }
             editors.SaveableStateProvider(editorKey("routine", editor)) {
                 RoutineEditorScreen(
-                    routines, wishes, tags, places, notes, editor, onClose = { routineEditor = null }, onOpenNote = openNote,
+                    routines, wishes, tags, places, notes, editor, tones, onClose = { routineEditor = null }, onOpenNote = openNote,
                 )
             }
         }

@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import android.net.Uri
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -148,6 +150,26 @@ class TodosScreenTest {
             compose.onNodeWithText("Ort: Zuhause").assertIsDisplayed()
         }
         assertEquals(setOf(home), runBlocking { app.todos.open().first().single().placeIds })
+    }
+
+    @Test
+    fun `a to-do can have one of the phone's tones, which comes along to the editor`() {
+        val bell = app.tones.add("content://media/internal/audio/media/34", "Glocke")
+
+        launchApp().use { scenario ->
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Arzt anrufen")
+            tone().performScrollTo().assertTextContains("Standard")
+
+            tone().performClick()
+            scenario.pickTone(Uri.parse(bell.uri))
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("Arzt anrufen").performClick()
+            tone().performScrollTo().assertTextContains("Glocke")
+        }
+        assertEquals(listOf(bell), runBlocking { app.todos.open().first().map { it.todo.tone } })
     }
 
     @Test
@@ -388,6 +410,8 @@ class TodosScreenTest {
     /** A chip of the tag filter, not the tags shown with a to-do. */
     private fun chip(label: String) =
         compose.onNode(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
+
+    private fun tone() = compose.onNode(hasClickAction() and hasText("Ton"))
 
     private fun nameOnLockScreen() = compose.onNode(isToggleable() and hasText("Name auf dem Sperrbildschirm zeigen"))
 

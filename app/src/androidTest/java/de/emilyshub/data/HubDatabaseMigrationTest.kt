@@ -22,6 +22,7 @@ import de.emilyshub.places.Coordinates
 import de.emilyshub.places.Place
 import de.emilyshub.places.PlaceWifi
 import de.emilyshub.places.PlaceWithWifis
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistItem
 import de.emilyshub.routines.ChecklistTick
 import de.emilyshub.routines.FollowUps
@@ -776,6 +777,33 @@ class HubDatabaseMigrationTest {
             database.todos().update(call.copy(nameOnLockScreen = true))
             assertEquals(true, database.routines().get(1)?.nameOnLockScreen)
             assertEquals(true, database.todos().get(1)?.nameOnLockScreen)
+        }
+    }
+
+    @Test
+    fun `version 35 moves to version 36 where every routine and to-do has the default tone and then one can have its own`() {
+        createAtVersion(35) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (1, 'Vitamine', '', '07:30', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, reminds_at_due_time, waiting, away, series_number, " +
+                    "full_screen, reminds_at_wake_time, name_on_lock_screen) VALUES (1, 'Arzt anrufen', '', 'normal', 0, 0, 0, 1, 0, 0, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val vitamins = checkNotNull(database.routines().get(1))
+            val call = checkNotNull(database.todos().get(1))
+            assertEquals(Tone.Standard, vitamins.tone)
+            assertEquals(Tone.Standard, call.tone)
+
+            val morning = Tone.Of("content://media/internal/audio/media/12")
+            database.routines().update(vitamins.copy(tone = morning))
+            database.todos().update(call.copy(tone = Tone.Silent))
+            assertEquals(morning, database.routines().get(1)?.tone)
+            assertEquals(Tone.Silent, database.todos().get(1)?.tone)
         }
     }
 

@@ -9,12 +9,16 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.core.net.toUri
 import java.time.Duration
 
 /** What rings for a full-screen alarm, while it is up and in the background ([AlarmRingService]). */
 interface AlarmRinger {
-    /** Rings until [stop]; while it rings already, it rings on. */
-    fun start()
+    /**
+     * Rings [sound] until [stop], vibrating all along; while it rings already, it rings on, with [sound] from then on.
+     * Silent, it only vibrates (SPEC.md §3).
+     */
+    fun start(sound: Sound)
 
     /** Stops the ringing; while it is silent, it stays so. */
     fun stop()
@@ -26,8 +30,8 @@ interface AlarmRinger {
 }
 
 /**
- * Rings like an alarm clock (SPEC.md §3): the alarm sound chosen in Android's settings over and over at the
- * alarm volume, and vibrating on and off. "Nicht stören" lets it through where it lets alarms through.
+ * Rings like an alarm clock (SPEC.md §3): the tone of the alarm, or the alarm sound chosen in Android's settings, over
+ * and over at the alarm volume, and vibrating on and off. "Nicht stören" lets it through where it lets alarms through.
  */
 class AlarmSound(private val context: Context) : AlarmRinger {
     private val vibrator: Vibrator =
@@ -40,14 +44,14 @@ class AlarmSound(private val context: Context) : AlarmRinger {
     private var ringtone: Ringtone? = null
     private var ringing = false
 
-    override fun start() {
+    /** What [ringtone] plays. */
+    private var playing: Sound? = null
+
+    override fun start(sound: Sound) {
+        if (ringing && sound == playing) return
+        play(sound)
         if (ringing) return
         ringing = true
-        ringtone = RingtoneManager.getRingtone(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))?.apply {
-            audioAttributes = ALARM_AUDIO
-            isLooping = true
-            play()
-        }
         val onAndOff = VibrationEffect.createWaveform(VIBRATION_PATTERN, VIBRATION_REPEAT_FROM)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(onAndOff, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
@@ -62,7 +66,24 @@ class AlarmSound(private val context: Context) : AlarmRinger {
         ringing = false
         ringtone?.stop()
         ringtone = null
+        playing = null
         vibrator.cancel()
+    }
+
+    /** Plays [sound] over and over instead of what played until now; nothing, silent. */
+    private fun play(sound: Sound) {
+        ringtone?.stop()
+        playing = sound
+        val uri = when (sound) {
+            Sound.PhoneDefault -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            Sound.Silent -> null
+            is Sound.Of -> sound.uri.toUri()
+        }
+        ringtone = uri?.let { RingtoneManager.getRingtone(context, it) }?.apply {
+            audioAttributes = ALARM_AUDIO
+            isLooping = true
+            play()
+        }
     }
 
     private companion object {

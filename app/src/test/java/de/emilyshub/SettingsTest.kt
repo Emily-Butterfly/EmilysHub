@@ -1,6 +1,9 @@
 package de.emilyshub
 
 import android.app.UiModeManager
+import android.media.RingtoneManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsDisplayed
@@ -8,7 +11,9 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isToggleable
@@ -20,8 +25,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.reminders.DefaultTones
+import de.emilyshub.reminders.Tone
 import de.emilyshub.ui.theme.FliederColorScheme
 import de.emilyshub.ui.theme.LilaColorScheme
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -131,6 +139,35 @@ class SettingsTest {
         }
     }
 
+    @Test
+    fun `the default tones are the phone's own at first, and each can be one of the phone's tones or none`() {
+        val morning = app.tones.add("content://media/internal/audio/media/12", "Morgentau")
+
+        launchApp().use { scenario ->
+            openSettings()
+            alarmTone().performScrollTo().assertTextContains("Ton des Handys")
+            notificationTone().performScrollTo().assertTextContains("Ton des Handys")
+
+            alarmTone().performClick()
+            val alarm = scenario.pickTone(Uri.parse(morning.uri))
+            assertEquals(RingtoneManager.TYPE_ALARM, alarm.getIntExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, 0))
+            assertEquals(true, alarm.getBooleanExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false))
+            assertEquals(true, alarm.getBooleanExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false))
+            alarmTone().assertTextContains("Morgentau")
+
+            notificationTone().performScrollTo().performClick()
+            val notification = scenario.pickTone(picked = null)
+            assertEquals(RingtoneManager.TYPE_NOTIFICATION, notification.getIntExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, 0))
+            notificationTone().assertTextContains("Lautlos")
+            assertEquals(DefaultTones(alarm = morning, notification = Tone.Silent), app.settings.current?.tones)
+
+            alarmTone().performClick()
+            scenario.pickTone(Settings.System.DEFAULT_ALARM_ALERT_URI)
+            alarmTone().assertTextContains("Ton des Handys")
+        }
+        assertEquals(Tone.Standard, runBlocking { app.settings.defaultTones() }.alarm)
+    }
+
     private fun openSettings() {
         compose.onNodeWithContentDescription("Einstellungen").performClick()
     }
@@ -141,6 +178,10 @@ class SettingsTest {
         compose.waitForIdle()
         return shadowOf(app.getSystemService(UiModeManager::class.java)).applicationNightMode
     }
+
+    private fun alarmTone() = compose.onNode(hasClickAction() and hasText("Ton für Vollbild-Alarme"))
+
+    private fun notificationTone() = compose.onNode(hasClickAction() and hasText("Ton für Benachrichtigungen"))
 
     private fun appLockSwitch() = compose.onNode(isToggleable() and hasText("App-Sperre"))
 

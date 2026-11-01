@@ -141,7 +141,7 @@ class AlarmInUseTest {
     private fun reminders(): List<Notification> =
         app.getSystemService(NotificationManager::class.java).activeNotifications
             .map { it.notification }
-            .filter { it.channelId == "reminders" }
+            .filter { it.channelId != "alarm-ringing" }
 
     private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
 

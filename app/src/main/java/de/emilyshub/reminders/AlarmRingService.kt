@@ -39,6 +39,9 @@ class AlarmRingService : Service() {
     private val ringingFor = mutableMapOf<Alarmed, Job>()
     private var limit: Job? = null
 
+    /** Starts the ringing with the tone of the newest, once it is read; none once it rings or has stopped. */
+    private var ringStart: Job? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -54,7 +57,9 @@ class AlarmRingService : Service() {
             if (ringingFor.isEmpty()) stop()
             return START_NOT_STICKY
         }
-        app.ringer.start()
+        // A newer alarm rings with its own tone.
+        ringStart?.cancel()
+        ringStart = scope.launch { app.ringer.start(app.sounds.alarmOf(alarmed)) }
         if (alarmed !in ringingFor) {
             ringingFor[alarmed] = scope.launch {
                 when (alarmed) {
@@ -81,6 +86,7 @@ class AlarmRingService : Service() {
     }
 
     private fun stop() {
+        ringStart?.cancel()
         app.ringer.stop()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()

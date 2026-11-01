@@ -1,6 +1,7 @@
 package de.emilyshub.todos
 
 import de.emilyshub.data.InputText
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Checklists
 import de.emilyshub.routines.Priority
@@ -53,6 +54,8 @@ data class TodoDraft(
     val wake: WakeTime? = null,
     /** Whether the lock screen shows its title and when it is due, not only that a reminder is due (SPEC.md §3). */
     val nameOnLockScreen: Boolean = false,
+    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
+    val tone: Tone = Tone.Standard,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -116,6 +119,7 @@ data class TodoDraft(
             showsDaysBefore = showsDaysBefore,
             fullScreen = fullScreen,
             nameOnLockScreen = nameOnLockScreen,
+            tone = tone,
         ).withWake(wake)
 
     companion object {
@@ -130,5 +134,5 @@ data class TodoDraft(
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
-    end, showsDaysBefore, fullScreen, wake, nameOnLockScreen,
+    end, showsDaysBefore, fullScreen, wake, nameOnLockScreen, tone,
 )

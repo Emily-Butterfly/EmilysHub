@@ -46,6 +46,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
+import de.emilyshub.reminders.ToneLibrary
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
@@ -67,6 +68,7 @@ import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.reminders.ToneField
 import de.emilyshub.ui.routines.FullScreenField
 import de.emilyshub.ui.routines.NameOnLockScreenField
 import de.emilyshub.wishes.Wishes
@@ -94,6 +96,7 @@ fun TodoEditorScreen(
     places: Places,
     notes: Notes,
     target: TodoEditorTarget,
+    tones: ToneLibrary,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
@@ -252,6 +255,7 @@ fun TodoEditorScreen(
                 )
             }
             NameOnLockScreenField(draft.nameOnLockScreen, onChange = { draft = draft.copy(nameOnLockScreen = it) })
+            ToneField(draft.tone, tones, onChange = { draft = draft.copy(tone = it) })
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })

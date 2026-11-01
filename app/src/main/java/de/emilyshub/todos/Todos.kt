@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.dueAt
@@ -238,6 +239,9 @@ class Todos(
         val now = now()
         popUp(arrived.filter { waitsFromDueOrWake(it.todo, now) }, now)
     }
+
+    /** The tones the open to-dos have (SPEC.md §3), each once, for their reminders' channels; a done one reminds no more. */
+    suspend fun tones(): Set<Tone> = withContext(io) { dao.openTones().toSet() }
 
     /** Whether an open to-do waits for its places, so that arriving at one matters. */
     suspend fun anyWaiting(): Boolean = withContext(io) { dao.anyOpenWaiting() }

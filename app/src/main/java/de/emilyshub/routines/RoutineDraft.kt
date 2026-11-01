@@ -1,6 +1,7 @@
 package de.emilyshub.routines
 
 import de.emilyshub.data.InputText
+import de.emilyshub.reminders.Tone
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
@@ -51,6 +52,8 @@ data class RoutineDraft(
     val endsOn: LocalDate? = null,
     /** Whether the lock screen shows its name and time, not only that a reminder is due (SPEC.md §3). */
     val nameOnLockScreen: Boolean = false,
+    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
+    val tone: Tone = Tone.Standard,
 ) : Serializable {
 
     /** Its [problems], and an end before [today], which is no longer to come. */
@@ -99,7 +102,7 @@ data class RoutineDraft(
     fun toRoutine(id: Long = 0, plannedFrom: Instant, status: RoutineStatus = RoutineStatus.Active) =
         Routine(
             id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target, endsOn,
-            nameOnLockScreen,
+            nameOnLockScreen, tone,
         )
 
     companion object {
@@ -126,5 +129,5 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
 /** The routine with its [checklist], tags and places as the editor starts out with it. */
 fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, nameOnLockScreen,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, nameOnLockScreen, tone,
 )

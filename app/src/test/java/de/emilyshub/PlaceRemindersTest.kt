@@ -144,7 +144,7 @@ class PlaceRemindersTest {
 
     private fun reminders() = app.getSystemService(NotificationManager::class.java).activeNotifications
         .map { it.notification }
-        .filter { it.channelId == "reminders" }
+        .filter { it.channelId != "alarm-ringing" }
         .map { it.extras.getString(Notification.EXTRA_TITLE) }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()

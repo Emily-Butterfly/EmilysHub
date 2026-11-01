@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Place
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.Priority
 import de.emilyshub.tags.Tag
@@ -82,6 +83,8 @@ data class Todo(
     @ColumnInfo(name = "wake_time") val wakeTime: LocalTime? = null,
     /** Whether the lock screen shows its title and when it is due in its reminders and alarm (SPEC.md §3, §9); never more. */
     @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
+    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
+    @ColumnInfo(defaultValue = "''") val tone: Tone = Tone.Standard,
 ) {
     /** How it wakes, from [wakeDaysBefore], [wakeDate] and [wakeTime]; none if it does not. */
     val wake: WakeTime?
@@ -218,7 +221,7 @@ data class TodoWithDetails(
     val seenAway: Boolean get() = todo.reminding.away
 
     /** Its reminder, as it pops up. */
-    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen, todo.nameOnLockScreen)
+    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen, todo.nameOnLockScreen, todo.tone)
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
     fun checklist(): List<ChecklistEntry> = checklistItems.sortedBy { it.position }.map {
@@ -247,7 +250,8 @@ data class DueTodo(
 
 /**
  * A to-do to remind of (SPEC.md §3): its [title], when it is [due], the names of the [places] it reminds at, whether
- * it comes as a [fullScreen] alarm, and whether the lock screen may show its title and when it is due, [nameOnLockScreen].
+ * it comes as a [fullScreen] alarm, whether the lock screen may show its title and when it is due, [nameOnLockScreen],
+ * and its [tone].
  */
 data class TodoReminder(
     val todoId: Long,
@@ -256,6 +260,7 @@ data class TodoReminder(
     val places: List<String>,
     val fullScreen: Boolean = false,
     val nameOnLockScreen: Boolean = false,
+    val tone: Tone = Tone.Standard,
 )
 
 /** How the To-dos list is ordered (SPEC.md §5): by when they are due, or by priority. */

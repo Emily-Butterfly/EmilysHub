@@ -1,5 +1,7 @@
 package de.emilyshub.data
 
+import de.emilyshub.reminders.DefaultTones
+import de.emilyshub.reminders.Tone
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -55,10 +57,23 @@ class AppSettingsTest {
     }
 
     @Test
+    fun `the default tones are the phone's own at first, and a choice of each is still there after a restart`() {
+        assertEquals(DefaultTones(), load().tones)
+        val morning = Tone.Of("content://media/internal/audio/media/12")
+
+        runBlocking { AppSettings({ dao }).apply { load() }.setAlarmTone(morning) }
+        runBlocking { AppSettings({ dao }).apply { load() }.setNotificationTone(Tone.Silent) }
+
+        assertEquals(DefaultTones(alarm = morning, notification = Tone.Silent), load().tones)
+        assertEquals(DefaultTones(alarm = morning, notification = Tone.Silent), runBlocking { AppSettings({ dao }).defaultTones() })
+    }
+
+    @Test
     fun `unknown stored values fall back to the defaults, keeping the app lock on`() {
         dao.values["design"] = "Dark"
         dao.values["app-lock"] = "false"
         dao.values["look-around"] = "no"
+        dao.values["alarm-tone"] = "file:///sdcard/tone.mp3"
 
         assertEquals(defaults, load())
     }

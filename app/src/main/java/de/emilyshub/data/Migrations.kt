@@ -542,3 +542,11 @@ val MIGRATION_34_35 = object : Migration(34, 35) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `name_on_lock_screen` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/** Version 36: a routine or to-do can have a tone of its own (SPEC.md §3, #39). Each has the default yet. */
+val MIGRATION_35_36 = object : Migration(35, 36) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `tone` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `tone` TEXT NOT NULL DEFAULT ''")
+    }
+}

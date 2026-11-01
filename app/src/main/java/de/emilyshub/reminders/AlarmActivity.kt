@@ -40,7 +40,7 @@ import java.time.Duration
  * the screen is not time in the app. Routines and to-dos take turns in it alike. Not exported: only the reminder opens
  * it, with its full-screen intent or when it is tapped.
  *
- * Like an alarm clock, it rings and keeps the screen on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
+ * Like an alarm clock, it rings, with the tone of the newest ([Sounds.alarmOf]), and keeps the screen on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
  * by a tap on the reminder, it only rings on if the alarm rings already in the background ([AlarmRingService]).
  * Answering the reminder, here or anywhere else, closing the alarm or leaving it for longer than
  * [LEAVE_GRACE], say with the power button or for a call, silences it until the next alarm.
@@ -57,6 +57,9 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
 
     /** Silences the alarm at [ringUntil]; none while it is silent. */
     private var ringLimit: Job? = null
+
+    /** Starts the ringing with the tone of what is first, once it is read; none once it rings or is silent. */
+    private var ringStart: Job? = null
 
     /** When the ringing ends, on [SystemClock.elapsedRealtime]; 0 while it is silent. Kept across a rotation. */
     private var ringUntil = 0L
@@ -162,7 +165,9 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ringLimit?.cancel()
         if (until <= now()) return silence()
         ringUntil = until
-        app.ringer.start()
+        val first = queue.firstOrNull()
+        ringStart?.cancel()
+        ringStart = lifecycleScope.launch { app.ringer.start(first?.let { app.sounds.alarmOf(it) } ?: Sound.PhoneDefault) }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ringLimit = lifecycleScope.launch {
             delay(until - now())
@@ -171,6 +176,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     }
 
     private fun silence() {
+        ringStart?.cancel()
+        ringStart = null
         ringLimit?.cancel()
         ringLimit = null
         ringUntil = 0

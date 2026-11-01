@@ -1,5 +1,6 @@
 package de.emilyshub.ui.settings
 
+import android.media.RingtoneManager
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.reminders.Tone
+import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.ui.reminders.DefaultToneSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +53,9 @@ fun SettingsScreen(
     onDesignChange: (Design) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
     onLookAroundChange: (Boolean) -> Unit,
+    tones: ToneLibrary,
+    onAlarmToneChange: (Tone) -> Unit,
+    onNotificationToneChange: (Tone) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
@@ -106,6 +113,20 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.checkup_title)) },
                 supportingContent = { Text(stringResource(R.string.checkup_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenStatus),
+            )
+            DefaultToneSetting(
+                title = stringResource(R.string.settings_alarm_tone),
+                kind = RingtoneManager.TYPE_ALARM,
+                tone = settings.tones.alarm,
+                tones = tones,
+                onChange = onAlarmToneChange,
+            )
+            DefaultToneSetting(
+                title = stringResource(R.string.settings_notification_tone),
+                kind = RingtoneManager.TYPE_NOTIFICATION,
+                tone = settings.tones.notification,
+                tones = tones,
+                onChange = onNotificationToneChange,
             )
 
             SectionHeader(R.string.settings_backups)

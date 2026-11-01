@@ -21,6 +21,7 @@ import de.emilyshub.place
 import de.emilyshub.places.Area
 import de.emilyshub.places.Coordinates
 import de.emilyshub.reminders.ReminderReceiver
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routine
 import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Dropped
@@ -235,6 +236,23 @@ class BackupsTest {
         restore(older)
         assertEquals(listOf(false), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
         assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.nameOnLockScreen })
+    }
+
+    @Test
+    fun `a backup keeps the tone chosen, not the sound itself, and one from before tones loads with the default`() {
+        val morning = Tone.Of("content://media/internal/audio/media/12")
+        app.routine("Vitamine", "07:30", tone = morning)
+        app.todo("Arzt anrufen", tone = Tone.Silent)
+        val now = exported()
+        val older = sealed(asOfVersion35(contentOf(now)))
+
+        restore(now)
+        assertEquals(listOf(morning), runBlocking { app.routines.inUse().first() }.map { it.tone })
+        assertEquals(listOf(Tone.Silent), runBlocking { app.todos.open().first() }.map { it.todo.tone })
+
+        restore(older)
+        assertEquals(listOf(Tone.Standard), runBlocking { app.routines.inUse().first() }.map { it.tone })
+        assertEquals(listOf(Tone.Standard), runBlocking { app.todos.open().first() }.map { it.todo.tone })
     }
 
     @Test
@@ -577,7 +595,11 @@ class BackupsTest {
 
     /** [content] as version 34 made it: without names on the lock screen, which came with 35. */
     private fun asOfVersion34(content: JSONObject): JSONObject =
-        content.withoutColumns("routines", "name_on_lock_screen").withoutColumns("todos", "name_on_lock_screen").put("schema", 34)
+        asOfVersion35(content).withoutColumns("routines", "name_on_lock_screen").withoutColumns("todos", "name_on_lock_screen").put("schema", 34)
+
+    /** [content] as version 35 made it: without tones, which came with 36. */
+    private fun asOfVersion35(content: JSONObject): JSONObject =
+        content.withoutColumns("routines", "tone").withoutColumns("todos", "tone").put("schema", 35)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

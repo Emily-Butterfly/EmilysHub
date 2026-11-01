@@ -16,6 +16,7 @@ import de.emilyshub.places.FakeWifi
 import de.emilyshub.places.Locator
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
+import de.emilyshub.reminders.FakeTones
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
@@ -32,14 +33,15 @@ import javax.crypto.KeyGenerator
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
- * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, a WLAN
+ * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, the phone's tones in memory, a WLAN
  * the test connects to, a position the test sets, backups with a key derived quickly, and a folder for the nightly ones in memory.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
-    override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined, onLookAroundChange = ::updateReminders)
+    override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
     override val authenticator = FakeAuthenticator()
     override val ringer = FakeRinger()
+    override val tones = FakeTones()
 
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
@@ -57,7 +59,7 @@ class TestApplication : EmilysHubApplication() {
     override val location = FakeLocation()
     override val locator = Locator(wifi, location, places)
     override val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround) { settingsDao }
+        Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround, sounds) { settingsDao }
     }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 

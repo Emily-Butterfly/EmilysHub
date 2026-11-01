@@ -22,7 +22,7 @@ class AlarmSoundTest {
 
     @Test
     fun `it vibrates over and over like an alarm clock, until it is stopped`() {
-        sound.start()
+        sound.start(Sound.PhoneDefault)
 
         assertTrue(shadowOf(vibrator).isVibrating)
         assertEquals("repeats", 1, shadowOf(vibrator).repeat)
@@ -35,10 +35,21 @@ class AlarmSoundTest {
     }
 
     @Test
+    fun `silent, it only vibrates`() {
+        sound.start(Sound.Silent)
+
+        assertTrue(shadowOf(vibrator).isVibrating)
+
+        sound.stop()
+
+        assertFalse(shadowOf(vibrator).isVibrating)
+    }
+
+    @Test
     fun `starting it twice or stopping it unstarted changes nothing`() {
         sound.stop()
-        sound.start()
-        sound.start()
+        sound.start(Sound.PhoneDefault)
+        sound.start(Sound.PhoneDefault)
         sound.stop()
 
         assertFalse(shadowOf(vibrator).isVibrating)

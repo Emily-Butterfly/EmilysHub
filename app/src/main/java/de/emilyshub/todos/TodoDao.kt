@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import de.emilyshub.reminders.Tone
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
@@ -36,6 +37,10 @@ interface TodoDao {
     @Transaction
     @Query("SELECT * FROM todos WHERE id IN (:ids)")
     suspend fun withDetails(ids: Collection<Long>): List<TodoWithDetails>
+
+    /** The tones the open to-dos have, each once. */
+    @Query("SELECT DISTINCT tone FROM todos WHERE done_at IS NULL")
+    suspend fun openTones(): List<Tone>
 
     /** Whether an open to-do waits for its places, so that arriving at one matters. */
     @Query("SELECT EXISTS (SELECT 1 FROM todos WHERE done_at IS NULL AND waiting)")

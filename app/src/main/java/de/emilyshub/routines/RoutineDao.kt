@@ -11,6 +11,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Place
+import de.emilyshub.reminders.Tone
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
@@ -186,6 +187,10 @@ interface RoutineDao {
     /** Binds the routine to those of [placeIds] that are still there: one deleted meanwhile is left out. */
     @Query("INSERT INTO routine_places (routine_id, place_id) SELECT :routineId, id FROM places WHERE id IN (:placeIds)")
     suspend fun bind(routineId: Long, placeIds: Collection<Long>)
+
+    /** The tones the routines have, archived ones too, each once. */
+    @Query("SELECT DISTINCT tone FROM routines")
+    suspend fun tones(): List<Tone>
 
     /** Whether an active routine is bound to a place. */
     @Query(ANY_ACTIVE_BOUND)

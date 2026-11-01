@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.GoalPart
 import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.settleGoals
@@ -94,6 +95,9 @@ class Routines(
 
     /** The places the routine pops up at (SPEC.md §4); none: everywhere. */
     suspend fun placeIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.placeIdsOf(routineId).toSet() }
+
+    /** The tones the routines have (SPEC.md §3), each once, for their reminders' channels. */
+    suspend fun tones(): Set<Tone> = withContext(io) { dao.tones().toSet() }
 
     /** Whether an active routine is bound to a place, so that arriving at one matters. */
     suspend fun anyBoundToPlaces(): Boolean = withContext(io) { dao.anyActiveBound() }
@@ -445,7 +449,7 @@ class Routines(
         val (occurrence, routine) = of
         val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
         val windowEnd = routine.windowEnd(occurrence, clock.zone)
-        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, windowEnd, routine.nameOnLockScreen)
+        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, windowEnd, routine.nameOnLockScreen, routine.tone)
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {

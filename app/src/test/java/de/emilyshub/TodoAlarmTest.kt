@@ -17,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.reminders.AlarmRingService
+import de.emilyshub.reminders.Tone
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.WakeTime
@@ -270,6 +271,16 @@ class TodoAlarmTest {
         assertTrue(runBlocking { app.todos.open().first() }.single().todo.nameOnLockScreen)
     }
 
+    @Test
+    fun `the next of a series takes its tone along`() {
+        val morning = Tone.Of("content://media/internal/audio/media/12")
+        val id = app.todo("Blumen", Due.At(today, LocalTime.of(9, 0)), recurrence = Recurrence.Daily, tone = morning)
+
+        runBlocking { app.todos.markDone(id) }
+
+        assertEquals(morning, runBlocking { app.todos.open().first() }.single().todo.tone)
+    }
+
     private fun assertRings() {
         assertEquals(AlarmRingService::class.java.name, shadowOf(app).nextStartedService?.component?.className)
     }
@@ -285,7 +296,7 @@ class TodoAlarmTest {
 
     private fun reminders(): List<Notification> =
         app.getSystemService(NotificationManager::class.java).activeNotifications.map { it.notification }
-            .filter { it.channelId == "reminders" }
+            .filter { it.channelId != "alarm-ringing" }
 
     /** Moves the clock to [localDateTime] in Berlin and lets the alarm set for the next reminder go off. */
     private fun goOffAt(localDateTime: String) {

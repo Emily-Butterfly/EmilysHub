@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             EmilysHubApp(
                 app.settings, app.appLock, app.authenticator, app.routines, app.todos, app.wishes, app.notes, app.tags, app.places,
-                app.wifi, app.location, app.backups, app.nightlyBackups, app.search, app.ledger,
+                app.wifi, app.location, app.backups, app.nightlyBackups, app.search, app.ledger, app.tones,
                 onProbe = app.reminders::probe,
             )
         }

@@ -89,7 +89,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 35
+        const val VERSION = 36
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -115,7 +115,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
             MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34,
-            MIGRATION_34_35,
+            MIGRATION_34_35, MIGRATION_35_36,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

@@ -25,6 +25,9 @@ import java.time.Instant
  * area, the app also looks around every [LOOK_AROUND_EVERY] ([lookAround]), as long as [mayLookAround] says the
  * settings let it, so that arriving is noticed without a WLAN too.
  *
+ * Each reminder plays its tone, or the default in the settings, once, on a channel of that tone ([Sounds]); a channel no
+ * routine or to-do needs any more goes.
+ *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was
  * due, or if a restart or a change of clock took the alarm before it went off.
@@ -40,13 +43,14 @@ class Reminders(
     private val clock: Clock,
     private val locate: Locate,
     private val mayLookAround: suspend () -> Boolean,
+    private val sounds: Sounds,
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
     private val probeAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_PROBE)
     private val lookAroundAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_LOOK_AROUND)
     private val arrivals = ArrivalWatch(context)
-    private val notifications = ReminderNotifications(context, clock)
+    private val notifications = ReminderNotifications(context, clock, sounds)
 
     // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
     // write to the routines or to-dos in a way that reports a change, since every such write updates the reminders.
@@ -74,8 +78,8 @@ class Reminders(
         routines.markMissed(since)
         val shown = routines.remindersDue(after = since, until = now, locate)
         val todosShown = todos.remindersDue(after = since, until = now, locate)
-        shown.forEach(notifications::show)
-        todosShown.forEach(notifications::show)
+        shown.forEach { notifications.show(it) }
+        todosShown.forEach { notifications.show(it) }
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
         tidyAndSetAlarm(justShown = shown.map { it.occurrenceId }.toSet(), todosJustShown = todosShown.map { it.todoId }.toSet())
     }
@@ -165,11 +169,11 @@ class Reminders(
         val shown = notifications.shown()
         val stillDue = routines.stillDue(shown)
         // Shown again quietly, as the routine may have been renamed meanwhile; what just popped up is as it is now.
-        stillDue.filter { it.occurrenceId !in justShown }.forEach(notifications::refresh)
+        stillDue.filter { it.occurrenceId !in justShown }.forEach { notifications.refresh(it) }
         (shown - stillDue.map { it.occurrenceId }.toSet()).forEach(notifications::cancel)
         val todosShown = notifications.shownTodos()
         val todosStillDue = todos.stillDue(todosShown)
-        todosStillDue.filter { it.todoId !in todosJustShown }.forEach(notifications::refresh)
+        todosStillDue.filter { it.todoId !in todosJustShown }.forEach { notifications.refresh(it) }
         (todosShown - todosStillDue.map { it.todoId }.toSet()).forEach(notifications::cancelTodo)
         val after = remindedUntil()
         when (val next = listOfNotNull(routines.nextAlarm(after), todos.nextAlarm(after)).minOrNull()) {
@@ -177,6 +181,8 @@ class Reminders(
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
         }
+        // A tone no routine or to-do has any more takes its channel along, once no reminder on the screen is on it.
+        notifications.tidyChannels(inUse = (routines.tones() + todos.tones() + Tone.Standard).map { sounds.notification(it) })
         arrivals.watch(on = routines.anyBoundToPlaces() || todos.anyWaiting())
         keepLookingAround(on = todos.needsLookingAround() && mayLookAround())
     }

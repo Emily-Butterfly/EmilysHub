@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.notes.NoteSort
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.routines.Repetition
@@ -24,6 +25,13 @@ import java.time.YearMonth
  * of day sort and compare like the values.
  */
 class Converters {
+    /** A tone as [Tone.stored] has it; anything else counts as the default. */
+    @TypeConverter
+    fun fromTone(tone: Tone): String = tone.stored
+
+    @TypeConverter
+    fun toTone(text: String): Tone = Tone.of(text)
+
     @TypeConverter
     fun fromDate(date: LocalDate): String = date.toString()
 

@@ -1,5 +1,9 @@
 package de.emilyshub
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithText
@@ -10,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import de.emilyshub.places.Area
 import de.emilyshub.places.PlaceDraft
+import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Occurrence
@@ -36,6 +41,18 @@ import java.time.LocalTime
 
 /** What a user does with the whole app, shared by the Robolectric tests that drive [MainActivity]. */
 fun launchApp(): ActivityScenario<MainActivity> = ActivityScenario.launch(MainActivity::class.java)
+
+/**
+ * Answers the app's request to Android's choice of tones, which it opened last, with [picked]: a tone's address, or none
+ * for "Lautlos". Returns the request, as the app made it.
+ */
+fun ActivityScenario<MainActivity>.pickTone(picked: Uri?): Intent {
+    var request: Intent? = null
+    onActivity { request = shadowOf(it).nextStartedActivityForResult.intent }
+    val answer = Intent().putExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, picked)
+    onActivity { shadowOf(it).receiveResult(checkNotNull(request), Activity.RESULT_OK, answer) }
+    return checkNotNull(request)
+}
 
 /** Leaves the app the way the home button does, lets [whileAway] happen, and opens it again. */
 fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
@@ -64,10 +81,11 @@ fun TestApplication.routine(
     target: RoutineTarget? = null,
     endsOn: LocalDate? = null,
     nameOnLockScreen: Boolean = false,
+    tone: Tone = Tone.Standard,
 ): Long = runBlocking {
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, nameOnLockScreen,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, nameOnLockScreen, tone,
     )
     routines.create(draft)
 }
@@ -97,6 +115,7 @@ fun TestApplication.todo(
     wake: WakeTime? = null,
     nameOnLockScreen: Boolean = false,
     description: String = "",
+    tone: Tone = Tone.Standard,
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
     val draft = TodoDraft(
@@ -105,7 +124,7 @@ fun TestApplication.todo(
     todos.create(
         draft.copy(
             recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen, wake = wake,
-            nameOnLockScreen = nameOnLockScreen,
+            nameOnLockScreen = nameOnLockScreen, tone = tone,
         ),
     )
 }
