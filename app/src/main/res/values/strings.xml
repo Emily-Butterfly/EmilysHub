@@ -24,6 +24,14 @@
     <string name="settings_tags">Tags</string>
 
     <string name="today_empty">Heute steht nichts an. Unter „Routinen“ legst du an, was regelmäßig ansteht, unter „To-dos“, was einmal zu tun ist.</string>
+    <plurals name="today_streak">
+        <item quantity="one">Streak %d Tag</item>
+        <item quantity="other">Streak %d Tage</item>
+    </plurals>
+    <plurals name="today_streak_open">
+        <item quantity="one">Streak %d Tag, heute noch offen</item>
+        <item quantity="other">Streak %d Tage, heute noch offen</item>
+    </plurals>
     <string name="today_todo">To-do</string>
     <string name="today_todo_at">To-do, %1$s</string>
     <string name="today_todo_due">To-do, fällig: %1$s</string>

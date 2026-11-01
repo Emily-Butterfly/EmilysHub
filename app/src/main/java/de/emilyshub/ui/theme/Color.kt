@@ -83,3 +83,6 @@ internal val LilaColorScheme = darkColorScheme(
     surfaceContainerHigh = Color(0xFF2E2638),
     surfaceContainerHighest = Color(0xFF393143),
 )
+
+/** The streak's flame once today counts (SPEC.md §1): in both schemes alike, as a flame is orange. */
+internal val FlameOrange = Color(0xFFE8650E)

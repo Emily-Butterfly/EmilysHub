@@ -251,7 +251,7 @@ private val TodayEntry.key: String
  * phone's clock or time zone changes, after a flight for example.
  */
 @Composable
-private fun rememberToday(routines: Routines): LocalDate {
+internal fun rememberToday(routines: Routines): LocalDate {
     var today by remember { mutableStateOf(routines.today()) }
     var clockChanges by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(routines) {
