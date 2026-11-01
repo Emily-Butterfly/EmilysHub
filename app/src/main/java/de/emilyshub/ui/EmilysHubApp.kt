@@ -91,6 +91,7 @@ import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.TodayScreen
+import de.emilyshub.ui.today.rememberToday
 import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
@@ -576,6 +577,8 @@ private fun TopLevelScaffold(
     onOpenStatus: () -> Unit,
     onOpenBackups: () -> Unit,
 ) {
+    // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together.
+    val today = if (current == TopLevelDestination.Today) rememberToday(routines) else null
     Scaffold(
         topBar = {
             TopAppBar(
@@ -584,7 +587,7 @@ private fun TopLevelScaffold(
                 },
                 actions = {
                     // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
-                    if (current == TopLevelDestination.Today) StreakFlameButton(routines, onOpenStatistics)
+                    if (today != null) StreakFlameButton(today, routines, onOpenStatistics)
                     // The household book is reached from the notes (SPEC.md §13).
                     if (current == TopLevelDestination.Notes) {
                         IconButton(onClick = onOpenLedger) {
@@ -615,6 +618,7 @@ private fun TopLevelScaffold(
     ) { contentPadding ->
         when (current) {
             TopLevelDestination.Today -> TodayScreen(
+                today = checkNotNull(today),
                 routines = routines,
                 todos = todos,
                 notes = notes,

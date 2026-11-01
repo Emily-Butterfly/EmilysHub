@@ -77,13 +77,14 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 /**
- * Today's routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
+ * [today]'s routines and to-dos in the order they are due, the overdue to-dos at the top ([todayList]), to tick off, or
  * skip a routine (SPEC.md §1, Heute-Übersicht); above them, a warning while something the routines need from Android
  * is lacking, which leads to "Funktioniert alles?" ([onOpenStatus]); one while the last backup is over 30 days old or
  * failed, which leads to the backups ([onOpenBackups]); and the notes pinned here, which open with a tap ([onOpenNote]).
  */
 @Composable
 fun TodayScreen(
+    today: LocalDate,
     routines: Routines,
     todos: Todos,
     notes: Notes,
@@ -93,7 +94,6 @@ fun TodayScreen(
     onOpenBackups: () -> Unit,
     onOpenNote: (Long) -> Unit,
 ) {
-    val today = rememberToday(routines)
     // Looked at anew each minute, so that a to-do turning overdue moves to the top.
     val now = rememberNow(todos::now)
     val dueRoutines by remember(today) { routines.dueOn(today) }.collectAsState(initial = null)
@@ -247,8 +247,8 @@ private val TodayEntry.key: String
     }
 
 /**
- * Today's date, kept current while the screen shows: at midnight, on return to the app, and when the
- * phone's clock or time zone changes, after a flight for example.
+ * Today's date, kept current while Heute shows: at midnight, on return to the app, and when the phone's clock or time
+ * zone changes, after a flight for example. One for the whole of Heute, its list and its flame alike.
  */
 @Composable
 internal fun rememberToday(routines: Routines): LocalDate {
