@@ -144,7 +144,7 @@ class BackupsTest {
         // Version 16 had no wishes yet, nor notes, so there are none after the update either.
         assertEquals(Backup.Summary(routines = 2, todos = 2, wishes = 0, notes = 0, places = 2, tags = 2), backup.summary)
         val restored = everything()
-        val newer = WISH_TABLES + NOTE_TABLES + LEDGER_TABLES
+        val newer = tablesSince(16)
         assertEquals(made - newer, restored - newer)
         assertEquals(newer.map { emptyList<Any>() }, newer.map(restored::getValue))
     }
@@ -159,7 +159,7 @@ class BackupsTest {
 
         // Version 14 had no places for to-dos, nor their reminders: they start as an update would have left them.
         val restored = everything()
-        val newer = TODO_TABLES + WISH_TABLES + NOTE_TABLES + LEDGER_TABLES
+        val newer = tablesSince(14) + "todos"
         assertEquals(made - newer, restored - newer)
         assertEquals(emptyList<Any>(), restored.getValue("todo_places"))
         assertEquals(listOf("Milch kaufen", "Steuer machen"), runBlocking { app.todos.open().first() }.map { it.todo.title }.sorted())
@@ -512,7 +512,7 @@ class BackupsTest {
      * schema, so that a schema change needs nothing here.
      */
     private fun asOf(version: Int, content: JSONObject): JSONObject {
-        val layout = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() }.dataColumnsOf(version)
+        val layout = migration().dataColumnsOf(version)
         val tables = content.tables()
         tables.keys().asSequence().toList().filter { it !in layout }.forEach(tables::remove)
         for ((table, columns) in layout) {
@@ -521,6 +521,13 @@ class BackupsTest {
         }
         return content.put("schema", version)
     }
+
+    /** The tables of the app's data that came after [version], as Room exported its schemas. */
+    private fun tablesSince(version: Int): Set<String> = migration().let { schemas ->
+        schemas.dataColumnsOf(HubDatabase.VERSION).keys - schemas.dataColumnsOf(version).keys
+    }
+
+    private fun migration() = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() }
 
     private fun JSONObject.withoutColumns(table: String, vararg names: String) = apply {
         val columns = table(table).getJSONArray("columns")
@@ -553,13 +560,6 @@ class BackupsTest {
 
     private companion object {
         const val PASSWORD = "Flieder und Lila"
-        val TODO_TABLES = setOf("todos", "todo_places")
-        val WISH_TABLES = listOf("wishes", "wish_tags")
-        val LEDGER_TABLES = listOf(
-            "bookings", "ledger_categories", "recurring_bookings", "ledger_closed_months", "ledger_skipped", "ledger_closed_budgets",
-        )
-        val LINK_TABLES = listOf("note_routines", "note_todos", "note_goals")
-        val NOTE_TABLES = listOf("note_folders", "note_general_tab", "note_tabs", "note_tags", "notes") + LINK_TABLES
         const val FEW_ITERATIONS = 1_000
     }
 }

@@ -292,7 +292,7 @@ month-from-year logic was fixed twice.
 
 **Status:** done but for step 1, which stays as it is on purpose. `BackupMigration.dataColumnsOf(version)` reads the
 tables and columns of a version from the schema Room exported for it; `BackupLayoutTest` holds it, and that the
-current version's are the app's own database's, so that a schema not exported fails. `BackupsTest`'s `asOf(version, …)`
+current version's are the app's own database's, so that a schema in the assets that is not the database fails. `BackupsTest`'s `asOf(version, …)`
 replaces the 21 `asOfVersionN` by hand, and `BackupsOnDeviceTest` derives what version 16 had the same way. The
 checklist for a schema change is `docs/agents/schema-change.md`.
 

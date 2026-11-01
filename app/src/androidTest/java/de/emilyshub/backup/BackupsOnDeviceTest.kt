@@ -101,8 +101,8 @@ class BackupsOnDeviceTest {
     }
 
     /**
-     * [content] as version 16 made it, the first that made backups (SPEC.md §10): only the tables and columns it had, as
-     * Room exported its schema, so that a schema change needs nothing here.
+     * [content] as version 16 made it, the first that made backups (SPEC.md §10): only the tables and columns it had,
+     * as Room exported its schema, so that a schema change needs nothing here.
      */
     private fun asOfVersion16(content: JSONObject): JSONObject {
         val layout = BackupMigration(context) { FrameworkSQLiteOpenHelperFactory() }.dataColumnsOf(16)

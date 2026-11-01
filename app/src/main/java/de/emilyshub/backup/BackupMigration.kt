@@ -64,7 +64,9 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
      */
     internal fun dataColumnsOf(version: Int): Map<String, List<String>> =
         schemaOf(version).getJSONArray("entities").objects()
-            .associate { entity -> entity.getString("tableName") to entity.getJSONArray("fields").objects().map { it.getString("columnName") } }
+            .associate { entity ->
+                entity.getString("tableName") to entity.getJSONArray("fields").objects().map { it.getString("columnName") }
+            }
             .filterKeys { it != SETTINGS }
 
     /** The statements that lay out the tables, indices and views of the database of [version], as Room exported it. */
