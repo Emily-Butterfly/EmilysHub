@@ -12,6 +12,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.IntentCompat
@@ -38,7 +39,7 @@ fun ToneField(tone: Tone, tones: ToneLibrary, onChange: (Tone) -> Unit) {
             pick(pickerIntent(RingtoneManager.TYPE_ALL, title, (tone as? Tone.Of)?.uri?.toUri(), phoneDefault = null))
         },
     )
-    if (tone is Tone.Of && !tones.exists(tone.uri)) Problem(stringResource(R.string.tone_missing))
+    if (isMissing(tone, tones)) Problem(stringResource(R.string.tone_missing))
     if (tone != Tone.Standard) {
         TextButton(onClick = { onChange(Tone.Standard) }) { Text(stringResource(R.string.tone_reset)) }
     }
@@ -46,7 +47,8 @@ fun ToneField(tone: Tone, tones: ToneLibrary, onChange: (Tone) -> Unit) {
 
 /**
  * One of the default tones in the settings (SPEC.md §3), named [title]: the phone's own of its [kind], a
- * [RingtoneManager] type, as Android's choice of tones offers it first, or one of the phone's tones of that kind, or none.
+ * [RingtoneManager] type, as Android's choice of tones offers it first, or one of the phone's tones of that kind, or
+ * none.
  */
 @Composable
 fun DefaultToneSetting(title: String, kind: Int, tone: Tone, tones: ToneLibrary, onChange: (Tone) -> Unit) {
@@ -65,16 +67,24 @@ fun DefaultToneSetting(title: String, kind: Int, tone: Tone, tones: ToneLibrary,
         supportingContent = { Text(labelOf(tone, tones, standard = stringResource(R.string.tone_phone))) },
         modifier = Modifier.clickable { pick(pickerIntent(kind, title, existing, phoneDefault)) },
     )
-    if (tone is Tone.Of && !tones.exists(tone.uri)) Problem(stringResource(R.string.tone_missing_phone))
+    if (isMissing(tone, tones)) Problem(stringResource(R.string.tone_missing_phone))
 }
 
-/** "Lautlos", the tone's name, or [standard] for the default. */
+/** "Lautlos", the tone's name, or [standard] for the default; the name read once for each tone, not every frame. */
 @Composable
-private fun labelOf(tone: Tone, tones: ToneLibrary, standard: String): String = when (tone) {
-    Tone.Standard -> standard
-    Tone.Silent -> stringResource(R.string.tone_silent)
-    is Tone.Of -> tones.title(tone.uri) ?: stringResource(R.string.tone_unnamed)
+private fun labelOf(tone: Tone, tones: ToneLibrary, standard: String): String {
+    val name = remember(tone) { (tone as? Tone.Of)?.let { tones.title(it.uri) } }
+    return when (tone) {
+        Tone.Standard -> standard
+        Tone.Silent -> stringResource(R.string.tone_silent)
+        is Tone.Of -> name ?: stringResource(R.string.tone_unnamed)
+    }
 }
+
+/** Whether [tone] is one gone from the phone, looked up once for each tone, not every frame. */
+@Composable
+private fun isMissing(tone: Tone, tones: ToneLibrary): Boolean =
+    remember(tone) { tone is Tone.Of && !tones.exists(tone.uri) }
 
 /**
  * Opens Android's choice of tones with what it is asked for, and tells [onPicked] what was chosen: none for "Lautlos",

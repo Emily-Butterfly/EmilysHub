@@ -25,8 +25,8 @@ import java.time.Instant
  * area, the app also looks around every [LOOK_AROUND_EVERY] ([lookAround]), as long as [mayLookAround] says the
  * settings let it, so that arriving is noticed without a WLAN too.
  *
- * Each reminder plays its tone, or the default in the settings, once, on a channel of that tone ([Sounds]); a channel no
- * routine or to-do needs any more goes.
+ * Each reminder plays its tone, or the default in the settings, once, on a channel of that tone ([Sounds]); a
+ * channel no routine or to-do needs any more goes.
  *
  * It keeps how far it has reminded ("reminded-until" in [settings]) and sets the alarm for the first
  * reminder after that, not after now: so a reminder still comes if the alarm was set anew just as it was

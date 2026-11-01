@@ -33,8 +33,9 @@ import javax.crypto.KeyGenerator
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
- * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, the phone's tones in memory, a WLAN
- * the test connects to, a position the test sets, backups with a key derived quickly, and a folder for the nightly ones in memory.
+ * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, the phone's
+ * tones in memory, a WLAN the test connects to, a position the test sets, backups with a key derived quickly, and a
+ * folder for the nightly ones in memory.
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()

@@ -96,7 +96,10 @@ class Routines(
     /** The places the routine pops up at (SPEC.md §4); none: everywhere. */
     suspend fun placeIdsOf(routineId: Long): Set<Long> = withContext(io) { dao.placeIdsOf(routineId).toSet() }
 
-    /** The tones the routines have (SPEC.md §3), each once, for their reminders' channels. */
+    /**
+     * The tones the routines have (SPEC.md §3), each once, for their reminders' channels; archived ones too, as they may
+     * come back, unlike a to-do once done.
+     */
     suspend fun tones(): Set<Tone> = withContext(io) { dao.tones().toSet() }
 
     /** Whether an active routine is bound to a place, so that arriving at one matters. */

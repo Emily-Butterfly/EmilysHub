@@ -5,8 +5,8 @@ import de.emilyshub.todos.Todos
 import kotlinx.coroutines.flow.first
 
 /**
- * What sounds for a reminder (SPEC.md §3): its tone, or the default for its kind in the settings, as [defaults] has them
- * now, and the phone's own where a tone is missing from [tones]. The reminders ask while the app may be closed.
+ * What sounds for a reminder (SPEC.md §3): its tone, or the default for its kind in the settings, as [defaults] has
+ * them now, and the phone's own where a tone is missing from [tones]. The reminders ask while the app may be closed.
  */
 class Sounds(
     private val tones: ToneLibrary,

@@ -43,8 +43,8 @@ import java.time.LocalTime
 fun launchApp(): ActivityScenario<MainActivity> = ActivityScenario.launch(MainActivity::class.java)
 
 /**
- * Answers the app's request to Android's choice of tones, which it opened last, with [picked]: a tone's address, or none
- * for "Lautlos". Returns the request, as the app made it.
+ * Answers the app's request to Android's choice of tones, which it opened last, with [picked]: a tone's address, or
+ * none for "Lautlos". Returns the request, as the app made it.
  */
 fun ActivityScenario<MainActivity>.pickTone(picked: Uri?): Intent {
     var request: Intent? = null

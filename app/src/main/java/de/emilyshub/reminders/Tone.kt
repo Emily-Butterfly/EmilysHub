@@ -28,27 +28,36 @@ sealed interface Tone : Serializable {
         }
 
     companion object {
-        /** The one [stored]; anything but a content address the phone's tones have counts as the default (SPEC.md §9). */
+        /**
+         * The one [stored]; anything but an address Android's choice of tones gives, of the phone's media or of an app's
+         * resources, counts as the default (SPEC.md §9).
+         */
         fun of(stored: String?): Tone = when {
             stored == SILENT -> Silent
-            stored != null && stored.startsWith(CONTENT) -> Of(stored)
+            stored != null && TONE_SCHEMES.any(stored::startsWith) -> Of(stored)
             else -> Standard
         }
 
         private const val SILENT = "silent"
-        private const val CONTENT = "content://"
+        private val TONE_SCHEMES = listOf("content://", "android.resource://")
     }
 }
 
-/** The defaults in the settings (SPEC.md §3): one for full-screen alarms and one for notifications, at first the phone's own. */
+/**
+ * The defaults in the settings (SPEC.md §3): one for full-screen alarms and one for notifications, at first the phone's
+ * own. Kept on the device, as all settings are, not in backups.
+ */
 data class DefaultTones(val alarm: Tone = Tone.Standard, val notification: Tone = Tone.Standard)
 
 /** What sounds in the end: the phone's own tone of the kind, nothing, or the tone at [Of.uri]. */
 sealed interface Sound {
+    /** The phone's own alarm or notification tone, as Android's settings have it. */
     data object PhoneDefault : Sound
 
+    /** Nothing: an alarm only vibrates. */
     data object Silent : Sound
 
+    /** The tone at [uri], one that is there. */
     data class Of(val uri: String) : Sound
 }
 
@@ -67,13 +76,14 @@ fun soundOf(tone: Tone, default: Tone, exists: (String) -> Boolean): Sound {
 
 /** The tones on the phone: whether one is still there, and its name, as Android's choice of tones shows it. */
 interface ToneLibrary {
+    /** Whether the tone at [uri] is on the phone; not once deleted, or on another phone. */
     fun exists(uri: String): Boolean
 
     /** Its name; none if it cannot be read. */
     fun title(uri: String): String?
 }
 
-/** The phone's own tones, read through Android. */
+/** The phone's own tones, read through Android, which reads them from storage: not for every frame of the UI. */
 class PhoneTones(private val context: Context) : ToneLibrary {
     override fun exists(uri: String): Boolean = runCatching {
         context.contentResolver.openAssetFileDescriptor(uri.toUri(), "r")?.use { true } ?: false

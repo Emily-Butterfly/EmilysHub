@@ -40,7 +40,8 @@ import java.time.Duration
  * the screen is not time in the app. Routines and to-dos take turns in it alike. Not exported: only the reminder opens
  * it, with its full-screen intent or when it is tapped.
  *
- * Like an alarm clock, it rings, with the tone of the newest ([Sounds.alarmOf]), and keeps the screen on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
+ * Like an alarm clock, it rings with the tone of the one it shows, the newest ([Sounds.alarmOf]), and keeps the screen
+ * on when an alarm comes, for at most [AlarmRinger.LIMIT]; opened
  * by a tap on the reminder, it only rings on if the alarm rings already in the background ([AlarmRingService]).
  * Answering the reminder, here or anywhere else, closing the alarm or leaving it for longer than
  * [LEAVE_GRACE], say with the power button or for a call, silences it until the next alarm.

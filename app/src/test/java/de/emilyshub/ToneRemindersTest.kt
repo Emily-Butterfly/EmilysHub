@@ -167,6 +167,20 @@ class ToneRemindersTest {
     }
 
     @Test
+    fun `the quiet channel stays once the alarm is answered, so that it is not made anew for every alarm, and vibrates`() {
+        app.fullScreenAlarmsAllowed = true
+        app.routine("Arzttermin", "07:30", fullScreen = true)
+        goOffAt("2026-10-23T07:30")
+        val quiet = channelOf(reminder("Arzttermin"))
+
+        reminder("Arzttermin").actions.single { it.title == "Erledigt" }.actionIntent.send()
+        idle()
+
+        assertTrue(quiet.id in channelIds())
+        assertTrue(quiet.shouldVibrate())
+    }
+
+    @Test
     fun `a full-screen alarm whose tone is gone plays the phone's own alarm tone, as the default is at first`() {
         app.fullScreenAlarmsAllowed = true
         app.todo("Arzt anrufen", Due.At(today, LocalTime.of(9, 0)), fullScreen = true, tone = morning)

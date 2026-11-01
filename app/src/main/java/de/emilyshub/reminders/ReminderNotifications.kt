@@ -129,13 +129,16 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
      * reminders on the screen, which would go with them.
      */
     fun tidyChannels(inUse: Collection<Sound>) {
-        val keep = inUse.map(::channelIdOf).toSet() + manager.activeNotifications.map { it.notification.channelId }
+        // The quiet one too, which every ringing full-screen alarm comes on: made anew for each, Android would count it
+        // deleted each time, and bring it back as it was then.
+        val kept = (inUse + Sound.Silent).map(::channelIdOf)
+        val keep = kept.toSet() + manager.activeNotifications.map { it.notification.channelId }
         manager.notificationChannels
             .filter { it.id.startsWith(TONE_CHANNEL_PREFIX) && it.id !in keep }
             .forEach { manager.deleteNotificationChannel(it.id) }
     }
 
-    /** The channel a reminder of [tone] comes on, made if need be: the quiet one for a [fullScreen] alarm that rings. */
+    /** The channel a reminder of [tone] comes on, made if need be; the quiet one for a [fullScreen] alarm that rings. */
     private suspend fun channelFor(fullScreen: Boolean, tone: Tone): String {
         val sound = if (fullScreen && context.fullScreenAlarmsAllowed()) Sound.Silent else sounds.notification(tone)
         manager.createNotificationChannel(channel(sound))
@@ -156,7 +159,11 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             // The phone's own notification tone, as a channel has it unless told otherwise.
             when (sound) {
                 Sound.PhoneDefault -> Unit
-                Sound.Silent -> setSound(null, null)
+                // Without a sound, Android vibrates only if the channel says so; a ringing alarm vibrates by itself too.
+                Sound.Silent -> {
+                    setSound(null, null)
+                    enableVibration(true)
+                }
                 is Sound.Of -> setSound(sound.uri.toUri(), NOTIFICATION_AUDIO)
             }
         }
@@ -260,8 +267,8 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     }
 
     /**
-     * What every reminder has: its [title] and [text], on the lock screen only its [public] version, with the sound of its
-     * [channel] only if it [alert]s.
+     * What every reminder has: its [title] and [text], on the lock screen only its [public] version, with the sound of
+     * its [channel] only if it [alert]s.
      */
     private fun builder(
         channel: String,
@@ -336,6 +343,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         /** The channels of tones of their own, and of no sound; the usual one does not start so. */
         const val TONE_CHANNEL_PREFIX = "$REMINDER_CHANNEL-"
 
+        /** How a notification's tone plays: as a notification, at its volume. */
         val NOTIFICATION_AUDIO: AudioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_NOTIFICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)

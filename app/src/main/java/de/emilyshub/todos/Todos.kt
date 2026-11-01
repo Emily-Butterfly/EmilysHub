@@ -240,7 +240,7 @@ class Todos(
         popUp(arrived.filter { waitsFromDueOrWake(it.todo, now) }, now)
     }
 
-    /** The tones the open to-dos have (SPEC.md §3), each once, for their reminders' channels; a done one reminds no more. */
+    /** The tones the open to-dos have (SPEC.md §3), each once, for their channels; a done one reminds no more. */
     suspend fun tones(): Set<Tone> = withContext(io) { dao.openTones().toSet() }
 
     /** Whether an open to-do waits for its places, so that arriving at one matters. */

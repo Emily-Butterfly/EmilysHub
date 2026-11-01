@@ -17,7 +17,14 @@ class ToneTest {
     }
 
     @Test
-    fun `anything stored but a content address counts as the default`() {
+    fun `a tone the phone has as a resource of an app counts as a tone too`() {
+        val chime = "android.resource://com.android.sounds/raw/chime"
+
+        assertEquals(Tone.Of(chime), Tone.of(chime))
+    }
+
+    @Test
+    fun `anything stored but an address of the phone's tones counts as the default`() {
         assertEquals(Tone.Standard, Tone.of("file:///sdcard/tone.mp3"))
         assertEquals(Tone.Standard, Tone.of("Morgentau"))
         assertEquals(Tone.Standard, Tone.of(null))
