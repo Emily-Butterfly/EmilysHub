@@ -534,3 +534,11 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `reminds_at_wake_time` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/** Version 35: a routine or to-do can show its name on the lock screen (SPEC.md §3, §9, #38). None does yet. */
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `name_on_lock_screen` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `name_on_lock_screen` INTEGER NOT NULL DEFAULT 0")
+    }
+}

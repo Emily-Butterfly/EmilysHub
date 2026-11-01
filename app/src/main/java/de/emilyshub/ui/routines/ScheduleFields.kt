@@ -289,6 +289,31 @@ fun FullScreenField(fullScreen: Boolean, onChange: (Boolean) -> Unit) {
 }
 
 /**
+ * Whether the lock screen shows the routine's or to-do's name and time in its reminders and alarm, not only that one is
+ * due (SPEC.md §3, §9); off at first, and saying that anyone can read it on the locked phone then.
+ */
+@Composable
+fun NameOnLockScreenField(nameOnLockScreen: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = nameOnLockScreen, role = Role.Switch, onValueChange = onChange)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.name_on_lock_screen), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.name_on_lock_screen_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = nameOnLockScreen, onCheckedChange = null)
+    }
+}
+
+/**
  * How long an occurrence can be caught up on before it is missed (SPEC.md §2): a number of hours, or until
  * midnight, when there are no hours to choose.
  */

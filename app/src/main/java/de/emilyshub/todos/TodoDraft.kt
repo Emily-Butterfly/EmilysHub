@@ -51,6 +51,8 @@ data class TodoDraft(
     val fullScreen: Boolean = false,
     /** When it wakes besides when it is due, if it does (SPEC.md §5); some days before only with a [due] day, left out without. */
     val wake: WakeTime? = null,
+    /** Whether the lock screen shows its title and when it is due, not only that a reminder is due (SPEC.md §3). */
+    val nameOnLockScreen: Boolean = false,
 ) : Serializable {
 
     val problems: Set<TodoProblem>
@@ -113,6 +115,7 @@ data class TodoDraft(
             seriesNumber = seriesNumber,
             showsDaysBefore = showsDaysBefore,
             fullScreen = fullScreen,
+            nameOnLockScreen = nameOnLockScreen,
         ).withWake(wake)
 
     companion object {
@@ -127,5 +130,5 @@ data class TodoDraft(
 /** The to-do with its [checklist], [tagIds] and [placeIds] as the editor starts out with it. */
 fun Todo.toDraft(checklist: List<TodoChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = TodoDraft(
     title, description, due, priority, checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, recurrence,
-    end, showsDaysBefore, fullScreen, wake,
+    end, showsDaysBefore, fullScreen, wake, nameOnLockScreen,
 )

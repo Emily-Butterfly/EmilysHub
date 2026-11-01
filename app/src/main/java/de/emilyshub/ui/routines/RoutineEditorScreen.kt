@@ -257,6 +257,7 @@ fun RoutineEditorScreen(
             }
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
             FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
+            NameOnLockScreenField(draft.nameOnLockScreen, onChange = { draft = draft.copy(nameOnLockScreen = it) })
             TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
             if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId), onOpen = onOpenNote)
         }

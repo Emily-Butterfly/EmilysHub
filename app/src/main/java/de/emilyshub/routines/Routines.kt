@@ -444,7 +444,8 @@ class Routines(
     private fun reminderOf(of: OccurrenceOfRoutine): Reminder {
         val (occurrence, routine) = of
         val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
-        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, routine.windowEnd(occurrence, clock.zone))
+        val windowEnd = routine.windowEnd(occurrence, clock.zone)
+        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, windowEnd, routine.nameOnLockScreen)
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {

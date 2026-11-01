@@ -27,7 +27,8 @@ import java.time.LocalDate
  * "Später" the choice when to come back, "10 Min. · 30 Min. · 1 Std.", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
- * the content of notifications there; an app cannot make that choice for the user. A routine with a
+ * the content of notifications there; an app cannot make that choice for the user. A routine or to-do that allows its
+ * name there shows its name and time in the public version instead, still without actions, and never more of it. A routine with a
  * full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
  * One notification per occurrence, tagged with its id. A to-do's reminder offers "Erledigt · Später" only, as a to-do
  * is never skipped (SPEC.md §5), and is tagged with the to-do's id; one with a full-screen alarm fills the screen too.
@@ -123,10 +124,14 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         }
     }
 
-    /** What the lock screen shows of a reminder while Android hides the content of notifications there. */
-    private fun publicVersion() = Notification.Builder(context, REMINDER_CHANNEL)
+    /**
+     * What the lock screen shows of a reminder while Android hides the content of notifications there: "Erinnerung
+     * fällig", or the [title] and [text] of one that allows them there (SPEC.md §3, §9). Never its actions.
+     */
+    private fun publicVersion(title: String? = null, text: String? = null) = Notification.Builder(context, REMINDER_CHANNEL)
         .setSmallIcon(R.drawable.ic_notification)
-        .setContentTitle(context.getString(R.string.reminder_public))
+        .setContentTitle(title ?: context.getString(R.string.reminder_public))
+        .setContentText(text)
         .setCategory(Notification.CATEGORY_REMINDER)
         .build()
 
@@ -135,6 +140,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         // Only what comes back before the time window ends, and "Heute nicht" after it: Android shows three actions at most,
         // so two times at most. With no time left, "Später" still offers "Heute nicht".
         val choices = reminder.putOffChoices(clock.instant()).take(2)
+        val dueAt = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
         val text: String
         val actions: List<Notification.Action>
         if (offeringPutOff) {
@@ -142,14 +148,15 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
             actions = putOffActions(choices, about) +
                 action(context.getString(R.string.reminder_drop), ReminderReceiver.ACTION_DROP, about)
         } else {
-            text = context.getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
+            text = dueAt
             actions = listOf(
                 action(context.getString(R.string.reminder_done), ReminderReceiver.ACTION_DONE, about),
                 action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
                 action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
             )
         }
-        return builder(reminder.name, text, alert, offeringPutOff)
+        val public = if (reminder.nameOnLockScreen) publicVersion(reminder.name, dueAt) else publicVersion()
+        return builder(reminder.name, text, alert, offeringPutOff, public)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
             .asAlarmIf(reminder.fullScreen, Alarmed.Occurrence(reminder.occurrenceId), alert, otherwise = openApp())
@@ -172,7 +179,13 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
                 action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
             )
         }
-        return builder(reminder.title, text, alert, offeringPutOff)
+        // When it is due, but not where: its places stay off the lock screen.
+        val public = if (reminder.nameOnLockScreen) {
+            publicVersion(reminder.title, context.resources.lockScreenText(reminder, LocalDate.now(clock)))
+        } else {
+            publicVersion()
+        }
+        return builder(reminder.title, text, alert, offeringPutOff, public)
             // Tapped, it opens the app, or its alarm, and stays up: a to-do waits until it is done.
             .asAlarmIf(reminder.fullScreen, Alarmed.Todo(reminder.todoId), alert, otherwise = openApp())
             .setAutoCancel(false)
@@ -201,14 +214,23 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         return this
     }
 
-    /** What every reminder has: its [title] and [text], hidden on the lock screen, with a sound only if it [alert]s. */
-    private fun builder(title: String, text: String?, alert: Boolean, offeringPutOff: Boolean): Notification.Builder =
+    /**
+     * What every reminder has: its [title] and [text], on the lock screen only its [public] version, with a sound only if
+     * it [alert]s.
+     */
+    private fun builder(
+        title: String,
+        text: String?,
+        alert: Boolean,
+        offeringPutOff: Boolean,
+        public: Notification,
+    ): Notification.Builder =
         Notification.Builder(context, REMINDER_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .setPublicVersion(publicVersion())
+            .setPublicVersion(public)
             .setAutoCancel(true)
             .setOnlyAlertOnce(!alert)
             .addExtras(Bundle().apply { putBoolean(EXTRA_OFFERING_PUT_OFF, offeringPutOff) })
@@ -272,7 +294,14 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
  * on [today]; without a due, the places it reminds at, if it still has any.
  */
 fun Resources.reminderText(reminder: TodoReminder, today: LocalDate): String? =
-    dueText(reminder.due, today)?.let { getString(R.string.todo_due_label, it) } ?: placesLabel(reminder.places)
+    lockScreenText(reminder, today) ?: placesLabel(reminder.places)
+
+/**
+ * What the lock screen shows of a to-do's reminder besides its title, where it allows that (SPEC.md §3): when it is due,
+ * as [reminderText] says it on [today], but never where; none without a due.
+ */
+fun Resources.lockScreenText(reminder: TodoReminder, today: LocalDate): String? =
+    dueText(reminder.due, today)?.let { getString(R.string.todo_due_label, it) }
 
 /** One of the choices "Später" offers: "10 Min.", or "1 Std." for whole hours. */
 fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 60) {

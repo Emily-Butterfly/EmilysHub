@@ -80,6 +80,8 @@ data class Todo(
     @ColumnInfo(name = "wake_date") val wakeDate: LocalDate? = null,
     /** The time it wakes at, if it wakes at all besides when it is due (SPEC.md §5); see [wake]. */
     @ColumnInfo(name = "wake_time") val wakeTime: LocalTime? = null,
+    /** Whether the lock screen shows its title and when it is due in its reminders and alarm (SPEC.md §3, §9); never more. */
+    @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
 ) {
     /** How it wakes, from [wakeDaysBefore], [wakeDate] and [wakeTime]; none if it does not. */
     val wake: WakeTime?
@@ -216,7 +218,7 @@ data class TodoWithDetails(
     val seenAway: Boolean get() = todo.reminding.away
 
     /** Its reminder, as it pops up. */
-    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen)
+    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen, todo.nameOnLockScreen)
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
     fun checklist(): List<ChecklistEntry> = checklistItems.sortedBy { it.position }.map {
@@ -244,10 +246,17 @@ data class DueTodo(
 )
 
 /**
- * A to-do to remind of (SPEC.md §3): its [title], when it is [due], the names of the [places] it reminds at, and whether
- * it comes as a [fullScreen] alarm.
+ * A to-do to remind of (SPEC.md §3): its [title], when it is [due], the names of the [places] it reminds at, whether
+ * it comes as a [fullScreen] alarm, and whether the lock screen may show its title and when it is due, [nameOnLockScreen].
  */
-data class TodoReminder(val todoId: Long, val title: String, val due: Due, val places: List<String>, val fullScreen: Boolean = false)
+data class TodoReminder(
+    val todoId: Long,
+    val title: String,
+    val due: Due,
+    val places: List<String>,
+    val fullScreen: Boolean = false,
+    val nameOnLockScreen: Boolean = false,
+)
 
 /** How the To-dos list is ordered (SPEC.md §5): by when they are due, or by priority. */
 enum class TodoOrder(val comparator: Comparator<TodoWithDetails>) {

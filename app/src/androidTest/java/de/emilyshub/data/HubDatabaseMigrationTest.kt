@@ -753,6 +753,32 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 34 moves to version 35 where no routine or to-do shows its name on the lock screen and then one can`() {
+        createAtVersion(34) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, planned_from) " +
+                    "VALUES (1, 'Vitamine', '', '07:30', 'daily', '2026-10-23T06:00:00Z')",
+            )
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, reminds_at_due_time, waiting, away, series_number, " +
+                    "full_screen, reminds_at_wake_time) VALUES (1, 'Arzt anrufen', '', 'normal', 0, 0, 0, 1, 0, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val vitamins = checkNotNull(database.routines().get(1))
+            val call = checkNotNull(database.todos().get(1))
+            assertEquals(false, vitamins.nameOnLockScreen)
+            assertEquals(false, call.nameOnLockScreen)
+
+            database.routines().update(vitamins.copy(nameOnLockScreen = true))
+            database.todos().update(call.copy(nameOnLockScreen = true))
+            assertEquals(true, database.routines().get(1)?.nameOnLockScreen)
+            assertEquals(true, database.todos().get(1)?.nameOnLockScreen)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

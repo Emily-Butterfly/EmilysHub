@@ -222,6 +222,22 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before names on the lock screen loads with them off, and a backup now keeps them`() {
+        app.routine("Arzttermin", "07:30", nameOnLockScreen = true)
+        app.todo("Arzt anrufen", nameOnLockScreen = true)
+        val now = exported()
+        val older = sealed(asOfVersion34(contentOf(now)))
+
+        restore(now)
+        assertEquals(listOf(true), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
+        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.nameOnLockScreen })
+
+        restore(older)
+        assertEquals(listOf(false), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
+        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.nameOnLockScreen })
+    }
+
+    @Test
     fun `a backup of an older app version that does not fit how the data were laid out then is damaged`() {
         someOfEverything()
         // The data of this version, said to be of the one before: the wishes are tables too many for then.
@@ -557,7 +573,11 @@ class BackupsTest {
 
     /** [content] as version 33 made it: without wake times for to-dos, which came with 34. */
     private fun asOfVersion33(content: JSONObject): JSONObject =
-        content.withoutColumns("todos", "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time").put("schema", 33)
+        asOfVersion34(content).withoutColumns("todos", "wake_days_before", "wake_date", "wake_time", "reminds_at_wake_time").put("schema", 33)
+
+    /** [content] as version 34 made it: without names on the lock screen, which came with 35. */
+    private fun asOfVersion34(content: JSONObject): JSONObject =
+        content.withoutColumns("routines", "name_on_lock_screen").withoutColumns("todos", "name_on_lock_screen").put("schema", 34)
 
     /**
      * [content] as version 14 would have made it, had it made backups: also the to-dos without their reminders and

@@ -49,6 +49,8 @@ data class RoutineDraft(
     val target: RoutineTarget? = null,
     /** Its last day, if it ends; none for one due once. */
     val endsOn: LocalDate? = null,
+    /** Whether the lock screen shows its name and time, not only that a reminder is due (SPEC.md §3). */
+    val nameOnLockScreen: Boolean = false,
 ) : Serializable {
 
     /** Its [problems], and an end before [today], which is no longer to come. */
@@ -95,7 +97,10 @@ data class RoutineDraft(
 
     /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
     fun toRoutine(id: Long = 0, plannedFrom: Instant, status: RoutineStatus = RoutineStatus.Active) =
-        Routine(id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target, endsOn)
+        Routine(
+            id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target, endsOn,
+            nameOnLockScreen,
+        )
 
     companion object {
         const val NAME_MAX = 80
@@ -121,5 +126,5 @@ data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable
 /** The routine with its [checklist], tags and places as the editor starts out with it. */
 fun Routine.toDraft(checklist: List<ChecklistItem>, tagIds: Set<Long>, placeIds: Set<Long>) = RoutineDraft(
     name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, nameOnLockScreen,
 )

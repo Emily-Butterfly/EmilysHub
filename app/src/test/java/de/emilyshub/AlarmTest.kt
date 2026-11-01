@@ -75,6 +75,27 @@ class AlarmTest {
     }
 
     @Test
+    fun `allowed, the locked alarm shows the routine's name and time, still only with unlock and close`() {
+        app.routine("Zahnarzt", "07:45", fullScreen = true, nameOnLockScreen = true)
+        goOffAt("2026-10-23T07:45")
+        keyguard.setKeyguardLocked(true)
+
+        openAlarm("Zahnarzt").use {
+            compose.onNodeWithText("Zahnarzt").assertIsDisplayed()
+            compose.onNodeWithText("Fällig um 07:45").assertIsDisplayed()
+            compose.onNodeWithText("Erinnerung fällig").assertDoesNotExist()
+            listOf("Entsperren", "Schließen").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            listOf("Erledigt", "Später", "Überspringen", "Heute nicht").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+
+            keyguard.setKeyguardLocked(false)
+            app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+            idle()
+
+            listOf("Erledigt", "Später", "Überspringen", "Heute nicht").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+        }
+    }
+
+    @Test
     fun `once the phone is unlocked from the alarm, it shows the routine and its actions`() {
         keyguard.setKeyguardLocked(true)
 

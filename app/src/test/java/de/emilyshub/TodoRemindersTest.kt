@@ -105,6 +105,42 @@ class TodoRemindersTest {
     }
 
     @Test
+    fun `allowed, the lock screen shows the to-do's title and when it is due, but never more of it, nor actions`() {
+        app.todo(
+            "Arzt anrufen", due = Due.At(today, LocalTime.of(9, 0)), nameOnLockScreen = true,
+            description = "Wegen der Überweisung", checklist = listOf("Karte bereitlegen"),
+        )
+
+        goOffAt("2026-10-23T09:00")
+
+        val reminder = reminders().single()
+        assertEquals("Arzt anrufen", reminder.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Fällig: heute, 09:00", reminder.publicVersion.extras.getString(Notification.EXTRA_TEXT))
+        assertTrue(reminder.publicVersion.actions.isNullOrEmpty())
+        assertTrue(reminder.actions.all { it.isAuthenticationRequired })
+
+        tap("Später")
+        val choice = reminders().single()
+        assertEquals("Arzt anrufen", choice.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertTrue(choice.publicVersion.actions.isNullOrEmpty())
+        assertTrue(choice.actions.all { it.isAuthenticationRequired })
+    }
+
+    @Test
+    fun `allowed for a to-do bound to a place without a time, the lock screen shows its title but not the place`() {
+        val home = app.place("Zuhause", "FritzBox")
+        app.todo("Post", places = setOf(home), nameOnLockScreen = true)
+
+        app.clock.now = berlin("2026-10-23T18:00")
+        app.wifi.ssid = "FritzBox"
+        arrive()
+
+        val reminder = reminders().single()
+        assertEquals("Post", reminder.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals(null, reminder.publicVersion.extras.getString(Notification.EXTRA_TEXT))
+    }
+
+    @Test
     fun `bound to a place, it pops up at its time there, and elsewhere on arriving there`() {
         val home = app.place("Zuhause", "FritzBox")
         app.todo("Pakete", due = Due.At(today, LocalTime.of(9, 0)), places = setOf(home))

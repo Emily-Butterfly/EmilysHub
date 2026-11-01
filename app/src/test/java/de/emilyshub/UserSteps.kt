@@ -63,10 +63,11 @@ fun TestApplication.routine(
     goal: Long? = null,
     target: RoutineTarget? = null,
     endsOn: LocalDate? = null,
+    nameOnLockScreen: Boolean = false,
 ): Long = runBlocking {
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, nameOnLockScreen,
     )
     routines.create(draft)
 }
@@ -94,10 +95,19 @@ fun TestApplication.todo(
     showsDaysBefore: Int? = null,
     fullScreen: Boolean = false,
     wake: WakeTime? = null,
+    nameOnLockScreen: Boolean = false,
+    description: String = "",
 ): Long = runBlocking {
     val items = checklist.map { ChecklistDraftItem(text = it) }
-    val draft = TodoDraft(title, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal)
-    todos.create(draft.copy(recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen, wake = wake))
+    val draft = TodoDraft(
+        title, description, due = due, priority = priority, checklist = items, tagIds = tags, placeIds = places, goalId = goal,
+    )
+    todos.create(
+        draft.copy(
+            recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen, wake = wake,
+            nameOnLockScreen = nameOnLockScreen,
+        ),
+    )
 }
 
 /** A tag, set up before the test opens the app. */

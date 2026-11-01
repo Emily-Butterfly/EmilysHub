@@ -151,6 +151,21 @@ class TodosScreenTest {
     }
 
     @Test
+    fun `a to-do can show its title on the lock screen, off at first, which says anyone can see it then`() {
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            field("Titel").performTextInput("Arzt anrufen")
+            nameOnLockScreen().performScrollTo().assertIsOff()
+            compose.onNodeWithText("jeder", substring = true).assertIsDisplayed()
+
+            nameOnLockScreen().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.nameOnLockScreen } })
+    }
+
+    @Test
     fun `a to-do can ring as a full-screen alarm, off at first, which says it rings only on arrival without a time`() {
         app.fullScreenAlarmsAllowed = true
 
@@ -373,6 +388,8 @@ class TodosScreenTest {
     /** A chip of the tag filter, not the tags shown with a to-do. */
     private fun chip(label: String) =
         compose.onNode(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
+
+    private fun nameOnLockScreen() = compose.onNode(isToggleable() and hasText("Name auf dem Sperrbildschirm zeigen"))
 
     private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
 

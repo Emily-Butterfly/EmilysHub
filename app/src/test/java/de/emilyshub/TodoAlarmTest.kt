@@ -121,6 +121,43 @@ class TodoAlarmTest {
     }
 
     @Test
+    fun `allowed, the locked alarm shows the to-do's title and when it is due, still only with unlock and close`() {
+        app.todo("Arzt anrufen", Due.At(today, LocalTime.of(9, 0)), fullScreen = true, nameOnLockScreen = true)
+        goOffAt("2026-10-23T09:00")
+        keyguard.setKeyguardLocked(true)
+
+        openAlarm("Arzt anrufen").use {
+            compose.onNodeWithText("Arzt anrufen").assertIsDisplayed()
+            compose.onNodeWithText("Fällig: heute, 09:00").assertIsDisplayed()
+            compose.onNodeWithText("Erinnerung fällig").assertDoesNotExist()
+            listOf("Entsperren", "Schließen").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            listOf("Erledigt", "Später").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        }
+    }
+
+    @Test
+    fun `allowed for a to-do without a time, the locked alarm shows its title but never the places it rings at`() {
+        val connectivity = shadowOf(app.getSystemService(ConnectivityManager::class.java))
+        val home = app.place("Zuhause", "FritzBox")
+        app.todo("Post", places = setOf(home), fullScreen = true, nameOnLockScreen = true)
+        app.wifi.ssid = "Firma"
+        idle()
+
+        app.clock.now = berlin("2026-10-23T18:00")
+        app.wifi.ssid = "FritzBox"
+        connectivity.networkCallbackPendingIntents.single().send()
+        idle()
+        goOffAt("2026-10-23T18:00")
+        keyguard.setKeyguardLocked(true)
+
+        openAlarm("Post").use {
+            compose.onNodeWithText("Post").assertIsDisplayed()
+            compose.onNodeWithText("Zuhause", substring = true).assertDoesNotExist()
+            listOf("Entsperren", "Schließen").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+        }
+    }
+
+    @Test
     fun `unlocked, the alarm shows the to-do with only done and later, and on the lock screen only that one is due`() {
         app.todo("Arzt anrufen", Due.At(today, LocalTime.of(9, 0)), fullScreen = true)
         goOffAt("2026-10-23T09:00")
@@ -222,6 +259,15 @@ class TodoAlarmTest {
         val next = runBlocking { app.todos.open().first() }.single().todo
         assertEquals(today.plusDays(1), next.dueDate)
         assertTrue(next.fullScreen)
+    }
+
+    @Test
+    fun `the next of a series shows its title on the lock screen too, if allowed`() {
+        val id = app.todo("Blumen", Due.At(today, LocalTime.of(9, 0)), recurrence = Recurrence.Daily, nameOnLockScreen = true)
+
+        runBlocking { app.todos.markDone(id) }
+
+        assertTrue(runBlocking { app.todos.open().first() }.single().todo.nameOnLockScreen)
     }
 
     private fun assertRings() {

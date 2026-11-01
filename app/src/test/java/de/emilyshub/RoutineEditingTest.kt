@@ -312,6 +312,21 @@ class RoutineEditingTest {
     }
 
     @Test
+    fun `a routine can show its name on the lock screen, which is off by default and says anyone can see it then`() {
+        launchApp().use {
+            newRoutine("Arzttermin")
+            nameOnLockScreen().performScrollTo().assertIsOff()
+            compose.onNodeWithText("jeder", substring = true).assertIsDisplayed()
+
+            nameOnLockScreen().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(true, savedRoutines().single().nameOnLockScreen)
+    }
+
+    @Test
     fun `a routine can sound a full-screen alarm instead, which is off by default`() {
         app.fullScreenAlarmsAllowed = true
 
@@ -611,6 +626,8 @@ class RoutineEditingTest {
 
 
     private fun untilMidnight() = compose.onNode(isToggleable() and hasText("Bis Mitternacht"))
+
+    private fun nameOnLockScreen() = compose.onNode(isToggleable() and hasText("Name auf dem Sperrbildschirm zeigen"))
 
     private fun fullScreenAlarm() = compose.onNode(isToggleable() and hasText("Vollbild-Alarm"))
 

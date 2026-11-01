@@ -58,6 +58,8 @@ data class Routine(
     val target: RoutineTarget? = null,
     /** Its last day, if it ends (SPEC.md §2): due on none after; once that day is over, it goes to the archive. */
     @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
+    /** Whether the lock screen shows its name and time in its reminders and alarm, not only that one is due (SPEC.md §3, §9). */
+    @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
     fun timesOn(date: LocalDate): List<LocalTime> =
@@ -157,7 +159,7 @@ data class RoutineWithOutcomes(
 
 /**
  * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
- * [fullScreen] alarm, and when its time window ends.
+ * [fullScreen] alarm, when its time window ends, and whether the lock screen may show its name, [nameOnLockScreen].
  */
 data class Reminder(
     val occurrenceId: Long,
@@ -165,6 +167,7 @@ data class Reminder(
     val dueAt: ZonedDateTime,
     val fullScreen: Boolean,
     val windowEnd: Instant,
+    val nameOnLockScreen: Boolean = false,
 )
 
 /**

@@ -90,6 +90,35 @@ class RemindersTest {
     }
 
     @Test
+    fun `allowed, the lock screen shows the routine's name and time in every reminder of it, still without actions`() {
+        app.routine("Arzttermin", "07:30", nameOnLockScreen = true)
+
+        goOffAt("2026-10-23T07:30")
+
+        val reminder = reminders().single()
+        assertEquals("Arzttermin", reminder.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Fällig um 07:30", reminder.publicVersion.extras.getString(Notification.EXTRA_TEXT))
+        assertTrue(reminder.publicVersion.actions.isNullOrEmpty())
+        assertTrue(reminder.actions.all { it.isAuthenticationRequired })
+
+        goOffAt("2026-10-23T08:00")
+        val followUp = reminders().single()
+        assertEquals("Arzttermin", followUp.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Fällig um 07:30", followUp.publicVersion.extras.getString(Notification.EXTRA_TEXT))
+
+        tap("Später")
+        val choice = reminders().single()
+        assertEquals("Arzttermin", choice.publicVersion.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Fällig um 07:30", choice.publicVersion.extras.getString(Notification.EXTRA_TEXT))
+        assertTrue(choice.publicVersion.actions.isNullOrEmpty())
+        assertTrue(choice.actions.all { it.isAuthenticationRequired })
+
+        tap("10 Min.")
+        goOffAt("2026-10-23T08:10")
+        assertEquals("Arzttermin", reminders().single().publicVersion.extras.getString(Notification.EXTRA_TITLE))
+    }
+
+    @Test
     fun `routines due at the same time each get a reminder of their own`() {
         app.routine("Vitamine", "07:30")
         app.routine("Lüften", "07:30")

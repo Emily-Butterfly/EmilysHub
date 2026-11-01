@@ -68,6 +68,7 @@ import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.routines.FullScreenField
+import de.emilyshub.ui.routines.NameOnLockScreenField
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
@@ -250,6 +251,7 @@ fun TodoEditorScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            NameOnLockScreenField(draft.nameOnLockScreen, onChange = { draft = draft.copy(nameOnLockScreen = it) })
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })

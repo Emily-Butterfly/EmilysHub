@@ -31,13 +31,21 @@ import java.time.Duration
 
 /**
  * What the full-screen alarm shows of what it rings for, a routine or a to-do: its [title] and [text], and whether it can
- * be skipped, as a routine can and a to-do cannot. [key] tells them apart.
+ * be skipped, as a routine can and a to-do cannot. [key] tells them apart. While the phone is locked, the [title] and
+ * [lockedText], its time, if it allows its name on the lock screen, [nameOnLockScreen]; otherwise only that one is due.
  */
-data class AlarmShown(val key: String, val title: String, val text: String?, val skippable: Boolean)
+data class AlarmShown(
+    val key: String,
+    val title: String,
+    val text: String?,
+    val skippable: Boolean,
+    val nameOnLockScreen: Boolean = false,
+    val lockedText: String? = null,
+)
 
 /**
- * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig" and offers to
- * unlock or close; once unlocked, it shows what it rings for, [shown], with "Erledigt · Später", and "Überspringen · Heute
+ * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig", or the name and time
+ * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown], with "Erledigt · Später", and "Überspringen · Heute
  * nicht" for a routine; after "Später" the choice when to come back, out of [putOffChoices]; without any, there is no "Später".
  */
 @Composable
@@ -65,7 +73,12 @@ fun AlarmScreen(
         ) {
             when {
                 locked -> {
-                    Title(stringResource(R.string.reminder_public))
+                    if (shown?.nameOnLockScreen == true) {
+                        Title(shown.title)
+                        shown.lockedText?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
+                    } else {
+                        Title(stringResource(R.string.reminder_public))
+                    }
                     WideButton(stringResource(R.string.alarm_unlock), onUnlock, primary = true)
                     TextButton(onClick = onClose) { Text(stringResource(R.string.alarm_close)) }
                 }
