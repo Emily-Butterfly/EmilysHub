@@ -2,7 +2,6 @@ package de.emilyshub.ui.today
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,11 +26,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,35 +41,44 @@ import de.emilyshub.R
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.stats.Heatmap
-import de.emilyshub.stats.HeatmapDay
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.numericDayAndMonth
 import de.emilyshub.ui.theme.heatmapColors
 import de.emilyshub.ui.weekdayDayAndMonth
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /**
  * Under the entries of Heute, what was done each day of the last six months up to [today] (SPEC.md §1): the
- * occurrences of routines done, archived ones' too, and the to-dos ticked off, those in the archive too; one deleted for
- * good no more. A box a day, in four levels of lilac, the weeks as columns from Monday to Sunday, the current one on the
- * right; as wide as there is room, so that it never scrolls sideways. Tapping a day says when it was and how much.
+ * occurrences of routines done, archived ones' too, and the to-dos ticked off, those in the archive too; one deleted
+ * for good no more. A box a day, in four levels of lilac, the weeks as columns from Monday to Sunday, the current one
+ * on the right; as wide as there is room, so that it never scrolls sideways. Tapping a day says when and how much.
  */
 @Composable
 fun TodayHeatmap(today: LocalDate, routines: Routines, todos: Todos, modifier: Modifier = Modifier) {
     val history by remember(routines) { routines.history() }.collectAsState(initial = null)
     val archived by remember(todos) { todos.archived() }.collectAsState(initial = null)
-    val heatmap = remember(history, archived, today) {
+    // Read anew as Heute recomposes, so that the to-dos move to their days in a new time zone.
+    val zone = todos.zone()
+    val heatmap = remember(history, archived, today, zone) {
         val occurrences = history ?: return@remember null
         val ticked = archived ?: return@remember null
         Heatmap.of(
             today = today,
             routinesDone = occurrences.filter { it.status == OccurrenceStatus.Done }.map { it.date },
             todosDone = ticked.mapNotNull { it.doneAt },
-            zone = todos.zone(),
+            zone = zone,
         )
     } ?: return
     var selected by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+    // Worked out once for all the boxes, not in each of them as one is tapped.
+    val colors = heatmapColors()
+    val spoken = stringResource(R.string.today_heatmap_day_spoken)
+    val descriptions = remember(heatmap, spoken) {
+        heatmap.weeks.flatten().associate { it.date to spoken.format(it.date.weekdayDayAndMonth(), it.done) }
+    }
+    val select = remember { { date: LocalDate -> selected = date } }
     Column(modifier.padding(16.dp)) {
         SectionTitle(stringResource(R.string.today_heatmap))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -77,7 +90,18 @@ fun TodayHeatmap(today: LocalDate, routines: Routines, todos: Todos, modifier: M
                     heatmap.weeks.forEach { week ->
                         Column {
                             week.forEach { day ->
-                                DayBox(day, cell, selected = day.date == selected, onSelect = { selected = day.date })
+                                if (day.future) {
+                                    Box(Modifier.size(cell))
+                                } else {
+                                    DayBox(
+                                        date = day.date,
+                                        color = colors[day.level],
+                                        description = descriptions.getValue(day.date),
+                                        cell = cell,
+                                        selected = day.date == selected,
+                                        onSelect = select,
+                                    )
+                                }
                             }
                         }
                     }
@@ -89,13 +113,19 @@ fun TodayHeatmap(today: LocalDate, routines: Routines, todos: Todos, modifier: M
             Text(
                 text = stringResource(R.string.today_heatmap_day, weekday, day.date.numericDayAndMonth(), day.done),
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 8.dp),
+                // TalkBack says it as it appears on a tap.
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
     }
 }
 
-/** The short names of the months over the weeks their first days fall in. */
+/**
+ * The short names of the months over the weeks their first days fall in; not for the last weeks, where the name
+ * would run past the right edge.
+ */
 @Composable
 private fun MonthNames(heatmap: Heatmap, cell: Dp) {
     val names = stringArrayResource(R.array.months_short)
@@ -103,10 +133,9 @@ private fun MonthNames(heatmap: Heatmap, cell: Dp) {
         Modifier
             .padding(start = WEEKDAY_WIDTH)
             .fillMaxWidth()
-            .height(MONTH_HEIGHT)
             .clearAndSetSemantics {},
     ) {
-        heatmap.months.forEach { (week, month) ->
+        heatmap.months.filter { it.week <= Heatmap.WEEKS - MONTH_NAME_WEEKS }.forEach { (week, month) ->
             Text(
                 text = names[month.monthValue - 1],
                 style = MaterialTheme.typography.labelSmall,
@@ -117,7 +146,7 @@ private fun MonthNames(heatmap: Heatmap, cell: Dp) {
     }
 }
 
-/** Monday, Wednesday and Friday named at the side, the rows between left blank. */
+/** Monday, Wednesday and Friday named at the side, beside their rows, even where the name is taller than a row. */
 @Composable
 private fun WeekdayNames(cell: Dp) {
     val names = stringArrayResource(R.array.weekdays_short)
@@ -126,32 +155,32 @@ private fun WeekdayNames(cell: Dp) {
             .width(WEEKDAY_WIDTH)
             .clearAndSetSemantics {},
     ) {
-        names.forEachIndexed { index, name ->
+        DayOfWeek.entries.forEach { weekday ->
             Box(Modifier.height(cell), contentAlignment = Alignment.CenterStart) {
-                if (index % 2 == 0 && index < NAMED_WEEKDAYS) {
-                    Text(name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (weekday in NAMED_WEEKDAYS) {
+                    Text(
+                        text = names[weekday.value - 1],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.wrapContentHeight(unbounded = true),
+                    )
                 }
             }
         }
     }
 }
 
-/** A day's box, in the color of its level and read out with its date and count; a day to come is left blank. */
+/** A day's box, in the [color] of its level, read out with its date and count, and as selected once tapped. */
 @Composable
-private fun DayBox(day: HeatmapDay, cell: Dp, selected: Boolean, onSelect: () -> Unit) {
-    if (day.future) {
-        Box(Modifier.size(cell))
-        return
-    }
-    val description = stringResource(R.string.today_heatmap_day_spoken, day.date.weekdayDayAndMonth(), day.done)
+private fun DayBox(date: LocalDate, color: Color, description: String, cell: Dp, selected: Boolean, onSelect: (LocalDate) -> Unit) {
     val shape = RoundedCornerShape(2.dp)
     Box(
         Modifier
             .size(cell)
-            .clickable(role = Role.Button, onClick = onSelect)
+            .selectable(selected = selected, role = Role.Button, onClick = { onSelect(date) })
             .semantics { contentDescription = description }
             .padding(1.dp)
-            .background(heatmapColors()[day.level], shape)
+            .background(color, shape)
             .then(if (selected) Modifier.border(1.dp, MaterialTheme.colorScheme.onSurface, shape) else Modifier),
     )
 }
@@ -159,8 +188,8 @@ private fun DayBox(day: HeatmapDay, cell: Dp, selected: Boolean, onSelect: () ->
 /** The room at the side for the weekdays' names. */
 private val WEEKDAY_WIDTH = 24.dp
 
-/** The room on top for the months' names. */
-private val MONTH_HEIGHT = 16.dp
+/** The weeks a month's name takes at the most, kept clear of the right edge. */
+private const val MONTH_NAME_WEEKS = 2
 
-/** Mo, Mi and Fr are named, Sa and So not: the rows are few enough to tell apart from these. */
-private const val NAMED_WEEKDAYS = 5
+/** The weekdays named at the side: every other row, enough to tell them apart. */
+private val NAMED_WEEKDAYS = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)

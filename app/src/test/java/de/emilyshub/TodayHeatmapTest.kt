@@ -2,7 +2,9 @@ package de.emilyshub
 
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
@@ -12,7 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.OccurrenceStatus.Done
@@ -28,7 +30,6 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
-import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 
 /** The heatmap under Heute (SPEC.md §1): what was done each day of the last six months. */
@@ -70,6 +71,7 @@ class TodayHeatmapTest {
             day("Mittwoch, 14. Oktober: 1 erledigt").performClick()
 
             compose.onNodeWithText("Mi, 14.10.: 1 erledigt").assertIsDisplayed()
+            day("Mittwoch, 14. Oktober: 1 erledigt").assertIsSelected()
         }
     }
 

@@ -1,6 +1,6 @@
 package de.emilyshub.stats
 
-import de.emilyshub.routines.today
+import de.emilyshub.routines.today as dayOf
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -8,7 +8,10 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 
-/** A day of the heatmap: what was [done] on [date], at what [level] of [Heatmap.LEVELS]; one in the [future] is empty. */
+/**
+ * A day of the heatmap: what was [done] on [date], at what [level] of [Heatmap.LEVELS]; one to come ([future]) is
+ * empty.
+ */
 data class HeatmapDay(val date: LocalDate, val done: Int, val level: Int, val future: Boolean)
 
 /** A [month] named over the [week] of the heatmap its first day falls in. */
@@ -34,7 +37,7 @@ class Heatmap private constructor(val weeks: List<List<HeatmapDay>>, val max: In
          */
         fun of(today: LocalDate, routinesDone: List<LocalDate>, todosDone: List<Instant>, zone: ZoneId): Heatmap {
             val first = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks(WEEKS - 1L)
-            val counts = (routinesDone + todosDone.map { today(it, zone) })
+            val counts = (routinesDone + todosDone.map { dayOf(it, zone) })
                 .filter { !it.isBefore(first) && !it.isAfter(today) }
                 .groupingBy { it }
                 .eachCount()
