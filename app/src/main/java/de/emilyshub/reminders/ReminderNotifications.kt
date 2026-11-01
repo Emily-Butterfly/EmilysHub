@@ -41,40 +41,27 @@ import java.util.UUID
  * notification tone on the usual one, any other tone on one of its own, as Android fixes a channel's sound once it is
  * made. A full-screen alarm that rings comes on the quiet one, as it plays its tone over and over itself.
  */
-class ReminderNotifications(private val context: Context, private val clock: Clock, private val sounds: Sounds) {
+class ReminderNotifications(private val context: Context, private val clock: Clock, private val sounds: Sounds) : ReminderScreen {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
-    /** Pops the reminder up, with a sound even if it is up already: at its time and at each follow-up. */
-    suspend fun show(reminder: Reminder) = post(reminder, alert = true, Offering.Actions)
+    /**
+     * Shows the reminder: with a sound even if it is up already when it [alert]s, as at its time and each follow-up, and
+     * quietly otherwise. A to-do's offers nothing but its actions and when to come back, as it is never skipped.
+     */
+    override suspend fun show(reminder: DueReminder, alert: Boolean, offering: Offering) = when (reminder) {
+        is DueReminder.OfOccurrence -> post(reminder.reminder, alert, offering)
+        is DueReminder.OfTodo -> post(reminder.reminder, alert, offeringPutOff = offering == Offering.PutOff)
+    }
 
-    /** Shows the reminder as it is now, without a sound if it is up already; a choice offered stays up. */
-    suspend fun refresh(reminder: Reminder) = post(reminder, alert = false, offeringOf(tagOf(reminder.occurrenceId)))
+    override fun offering(about: Alarmed): Offering = offeringOf(tagOf(about))
 
-    /** "Später": the reminder offers when to come back instead of its actions, without a sound. */
-    suspend fun offerPutOff(reminder: Reminder) = post(reminder, alert = false, Offering.PutOff)
-
-    /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was instead, without a sound. */
-    suspend fun offerDone(reminder: Reminder) = post(reminder, alert = false, Offering.Done)
-
-    fun cancel(occurrenceId: Long) = manager.cancel(tagOf(occurrenceId), ID)
-
-    /** Pops the to-do's reminder up, with a sound even if it is up already: at its time, on arrival, or put off to. */
-    suspend fun show(reminder: TodoReminder) = post(reminder, alert = true, offeringPutOff = false)
-
-    /** Shows the to-do's reminder as it is now, without a sound if it is up already; a choice for "Später" stays up. */
-    suspend fun refresh(reminder: TodoReminder) =
-        post(reminder, alert = false, offeringPutOff = isOfferingPutOff(todoTagOf(reminder.todoId)))
-
-    /** "Später" on a to-do's reminder: it offers when to come back instead of its actions, without a sound. */
-    suspend fun offerPutOff(reminder: TodoReminder) = post(reminder, alert = false, offeringPutOff = true)
-
-    fun cancelTodo(todoId: Long) = manager.cancel(todoTagOf(todoId), ID)
+    override fun cancel(about: Alarmed) = manager.cancel(tagOf(about), ID)
 
     /**
      * A reminder to try out (SPEC.md §11): popping up as a reminder does, on the lock screen too, only without a
      * routine or actions.
      */
-    fun showProbe() {
+    override fun showProbe() {
         manager.createNotificationChannel(channel())
         val notification = Notification.Builder(context, REMINDER_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
@@ -89,11 +76,8 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         manager.notify(PROBE_TAG, ID, notification)
     }
 
-    /** The occurrences whose reminders are on the screen. */
-    fun shown(): List<Long> = shownTagged(TAG_PREFIX)
-
-    /** The to-dos whose reminders are on the screen. */
-    fun shownTodos(): List<Long> = shownTagged(TODO_TAG_PREFIX)
+    override fun shown(): List<Alarmed> =
+        shownTagged(TAG_PREFIX).map(Alarmed::Occurrence) + shownTagged(TODO_TAG_PREFIX).map(Alarmed::Todo)
 
     /** The ids in the tags starting with [prefix] of the reminders on the screen. */
     private fun shownTagged(prefix: String): List<Long> = manager.activeNotifications.mapNotNull { shown ->
@@ -122,8 +106,6 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
         if (fullScreen) AlarmRingService.ring(context, about)
     }
 
-    private fun isOfferingPutOff(tag: String) = offeringOf(tag) == Offering.PutOff
-
     /** What the reminder under [tag] offers now, as it is on the screen; its actions if it is not. */
     private fun offeringOf(tag: String): Offering {
         val shown = manager.activeNotifications.firstOrNull { it.tag == tag }?.notification?.extras ?: return Offering.Actions
@@ -138,7 +120,7 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
      * Takes away the channels of tones that no routine or to-do uses any more, those [inUse] aside, and those of the
      * reminders on the screen, which would go with them.
      */
-    fun tidyChannels(inUse: Collection<Sound>) {
+    override fun tidyChannels(inUse: Collection<Sound>) {
         // The quiet one too, which every ringing full-screen alarm comes on: made anew for each, Android would count it
         // deleted each time, and bring it back as it was then.
         val kept = (inUse + Sound.Silent).map(::channelIdOf)
@@ -352,6 +334,11 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
 
     private fun todoTagOf(todoId: Long) = TODO_TAG_PREFIX + todoId
 
+    private fun tagOf(about: Alarmed) = when (about) {
+        is Alarmed.Occurrence -> tagOf(about.id)
+        is Alarmed.Todo -> todoTagOf(about.id)
+    }
+
     /**
      * What a reminder and its actions are about, an occurrence or a to-do: its [tag] on the screen, and its [id] in the
      * intents under the name [idExtra].
@@ -359,7 +346,6 @@ class ReminderNotifications(private val context: Context, private val clock: Clo
     private data class ReminderOf(val tag: String, val idExtra: String, val id: Long)
 
     /** What a reminder offers: its actions, when to come back after "Später", or which one after "Erledigt". */
-    private enum class Offering { Actions, PutOff, Done }
 
     private companion object {
         const val TAG_PREFIX = "occurrence:"

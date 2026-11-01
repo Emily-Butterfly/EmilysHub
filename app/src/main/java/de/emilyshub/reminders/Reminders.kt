@@ -35,6 +35,9 @@ import java.time.Instant
  * A routine or to-do bound to places (SPEC.md §4) pops up only where [locate] says the device is at one of them, and
  * waits elsewhere; while a routine is bound or a to-do waits, Android wakes the app on joining a WLAN ([arrived]), also
  * while it is closed. What pops up on arrival, or once bound to no place any more, pops up by the alarm, as at its time.
+ *
+ * Routines and to-dos are reminded of alike: each is a [ReminderSource], which says what of its own is due and does what
+ * an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own there.
  */
 class Reminders(
     context: Context,
@@ -44,13 +47,14 @@ class Reminders(
     private val locate: Locate,
     private val mayLookAround: suspend () -> Boolean,
     private val sounds: Sounds,
+    private val screen: ReminderScreen = ReminderNotifications(context, clock, sounds),
     private val settings: () -> SettingsDao,
 ) {
     private val alarm = ReminderAlarm(context)
     private val probeAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_PROBE)
     private val lookAroundAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_LOOK_AROUND)
     private val arrivals = ArrivalWatch(context)
-    private val notifications = ReminderNotifications(context, clock, sounds)
+    private val sources: List<ReminderSource> = listOf(RoutineReminding(routines), TodoReminding(todos))
 
     // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
     // write to the routines or to-dos in a way that reports a change, since every such write updates the reminders.
@@ -62,9 +66,9 @@ class Reminders(
      * missed or gone, and sets the alarm anew.
      */
     suspend fun update() = lock.withLock {
-        routines.markMissed(since = remindedUntil())
-        routines.releaseFromPlaces()
-        todos.releaseFromPlaces()
+        val since = remindedUntil()
+        sources.forEach { it.markMissed(since) }
+        sources.forEach { it.release() }
         tidyAndSetAlarm()
     }
 
@@ -75,13 +79,11 @@ class Reminders(
     suspend fun remind() = lock.withLock {
         val now = clock.instant()
         val since = remindedUntil()
-        routines.markMissed(since)
-        val shown = routines.remindersDue(after = since, until = now, locate)
-        val todosShown = todos.remindersDue(after = since, until = now, locate)
-        shown.forEach { notifications.show(it) }
-        todosShown.forEach { notifications.show(it) }
+        sources.forEach { it.markMissed(since) }
+        val shown = sources.flatMap { it.due(after = since, until = now, locate) }
+        shown.forEach { screen.show(it, alert = true, Offering.Actions) }
         settings().put(Setting(REMINDED_UNTIL, now.toString()))
-        tidyAndSetAlarm(justShown = shown.map { it.occurrenceId }.toSet(), todosJustShown = todosShown.map { it.todoId }.toSet())
+        tidyAndSetAlarm(justShown = shown.map { it.about }.toSet())
     }
 
     /**
@@ -90,9 +92,8 @@ class Reminders(
      * when it reports a network.
      */
     suspend fun arrived() = lock.withLock {
-        val routinesArrived = routines.arrive(locate)
-        val todosArrived = todos.arrive(locate)
-        if (routinesArrived.isNotEmpty() || todosArrived.isNotEmpty()) tidyAndSetAlarm()
+        val arrived = sources.flatMap { it.arrive(locate) }
+        if (arrived.isNotEmpty()) tidyAndSetAlarm()
     }
 
     /**
@@ -110,65 +111,61 @@ class Reminders(
     }
 
     /** "Später": the reminder asks when to come back, out of [PUT_OFF_CHOICES]; one answered meanwhile goes away. */
-    suspend fun offerPutOff(occurrenceId: Long) = lock.withLock {
-        when (val reminder = stillDue(occurrenceId)) {
-            null -> notifications.cancel(occurrenceId)
-            else -> notifications.offerPutOff(reminder)
-        }
-    }
+    suspend fun offerPutOff(occurrenceId: Long) = offer(Alarmed.Occurrence(occurrenceId), Offering.PutOff)
 
     /** "Erledigt" on a joint reminder (SPEC.md §3): it asks which one it was; one answered meanwhile goes away. */
-    suspend fun offerDone(occurrenceId: Long) = lock.withLock {
-        when (val reminder = stillDue(occurrenceId)) {
-            null -> notifications.cancel(occurrenceId)
-            else -> notifications.offerDone(reminder)
-        }
-    }
+    suspend fun offerDone(occurrenceId: Long) = offer(Alarmed.Occurrence(occurrenceId), Offering.Done)
 
-    /** The reminder of the occurrence still due, alone or the joint one it is posted for; none once it is not. */
-    private suspend fun stillDue(occurrenceId: Long): Reminder? =
-        routines.stillDue(listOf(occurrenceId)).firstOrNull { it.occurrenceId == occurrenceId }
+    /** "Später" on a to-do's reminder: it asks when to come back, out of [PUT_OFF_CHOICES]; one done meanwhile goes away. */
+    suspend fun offerTodoPutOff(todoId: Long) = offer(Alarmed.Todo(todoId), Offering.PutOff)
 
     /**
      * Puts the reminder off [by] one of its [putOffChoices]: it comes back then, and its follow-ups after that.
      * Only one that has come due and is still open, and only to before its time window ends; otherwise it
      * stays as it is, and one answered meanwhile goes away.
      */
-    suspend fun putOff(occurrenceId: Long, by: Duration) {
-        val reminder = stillDue(occurrenceId)
-        when {
-            reminder == null || by !in putOffChoices(reminder) -> update()
-            // A joint reminder is put off for all it reminds of (SPEC.md §3).
-            else -> routines.putOffTogether(occurrenceId, until = clock.instant() + by)
-        }
-    }
-
-    /** "Später" on a to-do's reminder: it asks when to come back, out of [PUT_OFF_CHOICES]; one done meanwhile goes away. */
-    suspend fun offerTodoPutOff(todoId: Long) = lock.withLock {
-        when (val reminder = todos.stillDue(listOf(todoId)).singleOrNull()) {
-            null -> notifications.cancelTodo(todoId)
-            else -> notifications.offerPutOff(reminder)
-        }
-    }
+    suspend fun putOff(occurrenceId: Long, by: Duration) = putOff(Alarmed.Occurrence(occurrenceId), by)
 
     /**
      * Puts the to-do's reminder off [by] one of the [PUT_OFF_CHOICES], any of them, as a to-do has no time window: it
      * comes back then, anywhere. Only one that has popped up and is still open; otherwise it stays as it is, and one done
      * meanwhile goes away.
      */
-    suspend fun putOffTodo(todoId: Long, by: Duration) {
-        val reminder = todos.stillDue(listOf(todoId)).singleOrNull()
-        when {
-            reminder == null || by !in PUT_OFF_CHOICES -> update()
-            else -> todos.putOff(todoId, until = clock.instant() + by)
+    suspend fun putOffTodo(todoId: Long, by: Duration) = putOff(Alarmed.Todo(todoId), by)
+
+    /** The reminder about [about] offers [offering] instead, quietly; one answered meanwhile goes away. */
+    private suspend fun offer(about: Alarmed, offering: Offering) = lock.withLock {
+        when (val reminder = stillDue(about)) {
+            null -> screen.cancel(about)
+            else -> screen.show(reminder, alert = false, offering)
         }
     }
+
+    /**
+     * Puts the reminder about [about] off [by] one of the choices its source offers now; anything else, or one no longer
+     * due, leaves it as it is, and brings the screen up to date. Outside the lock, as putting off reports a change.
+     */
+    private suspend fun putOff(about: Alarmed, by: Duration) {
+        val source = sourceOf(about)
+        val reminder = stillDue(about)
+        val now = clock.instant()
+        when {
+            reminder == null || by !in source.putOffChoices(reminder, now) -> update()
+            else -> source.putOff(about.id, until = now + by)
+        }
+    }
+
+    /** The reminder about [about] still due, alone or the joint one it is posted for; none once it is not. */
+    private suspend fun stillDue(about: Alarmed): DueReminder? =
+        sourceOf(about).stillDue(listOf(about)).firstOrNull { it.about == about }
+
+    private fun sourceOf(about: Alarmed): ReminderSource = sources.single { it.owns(about) }
 
     /** A reminder to try out (SPEC.md §11), in [PROBE_DELAY], by an alarm as the reminders come: also with the app closed. */
     fun probe() = probeAlarm.set(clock.instant() + PROBE_DELAY)
 
     /** The reminder to try out pops up. */
-    fun showProbe() = notifications.showProbe()
+    fun showProbe() = screen.showProbe()
 
     /** What "Später" offers for [reminder] now. */
     fun putOffChoices(reminder: Reminder): List<Duration> = reminder.putOffChoices(clock.instant())
@@ -176,27 +173,24 @@ class Reminders(
     /**
      * Shows the reminders on the screen as they are now, takes down those no longer due, sets the alarm for what comes
      * next, and watches for arrivals while something may wait for a place, looking around too while a to-do does. What
-     * [justShown] and [todosJustShown] popped up just now is as it is.
+     * [justShown] popped up just now is as it is.
      */
-    private suspend fun tidyAndSetAlarm(justShown: Set<Long> = emptySet(), todosJustShown: Set<Long> = emptySet()) {
-        val shown = notifications.shown()
-        val stillDue = routines.stillDue(shown)
-        // Shown again quietly, as the routine may have been renamed meanwhile; what just popped up is as it is now.
-        stillDue.filter { it.occurrenceId !in justShown }.forEach { notifications.refresh(it) }
-        (shown - stillDue.map { it.occurrenceId }.toSet()).forEach(notifications::cancel)
-        val todosShown = notifications.shownTodos()
-        val todosStillDue = todos.stillDue(todosShown)
-        todosStillDue.filter { it.todoId !in todosJustShown }.forEach { notifications.refresh(it) }
-        (todosShown - todosStillDue.map { it.todoId }.toSet()).forEach(notifications::cancelTodo)
+    private suspend fun tidyAndSetAlarm(justShown: Set<Alarmed> = emptySet()) {
+        val shown = screen.shown()
+        val stillDue = sources.flatMap { it.stillDue(shown) }
+        // Shown again quietly, as the routine may have been renamed meanwhile; what just popped up is as it is now. A
+        // choice offered stays up.
+        stillDue.filter { it.about !in justShown }.forEach { screen.show(it, alert = false, screen.offering(it.about)) }
+        (shown - stillDue.map { it.about }.toSet()).forEach(screen::cancel)
         val after = remindedUntil()
-        when (val next = listOfNotNull(routines.nextAlarm(after), todos.nextAlarm(after)).minOrNull()) {
+        when (val next = sources.mapNotNull { it.nextAlarm(after) }.minOrNull()) {
             null -> alarm.cancel()
             // Possibly already past, if a reminder is still to come: then the alarm goes off right away.
             else -> alarm.set(next)
         }
         // A tone no routine or to-do has any more takes its channel along, once no reminder on the screen is on it.
-        notifications.tidyChannels(inUse = (routines.tones() + todos.tones() + Tone.Standard).map { sounds.notification(it) })
-        arrivals.watch(on = routines.anyBoundToPlaces() || todos.anyWaiting())
+        screen.tidyChannels(inUse = (sources.flatMap { it.tones() } + Tone.Standard).distinct().map { sounds.notification(it) })
+        arrivals.watch(on = sources.any { it.watchesPlaces() })
         keepLookingAround(on = todos.needsLookingAround() && mayLookAround())
     }
 
