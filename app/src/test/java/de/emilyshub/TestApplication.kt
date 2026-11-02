@@ -1,31 +1,18 @@
 package de.emilyshub
 
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupMigration
-import de.emilyshub.backup.Backups
 import de.emilyshub.backup.FakeBackupFolder
-import de.emilyshub.backup.NightAlarm
-import de.emilyshub.backup.NightlyBackups
-import de.emilyshub.data.AppSettings
+import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
-import de.emilyshub.ledger.Ledger
-import de.emilyshub.notes.Notes
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
-import de.emilyshub.places.Locator
-import de.emilyshub.places.Places
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
-import de.emilyshub.reminders.Reminders
-import de.emilyshub.reminders.ToneCollection
-import de.emilyshub.routines.Routines
-import de.emilyshub.search.Search
 import de.emilyshub.security.FakeAuthenticator
-import de.emilyshub.tags.Tags
-import de.emilyshub.todos.Todos
-import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -41,55 +28,40 @@ import javax.crypto.KeyGenerator
  */
 class TestApplication : EmilysHubApplication() {
     val settingsDao = InMemorySettingsDao()
-    override val settings = AppSettings({ settingsDao }, Dispatchers.Unconfined, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
-    override val authenticator = FakeAuthenticator()
-    override val ringer = FakeRinger()
-    override val tones = FakeTones()
-    val toneFiles = FakeToneFiles(tones)
-    override val toneCollection = ToneCollection(tones, toneFiles, { settingsDao }, Dispatchers.Unconfined)
+    override val settingsStore = { settingsDao }
 
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     override val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
+
+    /** On the spot, so that the tests and Compose see every change at once. */
+    override val io = Dispatchers.Unconfined
+
     /** In memory, open to the tests, such as for the history of days gone by. */
-    val testDatabase by lazy { inMemoryDatabase() }
-    override val routines: Routines = Routines({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
-    override val tags = Tags({ testDatabase }, Dispatchers.Unconfined)
-    override val todos = Todos({ testDatabase }, clock, Dispatchers.Unconfined, onChange = ::updateReminders)
-    override val places = Places({ testDatabase }, Dispatchers.Unconfined, onChange = ::updateReminders)
-    override val wishes = Wishes({ testDatabase }, clock, Dispatchers.Unconfined)
-    override val notes = Notes({ testDatabase }, clock, Dispatchers.Unconfined)
-    override val ledger = Ledger({ testDatabase }, clock, Dispatchers.Unconfined)
-    override val search = Search({ testDatabase }, Dispatchers.Unconfined)
+    override val database by lazy { inMemoryDatabase() }
+    val testDatabase: HubDatabase get() = database
+
+    override val authenticator = FakeAuthenticator()
+    override val ringer = FakeRinger()
+    override val tones = FakeTones()
+    override val toneFiles = FakeToneFiles(tones)
     override val wifi = FakeWifi()
     override val location = FakeLocation()
-    override val locator = Locator(wifi, location, places)
-    override val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround, sounds) { settingsDao }
-    }
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Stands in for the Android Keystore key, which only exists on a device. */
-    private val backupWrappingKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    override val backups = Backups(
-        database = { testDatabase },
-        settings = { settingsDao },
-        wrappingKey = { backupWrappingKey },
-        clock = clock,
-        // Android's own SQLite, as SQLCipher's needs its native library.
-        migration = BackupMigration(this) { FrameworkSQLiteOpenHelperFactory() },
-        io = Dispatchers.Unconfined,
-        // Enough for the tests, which would take seconds with the real count.
-        iterations = 1_000,
-        onRestore = ::updateReminders,
-    )
+    private val backupKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    override val backupWrappingKey = { backupKey }
+
+    /** Android's own SQLite, as SQLCipher's needs its native library. */
+    override val backupMigration by lazy { BackupMigration(this) { FrameworkSQLiteOpenHelperFactory() } }
+
+    /** Enough for the tests, which would take seconds with the real count. */
+    override val backupIterations = 1_000
 
     /** The folder chosen for the nightly backups, at any address but those of [otherBackupFolders]. */
     val backupFolder = FakeBackupFolder()
     val otherBackupFolders = mutableMapOf<String, FakeBackupFolder>()
-    override val nightlyBackups by lazy {
-        val folderAt = { address: String -> otherBackupFolders[address] ?: backupFolder }
-        NightlyBackups(backups, { settingsDao }, clock, folderAt, NightAlarm(this), Dispatchers.Unconfined)
-    }
+    override fun backupFolderAt(address: String): BackupFolder = otherBackupFolders[address] ?: backupFolder
 
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
     var fullScreenAlarmsAllowed = false
