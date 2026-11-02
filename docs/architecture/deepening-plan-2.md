@@ -381,7 +381,19 @@ the `Hub`.
 
 ## 5 · What routines and to-dos share: tags, places, checklist and how they remind
 
-**Status:** not started.
+**Status:** not started; on a second look, the first two parts fail the deletion test, and the third waits on a
+decision.
+
+- **`Tagging`: not worth its code.** Each `saveTags` is two lines (`untagAll`, `tag`), and Room cannot name a table at
+  run time, so a shared module would keep the four join tables' queries one by one and pass them through: deleting it
+  would move the complexity, not concentrate it. The same goes for the filter in the three lists, one line each.
+- **`Checklist`: marginal.** The two `saveChecklist`/`tick` work on different tables, and a routine's ticks are per
+  occurrence while a to-do's are on the to-do: a seam with two adapters, but for some 30 lines in all.
+- **`RemindingStyle`: the one with leverage, and the most risk.** `fullScreen`, `nameOnLockScreen` and `tone` run
+  through 34 files. As an `@Embedded` value in `Routine` and `Todo` with the same column names, the tables' columns
+  would stay, but their order in the `CREATE TABLE` Room checks may not, which would change the schema's identity
+  hash and so need a schema version, its migration test and the backups' schemas (`docs/agents/schema-change.md`).
+  Worth doing only together with the next field of that kind, when the migration is due anyway.
 
 ### Why
 
