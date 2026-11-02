@@ -83,6 +83,9 @@ sealed interface Destination : Serializable {
     /** The notes' tabs (SPEC.md §7). */
     data object NoteTabs : Destination
 
+    /** The notes and folders archived (SPEC.md §7). */
+    data object NoteArchive : Destination
+
     /** The household book, at a [month] (SPEC.md §13). */
     data class Ledger(val month: YearMonth) : Destination
 

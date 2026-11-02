@@ -16,7 +16,8 @@ enum class NoteSort(val stored: String) { Name("name"), Changed("changed"), Manu
 /**
  * A folder of notes (SPEC.md §7), in the tab [tabId], none: in "Allgemein", and there in the folder [parentId], none: at
  * the top of the tab, to any depth. What lies in it is in the order of its [sort]; by hand, by the [position] of each
- * there. It was [changedAt] when made or renamed last. [pinned], it comes first there, before all notes.
+ * there. It was [changedAt] when made or renamed last. [pinned], it comes first there, before all notes. Once
+ * [archivedAt], it is in the archive (SPEC.md §7) with all that is in it, only to read, where it was.
  */
 @Entity(
     tableName = "note_folders",
@@ -36,6 +37,7 @@ data class NoteFolder(
     val sort: NoteSort = NoteSort.Changed,
     @ColumnInfo(name = "changed_at") val changedAt: Instant,
     @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
+    @ColumnInfo(name = "archived_at") val archivedAt: Instant? = null,
 ) {
     /** What lies in this folder. */
     val inside: Container get() = Container(tabId, id)

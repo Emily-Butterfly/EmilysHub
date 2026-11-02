@@ -601,3 +601,11 @@ val MIGRATION_39_40 = object : Migration(39, 40) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_ledger_month_budgets_category_id` ON `ledger_month_budgets` (`category_id`)")
     }
 }
+
+/** Version 41: notes and folders can be archived (SPEC.md §7, #54). None is yet. */
+val MIGRATION_40_41 = object : Migration(40, 41) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `notes` ADD COLUMN `archived_at` TEXT")
+        db.execSQL("ALTER TABLE `note_folders` ADD COLUMN `archived_at` TEXT")
+    }
+}

@@ -77,7 +77,8 @@ data class NotesView(val tab: TabSelection = TabSelection.All, val folderId: Lon
  * shows what lies in its open folder, or at its top: the folders first, each opening up to show what is in it, then
  * the notes, as the folder is sorted. Above them, the path down to the folder leads back to any level, as does going
  * back, a level at a time. Tapping a folder opens it, tapping a note opens it in its editor, "+" starts a note where the
- * list is, and the tabs are managed apart.
+ * list is, and the tabs are managed apart. Notes and folders archived show only in the archive, which the menu beside the
+ * tabs opens.
  */
 @Composable
 fun NotesScreen(
@@ -88,6 +89,7 @@ fun NotesScreen(
     onOpenNote: (Long) -> Unit,
     onCreateNote: (Container) -> Unit,
     onManageTabs: () -> Unit,
+    onOpenArchive: () -> Unit,
 ) {
     val loaded by remember(notes) { notes.notebook() }.collectAsState(initial = null)
     val notebook = loaded ?: return
@@ -102,7 +104,7 @@ fun NotesScreen(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(top = contentPadding.calculateTopPadding())) {
-            TabBar(notebook.tabs, shown, onSelect = { onViewChange(NotesView(it)) }, onManageTabs)
+            TabBar(notebook.tabs, shown, onSelect = { onViewChange(NotesView(it)) }, onManageTabs, onOpenArchive)
             val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding())
             if (here == null) {
                 AllNotes(notes, notebook, bottom, onOpenNote)
@@ -125,7 +127,13 @@ fun NotesScreen(
 
 /** "Alle", "Allgemein" and the user's tabs, side by side, scrolling sideways once they do not fit; then the way to manage them. */
 @Composable
-private fun TabBar(own: List<NoteTab>, shown: TabSelection, onSelect: (TabSelection) -> Unit, onManageTabs: () -> Unit) {
+private fun TabBar(
+    own: List<NoteTab>,
+    shown: TabSelection,
+    onSelect: (TabSelection) -> Unit,
+    onManageTabs: () -> Unit,
+    onOpenArchive: () -> Unit,
+) {
     val choices = listOf(TabSelection.All, TabSelection.General) + own.map { TabSelection.Own(it.id) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         PrimaryScrollableTabRow(selectedTabIndex = choices.indexOf(shown), edgePadding = 8.dp, modifier = Modifier.weight(1f)) {
@@ -140,6 +148,7 @@ private fun TabBar(own: List<NoteTab>, shown: TabSelection, onSelect: (TabSelect
         IconButton(onClick = onManageTabs) {
             Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.note_tabs_manage))
         }
+        MoreMenu(stringResource(R.string.destination_notes), listOf(MenuEntry(stringResource(R.string.archive_title), onClick = onOpenArchive)))
     }
 }
 
@@ -198,7 +207,10 @@ private fun AllNotes(notes: Notes, notebook: Notebook, contentPadding: PaddingVa
     }
 }
 
-/** What the menu of a note offers: to pin it where it lies, or loosen it, the same on Heute, and to move it elsewhere. */
+/**
+ * What the menu of a note offers: to pin it where it lies, or loosen it, the same on Heute, to move it elsewhere, and to
+ * archive it.
+ */
 @Composable
 private fun noteMenu(notes: Notes, note: Note, scope: CoroutineScope, onMove: () -> Unit): List<MenuEntry> {
     return listOf(
@@ -209,6 +221,7 @@ private fun noteMenu(notes: Notes, note: Note, scope: CoroutineScope, onMove: ()
             scope.launchNow { notes.pinOnToday(note.id, !note.onToday) }
         },
         MenuEntry(stringResource(R.string.note_move), onClick = onMove),
+        MenuEntry(stringResource(R.string.note_archive)) { scope.launchNow { notes.archiveNote(note.id) } },
     )
 }
 
@@ -264,13 +277,21 @@ private fun ContainerContents(
     val delete = stringResource(R.string.delete)
     val pin = stringResource(R.string.note_pin)
     val unpin = stringResource(R.string.note_unpin)
+    val archive = stringResource(R.string.note_archive)
 
     /** What the menu of [folder] offers, with [order], the ways to move it up and down, before deleting. */
     fun folderMenu(folder: NoteFolder, order: List<MenuEntry> = emptyList()) = listOf(
         MenuEntry(rename) { renaming = folder.id },
         MenuEntry(if (folder.pinned) unpin else pin) { scope.launchNow { notes.pinFolder(folder.id, !folder.pinned) } },
         MenuEntry(moveElsewhere) { movingFolder = folder.id },
-    ) + order + MenuEntry(delete) { deleting = folder.id }
+    ) + order + listOf(
+        MenuEntry(archive) {
+            // The folder open archived, its parent shows.
+            if (folder.id == here.folderId) onOpenFolder(notebook.containerOf(folder).folderId)
+            scope.launchNow { notes.archiveFolder(folder.id) }
+        },
+        MenuEntry(delete) { deleting = folder.id },
+    )
 
     val openFolder = here.folderId?.let(notebook::folder)
     Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -498,6 +519,6 @@ private fun nameOf(choice: TabSelection, own: List<NoteTab>): String = when (cho
     is TabSelection.Own -> tabName(choice.tabId, own)
 }
 
-private const val FOLDER = "📁"
+internal const val FOLDER = "📁"
 internal const val PIN = "📌"
 private val INDENT = 24.dp

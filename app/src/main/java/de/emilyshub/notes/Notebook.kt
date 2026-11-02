@@ -7,7 +7,8 @@ import java.time.Instant
  * The tabs, folders and notes as the screens show them (SPEC.md §7): what lies in a folder or at the top of a tab, the
  * folders pinned first, then the notes pinned, the other folders and the other notes, each in the order it is sorted
  * by; the path down to a folder; and all notes, the one changed last first. The folders and notes hold together as
- * [notesHoldTogether] checks it, as the app keeps them and a backup is refused otherwise.
+ * [notesHoldTogether] checks it, as the app keeps them and a backup is refused otherwise. What is in the archive (SPEC.md
+ * §7) shows nowhere but in it: archived itself, or in a folder archived, at any depth.
  */
 class Notebook(
     val tabs: List<NoteTab>,
@@ -20,6 +21,14 @@ class Notebook(
     private val foldersByContainer = folders.groupBy { containerOf(it) }
     private val notesByContainer = notes.groupBy { containerOf(it) }
     private val lastChanges = mutableMapOf<Long, Instant>()
+
+    /** The folders in the archive: archived themselves, or in one archived. */
+    private val archivedFolders: Set<Long> = buildSet {
+        fun archive(folder: NoteFolder) {
+            if (add(folder.id)) foldersByContainer[folder.inside].orEmpty().forEach(::archive)
+        }
+        folders.filter { it.archivedAt != null }.forEach(::archive)
+    }
 
     fun folder(id: Long): NoteFolder? = folders[id]
 
@@ -35,26 +44,60 @@ class Notebook(
         else -> tabs.find { it.id == container.tabId }?.sort ?: NoteSort.Changed
     }
 
-    /** The folders in [container], in its order, those pinned first. */
-    fun foldersIn(container: Container): List<NoteFolder> = foldersByContainer[container].orEmpty()
+    /** The folders in [container], in its order, those pinned first; those in the archive too only [withArchived]. */
+    fun foldersIn(container: Container, withArchived: Boolean = false): List<NoteFolder> = foldersByContainer[container].orEmpty()
+        .filter { withArchived || it.archivedAt == null }
         .inOrderOf(sortOf(container), NoteFolder::name, ::lastChange, NoteFolder::position, NoteFolder::id)
         .sortedBy { !it.pinned }
 
-    /** The notes in [container], in its order, those pinned first. */
-    fun notesIn(container: Container): List<Note> = notesByContainer[container].orEmpty()
+    /** The notes in [container], in its order, those pinned first; those in the archive too only [withArchived]. */
+    fun notesIn(container: Container, withArchived: Boolean = false): List<Note> = notesByContainer[container].orEmpty()
+        .filter { withArchived || it.archivedAt == null }
         .inOrderOf(sortOf(container), Note::title, Note::changedAt, Note::position, Note::id)
         .sortedBy { !it.pinned }
 
-    /** What lies in [container] as shown: the folders pinned, the notes pinned, then the other folders and notes. */
-    fun entriesIn(container: Container): List<NoteEntry> {
-        val (pinnedFolders, folders) = foldersIn(container).partition { it.pinned }
-        val (pinnedNotes, notes) = notesIn(container).partition { it.pinned }
+    /**
+     * What lies in [container] as shown: the folders pinned, the notes pinned, then the other folders and notes; in a
+     * folder in the archive, all of it, [withArchived].
+     */
+    fun entriesIn(container: Container, withArchived: Boolean = false): List<NoteEntry> {
+        val (pinnedFolders, folders) = foldersIn(container, withArchived).partition { it.pinned }
+        val (pinnedNotes, notes) = notesIn(container, withArchived).partition { it.pinned }
         return pinnedFolders.map(NoteEntry::OfFolder) + pinnedNotes.map(NoteEntry::OfNote) +
             folders.map(NoteEntry::OfFolder) + notes.map(NoteEntry::OfNote)
     }
 
-    /** Whether nothing lies in [container], neither folder nor note. */
-    fun isEmpty(container: Container): Boolean = container !in foldersByContainer && container !in notesByContainer
+    /** Whether nothing lies in [container] but what is in the archive, neither folder nor note. */
+    fun isEmpty(container: Container): Boolean = foldersIn(container).isEmpty() && notesIn(container).isEmpty()
+
+    /** Whether the folder is in the archive: archived itself, or in a folder archived. */
+    fun isArchived(folder: NoteFolder): Boolean = folder.id in archivedFolders
+
+    /** Whether the note is in the archive: archived itself, or in a folder archived. */
+    fun isArchived(note: Note): Boolean = note.archivedAt != null || note.folderId in archivedFolders
+
+    /**
+     * What was archived, the last first (SPEC.md §7): each folder and note archived but for those in a folder archived,
+     * which are found in it.
+     */
+    fun archived(): List<NoteEntry> {
+        val folders = folders.values.filter { it.archivedAt != null && it.parentId !in archivedFolders }
+            .map { NoteEntry.OfFolder(it) to checkNotNull(it.archivedAt) }
+        val notes = notes.filter { it.archivedAt != null && it.folderId !in archivedFolders }
+            .map { NoteEntry.OfNote(it) to checkNotNull(it.archivedAt) }
+        return (folders + notes).sortedByDescending { it.second }.map { it.first }
+    }
+
+    /**
+     * Where what was archived from [container] comes back to: there, or the nearest folder above it not in the archive,
+     * or the top of its tab, or of "Allgemein" if the tab is gone.
+     */
+    fun restoringTo(container: Container): Container {
+        val there = stillThere(container)
+        val folder = generateSequence(there.folderId?.let(folders::get)) { it.parentId?.let(folders::get) }
+            .firstOrNull { it.id !in archivedFolders }
+        return Container(there.tabId, folder?.id)
+    }
 
     /** The folders from the top of the tab down to the folder [id], it last; none for the top itself. */
     fun path(id: Long?): List<NoteFolder> =
@@ -71,8 +114,19 @@ class Notebook(
         return found
     }
 
-    /** All notes of all tabs, those pinned first, each the one changed last first. */
-    fun all(): List<Note> = notes.sortedWith(lastChangedFirst).sortedBy { !it.pinned }
+    /** The [folders] not archived and all folders in them not archived, at any depth: not into those archived. */
+    fun liveInAndBelow(folders: List<NoteFolder>): Set<Long> {
+        val found = mutableSetOf<Long>()
+        val next = ArrayDeque(folders.filter { it.archivedAt == null })
+        while (next.isNotEmpty()) {
+            val folder = next.removeFirst()
+            if (found.add(folder.id)) next += foldersByContainer[folder.inside].orEmpty().filter { it.archivedAt == null }
+        }
+        return found
+    }
+
+    /** All notes of all tabs not in the archive, those pinned first, each the one changed last first. */
+    fun all(): List<Note> = notes.filterNot(::isArchived).sortedWith(lastChangedFirst).sortedBy { !it.pinned }
 
     /** [container], or the top of its tab if the folder is gone or no longer in it, or of "Allgemein" if the tab is gone. */
     fun stillThere(container: Container): Container {

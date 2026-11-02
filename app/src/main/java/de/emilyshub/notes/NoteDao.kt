@@ -101,6 +101,18 @@ interface NoteDao {
     @Query("DELETE FROM note_folders WHERE tab_id = :tabId")
     suspend fun deleteFoldersInTab(tabId: Long)
 
+    /** Puts the note in the archive, pinned nowhere, or takes it out again with [at] null. */
+    @Query("UPDATE notes SET archived_at = :at, pinned = 0, on_today = 0 WHERE id = :id")
+    suspend fun archiveNote(id: Long, at: Instant?)
+
+    /** Puts the folder in the archive, no longer pinned, or takes it out again with [at] null. */
+    @Query("UPDATE note_folders SET archived_at = :at, pinned = 0 WHERE id = :id")
+    suspend fun archiveFolder(id: Long, at: Instant?)
+
+    /** Takes the notes in the folders [folderIds] off Heute. */
+    @Query("UPDATE notes SET on_today = 0 WHERE folder_id IN (:folderIds)")
+    suspend fun offTodayIn(folderIds: List<Long>)
+
     @Query("UPDATE notes SET pinned = :pinned WHERE id = :id")
     suspend fun pinNote(id: Long, pinned: Boolean)
 
@@ -110,7 +122,7 @@ interface NoteDao {
     @Query("UPDATE notes SET on_today = :pinned WHERE id = :id")
     suspend fun pinOnToday(id: Long, pinned: Boolean)
 
-    @Query("SELECT * FROM notes WHERE on_today ORDER BY changed_at DESC, id")
+    @Query("SELECT * FROM notes n WHERE on_today AND ${Note.NOT_ARCHIVED} ORDER BY changed_at DESC, id")
     fun observeOnToday(): Flow<List<Note>>
 
     @Query("SELECT goal_id FROM note_goals WHERE note_id = :noteId")
@@ -183,12 +195,13 @@ interface NoteDao {
     @Query("SELECT id, name, status != :archived AS open FROM routines")
     fun observeRoutineTargets(archived: RoutineStatus = RoutineStatus.Archived): Flow<List<LinkTarget>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_goals l ON l.note_id = n.id WHERE l.goal_id = :goalId")
+    @Query("SELECT n.* FROM notes n JOIN note_goals l ON l.note_id = n.id WHERE l.goal_id = :goalId AND ${Note.NOT_ARCHIVED}")
     fun observeNotesOfGoal(goalId: Long): Flow<List<Note>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_todos l ON l.note_id = n.id WHERE l.todo_id = :todoId")
+    @Query("SELECT n.* FROM notes n JOIN note_todos l ON l.note_id = n.id WHERE l.todo_id = :todoId AND ${Note.NOT_ARCHIVED}")
     fun observeNotesOfTodo(todoId: Long): Flow<List<Note>>
 
-    @Query("SELECT n.* FROM notes n JOIN note_routines l ON l.note_id = n.id WHERE l.routine_id = :routineId")
+    @Query("SELECT n.* FROM notes n JOIN note_routines l ON l.note_id = n.id " +
+            "WHERE l.routine_id = :routineId AND ${Note.NOT_ARCHIVED}")
     fun observeNotesOfRoutine(routineId: Long): Flow<List<Note>>
 }

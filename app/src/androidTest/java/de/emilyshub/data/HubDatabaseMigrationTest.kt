@@ -883,6 +883,28 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 40 moves to version 41 where no note or folder is archived and then one can be`() {
+        createAtVersion(40) {
+            it.execSQL(
+                "INSERT INTO note_folders (id, name, tab_id, parent_id, position, sort, changed_at, pinned) " +
+                    "VALUES (1, 'Grammatik', NULL, NULL, 0, 'changed', '2026-10-23T05:00:00Z', 0)",
+            )
+            it.execSQL(
+                "INSERT INTO notes (id, title, text, tab_id, changed_at, folder_id, position, pinned, on_today) " +
+                    "VALUES (1, 'Verben', '', NULL, '2026-10-23T05:00:00Z', 1, 0, 0, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(null, database.notes().get(1)?.archivedAt)
+            assertEquals(listOf(null), database.notes().folders().map { it.archivedAt })
+
+            database.notes().archiveFolder(1, Instant.parse("2026-11-02T12:00:00Z"))
+            assertEquals(Instant.parse("2026-11-02T12:00:00Z"), database.notes().folders().single().archivedAt)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

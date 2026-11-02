@@ -37,6 +37,11 @@ class Notes(
     /** The note, or null once it is deleted. */
     suspend fun get(id: Long): Note? = withContext(io) { dao.get(id) }
 
+    /** Whether the note is in the archive (SPEC.md §7), archived itself or in a folder archived; only to read there. */
+    suspend fun isArchived(id: Long): Boolean = withContext(io) {
+        database().withTransaction { read().let { book -> book.note(id)?.let(book::isArchived) == true } }
+    }
+
     /** The tags of the note. */
     suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
 
@@ -118,7 +123,7 @@ class Notes(
             val book = read()
             val into = book.stillThere(cleaned.container)
             val position = if (into == book.containerOf(note)) note.position else book.endOfNotes(into)
-            dao.update(cleaned.toNote(into, position, clock.instant(), note.pinned, note.onToday, id))
+            dao.update(cleaned.toNote(into, position, clock.instant(), note.pinned, note.onToday, id).copy(archivedAt = note.archivedAt))
             saveLinks(id, cleaned.links)
             dao.untagAll(id)
             dao.tag(id, cleaned.tagIds)
@@ -127,6 +132,58 @@ class Notes(
 
     /** Deletes the note for good, and its links. */
     suspend fun delete(id: Long) = write { dao.delete(id) }
+
+    /** Puts the note in the archive (SPEC.md §7), where it is, pinned nowhere any more. */
+    suspend fun archiveNote(id: Long) = write { dao.archiveNote(id, clock.instant()) }
+
+    /**
+     * Puts the folder in the archive (SPEC.md §7) with all that is in it, where it is, no longer pinned; the notes in it
+     * no longer on Heute.
+     */
+    suspend fun archiveFolder(id: Long) = write {
+        database().withTransaction {
+            val ids = read().inAndBelow(id).toList()
+            if (ids.isEmpty()) return@withTransaction
+            ids.chunked(CHUNK).forEach { dao.offTodayIn(it) }
+            dao.archiveFolder(id, clock.instant())
+        }
+    }
+
+    /**
+     * Takes the note out of the archive, back where it was, or as near as there is still: last in the nearest folder
+     * above not in the archive, or at the top of its tab ([Notebook.restoringTo]). One in a folder archived stays in it.
+     */
+    suspend fun restoreNote(id: Long) = write {
+        database().withTransaction {
+            val book = read()
+            val note = book.note(id)?.takeIf { it.archivedAt != null } ?: return@withTransaction
+            val from = book.containerOf(note)
+            val to = book.restoringTo(from)
+            if (to != from) dao.moveNote(id, to.tabId, to.folderId, book.endOfNotes(to))
+            dao.archiveNote(id, null)
+        }
+    }
+
+    /** Takes the folder out of the archive with what is in it, as [restoreNote] a note; what was archived in it alone stays. */
+    suspend fun restoreFolder(id: Long) = write {
+        database().withTransaction {
+            val book = read()
+            val folder = book.folder(id)?.takeIf { it.archivedAt != null } ?: return@withTransaction
+            val from = book.containerOf(folder)
+            val to = book.restoringTo(from)
+            if (to != from) dao.moveFolder(id, to.tabId, to.folderId, book.endOfFolders(to))
+            dao.archiveFolder(id, null)
+        }
+    }
+
+    /** Deletes the folder archived for good, with all that is in it, archived alone too. */
+    suspend fun deleteArchivedFolder(id: Long) = write {
+        database().withTransaction {
+            val book = read()
+            if (book.folder(id)?.archivedAt == null) return@withTransaction
+            deleteFolders(book.inAndBelow(id).toList())
+        }
+    }
 
     /** Pins the note in what it lies in, or [pinned] not, no more. */
     suspend fun pinNote(id: Long, pinned: Boolean) = write { dao.pinNote(id, pinned) }
@@ -224,21 +281,61 @@ class Notes(
             val up = book.containerOf(folder)
             val inside = folder.inside
             val firstFolder = book.endOfFolders(up)
-            book.foldersIn(inside).forEachIndexed { index, it -> dao.moveFolder(it.id, up.tabId, up.folderId, firstFolder + index) }
+            // What is in the archive too, which stays there.
+            book.foldersIn(inside, withArchived = true)
+                .forEachIndexed { index, it -> dao.moveFolder(it.id, up.tabId, up.folderId, firstFolder + index) }
             val firstNote = book.endOfNotes(up)
-            book.notesIn(inside).forEachIndexed { index, it -> dao.moveNote(it.id, up.tabId, up.folderId, firstNote + index) }
+            book.notesIn(inside, withArchived = true)
+                .forEachIndexed { index, it -> dao.moveNote(it.id, up.tabId, up.folderId, firstNote + index) }
             dao.deleteFolders(listOf(id))
         }
     }
 
-    /** Deletes the folder with all that is in it, at any depth, for good. */
+    /**
+     * Deletes the folder with all that is in it, at any depth, for good; but for what is in the archive, which moves up a
+     * level, to the end there, and stays in the archive.
+     */
     suspend fun deleteFolderWithContents(id: Long) = write {
         database().withTransaction {
-            val ids = read().inAndBelow(id).toList()
-            ids.chunked(CHUNK).forEach { dao.deleteNotesIn(it) }
-            ids.chunked(CHUNK).forEach { dao.detachChildrenOf(it) }
-            ids.chunked(CHUNK).forEach { dao.deleteFolders(it) }
+            val book = read()
+            val folder = book.folder(id) ?: return@withTransaction
+            keepArchived(book, book.liveInAndBelow(listOf(folder)), book.containerOf(folder))
+            deleteFolders(read().inAndBelow(id).toList())
         }
+    }
+
+    private suspend fun deleteFolders(ids: List<Long>) {
+        ids.chunked(CHUNK).forEach { dao.deleteNotesIn(it) }
+        ids.chunked(CHUNK).forEach { dao.detachChildrenOf(it) }
+        ids.chunked(CHUNK).forEach { dao.deleteFolders(it) }
+    }
+
+    /**
+     * Moves what is in the archive out of the folders [live], about to be deleted with what is in them, to the end of
+     * [to]: each folder archived with all in it, each note archived alone.
+     */
+    private suspend fun keepArchived(book: Notebook, live: Set<Long>, to: Container) {
+        val folders = live.flatMap { book.foldersIn(Container(book.folder(it)?.tabId, it), withArchived = true) }
+            .filter { it.archivedAt != null }
+        val notes = live.flatMap { book.notesIn(Container(book.folder(it)?.tabId, it), withArchived = true) }
+            .filter { it.archivedAt != null }
+        keep(book, folders, notes, to)
+    }
+
+    /** Moves the [folders] archived, with all in them, and the [notes] archived to the end of [to]. */
+    private suspend fun keep(book: Notebook, folders: List<NoteFolder>, notes: List<Note>, to: Container) {
+        val firstFolder = book.endOfFolders(to)
+        folders.forEachIndexed { index, folder ->
+            dao.moveFolder(folder.id, to.tabId, to.folderId, firstFolder + index)
+            if (folder.tabId != to.tabId) {
+                book.inAndBelow(folder.id).toList().chunked(CHUNK).forEach { ids ->
+                    dao.putFoldersInTab(ids, to.tabId)
+                    dao.putNotesInTab(ids, to.tabId)
+                }
+            }
+        }
+        val firstNote = book.endOfNotes(to)
+        notes.forEachIndexed { index, note -> dao.moveNote(note.id, to.tabId, to.folderId, firstNote + index) }
     }
 
     /** A new tab named [name] on a single line, last of all; refuses a name with a problem, which the screens show before. */
@@ -270,16 +367,27 @@ class Notes(
             val book = read()
             val top = Container(id)
             val firstFolder = book.endOfFolders(Container())
-            book.foldersIn(top).forEachIndexed { index, folder -> dao.placeFolder(folder.id, firstFolder + index) }
+            book.foldersIn(top, withArchived = true).forEachIndexed { index, folder -> dao.placeFolder(folder.id, firstFolder + index) }
             val firstNote = book.endOfNotes(Container())
-            book.notesIn(top).forEachIndexed { index, note -> dao.placeNote(note.id, firstNote + index) }
+            book.notesIn(top, withArchived = true).forEachIndexed { index, note -> dao.placeNote(note.id, firstNote + index) }
             dao.deleteTab(id)
         }
     }
 
-    /** Deletes the tab with its folders and notes, for good. */
+    /** Deletes the tab with its folders and notes, for good; but for what is in the archive, which goes to "Allgemein". */
     suspend fun deleteTabWithContents(id: Long) = write {
         database().withTransaction {
+            val book = read()
+            val top = Container(id)
+            val atTop = book.foldersIn(top, withArchived = true)
+            val live = book.liveInAndBelow(atTop)
+            keep(
+                book,
+                atTop.filter { it.archivedAt != null },
+                book.notesIn(top, withArchived = true).filter { it.archivedAt != null },
+                Container(),
+            )
+            keepArchived(read(), live, Container())
             dao.deleteNotesInTab(id)
             dao.deleteFoldersInTab(id)
             dao.deleteTab(id)

@@ -2,6 +2,7 @@ package de.emilyshub.search
 
 import androidx.room.Dao
 import androidx.room.Query
+import de.emilyshub.notes.Note
 
 /**
  * What the search looks through, in the database: each entry with all its text in one, its [Candidate.text], kept only
@@ -34,7 +35,7 @@ interface SearchDao {
     @Query(
         "SELECT * FROM (SELECT n.id, n.title, n.title || ' ' || n.text || ' ' || IFNULL((SELECT " +
             "group_concat(g.name, ' ') FROM note_tags nt JOIN tags g ON g.id = nt.tag_id WHERE nt.note_id = n.id), '') " +
-            "AS text FROM notes n) WHERE text LIKE :pattern ESCAPE '\\'",
+            "AS text FROM notes n WHERE ${Note.NOT_ARCHIVED}) WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun notes(pattern: String): List<Candidate>
 

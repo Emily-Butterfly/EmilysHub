@@ -77,6 +77,7 @@ import de.emilyshub.ui.ledger.RecurringListScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.navigation.BackStack
 import de.emilyshub.ui.navigation.Destination
+import de.emilyshub.ui.notes.NoteArchiveScreen
 import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.notes.NoteTabsScreen
@@ -280,6 +281,7 @@ private fun AppShell(
                 onBack = back,
             )
             Destination.NoteTabs -> NoteTabsScreen(hub.notes, onBack = back)
+            Destination.NoteArchive -> NoteArchiveScreen(hub.notes, onOpenNote = openNote, onBack = back)
             is Destination.PlaceEditor -> PlaceEditorScreen(hub.places, hub.wifi, hub.location, top.target, onClose = back)
             Destination.Places -> PlacesScreen(
                 places = hub.places,
@@ -478,6 +480,7 @@ private fun TopLevelScaffold(
                 onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
                 onCreateNote = { openNote(NoteEditorTarget.New(it)) },
                 onManageTabs = { open(Destination.NoteTabs) },
+                onOpenArchive = { open(Destination.NoteArchive) },
             )
         }
     }

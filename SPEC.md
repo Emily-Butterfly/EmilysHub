@@ -177,6 +177,12 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 - Verknüpfung mit Zielen, To-dos und Routinen.
 - **Keine Anhänge** in Version 1.
 
+### Archiv
+
+- Notizen und ganze Ordner lassen sich **archivieren**: Sie verschwinden aus Tabs, Ordnern, „Alle“, Heute, Suche und Verknüpfungen und verlieren ihren Pin.
+- Das **Archiv** (Menü der Notizen) zeigt sie nur zum Lesen; „Wiederherstellen“ bringt sie an den alten Ort, sonst in den nächsten Ordner darüber bzw. nach oben; „Endgültig löschen“ mit Rückfrage.
+- Löschen eines Ordners oder Tabs löscht nichts Archiviertes mit; es rückt höher bzw. nach „Allgemein“.
+
 ## 8. Übergreifend
 
 - **Gemeinsame Tags** für alle Bereiche.

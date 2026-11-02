@@ -101,3 +101,4 @@ Abgestimmt im Interview vom 02.11.2026.
 | 51 | [Haushaltsbuch: voraussichtlicher Endsaldo](51-haushaltsbuch-voraussichtlicher-endsaldo.md) | 🤖 | 50 |
 | 52 | [Haushaltsbuch: Fixbuchungen mit Ende](52-haushaltsbuch-fixbuchungen-mit-ende.md) | 🤖 | – |
 | 53 | [Haushaltsbuch: Budget für einzelne Monate](53-haushaltsbuch-monatsbudget.md) | 🤖 | – |
+| 54 | [Notizen: Archiv für Notizen und Ordner](54-notizen-archiv.md) | 🤖 | – |

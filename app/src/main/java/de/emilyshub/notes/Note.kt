@@ -46,7 +46,8 @@ fun tabNameProblem(name: String, others: Collection<NoteTab>): NameProblem? =
  * folder [folderId], none: at the top of the tab. When it was [changedAt] last orders the notes, unless the folder is
  * sorted by name or by hand, by its [position] among the notes there. [pinned], it comes before the others there, but
  * after the folders pinned; [onToday], it shows on Heute too. What it is linked to is kept apart, as [NoteGoal]es,
- * [NoteTodo]s and [NoteRoutine]s.
+ * [NoteTodo]s and [NoteRoutine]s. Once [archivedAt], it is in the archive (SPEC.md §7), only to read, where it was,
+ * as is all in a folder archived.
  */
 @Entity(
     tableName = "notes",
@@ -67,7 +68,18 @@ data class Note(
     @ColumnInfo(defaultValue = "0") val position: Int = 0,
     @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
     @ColumnInfo(name = "on_today", defaultValue = "0") val onToday: Boolean = false,
-)
+    @ColumnInfo(name = "archived_at") val archivedAt: Instant? = null,
+) {
+    companion object {
+        /**
+         * In a query of the notes as `n`: those not in the archive, neither archived themselves nor in a folder archived,
+         * at any depth (SPEC.md §7).
+         */
+        const val NOT_ARCHIVED = "n.archived_at IS NULL AND (n.folder_id IS NULL OR n.folder_id NOT IN (" +
+            "WITH RECURSIVE archived(id) AS (SELECT id FROM note_folders WHERE archived_at IS NOT NULL " +
+            "UNION SELECT f.id FROM note_folders f JOIN archived a ON f.parent_id = a.id) SELECT id FROM archived))"
+    }
+}
 
 /** The first line of the text with anything on it, as the lists show the note; none for a text with nothing. */
 val Note.firstLine: String?

@@ -196,6 +196,19 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before the archive of notes loads with none archived, and a backup now keeps it`() {
+        val verbs = runBlocking { app.notes.create(NoteDraft("Verben")).also { app.notes.archiveNote(it) } }
+        val now = exported()
+        val older = sealed(asOf(40, contentOf(now)))
+
+        restore(now)
+        assertTrue(runBlocking { app.notes.notebook().first().let { it.isArchived(checkNotNull(it.note(verbs))) } })
+
+        restore(older)
+        assertTrue(runBlocking { app.notes.notebook().first().all().any { it.id == verbs } })
+    }
+
+    @Test
     fun `a backup from before budgets of single months loads without them`() {
         val made = someOfEverything()
         val file = sealed(asOf(39, contentOf(exported())))

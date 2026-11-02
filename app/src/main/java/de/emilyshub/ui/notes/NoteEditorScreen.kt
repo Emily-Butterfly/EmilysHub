@@ -72,7 +72,8 @@ sealed interface NoteEditorTarget : Serializable {
  * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies, its tags and what it is linked to, while
  * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
  * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
- * first; leaving without saving drops the changes.
+ * first; leaving without saving drops the changes; archiving it saves them first. One in the archive (SPEC.md §7) only
+ * shows its preview, to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +82,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
     var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
     var loaded by rememberSaveable { mutableStateOf(noteId == null) }
+    var archived by rememberSaveable { mutableStateOf(false) }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -95,6 +97,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                 onClose()
             } else {
                 draft = note.toDraft(notes.linksOf(noteId), notes.tagIdsOf(noteId))
+                archived = notes.isArchived(noteId)
                 loaded = true
             }
         }
@@ -103,7 +106,8 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
 
     val problems = draft.problems
     val closeWith = rememberClosing(onClose)
-    val save = {
+    /** Saves the note, then does [after] with it, if any; or shows what keeps it from being saved. */
+    fun save(after: (suspend (Long) -> Unit)? = null) {
         if (problems.isNotEmpty()) {
             // The problem shows at its field, which a long text may have scrolled away.
             showMissingTitle = true
@@ -111,8 +115,16 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
             if (NoteProblem.TitleMissing in problems || NoteProblem.TitleTooLong in problems) titleAsked++
         } else {
             val saved = draft
-            closeWith { if (noteId == null) notes.create(saved) else notes.update(noteId, saved) }
+            closeWith {
+                val id = noteId?.also { notes.update(it, saved) } ?: notes.create(saved)
+                after?.invoke(id)
+            }
         }
+    }
+
+    if (archived) {
+        ArchivedNote(notes, draft, onClose)
+        return
     }
 
     Scaffold(
@@ -134,8 +146,9 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                         IconButton(onClick = { confirmingDelete = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
+                        TextButton(onClick = { save(after = notes::archiveNote) }) { Text(stringResource(R.string.note_archive)) }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = { save() }) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -166,6 +179,33 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                 TextButton(onClick = { confirmingDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
+    }
+}
+
+/** A note in the archive, only to read: its preview, with what it is linked to, and that it is in the archive. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArchivedNote(notes: Notes, draft: NoteDraft, onClose: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.note_archived), modifier = Modifier.semantics { heading() }) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
+                    }
+                },
+            )
+        },
+    ) { contentPadding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
+        ) {
+            ReadOnlyHint()
+            Preview(notes, draft)
+        }
     }
 }
 

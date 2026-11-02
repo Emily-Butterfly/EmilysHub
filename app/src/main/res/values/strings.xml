@@ -475,6 +475,13 @@
     <string name="note_location">Liegt in</string>
     <string name="note_move">Verschieben nach…</string>
     <string name="note_move_title">Verschieben nach</string>
+    <string name="note_archive">Archivieren</string>
+    <string name="note_archived">Im Archiv</string>
+    <string name="note_archived_hint">Im Archiv – nur zum Lesen. Wiederherstellen kannst du es im Archiv.</string>
+    <string name="note_archive_empty">Nichts archiviert. Notizen und Ordner archivierst du über ihr Menü.</string>
+    <string name="note_delete_for_good">„%1$s“ endgültig löschen</string>
+    <string name="note_delete_for_good_title">Endgültig löschen?</string>
+    <string name="note_folder_delete_for_good_text">„%1$s“ wird mit allem darin endgültig gelöscht.</string>
     <string name="note_more">Mehr zu „%1$s“</string>
     <string name="note_up">Nach oben</string>
     <string name="note_down">Nach unten</string>
