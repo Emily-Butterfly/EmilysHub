@@ -83,7 +83,7 @@ class LedgerScreenTest {
             // The balance, and the booking.
             compose.onAllNodes(hasText("−45,30 €")).assertCountEquals(2)
         }
-        val booking = runBlocking { app.ledger.month(october).first().bookings.single().booking }
+        val booking = runBlocking { app.ledger.month(october).first().summary.bookings.single().booking }
         assertEquals(4_530L to LocalDate.parse("2026-10-23"), booking.amountCents to booking.date)
     }
 
@@ -101,7 +101,7 @@ class LedgerScreenTest {
             field("Betrag in Euro").performScrollTo().performTextInput(",5")
             compose.onNodeWithText("0,50 €").assertExists()
         }
-        assertEquals(emptyList<Any>(), runBlocking { app.ledger.month(october).first().bookings })
+        assertEquals(emptyList<Any>(), runBlocking { app.ledger.month(october).first().summary.bookings })
     }
 
     @Test
@@ -156,7 +156,7 @@ class LedgerScreenTest {
             compose.onNodeWithText("Kleidung").assertDoesNotExist()
             compose.onNodeWithContentDescription("„Sonstiges“ löschen").assertDoesNotExist()
         }
-        val booking = runBlocking { app.ledger.month(october).first().bookings.single() }
+        val booking = runBlocking { app.ledger.month(october).first().summary.bookings.single() }
         assertEquals("Sonstiges", booking.category.name)
     }
 
@@ -218,7 +218,7 @@ class LedgerScreenTest {
             compose.onNodeWithText("Noch keine Fixbuchungen", substring = true).assertIsDisplayed()
         }
         // That of September, the 30th, stays.
-        val entered = runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().bookings.single().booking }
+        val entered = runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().summary.bookings.single().booking }
         assertEquals(LocalDate.parse("2026-09-30"), entered.date)
     }
 
@@ -251,7 +251,7 @@ class LedgerScreenTest {
             compose.onNode(hasText("Wieder öffnen") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Monat abschließen").assertIsDisplayed()
         }
-        assertEquals(false, runBlocking { app.ledger.isClosed(YearMonth.of(2026, 9)).first() })
+        assertEquals(false, runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().closed })
     }
 
     @Test

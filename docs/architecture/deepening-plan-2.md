@@ -282,7 +282,17 @@ mostly lose getters.
 
 ## 6 · The Haushaltsbuch month as one consistent value
 
-**Status:** not started.
+**Status:** done. `Ledger.month(m)` returns a `LedgerMonth` (`ledger/LedgerMonth.kt`): the `MonthSummary`, whether it is
+closed, may be closed now, the fixed bookings it skipped, and the earlier months still open, itself not among them,
+all from one `observeClosed()`; `offers` (`MonthOffer`, `MonthClosing`) says what the page shows: "+", close or reopen,
+"enter skipped". `ClosedMonthsTest` holds what a month offers. `LedgerScreen` collects one flow, restarted as
+`rememberToday(day)` turns, which runs `enterDue` and moves `canClose` on the month's last day.
+
+- `isClosed`, `skipped(month)` and `openEarlierMonths` are gone, and `canClose` is private; the tests ask
+  `month(m)` instead, and those that read sums `.summary`.
+- `closedMonths()` stays, for the booking editor's lock (#2).
+- `enterDue` stays inside the read, restarted once a day, rather than hung off `Day.dates()`: it already runs once per
+  day the page shows, and moving it would put a write on the day's clock for one screen.
 
 ### Why
 

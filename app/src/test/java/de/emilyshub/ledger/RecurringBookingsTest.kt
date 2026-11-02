@@ -66,7 +66,7 @@ class RecurringBookingsTest {
         at("2026-10-24T00:01")
         ledger.enterDue()
         assertEquals(listOf("2026-10-24 Miete 85000"), entered())
-        assertEquals(rent, ledger.month(YearMonth.of(2026, 10)).first().bookings.single().booking.recurringId)
+        assertEquals(rent, ledger.month(YearMonth.of(2026, 10)).first().summary.bookings.single().booking.recurringId)
         assertEquals(LocalDate.parse("2026-11-24"), ledger.templates().first().single().next)
     }
 
@@ -84,7 +84,7 @@ class RecurringBookingsTest {
     fun `one entered is changed or deleted in its month without the template, and a deleted one does not come again`() = runBlocking {
         template(BookingKind.Expense, "Freizeit", "9,99", BookingInterval.Monthly, day = 5, first = "2026-10", "Streaming")
         ledger.enterDue()
-        val entry = ledger.month(YearMonth.of(2026, 10)).first().bookings.single().booking
+        val entry = ledger.month(YearMonth.of(2026, 10)).first().summary.bookings.single().booking
 
         ledger.update(entry.id, checkNotNull(ledger.draftOf(entry.id)).copy(amount = "12,99"))
         assertEquals("9,99", ledger.templates().first().single().draft.amount)
@@ -191,7 +191,7 @@ class RecurringBookingsTest {
 
     /** All bookings entered, "2026-10-24 Miete 85000", by date. */
     private suspend fun entered(): List<String> =
-        (2026..2027).flatMap { year -> (1..12).flatMap { ledger.month(YearMonth.of(year, it)).first().bookings } }
+        (2026..2027).flatMap { year -> (1..12).flatMap { ledger.month(YearMonth.of(year, it)).first().summary.bookings } }
             .sortedBy { it.booking.date }
             .map { "${it.booking.date} ${it.booking.description} ${it.booking.amountCents}" }
 

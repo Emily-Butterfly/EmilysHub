@@ -63,7 +63,7 @@ class LedgerTest {
         book(BookingKind.Expense, "Wohnen", "850,00", "2026-09-30")
         book(BookingKind.Expense, "Wohnen", "850,00", "2026-11-01")
 
-        val month = ledger.month(october).first()
+        val month = ledger.month(october).first().summary
 
         assertEquals(250_000L, month.income)
         assertEquals(90_750L, month.expenses)
@@ -80,9 +80,9 @@ class LedgerTest {
         book(BookingKind.Expense, "Freizeit", "10", "2028-02-29")
         book(BookingKind.Expense, "Freizeit", "20", "2028-03-01")
 
-        assertEquals(1_000L, ledger.month(YearMonth.of(2028, 2)).first().expenses)
-        assertEquals(2_000L, ledger.month(YearMonth.of(2028, 3)).first().expenses)
-        assertEquals(0L, ledger.month(YearMonth.of(2028, 4)).first().balance)
+        assertEquals(1_000L, ledger.month(YearMonth.of(2028, 2)).first().summary.expenses)
+        assertEquals(2_000L, ledger.month(YearMonth.of(2028, 3)).first().summary.expenses)
+        assertEquals(0L, ledger.month(YearMonth.of(2028, 4)).first().summary.balance)
     }
 
     @Test
@@ -145,7 +145,7 @@ class LedgerTest {
         val other = ledger.categories().first().single { it.kind == BookingKind.Expense && it.isOther }
         assertEquals(other.id, ledger.get(id)?.categoryId)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.deleteCategory(other.id) } }
-        assertEquals(listOf("Sonstiges" to 3_999L), ledger.month(october).first().expensesByCategory.map { it.category.name to it.cents })
+        assertEquals(listOf("Sonstiges" to 3_999L), ledger.month(october).first().summary.expensesByCategory.map { it.category.name to it.cents })
     }
 
     @Test

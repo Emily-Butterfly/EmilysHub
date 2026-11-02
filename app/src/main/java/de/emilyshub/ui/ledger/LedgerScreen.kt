@@ -64,6 +64,7 @@ import de.emilyshub.ledger.BookingWithCategory
 import de.emilyshub.ledger.BudgetLevel
 import de.emilyshub.ledger.CategoryTotal
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.MonthClosing
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
@@ -94,16 +95,14 @@ fun LedgerScreen(
     onOpenYear: () -> Unit,
     onBack: () -> Unit,
 ) {
-    // Null until known, so that a closed month does not show what an open one has for a moment.
-    val closedOrNot by remember(ledger, month) { ledger.isClosed(month) }.collectAsState(initial = null)
-    val closed = closedOrNot == true
-    val stillOpen by remember(ledger) { ledger.openEarlierMonths() }.collectAsState(initial = emptyList())
-    val skipped by remember(ledger, month) { ledger.skipped(month) }.collectAsState(initial = 0)
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows.
+    // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows, and
+    // the month may be closed on its last day.
     val today = rememberToday(day)
-    val summary by remember(ledger, month, today) { ledger.month(month) }.collectAsState(initial = null)
+    // All of one read, null until known, so that a closed month does not show what an open one has for a moment.
+    val shown by remember(ledger, month, today) { ledger.month(month) }.collectAsState(initial = null)
+    val offers = shown?.offers
 
     Scaffold(
         topBar = {
@@ -129,7 +128,7 @@ fun LedgerScreen(
         },
         floatingActionButton = {
             // Nothing is booked in a month closed.
-            if (closedOrNot == false) {
+            if (offers?.book == true) {
                 FloatingActionButton(onClick = onCreate) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.booking_create))
                 }
@@ -144,12 +143,12 @@ fun LedgerScreen(
                 }
             }
             // Earlier months not closed yet, to find them easily.
-            val others = stillOpen - month
+            val others = shown?.stillOpen.orEmpty()
             if (others.isNotEmpty()) item(key = "still-open") { StillOpen(others, onMonthChange) }
             item(key = "closing") {
-                when {
-                    closedOrNot == null -> Unit
-                    closed -> Row(
+                when (offers?.closing) {
+                    null, MonthClosing.None -> Unit
+                    MonthClosing.Reopen -> Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
@@ -160,14 +159,15 @@ fun LedgerScreen(
                         )
                         TextButton(onClick = { confirmingClose = true }) { Text(stringResource(R.string.ledger_reopen)) }
                     }
-                    ledger.canClose(month) -> TextButton(
+                    MonthClosing.Close -> TextButton(
                         onClick = { confirmingClose = true },
                         modifier = Modifier.padding(horizontal = 8.dp),
                     ) { Text(stringResource(R.string.ledger_close)) }
                 }
             }
             // Opened again after it was closed: what was not entered meanwhile, if wanted.
-            if (closedOrNot == false && skipped > 0) {
+            val skipped = shown?.skipped ?: 0
+            if (offers?.enterSkipped == true) {
                 item(key = "skipped") {
                     Column(Modifier.padding(horizontal = 16.dp)) {
                         Hint(stringResource(R.string.ledger_skipped_hint))
@@ -177,13 +177,13 @@ fun LedgerScreen(
                     }
                 }
             }
-            val shown = summary ?: return@LazyColumn
-            item(key = "sums") { Sums(shown.income, shown.expenses, shown.balance) }
-            if (shown.expensesByCategory.isNotEmpty()) {
-                item(key = "by-category") { ExpensesByCategory(shown.expensesByCategory, shown.expenses) }
+            val summary = shown?.summary ?: return@LazyColumn
+            item(key = "sums") { Sums(summary.income, summary.expenses, summary.balance) }
+            if (summary.expensesByCategory.isNotEmpty()) {
+                item(key = "by-category") { ExpensesByCategory(summary.expensesByCategory, summary.expenses) }
             }
             item(key = "bookings-title") { SectionTitle(stringResource(R.string.ledger_bookings)) }
-            if (shown.bookings.isEmpty()) {
+            if (summary.bookings.isEmpty()) {
                 item(key = "empty") {
                     Text(
                         stringResource(R.string.ledger_month_empty),
@@ -192,12 +192,14 @@ fun LedgerScreen(
                     )
                 }
             }
-            items(shown.bookings, key = { it.booking.id }) { BookingRow(it, onClick = { onOpen(it.booking.id) }) }
+            items(summary.bookings, key = { it.booking.id }) { BookingRow(it, onClick = { onOpen(it.booking.id) }) }
         }
     }
 
-    if (confirmingClose && closedOrNot != null) {
+    val known = shown
+    if (confirmingClose && known != null) {
         // Reopening what is closed, closing what is open.
+        val closed = known.closed
         val (title, text, confirm) = if (closed) {
             Triple(R.string.ledger_reopen_title, R.string.ledger_reopen_text, R.string.ledger_reopen)
         } else {

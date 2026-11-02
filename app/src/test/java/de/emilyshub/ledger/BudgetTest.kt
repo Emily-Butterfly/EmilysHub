@@ -61,7 +61,7 @@ class BudgetTest {
         book("Lebensmittel", "212,50", "2026-10-12")
         book("Kleidung", "40", "2026-10-13")
 
-        val totals = ledger.month(october).first().expensesByCategory
+        val totals = ledger.month(october).first().summary.expensesByCategory
         assertEquals(
             listOf(Triple("Lebensmittel", 21_250L, 30_000L), Triple("Kleidung", 4_000L, null), Triple("Freizeit", 0L, 5_000L)),
             totals.map { Triple(it.category.name, it.cents, it.budgetCents) },
@@ -153,7 +153,7 @@ class BudgetTest {
     }
 
     private suspend fun budgetIn(month: YearMonth): Long? =
-        ledger.month(month).first().expensesByCategory.single { it.category.name == "Lebensmittel" }.budgetCents
+        ledger.month(month).first().summary.expensesByCategory.single { it.category.name == "Lebensmittel" }.budgetCents
 
     private suspend fun expense(name: String): Long =
         ledger.categories().first().single { it.kind == BookingKind.Expense && it.name == name }.id

@@ -41,15 +41,15 @@ class ClosedMonthsTest {
 
     @Test
     fun `months gone by can be closed, the current one from its last day on, later ones not`() = runBlocking {
-        assertTrue(ledger.canClose(september))
-        assertFalse(ledger.canClose(october))
-        assertFalse(ledger.canClose(YearMonth.of(2026, 11)))
+        assertTrue(shown(september).canClose)
+        assertFalse(shown(october).canClose)
+        assertFalse(shown(YearMonth.of(2026, 11)).canClose)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.close(october) } }
 
         at("2026-10-31T00:00")
-        assertTrue(ledger.canClose(october))
+        assertTrue(shown(october).canClose)
         ledger.close(october)
-        assertTrue(ledger.isClosed(october).first())
+        assertTrue(shown(october).closed)
     }
 
     @Test
@@ -85,7 +85,7 @@ class ClosedMonthsTest {
         ledger.reopen(september)
         ledger.enterDue()
 
-        val dates = listOf(august, september, october).flatMap { ledger.month(it).first().bookings }.map { it.booking.date }
+        val dates = listOf(august, september, october).flatMap { ledger.month(it).first().summary.bookings }.map { it.booking.date }
         assertEquals(listOf(LocalDate.parse("2026-08-01"), LocalDate.parse("2026-10-01")), dates)
     }
 
@@ -97,17 +97,17 @@ class ClosedMonthsTest {
             RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 9)),
         )
         // Not while it is closed.
-        assertEquals(0, ledger.skipped(september).first())
+        assertEquals(0, shown(september).skipped)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.enterSkipped(september) } }
 
         ledger.reopen(september)
-        assertEquals(1, ledger.skipped(september).first())
+        assertEquals(1, shown(september).skipped)
         ledger.enterSkipped(september)
         ledger.enterSkipped(september)
 
-        val entered = ledger.month(september).first().bookings.single().booking
+        val entered = ledger.month(september).first().summary.bookings.single().booking
         assertEquals(LocalDate.parse("2026-09-01") to template, entered.date to entered.recurringId)
-        assertEquals(0, ledger.skipped(september).first())
+        assertEquals(0, shown(september).skipped)
     }
 
     @Test
@@ -121,7 +121,7 @@ class ClosedMonthsTest {
 
         ledger.deleteTemplate(template)
 
-        assertEquals(0, ledger.skipped(september).first())
+        assertEquals(0, shown(september).skipped)
     }
 
     @Test
@@ -145,7 +145,39 @@ class ClosedMonthsTest {
         book("Freizeit", "5", "2026-10-01")
         ledger.close(YearMonth.of(2026, 8))
 
-        assertEquals(listOf(september, YearMonth.of(2026, 7)), ledger.openEarlierMonths().first())
+        assertEquals(listOf(september, YearMonth.of(2026, 7)), shown(october).stillOpen)
+        // The month shown is not named among them.
+        assertEquals(listOf(YearMonth.of(2026, 7)), shown(september).stillOpen)
+    }
+
+    @Test
+    fun `what a month offers follows whether it is closed, may be closed, and skipped fixed bookings`() = runBlocking {
+        val rent = ledger.categories().first().single { it.name == "Wohnen" }.id
+        // Gone by and open: booked into, and closed.
+        assertEquals(MonthOffer(book = true, closing = MonthClosing.Close, enterSkipped = false), shown(september).offers)
+        // The current one before its last day: booked into, not yet closed.
+        assertEquals(MonthOffer(book = true, closing = MonthClosing.None, enterSkipped = false), shown(october).offers)
+
+        ledger.close(september)
+        ledger.createTemplate(RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, september))
+        // Closed: only opened again.
+        assertEquals(MonthOffer(book = false, closing = MonthClosing.Reopen, enterSkipped = false), shown(september).offers)
+
+        ledger.reopen(september)
+        // Open again, with what it skipped meanwhile.
+        assertEquals(MonthOffer(book = true, closing = MonthClosing.Close, enterSkipped = true), shown(september).offers)
+    }
+
+    @Test
+    fun `a month's state comes from one read of what is closed, the sums with it`() = runBlocking {
+        book("Freizeit", "8", "2026-09-12")
+        ledger.close(september)
+
+        val shown = shown(september)
+
+        assertTrue(shown.closed)
+        assertEquals(800L, shown.summary.expenses)
+        assertEquals(0, shown.skipped)
     }
 
     @Test
@@ -170,8 +202,10 @@ class ClosedMonthsTest {
 
         ledger.close(october)
 
-        assertEquals(listOf(LocalDate.parse("2026-10-31")), ledger.month(october).first().bookings.map { it.booking.date })
+        assertEquals(listOf(LocalDate.parse("2026-10-31")), ledger.month(october).first().summary.bookings.map { it.booking.date })
     }
+
+    private suspend fun shown(month: YearMonth): LedgerMonth = ledger.month(month).first()
 
     private suspend fun book(category: String, amount: String, date: String): Long {
         val id = ledger.categories().first().single { it.kind == BookingKind.Expense && it.name == category }.id

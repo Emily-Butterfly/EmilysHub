@@ -43,28 +43,45 @@ class Ledger(
     }.flowOn(io)
 
     /**
-     * The [month]'s sums, its expenses by category with their budgets and its bookings, the fixed ones due by today
-     * entered first. An open month has the budgets of now, a closed one those it had when it was closed.
+     * The [month] as its page shows it ([LedgerMonth]), the fixed ones due by today entered first: its sums, its
+     * expenses by category with their budgets, and its bookings; whether it is closed, may be closed now, what it
+     * skipped while closed, and the earlier months still open. An open month has the budgets of now, a closed one those
+     * it had when it was closed. All of one read of the months closed.
      */
-    fun month(month: YearMonth): Flow<MonthSummary> = flow {
+    fun month(month: YearMonth): Flow<LedgerMonth> = flow {
         enterDue()
+        val (from, to) = month.atDay(1) to month.atEndOfMonth()
+        val booked = combine(dao.observeBetween(from, to), dao.observeCategories(), dao.observeClosedBudgets(month), ::Booked)
+        val earlier = combine(dao.observeBookingMonths(), dao.observeSkippedMonths(), dao.observeSkippedBetween(from, to), ::Earlier)
         emitAll(
-            combine(
-                dao.observeBetween(month.atDay(1), month.atEndOfMonth()),
-                dao.observeCategories(),
-                dao.observeClosed(),
-                dao.observeClosedBudgets(month),
-            ) { bookings, categories, closed, kept ->
-                val budgets = if (ClosedMonth(month) in closed) {
+            combine(dao.observeClosed(), booked, earlier) { closedMonths, (bookings, categories, kept), earlierMonths ->
+                val closed = closedMonths.map { it.month }.toSet()
+                val isClosed = month in closed
+                val budgets = if (isClosed) {
                     val byId = categories.associateBy { it.id }
                     kept.mapNotNull { budget -> byId[budget.categoryId]?.let { it to budget.budgetCents } }.toMap()
                 } else {
                     categories.mapNotNull { category -> category.budgetCents?.let { category to it } }.toMap()
                 }
-                summary(bookings, budgets)
+                LedgerMonth(
+                    month = month,
+                    summary = summary(bookings, budgets),
+                    closed = isClosed,
+                    canClose = canClose(month),
+                    // Entered by hand once it is open again; none while closed.
+                    skipped = if (isClosed) 0 else earlierMonths.skippedHere.size,
+                    stillOpen = (earlierMonths.booked + earlierMonths.skipped).distinct().map(YearMonth::parse)
+                        .filter { it.isBefore(thisMonth()) && it !in closed && it != month }
+                        .sortedDescending(),
+                )
             },
         )
     }.flowOn(io)
+
+    private data class Booked(val bookings: List<BookingWithCategory>, val categories: List<LedgerCategory>, val kept: List<ClosedBudget>)
+
+    /** The months with bookings and with fixed bookings skipped, and those skipped in the month shown. */
+    private data class Earlier(val booked: List<String>, val skipped: List<String>, val skippedHere: List<SkippedEntry>)
 
     /**
      * The [year]'s months with their sums and its expenses by category (SPEC.md §13), the fixed ones due by today
@@ -206,16 +223,13 @@ class Ledger(
         (after - budget).takeIf { it > 0 && cents > before }
     }
 
-    /** Whether [month] is closed (SPEC.md §13), only to read. */
-    fun isClosed(month: YearMonth): Flow<Boolean> = closedMonths().map { month in it }
-
     /** The months closed (SPEC.md §13), only to read. */
     fun closedMonths(): Flow<Set<YearMonth>> = flow {
         emitAll(dao.observeClosed().map { closed -> closed.map { it.month }.toSet() })
     }.flowOn(io)
 
     /** Whether [month] can be closed: one gone by, or the current one from its last day on. */
-    fun canClose(month: YearMonth): Boolean = !month.atEndOfMonth().isAfter(today())
+    private fun canClose(month: YearMonth): Boolean = !month.atEndOfMonth().isAfter(today())
 
     /**
      * Closes [month]: it goes to the archive, only to read, keeping the budgets of now; the screen asks first. The fixed
@@ -239,18 +253,6 @@ class Ledger(
      */
     suspend fun inClosedMonths(categoryId: Long): Boolean = withContext(io) { lockedByClosedMonths(categoryId) }
 
-    /**
-     * How many fixed bookings were skipped in [month] while it was closed, to enter now it is open again; none while it
-     * is closed.
-     */
-    fun skipped(month: YearMonth): Flow<Int> = flow {
-        emitAll(
-            dao.observeClosed().combine(dao.observeSkippedBetween(month.atDay(1), month.atEndOfMonth())) { closed, skipped ->
-                if (ClosedMonth(month) in closed) 0 else skipped.size
-            },
-        )
-    }.flowOn(io)
-
     /** Enters the fixed bookings skipped in [month] while it was closed, as their templates are now, each once. */
     suspend fun enterSkipped(month: YearMonth) = write {
         database().withTransaction {
@@ -269,21 +271,6 @@ class Ledger(
     /** The months closed, the latest first, each with its sums (SPEC.md §13). */
     fun archive(): Flow<List<MonthSums>> = flow {
         emitAll(dao.observeArchive().map { months -> months.sortedByDescending { it.month } })
-    }.flowOn(io)
-
-    /**
-     * The months before this one with bookings, or with fixed bookings skipped, that are still open, the latest first,
-     * to find them easily.
-     */
-    fun openEarlierMonths(): Flow<List<YearMonth>> = flow {
-        emitAll(
-            combine(dao.observeClosed(), dao.observeBookingMonths(), dao.observeSkippedMonths()) { closed, booked, skipped ->
-                val closedMonths = closed.map { it.month }.toSet()
-                (booked + skipped).distinct().map(YearMonth::parse)
-                    .filter { it.isBefore(thisMonth()) && it !in closedMonths }
-                    .sortedDescending()
-            },
-        )
     }.flowOn(io)
 
     /** A new category of [kind] named [name] on a single line; refuses a name with a problem. */
