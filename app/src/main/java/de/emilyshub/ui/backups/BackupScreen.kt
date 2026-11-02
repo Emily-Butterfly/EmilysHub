@@ -56,6 +56,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.backup.NightlyState
 import de.emilyshub.backup.PasswordProblem
+import de.emilyshub.logged
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.dateAndTime
@@ -398,7 +399,7 @@ private suspend fun failingWith(@StringRes failure: Int, block: suspend () -> In
 } catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    Log.e(TAG, "A backup failed: ${e.javaClass.name}")
+    Log.e(TAG, "A backup failed: ${e.logged}")
     failure
 }
 

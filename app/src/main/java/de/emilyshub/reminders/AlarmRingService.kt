@@ -15,6 +15,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import de.emilyshub.EmilysHubApplication
 import de.emilyshub.R
+import de.emilyshub.logged
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -131,7 +132,7 @@ class AlarmRingService : Service() {
                 ContextCompat.startForegroundService(context, intent)
             } catch (e: IllegalStateException) {
                 // Not allowed from the background just now: the full-screen alarm still rings while it is up.
-                Log.w(TAG, "Could not ring in the background", e)
+                Log.w(TAG, "Could not ring in the background: ${e.logged}")
             }
         }
 

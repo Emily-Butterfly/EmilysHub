@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import android.util.Log
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.logged
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -91,7 +92,7 @@ class NightlyBackups(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "No backup could be made in the folder chosen: ${e.javaClass.name}")
+                Log.e(TAG, "No backup could be made in the folder chosen: ${e.logged}")
                 false
             }
             if (!made) {
@@ -133,7 +134,7 @@ class NightlyBackups(
                 throw e
             } catch (e: Exception) {
                 // Not its message, which may quote the data.
-                Log.e(TAG, "The nightly backup failed: ${e.javaClass.name}")
+                Log.e(TAG, "The nightly backup failed: ${e.logged}")
                 put(FAILED, now.toString())
             }
             setAlarm()
@@ -205,7 +206,7 @@ class NightlyBackups(
                 .drop(KEPT)
                 .forEach { (name, _) -> folder.delete(name) }
         } catch (e: Exception) {
-            Log.e(TAG, "Older backups could not be deleted: ${e.javaClass.name}")
+            Log.e(TAG, "Older backups could not be deleted: ${e.logged}")
         }
     }
 

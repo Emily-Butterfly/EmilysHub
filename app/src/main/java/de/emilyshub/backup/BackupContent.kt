@@ -33,8 +33,12 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         private const val COLUMNS = "columns"
         private const val ROWS = "rows"
 
-        /** Read strictly: a key missing or unknown, or a value of another type, counts as damage. */
+        /**
+         * Read strictly: a key missing or unknown, or a value of another type, counts as damage, as does nesting deeper
+         * than a backup has, which the parser would follow until its stack ran out.
+         */
         fun fromJson(json: ByteArray): BackupContent = try {
+            if (depthOf(json) > MAX_DEPTH) damaged()
             val root = JSONObject(String(json, Charsets.UTF_8))
             if (root.keySet() != setOf(SCHEMA, CREATED, TABLES)) damaged()
             val tables = root.getJSONObject(TABLES)
@@ -69,5 +73,28 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
             else -> damaged()
         }
         private fun JSONObject.keySet(): Set<String> = keys().asSequence().toSet()
+
+        /** The root, the tables, a table, its rows and a row: no backup nests deeper. */
+        private const val MAX_DEPTH = 5
+
+        /** How deep objects and arrays nest in [json], brackets within strings aside; as deep as it goes before closing. */
+        private fun depthOf(json: ByteArray): Int {
+            var depth = 0
+            var deepest = 0
+            var inString = false
+            var escaped = false
+            for (byte in json) {
+                val c = byte.toInt().toChar()
+                when {
+                    escaped -> escaped = false
+                    inString && c == '\\' -> escaped = true
+                    c == '"' -> inString = !inString
+                    inString -> Unit
+                    c == '{' || c == '[' -> deepest = maxOf(deepest, ++depth)
+                    c == '}' || c == ']' -> depth--
+                }
+            }
+            return deepest
+        }
     }
 }

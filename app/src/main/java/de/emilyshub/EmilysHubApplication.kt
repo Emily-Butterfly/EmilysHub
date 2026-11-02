@@ -115,7 +115,8 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> Log.e(TAG, "Background work failed", e) },
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, e -> Log.e(TAG, "Background work failed: ${e.logged}") },
     )
 
     // Modules, built from the ports. What changes what the reminders remind of tells them ([updateReminders]): the
@@ -206,7 +207,7 @@ open class EmilysHubApplication : Application(), Hub {
         try {
             reminders.update()
         } catch (e: Exception) {
-            Log.e(TAG, "Could not update the reminders", e)
+            Log.e(TAG, "Could not update the reminders: ${e.logged}")
         }
     }
 

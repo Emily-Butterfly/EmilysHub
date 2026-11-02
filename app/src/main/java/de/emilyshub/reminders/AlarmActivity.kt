@@ -235,7 +235,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         is DueReminder.OfTodo -> {
             val reminder = due.reminder
             val today = app.todos.today()
-            val onLockScreen = LockScreenShown(reminder.title, resources.lockScreenText(reminder, today)).takeIf { reminder.style.nameOnLockScreen }
+            val onLockScreen = LockScreenShown(reminder.title, resources.lockScreenText(reminder, today))
+                .takeIf { reminder.style.nameOnLockScreen }
             AlarmShown(due.about.key, reminder.title, resources.reminderText(reminder, today), skippable = false, onLockScreen)
         }
     }

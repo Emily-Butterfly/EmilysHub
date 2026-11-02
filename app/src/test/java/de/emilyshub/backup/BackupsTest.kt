@@ -331,6 +331,18 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup nested deeper than any the app makes is damaged, not a crash, and nothing changes`() {
+        someOfEverything()
+        val before = everything()
+        // Within the size a backup may have, but nested far deeper than a parser's stack goes.
+        val nested = """{"schema": ${HubDatabase.VERSION}, "created": "2026-10-23T05:00:00Z", "tables": {"notes": """ +
+            """{"columns": [], "rows": ${"[".repeat(500_000)}"""
+
+        assertProblem(BackupProblem.Damaged) { open(BackupFile.seal(nested.toByteArray(), key())) }
+        assertEquals(before, everything())
+    }
+
+    @Test
     fun `the backup password is set once, and only its key is kept, sealed with the Keystore key`() {
         someOfEverything()
         assertFalse(runBlocking { backups.hasPassword() })
