@@ -580,7 +580,7 @@
     <string name="backup_password_failed">Das Backup-Passwort konnte nicht festgelegt werden.</string>
     <string name="backup_password_is_set">Das Backup-Passwort ist festgelegt. Jedes Backup wird damit verschlüsselt.</string>
     <string name="backup_save_title">Sichern</string>
-    <string name="backup_save_summary">Speichert alle Daten verschlüsselt in eine Datei, die du wählst. Die Einstellungen bleiben auf diesem Gerät.</string>
+    <string name="backup_save_summary">Speichert alle Daten verschlüsselt in eine Datei, in einem Ordner deiner Wahl. Die App löscht so gespeicherte Backups nie. Die Einstellungen bleiben auf diesem Gerät.</string>
     <string name="backup_save_needs_password">Lege dafür zuerst ein Backup-Passwort fest.</string>
     <string name="backup_save">Backup speichern</string>
     <string name="backup_saved">Backup gespeichert.</string>
@@ -606,7 +606,7 @@
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_nightly_title">Jede Nacht</string>
-    <string name="backup_nightly_summary">Legt jede Nacht ein verschlüsseltes Backup in einem Ordner ab, den du einmal wählst. Die letzten %1$d bleiben, ältere löscht die App.</string>
+    <string name="backup_nightly_summary">Legt jede Nacht ein verschlüsseltes Backup in einem Ordner ab, den du einmal wählst. Die letzten %1$d bleiben, ältere löscht die App; von Hand gespeicherte Backups lässt sie stehen, auch in diesem Ordner.</string>
     <string name="backup_nightly_needs_password">Lege dafür zuerst ein Backup-Passwort fest.</string>
     <string name="backup_nightly_no_folder">Noch kein Ordner gewählt.</string>
     <string name="backup_nightly_folder">Ordner: %1$s</string>

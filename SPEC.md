@@ -206,8 +206,8 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 
 - **Backup-Passwort** wird einmal festgelegt; daraus abgeleiteter Schlüssel (Argon2id bzw. PBKDF2) wird im Android Keystore geschützt abgelegt.
 - Verschlüsselung: AES-256-GCM.
-- **Automatisch**: täglich nachts in einen vom Nutzer gewählten Ordner (Storage Access Framework); die letzten 7 bleiben erhalten.
-- **Manuell**: Export und Import jederzeit; Import auf neuem Gerät mit dem Passwort.
+- **Automatisch**: täglich nachts in einen vom Nutzer gewählten Ordner (Storage Access Framework); die letzten 7 nächtlichen bleiben erhalten, ältere löscht die App.
+- **Manuell**: Export und Import jederzeit; Export in einen beliebigen Ordner, auch den der nächtlichen; von Hand gespeicherte Backups löscht die App nie. Import auf neuem Gerät mit dem Passwort.
 - Hinweis in der Heute-Übersicht, wenn das letzte Backup älter als 30 Tage ist oder fehlgeschlagen ist.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.

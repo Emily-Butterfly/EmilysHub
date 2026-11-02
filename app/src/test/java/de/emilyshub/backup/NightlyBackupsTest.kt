@@ -101,16 +101,31 @@ class NightlyBackupsTest {
     }
 
     @Test
+    fun `a backup saved by hand stays, in the folder of the nightly ones too, however many nights follow`() {
+        // As the app names one saved by hand, and as Android names another of the same day beside it.
+        folder.files["EmilysHub-Backup-2026-10-22.emhb"] = byteArrayOf(1)
+        folder.files["EmilysHub-Backup-2026-10-22 (1).emhb"] = byteArrayOf(1)
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+
+        (24..31).forEach { night("2026-10-${it}T03:00") }
+
+        assertEquals(
+            listOf("EmilysHub-Backup-2026-10-22 (1).emhb", "EmilysHub-Backup-2026-10-22.emhb") +
+                (25..31).map { "EmilysHub-Backup-2026-10-$it-030000.emhb" },
+            folder.fileNames().sorted(),
+        )
+    }
+
+    @Test
     fun `a backup dated later than now, made while the clock was wrong, is the first to go`() {
         folder.files["EmilysHub-Backup-2031-01-01-030000.emhb"] = byteArrayOf(1)
-        // Saved by hand into the same folder: a backup too.
-        folder.files["EmilysHub-Backup-2026-10-22.emhb"] = byteArrayOf(1)
         setPassword()
         runBlocking { nightly.choose(FOLDER) }
 
         (24..29).forEach { night("2026-10-${it}T03:00") }
 
-        // Nine backups: the one dated 2031 goes first, then the oldest.
+        // Eight backups of the night: the one dated 2031 goes first.
         assertEquals(
             listOf("EmilysHub-Backup-2026-10-23-070000.emhb") + (24..29).map { "EmilysHub-Backup-2026-10-$it-030000.emhb" },
             folder.fileNames().sorted(),

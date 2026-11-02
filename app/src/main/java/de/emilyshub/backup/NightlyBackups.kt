@@ -12,7 +12,6 @@ import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZonedDateTime
@@ -55,8 +54,9 @@ data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?,
 /**
  * The backups made each night (SPEC.md §10) into a folder chosen once, whose access is kept: at [NIGHT], with the key
  * [backups] keep of the backup password, so without asking for it. Each is saved under the day and time it was made,
- * beside the others, never over one; one broken off while it is written is taken away again. The last [KEPT] backups
- * stay, older ones are deleted, other files in the folder are left alone.
+ * beside the others, never over one; one broken off while it is written is taken away again. The last [KEPT] of them
+ * stay, older ones are deleted; backups saved by hand ([Backups.fileName]), wherever they are saved, and other files in
+ * the folder are left alone.
  *
  * The next backup is due the first night after the last one tried. One night missed, as the phone was off, it comes the
  * night after; more than one in a row, it is made up as soon as the app may again. [folderAt] gives the folder of the
@@ -193,8 +193,9 @@ class NightlyBackups(
     }
 
     /**
-     * The backups beyond the last [KEPT], by the day and time in their names, those saved by hand with the day alone
-     * too; one dated later than now, made while the clock was wrong, goes first. The backup made stands if this fails.
+     * The nightly backups beyond the last [KEPT], by the day and time in their names; one dated later than now, made while
+     * the clock was wrong, goes first. One saved by hand, named by its day alone, is never deleted. The backup made
+     * stands if this fails.
      */
     private fun deleteOlder(folder: BackupFolder) {
         try {
@@ -253,16 +254,15 @@ class NightlyBackups(
         private val STAMP = DateTimeFormatter.ofPattern("uuuu-MM-dd-HHmmss")
 
         /**
-         * The names of backups, nightly or saved by hand ([Backups.fileName]), and only those: no other file is deleted.
-         * A day saved by hand counts from its start.
+         * The names of the nightly backups, by their day and time, and only those: no other file is deleted, nor a backup
+         * saved by hand ([Backups.fileName]), named by its day alone.
          */
-        private val BACKUP_NAME = Regex("""EmilysHub-Backup-(\d{4}-\d{2}-\d{2})(?:-(\d{6}))?\.emhb""")
+        private val NIGHTLY_NAME = Regex("""EmilysHub-Backup-(\d{4}-\d{2}-\d{2}-\d{6})\.emhb""")
 
         private fun madeAt(fileName: String): LocalDateTime? {
-            val match = BACKUP_NAME.matchEntire(fileName) ?: return null
-            val (day, time) = match.destructured
+            val stamp = NIGHTLY_NAME.matchEntire(fileName)?.groupValues?.get(1) ?: return null
             return try {
-                if (time.isEmpty()) LocalDate.parse(day).atStartOfDay() else LocalDateTime.parse("$day-$time", STAMP)
+                LocalDateTime.parse(stamp, STAMP)
             } catch (_: DateTimeParseException) {
                 null
             }
