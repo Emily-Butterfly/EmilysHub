@@ -430,8 +430,15 @@ class LedgerScreenTest {
             ).assertIsDisplayed()
             compose.onNode(hasText("Abschließen & übertragen") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Abgeschlossen – nur zum Lesen").assertIsDisplayed()
+            // Closed without an opening balance, it offers none.
+            compose.onNodeWithText("Anfangssaldo festlegen").assertDoesNotExist()
+            compose.onNodeWithText("Saldo aus Vormonat übertragen").assertDoesNotExist()
 
             compose.onNodeWithContentDescription("Nächster Monat").performClick()
+            compose.onNodeWithText("aus August übertragen").assertIsDisplayed()
+            // Saved unchanged, it stays carried over.
+            compose.onNodeWithContentDescription("Anfangssaldo ändern").performClick()
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("aus August übertragen").assertIsDisplayed()
             compose.onNodeWithText("Monat abschließen").performClick()
             compose.onNode(hasText("Abschließen & übertragen") and hasAnyAncestor(isDialog())).performClick()

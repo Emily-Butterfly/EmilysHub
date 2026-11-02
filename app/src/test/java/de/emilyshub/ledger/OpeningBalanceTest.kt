@@ -180,6 +180,19 @@ class OpeningBalanceTest {
         assertEquals(10_000L, shown.months.last().income)
     }
 
+    @Test
+    fun `an opening balance leaves the budgets as they are`() = runBlocking {
+        val food = ledger.categories().first().single { it.name == "Lebensmittel" }.id
+        ledger.setBudget(food, 10_000)
+        expense("30", "2026-11-01")
+
+        ledger.setOpening(november, -50_000)
+
+        val total = shown(november).summary.expensesByCategory.single { it.category.id == food }
+        assertEquals(3_000L, total.cents)
+        assertEquals(7_000L, total.use?.left)
+    }
+
     private suspend fun shown(month: YearMonth): LedgerMonth = ledger.month(month).first()
 
     private suspend fun expense(amount: String, date: String): Long = book(BookingKind.Expense, "Lebensmittel", amount, date)

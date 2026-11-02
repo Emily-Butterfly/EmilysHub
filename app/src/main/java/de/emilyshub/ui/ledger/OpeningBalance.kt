@@ -123,7 +123,11 @@ internal fun OpeningDialog(current: Long?, onSave: (Long) -> Unit, onRemove: () 
             )
         },
         confirmButton = {
-            TextButton(onClick = { cents?.let(onSave) }, enabled = cents != null) { Text(stringResource(R.string.save)) }
+            // Unchanged, one carried over stays carried over.
+            TextButton(
+                onClick = { if (cents == current) onDismiss() else cents?.let(onSave) },
+                enabled = cents != null,
+            ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
             Row {
