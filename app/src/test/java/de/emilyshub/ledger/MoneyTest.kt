@@ -49,4 +49,16 @@ class MoneyTest {
         assertEquals("12", Money.typed(1_200))
         assertEquals("0,05", Money.typed(5))
     }
+
+    @Test
+    fun `an opening balance may be below zero, typed with either minus, and is typed again with it`() {
+        assertEquals(-8_520L, Money.parseSigned("-85,20"))
+        assertEquals(-8_520L, Money.parseSigned(" −85,20 € "))
+        assertEquals(12_000L, Money.parseSigned("120"))
+        assertEquals(0L, Money.parseSigned("0"))
+        assertEquals(-Money.MAX, Money.parseSigned("-9.999.999,99"))
+        listOf("", "-", "--5", "- 5", "5-", "+5", "-10.000.000").forEach { assertNull(it, Money.parseSigned(it)) }
+        assertEquals("-85,20", Money.typed(-8_520))
+        assertEquals("-12", Money.typed(-1_200))
+    }
 }

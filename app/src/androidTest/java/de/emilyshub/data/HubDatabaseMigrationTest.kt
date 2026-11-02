@@ -10,6 +10,7 @@ import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.ledger.SkippedEntry
 import de.emilyshub.notes.GeneralTab
@@ -55,6 +56,7 @@ import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
 import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
@@ -827,6 +829,21 @@ class HubDatabaseMigrationTest {
 
             database.routines().setCoupling(listOf(1L, 2L), 1)
             assertEquals(listOf(1L, 2L), database.routines().inCoupling(1).sorted())
+        }
+    }
+
+    @Test
+    fun `version 37 moves to version 38 where no month has an opening balance and then one can`() {
+        createAtVersion(37) {
+            it.execSQL("INSERT INTO ledger_closed_months (month) VALUES ('2026-09')")
+        }
+
+        withMigratedDatabase { database ->
+            val october = YearMonth.of(2026, 10)
+            assertEquals(null, database.ledger().opening(october))
+
+            database.ledger().setOpening(OpeningBalance(october, -8_520, carried = true))
+            assertEquals(OpeningBalance(october, -8_520, carried = true), database.ledger().opening(october))
         }
     }
 

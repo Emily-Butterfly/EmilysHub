@@ -184,6 +184,19 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before opening balances loads without them`() {
+        val made = someOfEverything()
+        val file = sealed(asOf(37, contentOf(exported())))
+        changeEverything()
+
+        restore(file)
+
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_opening_balances"))
+        assertEquals(made.getValue("bookings"), restored.getValue("bookings"))
+    }
+
+    @Test
     fun `a backup from before budgets loads without them, its months closed with none`() {
         val made = someOfEverything()
         val file = sealed(asOf(31, contentOf(exported())))
@@ -459,7 +472,8 @@ class BackupsTest {
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
             app.ledger.setBudget(food.id, 30_000)
-            app.ledger.close(YearMonth.of(2026, 9))
+            app.ledger.close(YearMonth.of(2026, 9), carryOver = true)
+            app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.createTemplate(
                 RecurringDraft(BookingKind.Expense, "9,99", rent.id, "Streaming", BookingInterval.Monthly, 5, YearMonth.of(2026, 9)),
             )

@@ -22,6 +22,19 @@ object Money {
         return amount.takeIf { it <= MAX }
     }
 
+    /**
+     * The cents of [text] as [parse] has them, a minus ("-" or "−") before them allowed, as an opening balance may be
+     * below zero; null if it is no amount.
+     */
+    fun parseSigned(text: String): Long? {
+        val trimmed = text.trim()
+        val negative = trimmed.startsWith("-") || trimmed.startsWith("−")
+        // Right after the minus, no space between.
+        val rest = if (negative) trimmed.drop(1) else trimmed
+        if (rest.firstOrNull()?.isDigit() != true) return null
+        return parse(rest)?.let { if (negative) -it else it }
+    }
+
     /** "1.234,56 €", a minus before one below zero. */
     fun format(cents: Long): String {
         val whole = Math.absExact(cents)
@@ -30,10 +43,12 @@ object Money {
         return "$sign$euros,${(whole % CENTS).toString().padStart(2, '0')} €"
     }
 
-    /** As it is typed again in the editor: "1234,56", or "12" without cents. */
+    /** As it is typed again in the editor: "1234,56", or "12" without cents; "-85,20" below zero. */
     fun typed(cents: Long): String {
-        val rest = cents % CENTS
-        return if (rest == 0L) "${cents / CENTS}" else "${cents / CENTS},${rest.toString().padStart(2, '0')}"
+        val sign = if (cents < 0) "-" else ""
+        val whole = Math.absExact(cents)
+        val rest = whole % CENTS
+        return sign + if (rest == 0L) "${whole / CENTS}" else "${whole / CENTS},${rest.toString().padStart(2, '0')}"
     }
 
     /** [part] of [whole] in whole percent; none of nothing. */

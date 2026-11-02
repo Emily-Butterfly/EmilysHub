@@ -62,9 +62,27 @@ data class Booking(
 @Entity(tableName = "ledger_closed_months")
 data class ClosedMonth(@PrimaryKey val month: YearMonth)
 
-/** A month with what came in and went out: in the archive, or in the year overview (SPEC.md §13). */
-data class MonthSums(val month: YearMonth, val income: Long, val expenses: Long) {
+/**
+ * The opening balance of a [month] of the household book (SPEC.md §13): a value of the month, not a booking, so that it
+ * never counts as income; [cents] may be zero or below. [carried]: carried over as the end balance of the month before;
+ * else set by hand. It stays as it was carried, whatever the month before does after.
+ */
+@Entity(tableName = "ledger_opening_balances")
+data class OpeningBalance(
+    @PrimaryKey val month: YearMonth,
+    val cents: Long,
+    @ColumnInfo(defaultValue = "0") val carried: Boolean = false,
+)
+
+/**
+ * A month with what came in and went out, and its opening balance if it has one: in the archive, or in the year
+ * overview (SPEC.md §13).
+ */
+data class MonthSums(val month: YearMonth, val income: Long, val expenses: Long, val opening: Long? = null) {
     val balance: Long get() = income - expenses
+
+    /** What it ends with: only with an opening balance. */
+    val closingBalance: Long? get() = opening?.let { it + balance }
 }
 
 /** A booking with its category. */
@@ -97,6 +115,12 @@ data class MonthSummary(
  * its expenses by category, the largest first. Months open and closed count the same.
  */
 data class YearSummary(val year: Year, val months: List<MonthSums>, val expensesByCategory: List<CategoryTotal>) {
+    /** The opening balance of January, if it has one; it counts in no sum. */
+    val openingOfJanuary: Long? get() = months.first().opening
+
+    /** The end balance of December, if it has an opening balance. */
+    val closingOfDecember: Long? get() = months.last().closingBalance
+
     val income: Long get() = months.sumOf { it.income }
     val expenses: Long get() = months.sumOf { it.expenses }
     val balance: Long get() = income - expenses

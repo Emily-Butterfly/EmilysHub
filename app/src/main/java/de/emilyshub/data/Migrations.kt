@@ -562,3 +562,16 @@ val MIGRATION_36_37 = object : Migration(36, 37) {
         db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `covered_by` INTEGER")
     }
 }
+
+/**
+ * Version 38: a month of the household book can have an opening balance (SPEC.md §13, #50), set by hand or carried over
+ * from the month before. None has one yet.
+ */
+val MIGRATION_37_38 = object : Migration(37, 38) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_opening_balances` (`month` TEXT NOT NULL, `cents` INTEGER NOT NULL, " +
+                "`carried` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`month`))",
+        )
+    }
+}

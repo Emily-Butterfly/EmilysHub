@@ -81,9 +81,9 @@ interface LedgerDao {
     @Query("SELECT DISTINCT substr(date, 1, 7) FROM bookings")
     fun observeBookingMonths(): Flow<List<String>>
 
-    /** The months closed, each with its sums. */
+    /** The months closed, each with its sums and its opening balance. */
     @Query(
-        "SELECT m.month, " +
+        "SELECT m.month, (SELECT o.cents FROM ledger_opening_balances o WHERE o.month = m.month) AS opening, " +
             "IFNULL(SUM(CASE WHEN c.kind = 'income' THEN b.amount_cents END), 0) AS income, " +
             "IFNULL(SUM(CASE WHEN c.kind = 'expense' THEN b.amount_cents END), 0) AS expenses " +
             "FROM ledger_closed_months m LEFT JOIN bookings b ON substr(b.date, 1, 7) = m.month " +
@@ -139,6 +139,25 @@ interface LedgerDao {
 
     @Query("DELETE FROM ledger_skipped WHERE date BETWEEN :from AND :to")
     suspend fun forgetSkippedBetween(from: LocalDate, to: LocalDate)
+
+    @Query("SELECT * FROM ledger_opening_balances")
+    fun observeOpenings(): Flow<List<OpeningBalance>>
+
+    @Query("SELECT * FROM ledger_opening_balances WHERE month = :month")
+    suspend fun opening(month: YearMonth): OpeningBalance?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setOpening(opening: OpeningBalance)
+
+    @Query("DELETE FROM ledger_opening_balances WHERE month = :month")
+    suspend fun removeOpening(month: YearMonth)
+
+    /** What came in less what went out between the days. */
+    @Query(
+        "SELECT IFNULL(SUM(CASE WHEN c.kind = 'income' THEN b.amount_cents ELSE -b.amount_cents END), 0) " +
+            "FROM bookings b JOIN ledger_categories c ON c.id = b.category_id WHERE b.date BETWEEN :from AND :to",
+    )
+    suspend fun balanceBetween(from: LocalDate, to: LocalDate): Long
 
     @Query("SELECT * FROM bookings WHERE id = :id")
     suspend fun get(id: Long): Booking?

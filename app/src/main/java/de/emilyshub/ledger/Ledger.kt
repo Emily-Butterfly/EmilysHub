@@ -53,8 +53,12 @@ class Ledger(
         val (from, to) = month.atDay(1) to month.atEndOfMonth()
         val booked = combine(dao.observeBetween(from, to), dao.observeCategories(), dao.observeClosedBudgets(month), ::Booked)
         val earlier = combine(dao.observeBookingMonths(), dao.observeSkippedMonths(), dao.observeSkippedBetween(from, to), ::Earlier)
+        val (previous, next) = month.minusMonths(1) to month.plusMonths(1)
+        val previousBalance = dao.observeBetween(previous.atDay(1), previous.atEndOfMonth()).map { summary(it).balance }
         emitAll(
-            combine(dao.observeClosed(), booked, earlier) { closedMonths, (bookings, categories, kept), earlierMonths ->
+            combine(
+                dao.observeClosed(), booked, earlier, dao.observeOpenings(), previousBalance,
+            ) { closedMonths, (bookings, categories, kept), earlierMonths, openings, balanceBefore ->
                 val closed = closedMonths.map { it.month }.toSet()
                 val isClosed = month in closed
                 val budgets = if (isClosed) {
@@ -66,6 +70,11 @@ class Ledger(
                 LedgerMonth(
                     month = month,
                     summary = summary(bookings, budgets),
+                    opening = openings.find { it.month == month },
+                    previous = PreviousMonth(
+                        previous, previous in closed, (openings.find { it.month == previous }?.cents ?: 0) + balanceBefore,
+                    ),
+                    next = NextMonth(next, next in closed, openings.find { it.month == next }),
                     closed = isClosed,
                     canClose = canClose(month),
                     // Entered by hand once it is open again; none while closed.
@@ -89,7 +98,8 @@ class Ledger(
      */
     fun year(year: Year): Flow<YearSummary> = flow {
         enterDue()
-        emitAll(dao.observeBetween(year.atDay(1), year.atMonth(Month.DECEMBER).atEndOfMonth()).map { yearSummary(year, it) })
+        val bookings = dao.observeBetween(year.atDay(1), year.atMonth(Month.DECEMBER).atEndOfMonth())
+        emitAll(combine(bookings, dao.observeOpenings()) { booked, openings -> yearSummary(year, booked, openings) })
     }.flowOn(io)
 
     /** Today, the day a new booking is dated, and a new fixed one comes on. */
@@ -233,12 +243,19 @@ class Ledger(
 
     /**
      * Closes [month]: it goes to the archive, only to read, keeping the budgets of now; the screen asks first. The fixed
-     * bookings due by today are entered before, so that none of its last day is lost.
+     * bookings due by today are entered before, so that none of its last day is lost. With [carryOver], its end balance
+     * goes into the month after as its opening balance, replacing one it has, all or nothing: into a closed one it does
+     * not, nor is [month] closed then.
      */
-    suspend fun close(month: YearMonth) = write {
+    suspend fun close(month: YearMonth, carryOver: Boolean = false) = write {
         require(canClose(month)) { "$month has not ended yet" }
         enterDue()
         database().withTransaction {
+            if (carryOver) {
+                val next = month.plusMonths(1)
+                requireOpen(next.atDay(1))
+                dao.setOpening(OpeningBalance(next, endBalance(month), carried = true))
+            }
             // Closed already, it keeps the budgets it had then.
             if (month !in closedNow()) {
                 dao.close(ClosedMonth(month))
@@ -264,6 +281,38 @@ class Ledger(
             dao.forgetSkippedBetween(from, to)
         }
     }
+
+    /** Sets the opening balance of the open [month] by hand to [cents], zero or below too, replacing one it has. */
+    suspend fun setOpening(month: YearMonth, cents: Long) = write {
+        require(cents in -Money.MAX..Money.MAX) { "No amount: $cents" }
+        database().withTransaction {
+            requireOpen(month.atDay(1))
+            dao.setOpening(OpeningBalance(month, cents, carried = false))
+        }
+    }
+
+    /** Removes the opening balance of the open [month], if it has one. */
+    suspend fun removeOpening(month: YearMonth) = write {
+        database().withTransaction {
+            requireOpen(month.atDay(1))
+            dao.removeOpening(month)
+        }
+    }
+
+    /**
+     * Carries the end balance of the month before over into the open [month] as its opening balance, replacing one it
+     * has; that month may still be open, and the balance stays as carried whatever it does after.
+     */
+    suspend fun carryOver(month: YearMonth) = write {
+        database().withTransaction {
+            requireOpen(month.atDay(1))
+            dao.setOpening(OpeningBalance(month, endBalance(month.minusMonths(1)), carried = true))
+        }
+    }
+
+    /** What [month] ends with: its opening balance, none counting as zero, and what came in less what went out. */
+    private suspend fun endBalance(month: YearMonth): Long =
+        (dao.opening(month)?.cents ?: 0) + dao.balanceBetween(month.atDay(1), month.atEndOfMonth())
 
     /** Opens the closed [month] again, with the budgets of now; the screen asks first. */
     suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
@@ -502,12 +551,16 @@ internal fun summary(bookings: List<BookingWithCategory>, budgets: Map<LedgerCat
     )
 }
 
-/** The sums of [bookings], the [year]'s, each of its months, and its expenses by category, as a month has them. */
-internal fun yearSummary(year: Year, bookings: List<BookingWithCategory>): YearSummary {
+/**
+ * The sums of [bookings], the [year]'s, each of its months with its opening balance among the [openings], and its
+ * expenses by category, as a month has them.
+ */
+internal fun yearSummary(year: Year, bookings: List<BookingWithCategory>, openings: List<OpeningBalance> = emptyList()): YearSummary {
     val byMonth = bookings.groupBy { YearMonth.from(it.booking.date) }
     val months = Month.entries.map { year.atMonth(it) }.map { month ->
         val (income, expenses) = byMonth[month].orEmpty().partition { it.category.kind == BookingKind.Income }
-        MonthSums(month, income.sumOf { it.booking.amountCents }, expenses.sumOf { it.booking.amountCents })
+        val opening = openings.find { it.month == month }?.cents
+        MonthSums(month, income.sumOf { it.booking.amountCents }, expenses.sumOf { it.booking.amountCents }, opening)
     }
     return YearSummary(year, months, summary(bookings).expensesByCategory)
 }
