@@ -46,8 +46,7 @@ class RemindingTest {
     private val sounds = Sounds(FakeTones(), { DefaultTones() })
     private val reminders: Reminders = Reminders(
         ApplicationProvider.getApplicationContext(),
-        routines,
-        todos,
+        listOf(RoutineReminding(routines), TodoReminding(todos)),
         clock,
         locate = { Whereabouts.Unknown },
         mayLookAround = { false },

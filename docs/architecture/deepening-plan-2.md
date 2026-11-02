@@ -330,7 +330,17 @@ session (#2) whether it may save.
 
 ## 3 · One composition root: build the hub once from ports
 
-**Status:** not started.
+**Status:** done but for step 4. The hub is `EmilysHubApplication` itself rather than a class of its own: its ports
+are `open` (database, `settingsStore`, `clock`, `io`, authenticator, ringer, tones, `toneFiles`, WLAN, location, backup
+key, migration and iterations, `backupFolderAt`, `background`), and every module is a final `val` built from them once,
+with which of them tell the reminders said in one place. `TestApplication` supplies only the ports. A `Hub` class
+apart would have meant the Application passing on its twenty modules one by one to the receivers, services and
+tests that ask it for them; there is no third root to share it with.
+
+- **Step 3 done.** `Reminders` takes its `ReminderSource`s (`internal constructor`), and looking around goes through
+  them too (`needsLookingAround`, `lookAround`), no longer to `todos` past the seam: plan 1, §1 step 6, is done.
+- **Step 4 not done**: `EmilysHubApp` and `AppShell` still take the modules one by one, and `TopLevelScaffold` its
+  `onOpenX`. Worth doing with the next screen added.
 
 ### Why
 

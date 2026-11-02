@@ -44,6 +44,12 @@ internal interface ReminderSource {
     /** Whether arriving at a place matters to it now. */
     suspend fun watchesPlaces(): Boolean
 
+    /** Whether something of its own waits now for a place only looking tells arriving at, one with a GPS area. */
+    suspend fun needsLookingAround(): Boolean
+
+    /** Pops up what of its own waited for a place [locate] says the device has arrived at by now, as on arrival. */
+    suspend fun lookAround(locate: Locate)
+
     /** Marks the thing its reminder with [id] is about done. */
     suspend fun done(id: Long)
 
@@ -60,6 +66,11 @@ internal interface ReminderSource {
 /** The routines' occurrences as a [ReminderSource]: they run out, are missed, and come in joint reminders. */
 internal class RoutineReminding(private val routines: Routines) : ReminderSource {
     override fun owns(about: Alarmed) = about is Alarmed.Occurrence
+
+    // Joining a WLAN tells arriving at a routine's places; none is looked around for.
+    override suspend fun needsLookingAround() = false
+
+    override suspend fun lookAround(locate: Locate) = Unit
 
     override suspend fun markMissed(since: Instant) = routines.markMissed(since)
 
@@ -96,6 +107,12 @@ internal class RoutineReminding(private val routines: Routines) : ReminderSource
 /** The to-dos as a [ReminderSource]: they never run out, so any time to put off by, and wait until done. */
 internal class TodoReminding(private val todos: Todos) : ReminderSource {
     override fun owns(about: Alarmed) = about is Alarmed.Todo
+
+    override suspend fun needsLookingAround() = todos.needsLookingAround()
+
+    override suspend fun lookAround(locate: Locate) {
+        todos.lookAround(locate)
+    }
 
     override suspend fun markMissed(since: Instant) = Unit
 

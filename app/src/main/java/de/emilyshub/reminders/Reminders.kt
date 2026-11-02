@@ -5,8 +5,6 @@ import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Reminder
-import de.emilyshub.routines.Routines
-import de.emilyshub.todos.Todos
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -40,10 +38,9 @@ import java.time.Instant
  * Routines and to-dos are reminded of alike: each is a [ReminderSource], which says what of its own is due and does what
  * an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own there.
  */
-class Reminders(
+class Reminders internal constructor(
     context: Context,
-    private val routines: Routines,
-    private val todos: Todos,
+    private val sources: List<ReminderSource>,
     private val clock: Clock,
     private val locate: Locate,
     private val mayLookAround: suspend () -> Boolean,
@@ -55,7 +52,6 @@ class Reminders(
     private val probeAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_PROBE)
     private val lookAroundAlarm = ReminderAlarm(context, ReminderReceiver.ACTION_LOOK_AROUND)
     private val arrivals = ArrivalWatch(context)
-    private val sources: List<ReminderSource> = listOf(RoutineReminding(routines), TodoReminding(todos))
 
     // Keeps an update and an alarm going off from crossing. Not reentrant: nothing done while holding it may
     // write to the routines or to-dos in a way that reports a change, since every such write updates the reminders.
@@ -98,13 +94,13 @@ class Reminders(
     }
 
     /**
-     * The look around is due: where the device has arrived at a place a to-do waits for, as [Todos.lookAround] tells, the
+     * The look around is due: where the device has arrived at a place a to-do waits for, as its source tells, the
      * to-do pops up by the alarm, as on arrival. The next look comes [LOOK_AROUND_EVERY] later, while a to-do still waits.
      */
     suspend fun lookAround() = lock.withLock {
         settings().put(Setting(NEXT_LOOK, ""))
         try {
-            todos.lookAround(locate)
+            sources.forEach { it.lookAround(locate) }
         } finally {
             // The next look comes all the same, should this one fail.
             tidyAndSetAlarm()
@@ -200,7 +196,7 @@ class Reminders(
         val tones = (sources.flatMap { it.tones() } + Tone.Standard).distinct()
         screen.tidyChannels(inUse = tones.map { sounds.notification(it) })
         arrivals.watch(on = sources.any { it.watchesPlaces() })
-        keepLookingAround(on = todos.needsLookingAround() && mayLookAround())
+        keepLookingAround(on = sources.any { it.needsLookingAround() } && mayLookAround())
     }
 
     /**

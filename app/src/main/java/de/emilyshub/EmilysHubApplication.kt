@@ -26,7 +26,9 @@ import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.RoutineReminding
 import de.emilyshub.reminders.Sounds
+import de.emilyshub.reminders.TodoReminding
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.reminders.ToneFiles
 import de.emilyshub.reminders.ToneLibrary
@@ -175,7 +177,8 @@ open class EmilysHubApplication : Application() {
     }
 
     val reminders: Reminders by lazy {
-        Reminders(this, routines, todos, clock, locator::whereabouts, settings::mayLookAround, sounds, settings = settingsStore)
+        val sources = listOf(RoutineReminding(routines), TodoReminding(todos))
+        Reminders(this, sources, clock, locator::whereabouts, settings::mayLookAround, sounds, settings = settingsStore)
     }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
