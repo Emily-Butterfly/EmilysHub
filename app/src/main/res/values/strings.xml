@@ -656,6 +656,7 @@
     </plurals>
     <string name="ledger_title">Haushaltsbuch</string>
     <string name="ledger_open">Haushaltsbuch öffnen</string>
+    <string name="ledger_open_short">€</string>
     <string name="ledger_income">Einnahmen</string>
     <string name="ledger_expenses">Ausgaben</string>
     <string name="ledger_balance">Saldo</string>

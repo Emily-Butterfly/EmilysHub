@@ -8,10 +8,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,6 +24,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -31,10 +36,13 @@ import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import de.emilyshub.Hub
 import de.emilyshub.R
 import de.emilyshub.backup.Backups
@@ -54,6 +62,7 @@ import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
+import de.emilyshub.ui.ledger.LedgerButton
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.LedgerYearScreen
@@ -339,27 +348,47 @@ private fun TopLevelScaffold(
     val openNote = { target: NoteEditorTarget -> open(Destination.NoteEditor(target)) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(stringResource(current.label), modifier = Modifier.semantics { heading() })
-                },
-                actions = {
+            BoxWithConstraints {
+                // The household book is reached from the notes (SPEC.md §1, §13): a button in the middle of the bar,
+                // a quarter of the screen wide, which the title keeps clear of.
+                val ledgerButton = current == TopLevelDestination.Notes
+                val buttonWidth = maxWidth / 4
+                val titleWidth = if (ledgerButton) Modifier.widthIn(max = maxWidth * 3 / 8 - TITLE_START - TITLE_GAP) else Modifier
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(current.label),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = titleWidth.semantics { heading() },
+                        )
+                    },
+                    actions = {
                     // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
-                    heuteDay?.flame?.let { StreakFlameButton(it, onOpenStatistics = { open(Destination.Statistics) }) }
-                    // The household book is reached from the notes (SPEC.md §13).
-                    if (current == TopLevelDestination.Notes) {
-                        IconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) }) {
-                            Icon(Icons.Filled.ShoppingCart, contentDescription = stringResource(R.string.ledger_open))
+                        heuteDay?.flame?.let { StreakFlameButton(it, onOpenStatistics = { open(Destination.Statistics) }) }
+                        IconButton(onClick = { open(Destination.Search()) }) {
+                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                         }
+                        IconButton(onClick = { open(Destination.Settings) }) {
+                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+                        }
+                    },
+                )
+                if (ledgerButton) {
+                    // In the bar, below the status bar and the camera in it.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .height(TopAppBarDefaults.TopAppBarExpandedHeight),
+                    ) {
+                        LedgerButton(
+                            onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) },
+                            modifier = Modifier.width(buttonWidth),
+                        )
                     }
-                    IconButton(onClick = { open(Destination.Search()) }) {
-                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
-                    }
-                    IconButton(onClick = { open(Destination.Settings) }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
-                    }
-                },
-            )
+                }
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -448,3 +477,7 @@ private fun ForgetClosedScreens(screens: SaveableStateHolder, stack: BackStack) 
         kept = open
     }
 }
+
+/** Where the title of the top bar starts, and how far it keeps from the household book's button in the middle. */
+private val TITLE_START = 16.dp
+private val TITLE_GAP = 8.dp

@@ -2,9 +2,11 @@ package de.emilyshub
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -12,9 +14,10 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -32,9 +35,12 @@ import de.emilyshub.ledger.RecurringDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.YearMonth
@@ -464,6 +470,45 @@ class LedgerScreenTest {
             compose.onNodeWithText("Endsaldo Dezember", substring = true).assertDoesNotExist()
             // The opening balance is no income.
             compose.onNodeWithText("Einnahmen 50,00 € · Ausgaben 0,00 € · Saldo 50,00 € · Endsaldo 350,00 €").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `in the notes the button to the household book sits in the middle of the top bar, a quarter of the screen wide`() {
+        launchApp().use {
+            // Not on Heute.
+            compose.onNode(hasContentDescription("Haushaltsbuch öffnen")).assertDoesNotExist()
+            compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
+
+            val button = compose.onNode(hasContentDescription("Haushaltsbuch öffnen"))
+            button.assert(hasText("Haushaltsbuch"))
+            val bounds = button.getBoundsInRoot()
+            assertEquals(411f / 4, (bounds.right - bounds.left).value, 1f)
+            assertEquals(411f / 2, ((bounds.left + bounds.right) / 2).value, 1f)
+            // Below the status bar, in the bar.
+            assertTrue(bounds.top.value > 0f)
+
+            button.performClick()
+            compose.onNodeWithText("Oktober 2026").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h915dp", fontScale = 2f)
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `with large type the button shows a euro sign, still a quarter wide, and the title gives way to it`() {
+        launchApp().use {
+            compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
+
+            val button = compose.onNode(hasContentDescription("Haushaltsbuch öffnen"))
+            button.assert(hasText("€"))
+            button.assert(hasText("Haushaltsbuch").not())
+            val bounds = button.getBoundsInRoot()
+            assertEquals(411f / 4, (bounds.right - bounds.left).value, 1f)
+            val title = compose.onNode(hasText("Notizen") and isHeading()).getBoundsInRoot()
+            assertTrue("${title.right} <= ${bounds.left}", title.right <= bounds.left)
         }
     }
 
