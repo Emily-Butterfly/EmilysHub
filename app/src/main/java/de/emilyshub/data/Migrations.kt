@@ -575,3 +575,14 @@ val MIGRATION_37_38 = object : Migration(37, 38) {
         )
     }
 }
+
+/**
+ * Version 39: a fixed booking of the household book can end (SPEC.md §13, #52), after a number of bookings or on a
+ * date. None ends yet.
+ */
+val MIGRATION_38_39 = object : Migration(38, 39) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `recurring_bookings` ADD COLUMN `ends_after` INTEGER")
+        db.execSQL("ALTER TABLE `recurring_bookings` ADD COLUMN `ends_on` TEXT")
+    }
+}

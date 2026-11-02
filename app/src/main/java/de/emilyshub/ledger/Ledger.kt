@@ -5,6 +5,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
+import de.emilyshub.todos.RecurrenceEnd
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -370,15 +371,19 @@ class Ledger(
         }
     }
 
-    /** The fixed bookings (SPEC.md §13), the next due first, each with when it comes next. */
+    /** The fixed bookings (SPEC.md §13), the next due first, those ended last, each with when it comes next. */
     fun templates(): Flow<List<RecurringTemplate>> = flow {
         emitAll(
             dao.observeTemplates().map { all ->
                 all.map { (recurring, category) ->
+                    val next = recurring.dueDates().firstOrNull()
                     RecurringTemplate(
-                        recurring.id, recurring.toDraft(category.kind), recurring.amountCents, category, recurring.dueDates().first(),
+                        recurring.id, recurring.toDraft(category.kind), recurring.amountCents, category, next,
+                        next?.let(recurring::numberOf),
                     )
-                }.sortedWith(compareBy<RecurringTemplate> { it.next }.thenBy(InputText.byName) { it.draft.description })
+                }.sortedWith(
+                    compareBy<RecurringTemplate, LocalDate?>(nullsLast()) { it.next }.thenBy(InputText.byName) { it.draft.description },
+                )
             },
         )
     }.flowOn(io)
@@ -397,6 +402,14 @@ class Ledger(
         val yearBack = thisMonth().minusMonths(MONTHS_BACK)
         return editing.original?.firstMonth?.let { minOf(it, yearBack) } ?: yearBack
     }
+
+    /** Which of its bookings one saved as [draft] would enter next, by its schedule: those by today have come. */
+    fun nextNumber(draft: RecurringDraft): Int =
+        if (draft.day in RecurringBooking.DAYS) {
+            schedule(draft.interval, draft.day, draft.firstMonth).takeWhile { !it.isAfter(today()) }.count() + 1
+        } else {
+            1
+        }
 
     /** What keeps [draft] from being saved as [editing]: its own problems, and a first month too far back. */
     fun problems(editing: RecurringEditing, draft: RecurringDraft): Set<RecurringProblem> =
@@ -514,6 +527,7 @@ class Ledger(
         return RecurringBooking(
             amountCents = booking.amountCents, categoryId = booking.categoryId, description = booking.description,
             interval = draft.interval, day = draft.day, firstMonth = draft.firstMonth,
+            endsAfter = (draft.end as? RecurrenceEnd.AfterTimes)?.times, endsOn = (draft.end as? RecurrenceEnd.OnDate)?.date,
         )
     }
 

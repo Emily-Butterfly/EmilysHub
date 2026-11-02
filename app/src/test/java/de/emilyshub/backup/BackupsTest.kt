@@ -32,6 +32,7 @@ import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.WakeTime
 import de.emilyshub.wish
 import de.emilyshub.wishes.WishStatus
@@ -181,6 +182,17 @@ class BackupsTest {
             mapOf("Markt 2026-10-24" to 1, "Markt 2026-10-25" to 2, "Markt 2026-10-26" to 3, "Steuer machen null" to 1),
             numbers,
         )
+    }
+
+    @Test
+    fun `a backup from before fixed bookings could end loads them without an end`() {
+        someOfEverything()
+        val file = sealed(asOf(38, contentOf(exported())))
+        changeEverything()
+
+        restore(file)
+
+        assertTrue(runBlocking { app.ledger.templates().first() }.all { it.draft.end == RecurrenceEnd.Never })
     }
 
     @Test
@@ -475,7 +487,10 @@ class BackupsTest {
             app.ledger.close(YearMonth.of(2026, 9), carryOver = true)
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.createTemplate(
-                RecurringDraft(BookingKind.Expense, "9,99", rent.id, "Streaming", BookingInterval.Monthly, 5, YearMonth.of(2026, 9)),
+                RecurringDraft(
+                    BookingKind.Expense, "9,99", rent.id, "Streaming", BookingInterval.Monthly, 5, YearMonth.of(2026, 9),
+                    RecurrenceEnd.AfterTimes(12),
+                ),
             )
         }
         return everything().also { all -> assertTrue("Some of everything: $all", all.values.all { it.isNotEmpty() }) }

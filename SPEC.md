@@ -250,7 +250,7 @@ Ausschließlich:
 | 6 | Notizen: Tabs, Ordner, Markdown, Anpinnen |
 | 7 | Statistik, Suche über alle Bereiche, Backups |
 | 8 | Erweiterungen (v1.1): Icon, Ziele statt Wunschliste, „Heute nicht“, Wiederholungs-Ende, „Demnächst“, Wecker, Weckzeit und Töne für To-dos, Name auf dem Sperrbildschirm, gekoppelte Routinen, Streak-Flamme, Heatmap, Haushaltsbuch |
-| 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste |
+| 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste, voraussichtlicher Endsaldo, Fixbuchungen mit Ende |
 
 Nach jeder Etappe: installierbare APK.
 
@@ -267,7 +267,7 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der M
 | Beschreibung | Optional |
 
 - **Kategorien**: zum Start Vorschläge (Ausgaben: Lebensmittel, Wohnen, Mobilität, Freizeit, Gesundheit, Kleidung, Sonstiges; Einnahmen: Gehalt, Sonstiges). Anlegen, umbenennen, löschen; beim Löschen Rückfrage, die Buchungen wandern nach „Sonstiges“ ihrer Art.
-- **Fixbuchungen**: Vorlagen (z. B. Miete, Gehalt, Abos) mit Abstand monatlich, vierteljährlich, halbjährlich oder jährlich und einem Tag im Monat. An ihrem Tag automatisch eingetragen, nachgetragen, wenn die App an dem Tag nicht lief; im Monat änderbar und löschbar, ohne die Vorlage zu ändern.
+- **Fixbuchungen**: Vorlagen (z. B. Miete, Gehalt, Abos) mit Abstand monatlich, vierteljährlich, halbjährlich oder jährlich und einem Tag im Monat. Optional mit Ende: nach einer Anzahl Buchungen ab dem ersten Monat oder an einem Datum (einschließlich). An ihrem Tag automatisch eingetragen, nachgetragen, wenn die App an dem Tag nicht lief; im Monat änderbar und löschbar, ohne die Vorlage zu ändern.
 - **Monatsansicht**: Einnahmen, Ausgaben, Saldo (immer Einnahmen − Ausgaben); Ausgaben je Kategorie als Balken und als Tortendiagramm; alle Buchungen nach Datum.
 - **Anfangssaldo**: Jeder Monat kann einen haben, einen eigenen Wert am Monat, keine Buchung; Euro mit Cent, auch 0 oder negativ. Hat ein Monat einen, zeigt die Monatsansicht über den Summen den Anfangssaldo mit seiner Herkunft („aus Oktober übertragen“ oder „von Hand festgelegt“) und darunter den **Endsaldo** = Anfangssaldo + Einnahmen − Ausgaben. Der Anfangssaldo zählt nie als Einnahme: nicht in Summen, Diagrammen, Budgets, Archiv- und Jahressummen, nicht in Buchungsliste und Suche.
 - **Voraussichtlicher Endsaldo**: nur im laufenden, offenen Monat und nur, solange darin noch Fixbuchungen kommen: Endsaldo (Anfangssaldo, keiner als 0 €, + Einnahmen − Ausgaben) samt den Fixbuchungen, Einnahmen wie Ausgaben, die bis zum Monatsende noch eingetragen werden.

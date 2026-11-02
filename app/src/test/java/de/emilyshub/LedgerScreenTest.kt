@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -32,6 +33,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.todos.RecurrenceEnd
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -182,6 +184,39 @@ class LedgerScreenTest {
             field("Name").performTextReplacement("Reisen und Urlaub")
             compose.onNode(hasText("Umbenennen") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Reisen und Urlaub").assertExists()
+        }
+    }
+
+    @Test
+    fun `a fixed booking ends after a number, shows how many are left, and one ended is listed last as such`() {
+        val rent = runBlocking { app.ledger.categories().first().single { it.name == "Wohnen" }.id }
+        runBlocking {
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "5", rent, "Probeabo", BookingInterval.Monthly, 1, october, RecurrenceEnd.AfterTimes(1)),
+            )
+        }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.onNodeWithContentDescription("Fixbuchung anlegen").performClick()
+            field("Betrag in Euro").performTextInput("200")
+            option("Wohnen").tap()
+            field("Tag im Monat").performScrollTo().performTextReplacement("1")
+            option("Nach einer Anzahl").tap()
+            field("Anzahl insgesamt").performScrollTo().performTextReplacement("12")
+            field("Beschreibung (optional)").performScrollTo().performTextInput("Kredit")
+            compose.onNodeWithText("Speichern").performClick()
+
+            // October's is entered at once: the second of twelve comes next.
+            compose.onNodeWithText("noch 11 von 12", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("beendet", substring = true).assertIsDisplayed()
+            val listed = compose.onAllNodes(hasClickAction() and (hasText("Kredit") or hasText("Probeabo")))
+            listed[0].assert(hasText("Kredit"))
+            listed[1].assert(hasText("Probeabo"))
+
+            compose.onNodeWithText("Probeabo").performClick()
+            option("Nach einer Anzahl").performScrollTo().assertIsSelected()
         }
     }
 

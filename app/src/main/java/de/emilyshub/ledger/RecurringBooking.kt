@@ -7,6 +7,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import de.emilyshub.todos.RecurrenceEnd
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -22,7 +23,8 @@ enum class BookingInterval(val months: Int, val stored: String) {
  * A fixed booking (SPEC.md §13), such as rent, salary or a subscription: a template the household book enters a
  * booking from on its [day] of the month, every [interval] from its [firstMonth] on, in shorter months on their last
  * day. [enteredThrough] is the month of the last one entered, so that each comes exactly once, also when one entered
- * was deleted since.
+ * was deleted since. It may end ([end], #52): after [endsAfter] bookings from [firstMonth] on, or with the last by
+ * [endsOn], that day included.
  */
 @Entity(
     tableName = "recurring_bookings",
@@ -42,7 +44,19 @@ data class RecurringBooking(
     val day: Int,
     @ColumnInfo(name = "first_month") val firstMonth: YearMonth,
     @ColumnInfo(name = "entered_through") val enteredThrough: YearMonth? = null,
+    @ColumnInfo(name = "ends_after") val endsAfter: Int? = null,
+    @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
 ) {
+    /** When it ends, from [endsAfter] and [endsOn]. */
+    val end: RecurrenceEnd
+        get() = endsAfter?.let(RecurrenceEnd::AfterTimes) ?: endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
+
+    /** All the dates it comes on, from its first month on, up to its end, if it has one. */
+    fun dates(): Sequence<LocalDate> = schedule(interval, day, firstMonth).until(end)
+
+    /** Which of its dates [date] is, the first counting 1. */
+    fun numberOf(date: LocalDate): Int = schedule(interval, day, firstMonth).indexOf(date) + 1
+
     /**
      * Changed on [today] after [previous], the month entered last before: so that the change holds from the next one
      * on, the months of its new schedule before today count as entered, unless none was entered yet, when it is as new.
@@ -58,7 +72,7 @@ data class RecurringBooking(
 
     /** The dates it is still to be entered on, from the first after the month last entered. */
     fun dueDates(): Sequence<LocalDate> =
-        schedule(interval, day, firstMonth).filter { date -> enteredThrough?.let { YearMonth.from(date).isAfter(it) } ?: true }
+        dates().filter { date -> enteredThrough?.let { YearMonth.from(date).isAfter(it) } ?: true }
 
     companion object {
         val DAYS = 1..31
@@ -86,13 +100,17 @@ data class RecurringWithCategory(
     @Relation(parentColumn = "category_id", entityColumn = "id") val category: LedgerCategory,
 )
 
-/** A fixed booking as the list shows it: as the editor starts out with it, in its [category], next due on [next]. */
+/**
+ * A fixed booking as the list shows it: as the editor starts out with it, in its [category], next due on [next], the
+ * [seriesNumber]th of its dates; neither once it has ended.
+ */
 data class RecurringTemplate(
     val id: Long,
     val draft: RecurringDraft,
     val amountCents: Long,
     val category: LedgerCategory,
-    val next: LocalDate,
+    val next: LocalDate?,
+    val seriesNumber: Int? = null,
 )
 
 /**
@@ -101,3 +119,10 @@ data class RecurringTemplate(
  */
 fun schedule(interval: BookingInterval, day: Int, first: YearMonth): Sequence<LocalDate> =
     generateSequence(first) { it.plusMonths(interval.months.toLong()) }.map { it.atDay(minOf(day, it.lengthOfMonth())) }
+
+/** These dates up to [end]: so many of them, or those by its date, that day included. */
+private fun Sequence<LocalDate>.until(end: RecurrenceEnd): Sequence<LocalDate> = when (end) {
+    RecurrenceEnd.Never -> this
+    is RecurrenceEnd.AfterTimes -> take(end.times)
+    is RecurrenceEnd.OnDate -> takeWhile { !it.isAfter(end.date) }
+}

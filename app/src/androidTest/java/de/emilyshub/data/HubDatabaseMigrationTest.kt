@@ -38,6 +38,7 @@ import de.emilyshub.routines.RoutineTarget
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Recurrence
+import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.Reminding
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
@@ -844,6 +845,25 @@ class HubDatabaseMigrationTest {
 
             database.ledger().setOpening(OpeningBalance(october, -8_520, carried = true))
             assertEquals(OpeningBalance(october, -8_520, carried = true), database.ledger().opening(october))
+        }
+    }
+
+    @Test
+    fun `version 38 moves to version 39 where no fixed booking ends and then one can`() {
+        createAtVersion(38) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other) VALUES (1, 'expense', 'Wohnen', 0)")
+            it.execSQL(
+                "INSERT INTO recurring_bookings (id, amount_cents, category_id, description, interval, day, first_month) " +
+                    "VALUES (1, 85000, 1, 'Miete', 'monthly', 1, '2026-10')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val rent = checkNotNull(database.ledger().template(1))
+            assertEquals(RecurrenceEnd.Never, rent.end)
+
+            database.ledger().updateTemplate(rent.copy(endsAfter = 12))
+            assertEquals(RecurrenceEnd.AfterTimes(12), database.ledger().template(1)?.end)
         }
     }
 

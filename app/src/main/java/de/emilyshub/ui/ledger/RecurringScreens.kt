@@ -57,9 +57,11 @@ import de.emilyshub.ledger.RecurringProblem
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.withEnd
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
@@ -108,10 +110,17 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
                     ListItem(
                         headlineContent = { Text(draft.cleanedDescription.ifEmpty { template.category.name }) },
                         supportingContent = {
+                            val next = template.next
                             Text(
-                                stringResource(
-                                    R.string.recurring_schedule, intervalLabel(draft.interval), draft.day, template.next.numericDate(),
-                                ),
+                                if (next == null) {
+                                    stringResource(R.string.recurring_schedule_ended, intervalLabel(draft.interval), draft.day)
+                                } else {
+                                    withEnd(
+                                        stringResource(R.string.recurring_schedule, intervalLabel(draft.interval), draft.day, next.numericDate()),
+                                        draft.end,
+                                        template.seriesNumber ?: 1,
+                                    )
+                                },
                             )
                         },
                         trailingContent = { SignedAmount(draft.kind, template.amountCents) },
@@ -238,6 +247,13 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
                     }
                 }
             }
+            EndFields(
+                end = draft.end,
+                earliest = draft.firstDate,
+                tooEarly = RecurringProblem.EndBeforeFirst in problems,
+                seriesNumber = ledger.nextNumber(draft),
+                onChange = { draft = draft.copy(end = it) },
+            )
             OutlinedTextField(
                 value = draft.description,
                 onValueChange = { draft = draft.copy(description = it) },
