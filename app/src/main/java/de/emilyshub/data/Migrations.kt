@@ -586,3 +586,18 @@ val MIGRATION_38_39 = object : Migration(38, 39) {
         db.execSQL("ALTER TABLE `recurring_bookings` ADD COLUMN `ends_on` TEXT")
     }
 }
+
+/**
+ * Version 40: an expense category of the household book can have a budget of its own in a single month (SPEC.md §13,
+ * #53), another amount or none. None has one yet.
+ */
+val MIGRATION_39_40 = object : Migration(39, 40) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_month_budgets` (`month` TEXT NOT NULL, `category_id` INTEGER NOT NULL, " +
+                "`budget_cents` INTEGER, PRIMARY KEY(`month`, `category_id`), " +
+                "FOREIGN KEY(`category_id`) REFERENCES `ledger_categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ledger_month_budgets_category_id` ON `ledger_month_budgets` (`category_id`)")
+    }
+}

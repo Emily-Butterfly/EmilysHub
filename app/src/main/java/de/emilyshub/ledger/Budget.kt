@@ -50,3 +50,40 @@ data class ClosedBudget(
     @ColumnInfo(name = "category_id") val categoryId: Long,
     @ColumnInfo(name = "budget_cents") val budgetCents: Long,
 )
+
+/**
+ * The budget an expense category has in one [month] only (SPEC.md §13), in place of its monthly one: another amount, one
+ * where it has none, or none ([budgetCents] null) where it has one. Set while the month is open; it stays when the month
+ * is closed, which keeps it as its budget then, and holds again once the month is opened again.
+ */
+@Entity(
+    tableName = "ledger_month_budgets",
+    primaryKeys = ["month", "category_id"],
+    foreignKeys = [
+        ForeignKey(
+            entity = LedgerCategory::class, parentColumns = ["id"], childColumns = ["category_id"], onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["category_id"])],
+)
+data class MonthBudget(
+    val month: YearMonth,
+    @ColumnInfo(name = "category_id") val categoryId: Long,
+    @ColumnInfo(name = "budget_cents") val budgetCents: Long?,
+)
+
+/**
+ * The budget of an expense [category] in a month (SPEC.md §13): [inMonth], that of the month alone if it has one of its
+ * own, else its monthly one; null for none.
+ */
+data class CategoryBudget(val category: LedgerCategory, val inMonth: Long?) {
+    /** Its monthly one, which every month has that has none of its own. */
+    val monthly: Long? get() = category.budgetCents
+
+    /** Whether the month has one of its own, another than the monthly one. */
+    val ownInMonth: Boolean get() = inMonth != monthly
+}
+
+/** The budget [category] has in a month whose budgets of its [own] are these, by category: its own there, else the monthly one. */
+internal fun budgetIn(category: LedgerCategory, own: Map<Long, Long?>): Long? =
+    if (category.id in own) own[category.id] else category.budgetCents

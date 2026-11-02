@@ -100,12 +100,27 @@ interface LedgerDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun close(month: ClosedMonth)
 
-    /** Keeps the budgets of now with the [month] just closed. */
+    /** Keeps the budgets the [month] just closed has now, its own or the monthly ones, with it. */
     @Query(
         "INSERT OR IGNORE INTO ledger_closed_budgets (month, category_id, budget_cents) " +
-            "SELECT :month, id, budget_cents FROM ledger_categories WHERE budget_cents IS NOT NULL",
+            "SELECT :month, id, budget FROM (SELECT c.id, " +
+            "CASE WHEN o.category_id IS NULL THEN c.budget_cents ELSE o.budget_cents END AS budget " +
+            "FROM ledger_categories c LEFT JOIN ledger_month_budgets o ON o.category_id = c.id AND o.month = :month) " +
+            "WHERE budget IS NOT NULL",
     )
     suspend fun keepBudgets(month: YearMonth)
+
+    @Query("SELECT * FROM ledger_month_budgets WHERE month = :month")
+    fun observeMonthBudgets(month: YearMonth): Flow<List<MonthBudget>>
+
+    @Query("SELECT * FROM ledger_month_budgets WHERE month = :month AND category_id = :categoryId")
+    suspend fun monthBudget(month: YearMonth, categoryId: Long): MonthBudget?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setMonthBudget(budget: MonthBudget)
+
+    @Query("DELETE FROM ledger_month_budgets WHERE month = :month AND category_id = :categoryId")
+    suspend fun removeMonthBudget(month: YearMonth, categoryId: Long)
 
     @Query("SELECT * FROM ledger_closed_budgets WHERE month = :month")
     fun observeClosedBudgets(month: YearMonth): Flow<List<ClosedBudget>>

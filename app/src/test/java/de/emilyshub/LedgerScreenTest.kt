@@ -89,8 +89,9 @@ class LedgerScreenTest {
             ledgerList().performScrollToNode(hasText("Lebensmittel · 100 %"))
             compose.onNodeWithText("Lebensmittel · 100 %").assertIsDisplayed()
             ledgerList().performScrollToNode(hasText("Wocheneinkauf"))
-            // The balance, and the booking.
-            compose.onAllNodes(hasText("−45,30 €")).assertCountEquals(2)
+            compose.onNode(hasText("Wocheneinkauf") and hasText("−45,30 €")).assertExists()
+            ledgerList().performScrollToNode(hasText("Saldo"))
+            compose.onNode(hasText("Saldo") and hasText("−45,30 €")).assertExists()
         }
         val booking = runBlocking { app.ledger.month(october).first().summary.bookings.single().booking }
         assertEquals(4_530L to LocalDate.parse("2026-10-23"), booking.amountCents to booking.date)
@@ -339,6 +340,57 @@ class LedgerScreenTest {
             openLedger()
             ledgerList().performScrollToNode(hasText("12,50 € über Budget"))
             compose.onNodeWithText("12,50 € über Budget").assertExists()
+        }
+    }
+
+    @Test
+    fun `a budget changed in the month holds there alone, set anew from its list, and goes back to the monthly one`() {
+        runBlocking { app.ledger.setBudget(app.ledger.categories().first().single { it.name == "Lebensmittel" }.id, 30_000) }
+        book("Lebensmittel", BookingKind.Expense, "212,50", "2026-10-12")
+
+        launchApp().use {
+            openLedger()
+            ledgerList().performScrollToNode(hasText("212,50 € von 300,00 €"))
+            compose.onNodeWithText("212,50 € von 300,00 €").performSemanticsAction(SemanticsActions.OnClick)
+            compose.onNodeWithText("Budget für Lebensmittel im Oktober 2026").assertIsDisplayed()
+            compose.onNodeWithText("Sonst 300,00 € im Monat.", substring = true).assertExists()
+            dialogField("Budget").performTextReplacement("450")
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("212,50 € von 450,00 €").assertExists()
+
+            // One without a budget gets one in this month alone, from the list of them all.
+            ledgerList().performScrollToNode(hasText("Budgets für Oktober 2026 ändern"))
+            compose.onNodeWithText("Budgets für Oktober 2026 ändern").performClick()
+            compose.onNode(hasText("Kleidung") and hasAnyAncestor(isDialog())).performClick()
+            dialogField("Budget").performTextInput("50")
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+            ledgerList().performScrollToNode(hasText("0,00 € von 50,00 €"))
+            compose.onNodeWithText("0,00 € von 50,00 €").assertExists()
+
+            ledgerList().performScrollToNode(hasText("212,50 € von 450,00 €"))
+            compose.onNodeWithText("212,50 € von 450,00 €").performSemanticsAction(SemanticsActions.OnClick)
+            compose.onNodeWithText("Wie sonst").performClick()
+            compose.onNodeWithText("212,50 € von 300,00 €").assertExists()
+
+            ledgerList().performScrollToNode(hasContentDescription("Nächster Monat"))
+            compose.onNodeWithContentDescription("Nächster Monat").performClick()
+            compose.onNodeWithText("0,00 € von 50,00 €").assertDoesNotExist()
+        }
+        assertEquals(30_000L, runBlocking { app.ledger.categories().first().single { it.name == "Lebensmittel" }.budgetCents })
+    }
+
+    @Test
+    fun `a closed month offers no budget to change`() {
+        runBlocking { app.ledger.setBudget(app.ledger.categories().first().single { it.name == "Lebensmittel" }.id, 30_000) }
+        book("Lebensmittel", BookingKind.Expense, "20", "2026-09-12")
+        runBlocking { app.ledger.close(YearMonth.of(2026, 9)) }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Voriger Monat").performClick()
+            ledgerList().performScrollToNode(hasText("20,00 € von 300,00 €"))
+            compose.onNodeWithText("20,00 € von 300,00 €").assert(!hasClickAction())
+            compose.onNodeWithText("Budgets für September 2026 ändern").assertDoesNotExist()
         }
     }
 

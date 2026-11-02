@@ -99,6 +99,9 @@ fun LedgerScreen(
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
     var editingOpening by rememberSaveable { mutableStateOf(false) }
     var confirmingCarry by rememberSaveable { mutableStateOf(false) }
+    var pickingBudget by rememberSaveable { mutableStateOf(false) }
+    // The expense category whose budget in this month alone is being set.
+    var budgeting by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows, and
     // the month may be closed on its last day.
@@ -205,7 +208,21 @@ fun LedgerScreen(
             here.closingBalance?.let { closing -> item(key = "closing-balance") { ClosingRow(closing) } }
             here.foreseenEnd?.let { foreseen -> item(key = "foreseen") { ForeseenRow(foreseen) } }
             if (summary.expensesByCategory.isNotEmpty()) {
-                item(key = "by-category") { ExpensesByCategory(summary.expensesByCategory, summary.expenses) }
+                item(key = "by-category") {
+                    ExpensesByCategory(
+                        summary.expensesByCategory,
+                        summary.expenses,
+                        onBudget = if (here.budgets.isEmpty()) null else ({ budgeting = it }),
+                    )
+                }
+            }
+            // Only while open: a closed month keeps its budgets.
+            if (here.budgets.isNotEmpty()) {
+                item(key = "month-budgets") {
+                    TextButton(onClick = { pickingBudget = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                        Text(stringResource(R.string.month_budgets, month.monthAndYear()))
+                    }
+                }
             }
             item(key = "bookings-title") { SectionTitle(stringResource(R.string.ledger_bookings)) }
             if (summary.bookings.isEmpty()) {
@@ -261,6 +278,26 @@ fun LedgerScreen(
             },
             onDismiss = { editingOpening = false },
         )
+        pickingBudget && !known.closed -> MonthBudgetsDialog(
+            month,
+            known.budgets,
+            onPick = { id ->
+                pickingBudget = false
+                budgeting = id
+            },
+            onDismiss = { pickingBudget = false },
+        )
+        budgeting != null && !known.closed -> known.budgets.find { it.category.id == budgeting }?.let { budget ->
+            MonthBudgetDialog(
+                month,
+                budget,
+                onConfirm = { cents ->
+                    budgeting = null
+                    scope.launchNow { ledger.setBudgetIn(month, budget.category.id, cents) }
+                },
+                onDismiss = { budgeting = null },
+            )
+        }
         confirmingCarry && !known.closed -> CarryDialog(
             known,
             onCarry = {
@@ -331,16 +368,22 @@ private fun Sum(label: String, cents: Long, modifier: Modifier) {
  * The expenses by category: a bar each, and a pie chart of the shares, whose legend names each category with its
  * amount and share, so that the colours are not all there is to tell them apart. The bar of a category with a budget
  * shows how much of it is used and what is left, orange from 80 %, red above it, with how much it is over (SPEC.md
- * §13); that of one without is as long as its share of the largest.
+ * §13); that of one without is as long as its share of the largest. While the month is open ([onBudget]), tapping one
+ * changes its budget in this month alone.
  */
 @Composable
-private fun ExpensesByCategory(byCategory: List<CategoryTotal>, expenses: Long) {
+private fun ExpensesByCategory(byCategory: List<CategoryTotal>, expenses: Long, onBudget: ((Long) -> Unit)?) {
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.ledger_by_category))
         val largest = byCategory.first().cents
         byCategory.forEachIndexed { index, total ->
             val use = total.use
-            Column(Modifier.semantics(mergeDescendants = true) {}) {
+            val change = stringResource(R.string.month_budget_change)
+            Column(
+                Modifier
+                    .then(if (onBudget == null) Modifier else Modifier.clickable(onClickLabel = change) { onBudget(total.category.id) })
+                    .semantics(mergeDescendants = true) {},
+            ) {
                 Row {
                     Text(total.category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     val amount = Money.format(total.cents)

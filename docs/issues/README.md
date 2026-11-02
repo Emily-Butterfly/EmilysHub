@@ -100,3 +100,4 @@ Abgestimmt im Interview vom 02.11.2026.
 | 50 | [Haushaltsbuch: Saldo übertragen, Anfangssaldo & Knopf in Notizen](50-haushaltsbuch-saldo-uebertrag.md) | 🤖 | – |
 | 51 | [Haushaltsbuch: voraussichtlicher Endsaldo](51-haushaltsbuch-voraussichtlicher-endsaldo.md) | 🤖 | 50 |
 | 52 | [Haushaltsbuch: Fixbuchungen mit Ende](52-haushaltsbuch-fixbuchungen-mit-ende.md) | 🤖 | – |
+| 53 | [Haushaltsbuch: Budget für einzelne Monate](53-haushaltsbuch-monatsbudget.md) | 🤖 | – |

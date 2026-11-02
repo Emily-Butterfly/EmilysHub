@@ -8,6 +8,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
+import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.OpeningBalance
@@ -864,6 +865,21 @@ class HubDatabaseMigrationTest {
 
             database.ledger().updateTemplate(rent.copy(endsAfter = 12))
             assertEquals(RecurrenceEnd.AfterTimes(12), database.ledger().template(1)?.end)
+        }
+    }
+
+    @Test
+    fun `version 39 moves to version 40 where no month has a budget of its own and then one can`() {
+        createAtVersion(39) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other, budget_cents) VALUES (1, 'expense', 'Lebensmittel', 0, 30000)")
+        }
+
+        withMigratedDatabase { database ->
+            val december = YearMonth.of(2026, 12)
+            assertEquals(emptyList<MonthBudget>(), database.ledger().observeMonthBudgets(december).first())
+
+            database.ledger().setMonthBudget(MonthBudget(december, 1, 45_000))
+            assertEquals(MonthBudget(december, 1, 45_000), database.ledger().monthBudget(december, 1))
         }
     }
 

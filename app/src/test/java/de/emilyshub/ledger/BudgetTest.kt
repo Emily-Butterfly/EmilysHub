@@ -152,6 +152,111 @@ class BudgetTest {
         ledger.deleteCategory(clothes)
     }
 
+    @Test
+    fun `a month can have a budget of its own, another amount, a new one or none, the others keep the monthly one`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudget(expense("Freizeit"), 5_000)
+        val december = YearMonth.of(2026, 12)
+
+        ledger.setBudgetIn(december, expense("Lebensmittel"), 45_000)
+        ledger.setBudgetIn(december, expense("Kleidung"), 20_000)
+        ledger.setBudgetIn(december, expense("Freizeit"), null)
+
+        val totals = ledger.month(december).first().summary.expensesByCategory
+        assertEquals(
+            setOf("Lebensmittel" to 45_000L, "Kleidung" to 20_000L),
+            totals.map { it.category.name to it.budgetCents }.toSet(),
+        )
+        assertEquals(30_000L, budgetIn(october))
+        assertEquals(
+            listOf(Triple("Freizeit", null, 5_000L), Triple("Kleidung", 20_000L, null), Triple("Lebensmittel", 45_000L, 30_000L)),
+            ledger.month(december).first().budgets.filter { it.ownInMonth }.map { Triple(it.category.name, it.inMonth, it.monthly) },
+        )
+    }
+
+    @Test
+    fun `the monthly budget changed holds in a month with one of its own only where it has none`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudgetIn(october, expense("Lebensmittel"), 45_000)
+
+        ledger.setBudget(expense("Lebensmittel"), 35_000)
+
+        assertEquals(45_000L, budgetIn(october))
+        assertEquals(35_000L, budgetIn(september))
+    }
+
+    @Test
+    fun `set to the monthly one, the month has none of its own any more and follows it`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudgetIn(october, expense("Lebensmittel"), 45_000)
+
+        ledger.setBudgetIn(october, expense("Lebensmittel"), 30_000)
+        ledger.setBudget(expense("Lebensmittel"), 35_000)
+
+        assertEquals(35_000L, budgetIn(october))
+        assertTrue(ledger.month(october).first().budgets.none { it.ownInMonth })
+    }
+
+    @Test
+    fun `a closed month keeps its own budget, has none to change, and has it again once opened`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudgetIn(september, expense("Lebensmittel"), 45_000)
+        ledger.setBudgetIn(september, expense("Freizeit"), 5_000)
+        book("Lebensmittel", "100", "2026-09-12")
+        ledger.close(september)
+        ledger.setBudget(expense("Lebensmittel"), 40_000)
+
+        assertEquals(45_000L, budgetIn(september))
+        assertTrue(ledger.month(september).first().budgets.isEmpty())
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { ledger.setBudgetIn(september, expense("Lebensmittel"), 50_000) }
+        }
+
+        ledger.reopen(september)
+        assertEquals(45_000L, budgetIn(september))
+        assertEquals(5_000L, ledger.month(september).first().budgets.single { it.category.name == "Freizeit" }.inMonth)
+    }
+
+    @Test
+    fun `a closed month keeps no budget where it had none of its own`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudgetIn(september, expense("Lebensmittel"), null)
+        book("Lebensmittel", "100", "2026-09-12")
+        ledger.close(september)
+
+        assertNull(budgetIn(september))
+    }
+
+    @Test
+    fun `a budget of the month alone is only for expenses and above zero`() = runBlocking {
+        val salary = ledger.categories().first().single { it.kind == BookingKind.Income && it.name == "Gehalt" }.id
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.setBudgetIn(october, salary, 100_000) } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.setBudgetIn(october, expense("Freizeit"), 0) } }
+        Unit
+    }
+
+    @Test
+    fun `saving tells by how much a booking goes over the month's own budget`() = runBlocking {
+        ledger.setBudget(expense("Lebensmittel"), 30_000)
+        ledger.setBudgetIn(october, expense("Lebensmittel"), 20_000)
+        ledger.setBudgetIn(october, expense("Kleidung"), 5_000)
+        ledger.setBudgetIn(september, expense("Lebensmittel"), null)
+
+        assertEquals(5_000L, ledger.overrunOf(draft("Lebensmittel", "250", "2026-10-20")))
+        assertEquals(1_000L, ledger.overrunOf(draft("Kleidung", "60", "2026-10-20")))
+        assertNull(ledger.overrunOf(draft("Lebensmittel", "999", "2026-09-20")))
+    }
+
+    @Test
+    fun `a category deleted takes its budgets of single months with it`() = runBlocking {
+        val clothes = expense("Kleidung")
+        ledger.setBudgetIn(october, clothes, 5_000)
+
+        ledger.deleteCategory(clothes)
+
+        assertTrue(ledger.month(october).first().summary.expensesByCategory.none { it.budgetCents != null })
+    }
+
     private suspend fun budgetIn(month: YearMonth): Long? =
         ledger.month(month).first().summary.expensesByCategory.single { it.category.name == "Lebensmittel" }.budgetCents
 

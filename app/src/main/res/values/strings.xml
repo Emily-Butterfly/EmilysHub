@@ -778,5 +778,13 @@
     <string name="budget_of">%1$s von %2$s</string>
     <string name="budget_left">noch %1$s übrig</string>
     <string name="budget_over">%1$s über Budget</string>
+    <string name="month_budgets">Budgets für %1$s ändern</string>
+    <string name="month_budgets_title">Budgets im %1$s</string>
+    <string name="month_budget_title">Budget für %1$s im %2$s</string>
+    <string name="month_budget_hint">Nur für diesen Monat. Leer lassen für kein Budget. Sonst %1$s im Monat.</string>
+    <string name="month_budget_hint_none">Nur für diesen Monat. Leer lassen für kein Budget. Sonst gibt es keins.</string>
+    <string name="month_budget_none">kein Budget</string>
+    <string name="month_budget_change">Budget in diesem Monat ändern</string>
+    <string name="month_budget_reset">Wie sonst</string>
     <string name="booking_over_budget">%2$s liegt damit %1$s über Budget.</string>
 </resources>

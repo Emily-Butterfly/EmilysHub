@@ -46,13 +46,15 @@ class Ledger(
     /**
      * The [month] as its page shows it ([LedgerMonth]), the fixed ones due by today entered first: its sums, its
      * expenses by category with their budgets, and its bookings; whether it is closed, may be closed now, what it
-     * skipped while closed, and the earlier months still open. An open month has the budgets of now, a closed one those
-     * it had when it was closed. All of one read of the months closed.
+     * skipped while closed, and the earlier months still open. An open month has the budgets of now, those of its own
+     * among them, a closed one those it had when it was closed. All of one read of the months closed.
      */
     fun month(month: YearMonth): Flow<LedgerMonth> = flow {
         enterDue()
         val (from, to) = month.atDay(1) to month.atEndOfMonth()
-        val booked = combine(dao.observeBetween(from, to), dao.observeCategories(), dao.observeClosedBudgets(month), ::Booked)
+        val booked = combine(
+            dao.observeBetween(from, to), dao.observeCategories(), dao.observeClosedBudgets(month), dao.observeMonthBudgets(month), ::Booked,
+        )
         val earlier = combine(dao.observeBookingMonths(), dao.observeSkippedMonths(), dao.observeSkippedBetween(from, to), ::Earlier)
         val (previous, next) = month.minusMonths(1) to month.plusMonths(1)
         val previousBalance = dao.observeBetween(previous.atDay(1), previous.atEndOfMonth()).map { summary(it).balance }
@@ -60,14 +62,22 @@ class Ledger(
         emitAll(
             combine(
                 dao.observeClosed(), booked, earlier, openingsAndFixed, previousBalance,
-            ) { closedMonths, (bookings, categories, kept), earlierMonths, (openings, fixed), balanceBefore ->
+            ) { closedMonths, (bookings, categories, kept, ownBudgets), earlierMonths, (openings, fixed), balanceBefore ->
                 val closed = closedMonths.map { it.month }.toSet()
                 val isClosed = month in closed
+                val own = ownBudgets.associate { it.categoryId to it.budgetCents }
+                // Only while open: a closed month keeps its budgets as they were.
+                val budgetsInMonth = if (isClosed) {
+                    emptyList()
+                } else {
+                    categories.filter { it.kind == BookingKind.Expense }.sortedWith(CATEGORY_ORDER)
+                        .map { CategoryBudget(it, budgetIn(it, own)) }
+                }
                 val budgets = if (isClosed) {
                     val byId = categories.associateBy { it.id }
                     kept.mapNotNull { budget -> byId[budget.categoryId]?.let { it to budget.budgetCents } }.toMap()
                 } else {
-                    categories.mapNotNull { category -> category.budgetCents?.let { category to it } }.toMap()
+                    budgetsInMonth.mapNotNull { budget -> budget.inMonth?.let { budget.category to it } }.toMap()
                 }
                 LedgerMonth(
                     month = month,
@@ -86,6 +96,7 @@ class Ledger(
                     stillOpen = (earlierMonths.booked + earlierMonths.skipped).distinct().map(YearMonth::parse)
                         .filter { it.isBefore(thisMonth()) && it !in closed && it != month }
                         .sortedDescending(),
+                    budgets = budgetsInMonth,
                 )
             },
         )
@@ -104,7 +115,12 @@ class Ledger(
         return coming.takeIf { it.isNotEmpty() }?.sum()
     }
 
-    private data class Booked(val bookings: List<BookingWithCategory>, val categories: List<LedgerCategory>, val kept: List<ClosedBudget>)
+    private data class Booked(
+        val bookings: List<BookingWithCategory>,
+        val categories: List<LedgerCategory>,
+        val kept: List<ClosedBudget>,
+        val own: List<MonthBudget>,
+    )
 
     /** The months with bookings and with fixed bookings skipped, and those skipped in the month shown. */
     private data class Earlier(val booked: List<String>, val skipped: List<String>, val skippedHere: List<SkippedEntry>)
@@ -218,7 +234,7 @@ class Ledger(
 
     /**
      * Sets the monthly budget of the expense category, [cents] above zero, or takes it away with null (SPEC.md §13). It
-     * holds for every month open; a closed one keeps the budget it had when it was closed.
+     * holds for every month open but those with one of their own; a closed one keeps the budget it had when it was closed.
      */
     suspend fun setBudget(categoryId: Long, cents: Long?) = write {
         database().withTransaction {
@@ -226,6 +242,25 @@ class Ledger(
             require(category.kind == BookingKind.Expense) { "Budgets are only for expenses" }
             require(cents == null || cents in 1..Money.MAX) { "A budget is above zero" }
             dao.setBudget(categoryId, cents)
+        }
+    }
+
+    /**
+     * Sets the budget the expense category has in the open [month] alone (SPEC.md §13): [cents] above zero, or none with
+     * null, in place of its monthly one. The same as its monthly one, the month has none of its own any more, and
+     * follows the monthly one when that changes.
+     */
+    suspend fun setBudgetIn(month: YearMonth, categoryId: Long, cents: Long?) = write {
+        database().withTransaction {
+            val category = requireNotNull(dao.category(categoryId)) { "No such category" }
+            require(category.kind == BookingKind.Expense) { "Budgets are only for expenses" }
+            require(cents == null || cents in 1..Money.MAX) { "A budget is above zero" }
+            requireOpen(month.atDay(1))
+            if (cents == category.budgetCents) {
+                dao.removeMonthBudget(month, categoryId)
+            } else {
+                dao.setMonthBudget(MonthBudget(month, categoryId, cents))
+            }
         }
     }
 
@@ -238,9 +273,11 @@ class Ledger(
         val categoryId = draft.categoryId ?: return@withContext null
         val cents = draft.cents ?: return@withContext null
         if (draft.kind != BookingKind.Expense) return@withContext null
-        // That of now: a month closed takes no booking anyway.
-        val budget = dao.category(categoryId)?.budgetCents ?: return@withContext null
         val month = YearMonth.from(draft.date)
+        // That of now, the month's own if it has one: a month closed takes no booking anyway.
+        val category = dao.category(categoryId) ?: return@withContext null
+        val own = dao.monthBudget(month, categoryId)
+        val budget = (if (own != null) own.budgetCents else category.budgetCents) ?: return@withContext null
         val (from, to) = month.atDay(1) to month.atEndOfMonth()
         val others = dao.spentIn(categoryId, from, to, except = replacing ?: NONE)
         // What the booking saved already adds there, which the save replaces.
@@ -331,7 +368,7 @@ class Ledger(
     private suspend fun endBalance(month: YearMonth): Long =
         (dao.opening(month)?.cents ?: 0) + dao.balanceBetween(month.atDay(1), month.atEndOfMonth())
 
-    /** Opens the closed [month] again, with the budgets of now; the screen asks first. */
+    /** Opens the closed [month] again, with the budgets of now, its own among them; the screen asks first. */
     suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
 
     /** The months closed, the latest first, each with its sums (SPEC.md §13). */
