@@ -44,7 +44,8 @@ import java.time.YearMonth
 /**
  * The year overview of the household book (SPEC.md §13), a year at a time: its income, expenses and balance; each
  * month with its own, tapping one shows it; and the year's expenses by category, each with its sum and share, the
- * largest first. Months open and closed count the same.
+ * largest first. Months open and closed count the same. The opening balance of January and the end balance of
+ * December show apart, where they are, and count in no sum.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,28 +77,32 @@ fun LedgerYearScreen(
             // Of the year shown, not of the one before while it loads.
             val shown = summary?.takeIf { it.year == year } ?: return@LazyColumn
             item(key = "sums") { Sums(shown.income, shown.expenses, shown.balance) }
+            // Where the year starts, apart from its sums: it counts as no income.
+            shown.openingOfJanuary?.let { cents ->
+                item(key = "opening") { YearBalance(stringResource(R.string.ledger_year_opening, Money.format(cents))) }
+            }
             item(key = "months-title") { SectionTitle(stringResource(R.string.ledger_year_months)) }
             items(shown.months, key = { it.month.toString() }) { sums ->
                 ListItem(
                     headlineContent = { Text(sums.month.monthName()) },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                R.string.ledger_archive_sums,
-                                Money.format(sums.income),
-                                Money.format(sums.expenses),
-                                Money.format(sums.balance),
-                            ),
-                        )
-                    },
+                    supportingContent = { Text(sumsText(sums)) },
                     modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) {
                         onOpenMonth(sums.month)
                     },
                 )
             }
+            // Where it ends, below its months.
+            shown.closingOfDecember?.let { cents ->
+                item(key = "closing") { YearBalance(stringResource(R.string.ledger_year_closing, Money.format(cents))) }
+            }
             item(key = "by-category") { ExpensesOfYear(shown) }
         }
     }
+}
+
+@Composable
+private fun YearBalance(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 }
 
 @Composable

@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -233,7 +234,7 @@ class LedgerScreenTest {
             compose.onNodeWithText("September 2026").performClick()
 
             compose.onNodeWithText("Monat abschließen").performClick()
-            compose.onNode(hasText("Abschließen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Nur abschließen") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Abgeschlossen – nur zum Lesen").assertIsDisplayed()
             compose.onNodeWithContentDescription("Buchung anlegen").assertDoesNotExist()
 
@@ -359,6 +360,114 @@ class LedgerScreenTest {
             compose.onNodeWithContentDescription("Haushaltsbuch öffnen").assertIsDisplayed()
         }
     }
+
+    @Test
+    fun `an opening balance set by hand shows with the end balance, is changed and removed again`() {
+        book("Gehalt", BookingKind.Income, "100", "2026-10-01")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Saldo aus Vormonat übertragen").assertIsDisplayed()
+            compose.onNodeWithText("Anfangssaldo festlegen").performClick()
+            dialogField("Anfangssaldo in Euro").performTextInput("85,2-")
+            compose.onNodeWithText("Bitte gib den Betrag mit Komma ein, z. B. −85,20.").assertIsDisplayed()
+            dialogField("Anfangssaldo in Euro").performTextReplacement("-85,20")
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("−85,20 €").assertIsDisplayed()
+            compose.onNodeWithText("von Hand festgelegt").assertIsDisplayed()
+            compose.onNodeWithText("14,80 €").assertIsDisplayed()
+            compose.onNodeWithText("Endsaldo").assertIsDisplayed()
+            compose.onNodeWithText("Anfangssaldo festlegen").assertDoesNotExist()
+            compose.onNodeWithText("Saldo aus Vormonat übertragen").assertDoesNotExist()
+
+            compose.onNodeWithContentDescription("Anfangssaldo ändern").performClick()
+            compose.onNode(hasText("Entfernen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Endsaldo").assertDoesNotExist()
+            compose.onNodeWithText("Anfangssaldo festlegen").assertIsDisplayed()
+        }
+        assertEquals(null, runBlocking { app.ledger.month(october).first().opening })
+    }
+
+    @Test
+    fun `the end balance of a month still open is carried over after saying it may change`() {
+        book("Gehalt", BookingKind.Income, "120", "2026-09-01")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Saldo aus Vormonat übertragen").performClick()
+            compose.onNodeWithText(
+                "September 2026 ist noch offen; sein Endsaldo kann sich noch ändern. 120,00 € übertragen?",
+            ).assertIsDisplayed()
+            compose.onNode(hasText("Übertragen") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("aus September übertragen").assertIsDisplayed()
+            // As opening and as end balance: nothing booked in October yet.
+            compose.onAllNodesWithText("120,00 €").assertCountEquals(2)
+        }
+    }
+
+    @Test
+    fun `closing a month carries its end balance into the next one, replacing the one it had, or not when that is closed`() {
+        book("Freizeit", BookingKind.Expense, "20", "2026-08-12")
+        runBlocking { app.ledger.setOpening(YearMonth.of(2026, 9), 500) }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Noch offen").assertIsDisplayed()
+            compose.onNodeWithText("August 2026").performClick()
+            compose.onNodeWithText("Monat abschließen").performClick()
+            compose.onNodeWithText(
+                "Mit „Abschließen & übertragen“ geht der Endsaldo von −20,00 € als Anfangssaldo in den September 2026; " +
+                    "er ersetzt dessen Anfangssaldo von bisher 5,00 €.",
+                substring = true,
+            ).assertIsDisplayed()
+            compose.onNode(hasText("Abschließen & übertragen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Abgeschlossen – nur zum Lesen").assertIsDisplayed()
+
+            compose.onNodeWithContentDescription("Nächster Monat").performClick()
+            compose.onNodeWithText("aus August übertragen").assertIsDisplayed()
+            compose.onNodeWithText("Monat abschließen").performClick()
+            compose.onNode(hasText("Abschließen & übertragen") and hasAnyAncestor(isDialog())).performClick()
+            // Closed, its opening balance is only to read.
+            compose.onNodeWithContentDescription("Anfangssaldo ändern").assertDoesNotExist()
+
+            // Opened again, August carries nothing into September while that is closed.
+            compose.onNodeWithContentDescription("Voriger Monat").performClick()
+            compose.onNodeWithText("Wieder öffnen").performClick()
+            compose.onNode(hasText("Wieder öffnen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("Monat abschließen").performClick()
+            compose.onNodeWithText("September 2026 ist abgeschlossen; um den Saldo zu übertragen, öffne ihn erst wieder.", substring = true)
+                .assertIsDisplayed()
+            compose.onNode(hasText("Abschließen & übertragen") and hasAnyAncestor(isDialog())).assertDoesNotExist()
+            compose.onNode(hasText("Abbrechen") and hasAnyAncestor(isDialog())).performClick()
+        }
+        assertEquals(-2_000L, runBlocking { app.ledger.month(october).first().opening?.cents })
+    }
+
+    @Test
+    fun `the archive and the year show the end balances that follow from opening balances`() {
+        book("Gehalt", BookingKind.Income, "50", "2026-01-10")
+        runBlocking {
+            app.ledger.setOpening(YearMonth.of(2026, 1), 30_000)
+            app.ledger.close(YearMonth.of(2026, 1))
+        }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.onNodeWithText("Einnahmen 50,00 € · Ausgaben 0,00 € · Saldo 50,00 € · Endsaldo 350,00 €").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithText("Jahresübersicht 2026").performClick()
+            compose.onNodeWithText("Anfangssaldo Januar: 300,00 €").assertIsDisplayed()
+            compose.onNodeWithText("Endsaldo Dezember", substring = true).assertDoesNotExist()
+            // The opening balance is no income.
+            compose.onNodeWithText("Einnahmen 50,00 € · Ausgaben 0,00 € · Saldo 50,00 € · Endsaldo 350,00 €").assertIsDisplayed()
+        }
+    }
+
+    private fun dialogField(label: String) = compose.onNode(hasSetTextAction() and hasText(label) and hasAnyAncestor(isDialog()))
 
     private fun openLedger() {
         compose.onNode(hasText("Notizen") and hasClickAction()).performClick()

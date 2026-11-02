@@ -76,7 +76,8 @@ import de.emilyshub.ui.rememberToday
 import java.time.YearMonth
 
 /**
- * The household book (SPEC.md §13), a month at a time, the current one first: its income, expenses and balance; its
+ * The household book (SPEC.md §13), a month at a time, the current one first: its opening balance, or the ways to get
+ * one while it is open; its income, expenses and balance, and the end balance that follows from an opening one; its
  * expenses by category as bars, the largest first, and as a pie chart with its legend; then all its bookings, the
  * latest first. "+" adds a booking, tapping one opens it.
  */
@@ -96,6 +97,8 @@ fun LedgerScreen(
     onBack: () -> Unit,
 ) {
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
+    var editingOpening by rememberSaveable { mutableStateOf(false) }
+    var confirmingCarry by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Looked at anew when the day changes, so that the fixed bookings of the new day are entered while it shows, and
     // the month may be closed on its last day.
@@ -177,8 +180,29 @@ fun LedgerScreen(
                     }
                 }
             }
-            val summary = shown?.summary ?: return@LazyColumn
+            val here = shown ?: return@LazyColumn
+            val summary = here.summary
+            val opening = here.opening
+            when {
+                opening != null -> item(key = "opening") {
+                    OpeningRow(opening, onEdit = if (here.closed) null else ({ editingOpening = true }))
+                }
+                // Carried over or set by hand, only while open.
+                !here.closed -> item(key = "opening-offers") {
+                    OpeningOffers(
+                        onCarry = {
+                            if (here.previous.closed) {
+                                scope.launchNow { ledger.carryOver(here.month) }
+                            } else {
+                                confirmingCarry = true
+                            }
+                        },
+                        onSet = { editingOpening = true },
+                    )
+                }
+            }
             item(key = "sums") { Sums(summary.income, summary.expenses, summary.balance) }
+            here.closingBalance?.let { closing -> item(key = "closing-balance") { ClosingRow(closing) } }
             if (summary.expensesByCategory.isNotEmpty()) {
                 item(key = "by-category") { ExpensesByCategory(summary.expensesByCategory, summary.expenses) }
             }
@@ -196,31 +220,53 @@ fun LedgerScreen(
         }
     }
 
-    val known = shown
-    if (confirmingClose && known != null) {
+    val known = shown ?: return
+    when {
         // Reopening what is closed, closing what is open.
-        val closed = known.closed
-        val (title, text, confirm) = if (closed) {
-            Triple(R.string.ledger_reopen_title, R.string.ledger_reopen_text, R.string.ledger_reopen)
-        } else {
-            Triple(R.string.ledger_close_title, R.string.ledger_close_text, R.string.ledger_close_confirm)
-        }
-        AlertDialog(
+        confirmingClose && known.closed -> AlertDialog(
             onDismissRequest = { confirmingClose = false },
-            title = { Text(stringResource(title, month.monthAndYear())) },
-            text = { Text(stringResource(text)) },
+            title = { Text(stringResource(R.string.ledger_reopen_title, month.monthAndYear())) },
+            text = { Text(stringResource(R.string.ledger_reopen_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         confirmingClose = false
-                        val reopening = closed
-                        scope.launchNow { if (reopening) ledger.reopen(month) else ledger.close(month) }
+                        scope.launchNow { ledger.reopen(month) }
                     },
-                ) { Text(stringResource(confirm)) }
+                ) { Text(stringResource(R.string.ledger_reopen)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmingClose = false }) { Text(stringResource(R.string.cancel)) }
             },
+        )
+        confirmingClose -> CloseDialog(
+            known,
+            onClose = { carryOver ->
+                confirmingClose = false
+                scope.launchNow { ledger.close(month, carryOver) }
+            },
+            onDismiss = { confirmingClose = false },
+        )
+        // Not in a month closed meanwhile.
+        editingOpening && !known.closed -> OpeningDialog(
+            current = known.opening?.cents,
+            onSave = { cents ->
+                editingOpening = false
+                scope.launchNow { ledger.setOpening(month, cents) }
+            },
+            onRemove = {
+                editingOpening = false
+                scope.launchNow { ledger.removeOpening(month) }
+            },
+            onDismiss = { editingOpening = false },
+        )
+        confirmingCarry && !known.closed -> CarryDialog(
+            known,
+            onCarry = {
+                confirmingCarry = false
+                scope.launchNow { ledger.carryOver(month) }
+            },
+            onDismiss = { confirmingCarry = false },
         )
     }
 }

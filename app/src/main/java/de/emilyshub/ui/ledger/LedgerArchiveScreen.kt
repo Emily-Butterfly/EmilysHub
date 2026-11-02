@@ -23,13 +23,14 @@ import androidx.compose.ui.semantics.semantics
 import de.emilyshub.R
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
+import de.emilyshub.ledger.MonthSums
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.monthAndYear
 import java.time.YearMonth
 
 /**
  * The archive of the household book (SPEC.md §13): the months closed, the latest first, each with its income, expenses
- * and balance; tapping one shows it, only to read.
+ * and balance, and its end balance if it has an opening one; tapping one shows it, only to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,20 +57,23 @@ fun LedgerArchiveScreen(ledger: Ledger, onOpen: (YearMonth) -> Unit, onBack: () 
                     val month = archived.month
                     ListItem(
                         headlineContent = { Text(month.monthAndYear()) },
-                        supportingContent = {
-                            Text(
-                                stringResource(
-                                    R.string.ledger_archive_sums,
-                                    Money.format(archived.income),
-                                    Money.format(archived.expenses),
-                                    Money.format(archived.balance),
-                                ),
-                            )
-                        },
+                        supportingContent = { Text(sumsText(archived)) },
                         modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) { onOpen(month) },
                     )
                 }
             }
         }
+    }
+}
+
+/** A month's income, expenses and balance in words, with its end balance if it has an opening balance. */
+@Composable
+internal fun sumsText(sums: MonthSums): String {
+    val (income, expenses, balance) = Triple(Money.format(sums.income), Money.format(sums.expenses), Money.format(sums.balance))
+    val closing = sums.closingBalance
+    return if (closing == null) {
+        stringResource(R.string.ledger_archive_sums, income, expenses, balance)
+    } else {
+        stringResource(R.string.ledger_archive_sums_closing, income, expenses, balance, Money.format(closing))
     }
 }
