@@ -169,7 +169,7 @@ class TodosScreenTest {
             compose.onNodeWithText("Arzt anrufen").performClick()
             tone().performScrollTo().assertTextContains("Glocke")
         }
-        assertEquals(listOf(bell), runBlocking { app.todos.open().first().map { it.todo.tone } })
+        assertEquals(listOf(bell), runBlocking { app.todos.open().first().map { it.todo.style.tone } })
     }
 
     @Test
@@ -184,7 +184,7 @@ class TodosScreenTest {
             nameOnLockScreen().performClick()
             compose.onNodeWithText("Speichern").performClick()
         }
-        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.nameOnLockScreen } })
+        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.style.nameOnLockScreen } })
     }
 
     @Test
@@ -203,7 +203,7 @@ class TodosScreenTest {
             compose.onNodeWithText("Ohne Uhrzeit klingelt", substring = true).assertDoesNotExist()
             compose.onNodeWithText("Speichern").performClick()
         }
-        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.fullScreen } })
+        assertEquals(listOf(true), runBlocking { app.todos.open().first().map { it.todo.style.fullScreen } })
     }
 
     @Test

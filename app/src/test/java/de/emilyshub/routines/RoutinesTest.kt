@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.tags.Tags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -1020,7 +1021,7 @@ class RoutinesTest {
         tags: Set<Long> = emptySet(),
         endsOn: LocalDate? = null,
     ) = RoutineDraft(
-        name, description, times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
+        name, description, times.map(LocalTime::parse), repetition, followUps, RemindingStyle(fullScreen = fullScreen), window, priority,
         checklist.map { ChecklistDraftItem(text = it) }, tags, endsOn = endsOn,
     )
 
@@ -1029,7 +1030,7 @@ class RoutinesTest {
         routines.dueOn(date).first().flatMap { routine -> routine.checklist.map { it.text to it.ticked } }
 
     /** The routine's follow-ups, full-screen alarm and time window, as saved. */
-    private suspend fun howItReminds(id: Long) = routines.get(id)?.let { Triple(it.followUps, it.fullScreen, it.window) }
+    private suspend fun howItReminds(id: Long) = routines.get(id)?.let { Triple(it.followUps, it.style.fullScreen, it.window) }
 
     /** The id of today's occurrence at [time]. */
     private suspend fun occurrenceAt(time: String, which: (DueRoutine) -> Boolean = { true }) =

@@ -259,7 +259,7 @@ class TodoAlarmTest {
 
         val next = runBlocking { app.todos.open().first() }.single().todo
         assertEquals(today.plusDays(1), next.dueDate)
-        assertTrue(next.fullScreen)
+        assertTrue(next.style.fullScreen)
     }
 
     @Test
@@ -268,7 +268,7 @@ class TodoAlarmTest {
 
         runBlocking { app.todos.markDone(id) }
 
-        assertTrue(runBlocking { app.todos.open().first() }.single().todo.nameOnLockScreen)
+        assertTrue(runBlocking { app.todos.open().first() }.single().todo.style.nameOnLockScreen)
     }
 
     @Test
@@ -278,7 +278,7 @@ class TodoAlarmTest {
 
         runBlocking { app.todos.markDone(id) }
 
-        assertEquals(morning, runBlocking { app.todos.open().first() }.single().todo.tone)
+        assertEquals(morning, runBlocking { app.todos.open().first() }.single().todo.style.tone)
     }
 
     private fun assertRings() {

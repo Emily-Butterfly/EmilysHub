@@ -59,7 +59,7 @@ fun rememberUse(routines: Routines, todos: Todos): Use? {
             Use(
                 reminds = active.isNotEmpty() || open.any { it.reminds },
                 boundToPlaces = boundToPlaces || open.any { it.waitsForPlaces },
-                fullScreen = active.any { it.fullScreen } || open.any { it.todo.fullScreen && it.reminds },
+                fullScreen = active.any { it.style.fullScreen } || open.any { it.todo.style.fullScreen && it.reminds },
             )
         }
     }

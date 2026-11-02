@@ -8,6 +8,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 import de.emilyshub.data.InputText
+import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.Wish
 import java.time.Instant
@@ -43,8 +44,8 @@ data class Routine(
     @ColumnInfo(name = "planned_from") val plannedFrom: Instant,
     /** How often and how far apart it reminds again of an occurrence left open; takes effect at once. */
     @Embedded(prefix = "follow_up_") val followUps: FollowUps = FollowUps(),
-    /** Whether its reminders fill the screen like an alarm clock, also on the lock screen, where Android allows it. */
-    @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
+    /** How its reminders come: full screen or not, its name on the lock screen or not, and their tone (SPEC.md §3). */
+    @Embedded val style: RemindingStyle = RemindingStyle(),
     /** How long each occurrence can be caught up on before it is missed. */
     @Embedded(prefix = "window_") val window: TimeWindow = TimeWindow(),
     /** Shown with it in the list and on Heute; it changes nothing else. */
@@ -60,10 +61,6 @@ data class Routine(
     val target: RoutineTarget? = null,
     /** Its last day, if it ends (SPEC.md §2): due on none after; once that day is over, it goes to the archive. */
     @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
-    /** Whether the lock screen shows its name and time in its reminders and alarm, not only that one is due (SPEC.md §3, §9). */
-    @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
-    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
-    @ColumnInfo(defaultValue = "''") val tone: Tone = Tone.Standard,
     /**
      * The group of routines it is coupled with (SPEC.md §2), by its number, if it is: one of them done on a day is
      * enough for all of them. Set by [Routines] from [RoutineDraft.coupledWith], never by the draft itself.
@@ -169,24 +166,21 @@ data class RoutineWithOutcomes(
 )
 
 /**
- * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, whether with a
- * [fullScreen] alarm, when its time window ends, whether the lock screen may show its name, [nameOnLockScreen], and
- * its [tone]. With the occurrences of the routines coupled with it due at the same time, [together], it is their
+ * An open occurrence to remind of (SPEC.md §3): its routine's [name], when it is due, when its time window ends, and how
+ * it reminds ([style]): a joint one full screen if any of them is, with the tone of the one it is posted for. With the occurrences of the routines coupled with it due at the same time, [together], it is their
  * joint reminder (SPEC.md §3), and its occurrence the one it is posted for.
  */
 data class Reminder(
     val occurrenceId: Long,
     val name: String,
     val dueAt: ZonedDateTime,
-    val fullScreen: Boolean,
     val windowEnd: Instant,
-    val nameOnLockScreen: Boolean = false,
-    val tone: Tone = Tone.Standard,
+    val style: RemindingStyle = RemindingStyle(),
     val together: List<JointOccurrence> = emptyList(),
 ) {
     /** Each occurrence it reminds of, its own first, with its routine's name. */
     val occurrences: List<JointOccurrence>
-        get() = listOf(JointOccurrence(occurrenceId, name, nameOnLockScreen)) + together
+        get() = listOf(JointOccurrence(occurrenceId, name, style.nameOnLockScreen)) + together
 
     /** What it is called: its routine's name, or those of all it reminds of, by name. */
     val title: String

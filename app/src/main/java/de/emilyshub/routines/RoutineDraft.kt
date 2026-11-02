@@ -1,7 +1,7 @@
 package de.emilyshub.routines
 
 import de.emilyshub.data.InputText
-import de.emilyshub.reminders.Tone
+import de.emilyshub.reminders.RemindingStyle
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
@@ -41,7 +41,8 @@ data class RoutineDraft(
     val times: List<LocalTime>,
     val repetition: Repetition,
     val followUps: FollowUps = FollowUps(),
-    val fullScreen: Boolean = false,
+    /** How its reminders come (SPEC.md §3). */
+    val style: RemindingStyle = RemindingStyle(),
     val window: TimeWindow = TimeWindow(),
     val priority: Priority = Priority.Normal,
     /** Its sub-items ("Unterpunkte") in their order, ticked off one by one on each occurrence. */
@@ -56,10 +57,6 @@ data class RoutineDraft(
     val target: RoutineTarget? = null,
     /** Its last day, if it ends; none for one due once. */
     val endsOn: LocalDate? = null,
-    /** Whether the lock screen shows its name and time, not only that a reminder is due (SPEC.md §3). */
-    val nameOnLockScreen: Boolean = false,
-    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
-    val tone: Tone = Tone.Standard,
     /**
      * The other routines it is coupled with (SPEC.md §2), all of its group; none: it is in none. Only with one time a
      * day, as are they: one with several is left out on saving, as is one deleted meanwhile.
@@ -110,8 +107,7 @@ data class RoutineDraft(
     /** The routine this draft makes, [id] if it is saved already, with its times planned [from] then on. */
     fun toRoutine(id: Long = 0, plannedFrom: Instant, status: RoutineStatus = RoutineStatus.Active) =
         Routine(
-            id, name, description, times, repetition, plannedFrom, followUps, fullScreen, window, priority, status, goalId, target, endsOn,
-            nameOnLockScreen, tone,
+            id, name, description, times, repetition, plannedFrom, followUps, style, window, priority, status, goalId, target, endsOn,
         )
 
     companion object {
@@ -142,7 +138,6 @@ fun Routine.toDraft(
     placeIds: Set<Long>,
     coupledWith: Set<Long> = emptySet(),
 ) = RoutineDraft(
-    name, description, times, repetition, followUps, fullScreen, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, nameOnLockScreen, tone,
-    coupledWith,
+    name, description, times, repetition, followUps, style, window, priority,
+    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, coupledWith,
 )

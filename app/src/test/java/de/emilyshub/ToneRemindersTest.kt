@@ -11,6 +11,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.reminders.AlarmActivity
 import de.emilyshub.reminders.AlarmRingService
+import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Sound
 import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.FollowUps
@@ -202,7 +203,7 @@ class ToneRemindersTest {
     }
 
     private fun draft(name: String, time: String, tone: Tone) =
-        RoutineDraft(name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily, tone = tone)
+        RoutineDraft(name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily, style = RemindingStyle(tone = tone))
 
     /** Opens the alarm the way Android does, with the reminder's own full-screen intent. */
     private fun openAlarm(of: String): ActivityScenario<AlarmActivity> {

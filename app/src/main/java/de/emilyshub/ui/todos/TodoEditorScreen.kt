@@ -67,9 +67,7 @@ import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
-import de.emilyshub.ui.reminders.ToneField
-import de.emilyshub.ui.routines.FullScreenField
-import de.emilyshub.ui.routines.NameOnLockScreenField
+import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
@@ -238,16 +236,14 @@ fun TodoEditorScreen(
                 hintChosen = R.string.todo_places_chosen,
                 onChange = { draft = draft.copy(placeIds = it) },
             )
-            FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
-            if (draft.fullScreen && draft.due !is Due.At && cleaned.wake == null) {
-                Text(
-                    stringResource(R.string.todo_full_screen_no_time),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            NameOnLockScreenField(draft.nameOnLockScreen, onChange = { draft = draft.copy(nameOnLockScreen = it) })
-            ToneField(draft.tone, tones, onChange = { draft = draft.copy(tone = it) })
+            RemindingStyleFields(
+                style = draft.style,
+                tones = tones,
+                onChange = { draft = draft.copy(style = it) },
+                // Without a time, a full-screen alarm comes only on arrival at a place (SPEC.md §5).
+                fullScreenNote = stringResource(R.string.todo_full_screen_no_time)
+                    .takeIf { draft.due !is Due.At && cleaned.wake == null },
+            )
             PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
             TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })

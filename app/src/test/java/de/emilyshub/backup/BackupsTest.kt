@@ -204,10 +204,10 @@ class BackupsTest {
         val older = sealed(asOf(32, contentOf(now)))
 
         restore(now)
-        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
+        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.style.fullScreen })
 
         restore(older)
-        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.fullScreen })
+        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.style.fullScreen })
     }
 
     @Test
@@ -231,12 +231,12 @@ class BackupsTest {
         val older = sealed(asOf(34, contentOf(now)))
 
         restore(now)
-        assertEquals(listOf(true), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
-        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.nameOnLockScreen })
+        assertEquals(listOf(true), runBlocking { app.routines.inUse().first() }.map { it.style.nameOnLockScreen })
+        assertEquals(listOf(true), runBlocking { app.todos.open().first() }.map { it.todo.style.nameOnLockScreen })
 
         restore(older)
-        assertEquals(listOf(false), runBlocking { app.routines.inUse().first() }.map { it.nameOnLockScreen })
-        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.nameOnLockScreen })
+        assertEquals(listOf(false), runBlocking { app.routines.inUse().first() }.map { it.style.nameOnLockScreen })
+        assertEquals(listOf(false), runBlocking { app.todos.open().first() }.map { it.todo.style.nameOnLockScreen })
     }
 
     @Test
@@ -248,12 +248,12 @@ class BackupsTest {
         val older = sealed(asOf(35, contentOf(now)))
 
         restore(now)
-        assertEquals(listOf(morning), runBlocking { app.routines.inUse().first() }.map { it.tone })
-        assertEquals(listOf(Tone.Silent), runBlocking { app.todos.open().first() }.map { it.todo.tone })
+        assertEquals(listOf(morning), runBlocking { app.routines.inUse().first() }.map { it.style.tone })
+        assertEquals(listOf(Tone.Silent), runBlocking { app.todos.open().first() }.map { it.todo.style.tone })
 
         restore(older)
-        assertEquals(listOf(Tone.Standard), runBlocking { app.routines.inUse().first() }.map { it.tone })
-        assertEquals(listOf(Tone.Standard), runBlocking { app.todos.open().first() }.map { it.todo.tone })
+        assertEquals(listOf(Tone.Standard), runBlocking { app.routines.inUse().first() }.map { it.style.tone })
+        assertEquals(listOf(Tone.Standard), runBlocking { app.todos.open().first() }.map { it.todo.style.tone })
     }
 
     @Test

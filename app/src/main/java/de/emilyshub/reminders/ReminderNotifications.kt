@@ -90,13 +90,13 @@ class ReminderNotifications(
     }
 
     private suspend fun post(reminder: Reminder, alert: Boolean, offering: Offering) {
-        val channel = channelFor(reminder.fullScreen, reminder.tone)
+        val channel = channelFor(reminder.style.fullScreen, reminder.style.tone)
         val notification = notification(reminder, alert, offering, channel)
         notify(tagOf(reminder.occurrenceId), notification, Alarmed.Occurrence(reminder.occurrenceId))
     }
 
     private suspend fun post(reminder: TodoReminder, alert: Boolean, offeringPutOff: Boolean) {
-        val channel = channelFor(reminder.fullScreen, reminder.tone)
+        val channel = channelFor(reminder.style.fullScreen, reminder.style.tone)
         notify(todoTagOf(reminder.todoId), notification(reminder, alert, offeringPutOff, channel), Alarmed.Todo(reminder.todoId))
     }
 
@@ -220,7 +220,7 @@ class ReminderNotifications(
         return builder(channel, reminder.title, text, alert, offering, public)
             .setWhen(reminder.dueAt.toInstant().toEpochMilli())
             .setShowWhen(true)
-            .asAlarmIf(reminder.fullScreen, Alarmed.Occurrence(reminder.occurrenceId), alert, otherwise = openApp())
+            .asAlarmIf(reminder.style.fullScreen, Alarmed.Occurrence(reminder.occurrenceId), alert, otherwise = openApp())
             .apply { actions.forEach(::addAction) }
             .build()
     }
@@ -241,14 +241,14 @@ class ReminderNotifications(
             )
         }
         // When it is due, but not where: its places stay off the lock screen.
-        val public = if (reminder.nameOnLockScreen) {
+        val public = if (reminder.style.nameOnLockScreen) {
             publicVersion(reminder.title, context.resources.lockScreenText(reminder, LocalDate.now(clock)))
         } else {
             publicVersion()
         }
         return builder(channel, reminder.title, text, alert, if (offeringPutOff) Offering.PutOff else Offering.Actions, public)
             // Tapped, it opens the app, or its alarm, and stays up: a to-do waits until it is done.
-            .asAlarmIf(reminder.fullScreen, Alarmed.Todo(reminder.todoId), alert, otherwise = openApp())
+            .asAlarmIf(reminder.style.fullScreen, Alarmed.Todo(reminder.todoId), alert, otherwise = openApp())
             .setAutoCancel(false)
             .apply { actions.forEach(::addAction) }
             .build()

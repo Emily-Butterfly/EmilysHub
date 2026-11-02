@@ -333,7 +333,7 @@ class RoutineEditingTest {
 
             heading("Routinen").assertIsDisplayed()
         }
-        assertEquals(true, savedRoutines().single().nameOnLockScreen)
+        assertEquals(true, savedRoutines().single().style.nameOnLockScreen)
     }
 
     @Test
@@ -352,7 +352,7 @@ class RoutineEditingTest {
             assertEquals(false, request.getBooleanExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true))
             tone().assertTextContains("Morgentau")
             compose.onNodeWithText("Speichern").performClick()
-            assertEquals(morning, savedRoutines().single().tone)
+            assertEquals(morning, savedRoutines().single().style.tone)
 
             compose.onNodeWithText("Vitamine").performClick()
             tone().performScrollTo().performClick()
@@ -363,7 +363,7 @@ class RoutineEditingTest {
             tone().assertTextContains("Standard")
             compose.onNodeWithText("Speichern").performClick()
         }
-        assertEquals(Tone.Standard, savedRoutines().single().tone)
+        assertEquals(Tone.Standard, savedRoutines().single().style.tone)
     }
 
     @Test
@@ -381,7 +381,7 @@ class RoutineEditingTest {
         }
         val copy = app.toneFiles.copies.single()
         assertEquals(ToneKind.Any, copy.kind)
-        assertEquals(Tone.Of(copy.uri), savedRoutines().single().tone)
+        assertEquals(Tone.Of(copy.uri), savedRoutines().single().style.tone)
     }
 
     @Test
@@ -478,7 +478,7 @@ class RoutineEditingTest {
 
             heading("Routinen").assertIsDisplayed()
         }
-        assertEquals(true, savedRoutines().single().fullScreen)
+        assertEquals(true, savedRoutines().single().style.fullScreen)
     }
 
     @Test

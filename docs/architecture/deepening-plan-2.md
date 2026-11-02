@@ -381,19 +381,19 @@ the `Hub`.
 
 ## 5 · What routines and to-dos share: tags, places, checklist and how they remind
 
-**Status:** not started; on a second look, the first two parts fail the deletion test, and the third waits on a
-decision.
+**Status:** `RemindingStyle` done; `Tagging` and `Checklist` decided against ([ADR 0001](../adr/0001-tags-and-checklists-stay-per-kind.md)).
 
-- **`Tagging`: not worth its code.** Each `saveTags` is two lines (`untagAll`, `tag`), and Room cannot name a table at
-  run time, so a shared module would keep the four join tables' queries one by one and pass them through: deleting it
-  would move the complexity, not concentrate it. The same goes for the filter in the three lists, one line each.
-- **`Checklist`: marginal.** The two `saveChecklist`/`tick` work on different tables, and a routine's ticks are per
-  occurrence while a to-do's are on the to-do: a seam with two adapters, but for some 30 lines in all.
-- **`RemindingStyle`: the one with leverage, and the most risk.** `fullScreen`, `nameOnLockScreen` and `tone` run
-  through 34 files. As an `@Embedded` value in `Routine` and `Todo` with the same column names, the tables' columns
-  would stay, but their order in the `CREATE TABLE` Room checks may not, which would change the schema's identity
-  hash and so need a schema version, its migration test and the backups' schemas (`docs/agents/schema-change.md`).
-  Worth doing only together with the next field of that kind, when the migration is due anyway.
+- **`reminders/RemindingStyle.kt`**: full screen, name on the lock screen and tone as one value, `@Embedded` in
+  `Routine` and `Todo` under the columns they had, one `style` field in `RoutineDraft`, `TodoDraft`, `Reminder` and
+  `TodoReminder`, read by `DueReminder` and the notifications, and edited in one section, `RemindingStyleFields`, in
+  both editors (the to-do's note on full screen without a time passed in).
+- **No schema version.** The columns move to the end of the tables' `CREATE TABLE`, but Room's identity hash does not
+  depend on their order: it stays `07bebbaf…`, Room keeps the exported schema 37 as it is, and `BackupLayoutTest`
+  holds that the database is still that schema. A database made before opens as it did.
+- A new way of reminding is now a field of `RemindingStyle`, its migration, and its drawing in `RemindingStyleFields`
+  and the notifications; the entities, drafts, reminders and editors carry it as they are.
+- **Tags and checklists stay per kind**: see ADR 0001. A shared `Tagging` would pass four tables' queries through
+  around a two-line save; the two checklists differ where it matters.
 
 ### Why
 

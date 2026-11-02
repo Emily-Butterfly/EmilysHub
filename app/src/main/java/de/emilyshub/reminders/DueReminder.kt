@@ -16,11 +16,14 @@ sealed interface DueReminder {
     /** What it is called: the routine's name, those of all a joint one reminds of, or the to-do's title. */
     val title: String
 
+    /** How it reminds (SPEC.md §3): full screen or not, and its tone; what the lock screen shows is up to each kind. */
+    val style: RemindingStyle
+
     /** Whether it fills the screen as a full-screen alarm (SPEC.md §3). */
-    val fullScreen: Boolean
+    val fullScreen: Boolean get() = style.fullScreen
 
     /** The tone it plays (SPEC.md §3). */
-    val tone: Tone
+    val tone: Tone get() = style.tone
 
     /** Whether it reminds of coupled routines at once, and so asks which one was done (SPEC.md §3). */
     val joint: Boolean
@@ -32,8 +35,7 @@ sealed interface DueReminder {
     data class OfOccurrence(val reminder: Reminder) : DueReminder {
         override val about get() = Alarmed.Occurrence(reminder.occurrenceId)
         override val title get() = reminder.title
-        override val fullScreen get() = reminder.fullScreen
-        override val tone get() = reminder.tone
+        override val style get() = reminder.style
         override val joint get() = reminder.together.isNotEmpty()
         override val windowEnd: Instant get() = reminder.windowEnd
     }
@@ -42,8 +44,7 @@ sealed interface DueReminder {
     data class OfTodo(val reminder: TodoReminder) : DueReminder {
         override val about get() = Alarmed.Todo(reminder.todoId)
         override val title get() = reminder.title
-        override val fullScreen get() = reminder.fullScreen
-        override val tone get() = reminder.tone
+        override val style get() = reminder.style
         override val joint get() = false
         override val windowEnd: Instant? get() = null
     }

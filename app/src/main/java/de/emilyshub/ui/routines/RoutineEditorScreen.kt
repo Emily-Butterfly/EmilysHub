@@ -62,7 +62,7 @@ import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberToday
-import de.emilyshub.ui.reminders.ToneField
+import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalTime
@@ -246,9 +246,7 @@ fun RoutineEditorScreen(
                 })
             }
             FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
-            FullScreenField(draft.fullScreen, onChange = { draft = draft.copy(fullScreen = it) })
-            NameOnLockScreenField(draft.nameOnLockScreen, onChange = { draft = draft.copy(nameOnLockScreen = it) })
-            ToneField(draft.tone, tones, onChange = { draft = draft.copy(tone = it) })
+            RemindingStyleFields(draft.style, tones, onChange = { draft = draft.copy(style = it) })
             TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
             if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId), onOpen = onOpenNote)
         }

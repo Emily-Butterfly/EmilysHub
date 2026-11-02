@@ -567,11 +567,12 @@ class Routines(
             val group = groups[jointKey(open)]?.sortedBy { it.occurrence.id } ?: return@mapNotNull reminderOf(open)
             if (group.first().occurrence.id != open.occurrence.id) return@mapNotNull null
             val others = group.drop(1)
-            reminderOf(open).copy(
+            val reminder = reminderOf(open)
+            reminder.copy(
                 // One with a full-screen alarm makes it one; "Später" comes back before any of their windows end.
-                fullScreen = group.any { it.routine.fullScreen },
+                style = reminder.style.copy(fullScreen = group.any { it.routine.style.fullScreen }),
                 windowEnd = group.minOf { it.routine.windowEnd(it.occurrence, clock.zone) },
-                together = others.map { JointOccurrence(it.occurrence.id, it.routine.name, it.routine.nameOnLockScreen) },
+                together = others.map { JointOccurrence(it.occurrence.id, it.routine.name, it.routine.style.nameOnLockScreen) },
             )
         }
     }
@@ -582,7 +583,7 @@ class Routines(
         val (occurrence, routine) = of
         val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
         val windowEnd = routine.windowEnd(occurrence, clock.zone)
-        return Reminder(occurrence.id, routine.name, dueAt, routine.fullScreen, windowEnd, routine.nameOnLockScreen, routine.tone)
+        return Reminder(occurrence.id, routine.name, dueAt, windowEnd, routine.style)
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {

@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import de.emilyshub.places.Area
 import de.emilyshub.places.PlaceDraft
+import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.FollowUps
@@ -96,9 +97,9 @@ fun TestApplication.routine(
     coupledWith: Set<Long> = emptySet(),
 ): Long = runBlocking {
     val draft = RoutineDraft(
-        name, description = "", times.map(LocalTime::parse), repetition, followUps, fullScreen, window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, nameOnLockScreen, tone,
-        coupledWith,
+        name, description = "", times.map(LocalTime::parse), repetition, followUps,
+        RemindingStyle(fullScreen, nameOnLockScreen, tone), window, priority,
+        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, coupledWith,
     )
     routines.create(draft)
 }
@@ -136,8 +137,8 @@ fun TestApplication.todo(
     )
     todos.create(
         draft.copy(
-            recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, fullScreen = fullScreen, wake = wake,
-            nameOnLockScreen = nameOnLockScreen, tone = tone,
+            recurrence = recurrence, end = end, showsDaysBefore = showsDaysBefore, wake = wake,
+            style = RemindingStyle(fullScreen, nameOnLockScreen, tone),
         ),
     )
 }

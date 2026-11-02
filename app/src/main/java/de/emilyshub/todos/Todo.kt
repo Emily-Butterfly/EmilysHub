@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import de.emilyshub.data.InputText
 import de.emilyshub.places.Place
+import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.Priority
@@ -73,18 +74,14 @@ data class Todo(
     @ColumnInfo(name = "series_number", defaultValue = "1") val seriesNumber: Int = 1,
     /** With a [dueDate]: on Heute so many days before it, under "Demnächst" (SPEC.md §1); only on its day if none. */
     @ColumnInfo(name = "shows_days_before") val showsDaysBefore: Int? = null,
-    /** Whether its reminder comes as a full-screen alarm, like an alarm clock, wherever it comes (SPEC.md §3, §5). */
-    @ColumnInfo(name = "full_screen", defaultValue = "0") val fullScreen: Boolean = false,
+    /** How its reminder comes: full screen or not, its title on the lock screen or not, and its tone (SPEC.md §3, §5). */
+    @Embedded val style: RemindingStyle = RemindingStyle(),
     /** With a [wakeTime]: it wakes so many days before it is due, as [WakeTime.Before] has it. */
     @ColumnInfo(name = "wake_days_before") val wakeDaysBefore: Int? = null,
     /** With a [wakeTime] and no [wakeDaysBefore]: the day it wakes on, as [WakeTime.At] has it. */
     @ColumnInfo(name = "wake_date") val wakeDate: LocalDate? = null,
     /** The time it wakes at, if it wakes at all besides when it is due (SPEC.md §5); see [wake]. */
     @ColumnInfo(name = "wake_time") val wakeTime: LocalTime? = null,
-    /** Whether the lock screen shows its title and when it is due in its reminders and alarm (SPEC.md §3, §9); never more. */
-    @ColumnInfo(name = "name_on_lock_screen", defaultValue = "0") val nameOnLockScreen: Boolean = false,
-    /** The tone of its reminders and full-screen alarm (SPEC.md §3); the default in the settings unless chosen. */
-    @ColumnInfo(defaultValue = "''") val tone: Tone = Tone.Standard,
 ) {
     /** How it wakes, from [wakeDaysBefore], [wakeDate] and [wakeTime]; none if it does not. */
     val wake: WakeTime?
@@ -221,7 +218,7 @@ data class TodoWithDetails(
     val seenAway: Boolean get() = todo.reminding.away
 
     /** Its reminder, as it pops up. */
-    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.fullScreen, todo.nameOnLockScreen, todo.tone)
+    fun toReminder() = TodoReminder(todo.id, todo.title, todo.due, placeNames, todo.style)
 
     /** The checklist in its order, each item ticked off on its own or with all of it once the to-do is done. */
     fun checklist(): List<ChecklistEntry> = checklistItems.sortedBy { it.position }.map {
@@ -258,9 +255,7 @@ data class TodoReminder(
     val title: String,
     val due: Due,
     val places: List<String>,
-    val fullScreen: Boolean = false,
-    val nameOnLockScreen: Boolean = false,
-    val tone: Tone = Tone.Standard,
+    val style: RemindingStyle = RemindingStyle(),
 )
 
 /** How the To-dos list is ordered (SPEC.md §5): by when they are due, or by priority. */

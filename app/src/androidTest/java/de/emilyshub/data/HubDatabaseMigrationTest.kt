@@ -185,7 +185,7 @@ class HubDatabaseMigrationTest {
 
         withMigratedDatabase { database ->
             val routine = database.routines().get(3)
-            assertEquals(FollowUps(count = 5, everyMinutes = 10) to false, routine?.let { it.followUps to it.fullScreen })
+            assertEquals(FollowUps(count = 5, everyMinutes = 10) to false, routine?.let { it.followUps to it.style.fullScreen })
         }
     }
 
@@ -201,7 +201,7 @@ class HubDatabaseMigrationTest {
 
         withMigratedDatabase { database ->
             val routine = database.routines().get(3)
-            assertEquals(TimeWindow(hours = 4) to true, routine?.let { it.window to it.fullScreen })
+            assertEquals(TimeWindow(hours = 4) to true, routine?.let { it.window to it.style.fullScreen })
         }
     }
 
@@ -728,10 +728,10 @@ class HubDatabaseMigrationTest {
 
         withMigratedDatabase { database ->
             val call = checkNotNull(database.todos().get(1))
-            assertEquals(false, call.fullScreen)
+            assertEquals(false, call.style.fullScreen)
 
-            database.todos().update(call.copy(fullScreen = true))
-            assertEquals(true, database.todos().get(1)?.fullScreen)
+            database.todos().update(call.copy(style = call.style.copy(fullScreen = true)))
+            assertEquals(true, database.todos().get(1)?.style?.fullScreen)
         }
     }
 
@@ -770,13 +770,13 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val vitamins = checkNotNull(database.routines().get(1))
             val call = checkNotNull(database.todos().get(1))
-            assertEquals(false, vitamins.nameOnLockScreen)
-            assertEquals(false, call.nameOnLockScreen)
+            assertEquals(false, vitamins.style.nameOnLockScreen)
+            assertEquals(false, call.style.nameOnLockScreen)
 
-            database.routines().update(vitamins.copy(nameOnLockScreen = true))
-            database.todos().update(call.copy(nameOnLockScreen = true))
-            assertEquals(true, database.routines().get(1)?.nameOnLockScreen)
-            assertEquals(true, database.todos().get(1)?.nameOnLockScreen)
+            database.routines().update(vitamins.copy(style = vitamins.style.copy(nameOnLockScreen = true)))
+            database.todos().update(call.copy(style = call.style.copy(nameOnLockScreen = true)))
+            assertEquals(true, database.routines().get(1)?.style?.nameOnLockScreen)
+            assertEquals(true, database.todos().get(1)?.style?.nameOnLockScreen)
         }
     }
 
@@ -796,14 +796,14 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val vitamins = checkNotNull(database.routines().get(1))
             val call = checkNotNull(database.todos().get(1))
-            assertEquals(Tone.Standard, vitamins.tone)
-            assertEquals(Tone.Standard, call.tone)
+            assertEquals(Tone.Standard, vitamins.style.tone)
+            assertEquals(Tone.Standard, call.style.tone)
 
             val morning = Tone.Of("content://media/internal/audio/media/12")
-            database.routines().update(vitamins.copy(tone = morning))
-            database.todos().update(call.copy(tone = Tone.Silent))
-            assertEquals(morning, database.routines().get(1)?.tone)
-            assertEquals(Tone.Silent, database.todos().get(1)?.tone)
+            database.routines().update(vitamins.copy(style = vitamins.style.copy(tone = morning)))
+            database.todos().update(call.copy(style = call.style.copy(tone = Tone.Silent)))
+            assertEquals(morning, database.routines().get(1)?.style?.tone)
+            assertEquals(Tone.Silent, database.todos().get(1)?.style?.tone)
         }
     }
 
