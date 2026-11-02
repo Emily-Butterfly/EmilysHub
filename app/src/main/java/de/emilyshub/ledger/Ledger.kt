@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
+import de.emilyshub.data.Saving
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -86,6 +87,49 @@ class Ledger(
     /** The booking, or null once it is deleted. */
     suspend fun get(id: Long): Booking? = withContext(io) { dao.get(id) }
 
+    /** The booking [id] as it is saved, to edit; null once it is deleted. */
+    suspend fun editing(id: Long): BookingEditing? = draftOf(id)?.let { BookingEditing(id, it) }
+
+    /**
+     * What keeps [draft] from being saved as [editing], with the months [closed] as they are: its own problems, and a
+     * month closed it was saved in or is dated in ([BookingEditing.closedMonth]).
+     */
+    fun problems(editing: BookingEditing, draft: BookingDraft, closed: Set<YearMonth>): Set<BookingProblem> =
+        draft.problems + listOfNotNull(BookingProblem.MonthClosed.takeIf { editing.closedMonth(draft, closed) != null })
+
+    /**
+     * Saves [draft] as [editing] has it: a new booking, or the changes to the one opened; refused, with nothing saved,
+     * for its problems, a month closed meanwhile among them. One deleted meanwhile stays deleted.
+     */
+    suspend fun save(editing: BookingEditing, draft: BookingDraft): Saving<BookingProblem> = write {
+        database().withTransaction {
+            val id = editing.id
+            val closed = closedNow()
+            val saved = id?.let { dao.get(it) }
+            // The month it is in now too, should it have been moved elsewhere meanwhile.
+            val movedFromClosed = saved != null && YearMonth.from(saved.date) in closed
+            val problems = problems(editing, draft, closed) + listOfNotNull(BookingProblem.MonthClosed.takeIf { movedFromClosed })
+            when {
+                problems.isNotEmpty() -> Saving.Refused(problems)
+                id == null -> Saving.Saved(dao.insert(checked(draft)))
+                else -> {
+                    if (saved != null) updateBooking(id, draft)
+                    Saving.Saved(id)
+                }
+            }
+        }
+    }
+
+    /** Deletes the booking opened, and says so; one in a month closed meanwhile stays, and the editor says nothing. */
+    suspend fun delete(editing: BookingEditing): Boolean = write {
+        database().withTransaction {
+            val booking = editing.id?.let { dao.get(it) } ?: return@withTransaction false
+            if (YearMonth.from(booking.date) in closedNow()) return@withTransaction false
+            dao.delete(booking.id)
+            true
+        }
+    }
+
     /** The booking as the editor starts out with it, or null once it is deleted. */
     suspend fun draftOf(id: Long): BookingDraft? = withContext(io) {
         val booking = dao.get(id) ?: return@withContext null
@@ -108,13 +152,15 @@ class Ledger(
 
     /** Saves the booking anew, as [create] does a new one. */
     suspend fun update(id: Long, draft: BookingDraft) = write {
-        database().withTransaction {
-            // One entered from a fixed booking stays marked so; the template stays as it is.
-            val before = dao.get(id) ?: return@withTransaction
-            // Neither changed in a month closed, nor moved out of one or into one.
-            requireOpen(before.date, draft.date)
-            dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
-        }
+        database().withTransaction { updateBooking(id, draft) }
+    }
+
+    private suspend fun updateBooking(id: Long, draft: BookingDraft) {
+        // One entered from a fixed booking stays marked so; the template stays as it is.
+        val before = dao.get(id) ?: return
+        // Neither changed in a month closed, nor moved out of one or into one.
+        requireOpen(before.date, draft.date)
+        dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
     }
 
     /** Deletes the booking; the editor asks first. One in a month closed stays. */
@@ -285,6 +331,37 @@ class Ledger(
         )
     }.flowOn(io)
 
+    /** A new fixed booking: an expense from this month on, on today's day. */
+    fun newTemplate() = RecurringDraft(BookingKind.Expense, amount = "", firstMonth = thisMonth(), day = today().dayOfMonth)
+
+    /** The fixed booking [id] as it is saved, to edit; null once it is deleted. */
+    suspend fun editingTemplate(id: Long): RecurringEditing? = templateDraftOf(id)?.let { RecurringEditing(id, it) }
+
+    /**
+     * The first month a fixed booking edited as [editing] may start from: a year back at most, as all months since are
+     * entered at once; one saved keeps its own, if it lies further back.
+     */
+    fun earliestFirstMonth(editing: RecurringEditing): YearMonth {
+        val yearBack = thisMonth().minusMonths(MONTHS_BACK)
+        return editing.original?.firstMonth?.let { minOf(it, yearBack) } ?: yearBack
+    }
+
+    /** What keeps [draft] from being saved as [editing]: its own problems, and a first month too far back. */
+    fun problems(editing: RecurringEditing, draft: RecurringDraft): Set<RecurringProblem> =
+        draft.problems + listOfNotNull(RecurringProblem.FirstMonthTooEarly.takeIf { draft.firstMonth < earliestFirstMonth(editing) })
+
+    /**
+     * Saves [draft] as [editing] has it: a new fixed booking, entered from its first day on, or the changes to the one
+     * opened; refused, with nothing saved, for its problems.
+     */
+    suspend fun saveTemplate(editing: RecurringEditing, draft: RecurringDraft): Saving<RecurringProblem> {
+        val problems = problems(editing, draft)
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(createTemplate(draft))
+        updateTemplate(id, draft)
+        return Saving.Saved(id)
+    }
+
     /** The fixed booking as its editor starts out with it, or null once it is deleted. */
     suspend fun templateDraftOf(id: Long): RecurringDraft? = withContext(io) {
         val template = dao.template(id) ?: return@withContext null
@@ -401,6 +478,9 @@ class Ledger(
 
         /** No booking: an id none has. */
         private const val NONE = 0L
+
+        /** How far back a new fixed booking may start: all months since are entered at once. */
+        private const val MONTHS_BACK = 12L
 
         private val SUGGESTED = mapOf(
             BookingKind.Expense to listOf("Lebensmittel", "Wohnen", "Mobilität", "Freizeit", "Gesundheit", "Kleidung"),

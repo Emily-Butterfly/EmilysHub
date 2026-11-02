@@ -41,7 +41,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingEditing
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
@@ -59,7 +61,6 @@ import de.emilyshub.ui.monthAndYear
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.Serializable
-import java.time.YearMonth
 
 /** What the booking editor opens: a new booking, or one saved already. */
 sealed interface BookingEditorTarget : Serializable {
@@ -77,8 +78,9 @@ sealed interface BookingEditorTarget : Serializable {
 @Composable
 fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: () -> Unit) {
     val bookingId = (target as? BookingEditorTarget.Edit)?.bookingId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (bookingId == null) BookingEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(ledger.newDraft(BookingKind.Expense)) }
-    var loaded by rememberSaveable { mutableStateOf(bookingId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
@@ -89,18 +91,16 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
     // Null until known: till then, nothing is saved or deleted.
     val closedMonths by remember(ledger) { ledger.closedMonths() }.collectAsState(initial = null)
-    // The month of the booking as saved, which locks it too while closed.
-    var savedMonth by rememberSaveable { mutableStateOf<YearMonth?>(null) }
 
-    if (!loaded && bookingId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(bookingId) {
-            val saved = ledger.draftOf(bookingId)
+            val saved = ledger.editing(checkNotNull(bookingId))
             if (saved == null) {
                 onClose()
             } else {
-                draft = saved
-                savedMonth = YearMonth.from(saved.date)
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
@@ -109,22 +109,14 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val problems = draft.problems
     // Neither made, changed nor deleted in a month closed (SPEC.md §13), until it is opened again.
     val known = closedMonths
-    val closedMonth = listOfNotNull(savedMonth, YearMonth.from(draft.date)).firstOrNull { known != null && it in known }
+    val closedMonth = known?.let { opened.closedMonth(draft, it) }
     val locked = known == null || closedMonth != null
     val context = LocalContext.current.applicationContext
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
             closing = true
-            scope.launchNow {
-                // To the end, though the editor is gone meanwhile.
-                withContext(NonCancellable) {
-                    try {
-                        work()
-                    } catch (_: IllegalArgumentException) {
-                        // The month was closed meanwhile, elsewhere: nothing is saved, as it says when opened again.
-                    }
-                }
-            }
+            // To the end, though the editor is gone meanwhile.
+            scope.launchNow { withContext(NonCancellable) { work() } }
             onClose()
         }
     }
@@ -137,9 +129,10 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
             closeWith {
                 val over = ledger.overrunOf(saved, replacing = bookingId)
-                if (bookingId == null) ledger.create(saved) else ledger.update(bookingId, saved)
+                // A month closed meanwhile, elsewhere, refuses it: nothing is saved, as it says when opened again.
+                val saving = ledger.save(opened, saved)
                 // Briefly, once saved: no notification (SPEC.md §13).
-                if (over != null) {
+                if (saving is Saving.Saved && over != null) {
                     val text = context.getString(R.string.booking_over_budget, Money.format(over), category)
                     Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
                 }
@@ -218,7 +211,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             title = { Text(stringResource(R.string.booking_delete_title)) },
             text = { Text(stringResource(R.string.booking_delete_text, draft.cents?.let(Money::format).orEmpty())) },
             confirmButton = {
-                TextButton(onClick = { closeWith { ledger.delete(bookingId) } }) { Text(stringResource(R.string.delete)) }
+                TextButton(onClick = { closeWith { ledger.delete(opened) } }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmingDelete = false }) { Text(stringResource(R.string.cancel)) }

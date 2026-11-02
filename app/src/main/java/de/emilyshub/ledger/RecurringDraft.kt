@@ -12,6 +12,9 @@ enum class RecurringProblem {
     CategoryMissing,
     DescriptionTooLong,
     DayOutOfRange,
+
+    /** More than a year back, unless saved so before (SPEC.md §13): only when saving, by [Ledger.problems]. */
+    FirstMonthTooEarly,
 }
 
 /**
@@ -34,15 +37,15 @@ data class RecurringDraft(
     val problems: Set<RecurringProblem>
         get() = buildSet {
             asBooking.problems.forEach { problem ->
-                add(
-                    when (problem) {
-                        BookingProblem.AmountMissing -> RecurringProblem.AmountMissing
-                        BookingProblem.AmountInvalid -> RecurringProblem.AmountInvalid
-                        BookingProblem.AmountNotAboveZero -> RecurringProblem.AmountNotAboveZero
-                        BookingProblem.CategoryMissing -> RecurringProblem.CategoryMissing
-                        BookingProblem.DescriptionTooLong -> RecurringProblem.DescriptionTooLong
-                    },
-                )
+                when (problem) {
+                    BookingProblem.AmountMissing -> add(RecurringProblem.AmountMissing)
+                    BookingProblem.AmountInvalid -> add(RecurringProblem.AmountInvalid)
+                    BookingProblem.AmountNotAboveZero -> add(RecurringProblem.AmountNotAboveZero)
+                    BookingProblem.CategoryMissing -> add(RecurringProblem.CategoryMissing)
+                    BookingProblem.DescriptionTooLong -> add(RecurringProblem.DescriptionTooLong)
+                    // A draft's own problems have none: it depends on the months closed.
+                    BookingProblem.MonthClosed -> Unit
+                }
             }
             if (day !in RecurringBooking.DAYS) add(RecurringProblem.DayOutOfRange)
         }

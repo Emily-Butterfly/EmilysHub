@@ -49,12 +49,11 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
-import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.RecurringBooking
-import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.RecurringEditing
 import de.emilyshub.ledger.RecurringProblem
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
@@ -67,7 +66,6 @@ import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import java.io.Serializable
-import java.time.YearMonth
 
 /** What the editor of fixed bookings opens: a new one, or one saved already. */
 sealed interface RecurringEditorTarget : Serializable {
@@ -136,35 +134,32 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
 @Composable
 fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose: () -> Unit) {
     val recurringId = (target as? RecurringEditorTarget.Edit)?.recurringId
-    var draft by rememberSaveable {
-        mutableStateOf(RecurringDraft(BookingKind.Expense, amount = "", firstMonth = ledger.thisMonth(), day = ledger.today().dayOfMonth))
-    }
-    var loaded by rememberSaveable { mutableStateOf(recurringId == null) }
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (recurringId == null) RecurringEditing.New else null) }
+    var draft by rememberSaveable { mutableStateOf(ledger.newTemplate()) }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var dayText by rememberSaveable { mutableStateOf(draft.day.toString()) }
-    // The first month of the one saved, which it may keep, if it lies further back.
-    var loadedFirstMonth by rememberSaveable { mutableStateOf<YearMonth?>(null) }
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
 
-    if (!loaded && recurringId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(recurringId) {
-            val saved = ledger.templateDraftOf(recurringId)
+            val saved = ledger.editingTemplate(checkNotNull(recurringId))
             if (saved == null) {
                 onClose()
             } else {
-                draft = saved
-                dayText = saved.day.toString()
-                loadedFirstMonth = saved.firstMonth
-                loaded = true
+                draft = checkNotNull(saved.original)
+                dayText = draft.day.toString()
+                editing = saved
             }
         }
         return
     }
 
-    val problems = draft.problems
+    val problems = ledger.problems(opened, draft)
     val bookingProblems = draft.asBooking.problems
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
@@ -178,7 +173,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
             showProblems = true
         } else {
             val saved = draft
-            closeWith { if (recurringId == null) ledger.createTemplate(saved) else ledger.updateTemplate(recurringId, saved) }
+            closeWith { ledger.saveTemplate(opened, saved) }
         }
     }
 
@@ -236,8 +231,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
             }
             Column {
                 SectionTitle(stringResource(R.string.recurring_first_month))
-                // A year back at most, as all months since are entered at once; one saved keeps its own.
-                val earliest = minOf(ledger.thisMonth().minusMonths(MONTHS_BACK), loadedFirstMonth ?: draft.firstMonth)
+                val earliest = ledger.earliestFirstMonth(opened)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { draft = draft.copy(firstMonth = draft.firstMonth.minusMonths(1)) },
@@ -291,4 +285,3 @@ private fun intervalLabel(interval: BookingInterval): String = stringResource(
 )
 
 private const val SHORTEST_MONTH = 28
-private const val MONTHS_BACK = 12L

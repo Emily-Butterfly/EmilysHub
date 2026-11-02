@@ -11,6 +11,9 @@ enum class BookingProblem {
     AmountNotAboveZero,
     CategoryMissing,
     DescriptionTooLong,
+
+    /** In a month closed, or moved out of one or into one (SPEC.md §13): only when saving, by [Ledger.problems]. */
+    MonthClosed,
 }
 
 /**
