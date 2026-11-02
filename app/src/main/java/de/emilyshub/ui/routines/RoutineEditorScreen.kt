@@ -48,9 +48,9 @@ import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.DraftProblem
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
+import de.emilyshub.routines.RoutineEditing
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
-import de.emilyshub.routines.toDraft
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.ui.fields.ChecklistFields
@@ -95,49 +95,39 @@ fun RoutineEditorScreen(
     onOpenNote: (Long) -> Unit,
 ) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (routineId == null) RoutineEditing.New else null) }
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
     }
-    // The routine as it was before editing; none for a new one.
-    var original by rememberSaveable { mutableStateOf<RoutineDraft?>(null) }
-    var loaded by rememberSaveable { mutableStateOf(routineId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    // How the routine is in use; none for a new one.
-    var status by rememberSaveable { mutableStateOf<RoutineStatus?>(null) }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
     var closing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val today = rememberToday(day)
 
-    if (!loaded && routineId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(routineId) {
-            val routine = routines.get(routineId)
-            if (routine == null) {
+            val saved = routines.editing(checkNotNull(routineId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = routine.toDraft(
-                    routines.checklist(routineId), routines.tagIdsOf(routineId), routines.placeIdsOf(routineId),
-                    routines.coupledWith(routineId),
-                )
-                original = draft
-                status = routine.status
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
     }
 
     val cleaned = draft.cleaned()
-    // Only for a new end: a routine kept as it was after its last day, not yet archived, may still be renamed.
-    val endMoved = original.let { it == null || it.endsOn != cleaned.endsOn }
-    val problems = if (endMoved) draft.problemsOn(today) else draft.problems
-    // Only for new times or a new date: a routine kept as it was after its date may still be renamed.
-    // Saving does not check this again, since the moment can pass in between.
-    val rescheduled = original.let { it == null || it.times != cleaned.times || it.repetition != cleaned.repetition }
-    val goneBy = rescheduled && !routines.comesDue(cleaned.times, cleaned.repetition)
+    // Read anew on each change, and as the day turns: an end or a date can pass while it shows.
+    val problems = routines.problems(opened, draft)
+    // How the routine is in use; none for a new one.
+    val status = opened.status
     // Does [work] and closes the editor, once: its changes not saved are dropped.
     val closeWith = { work: suspend () -> Unit ->
         if (!closing) {
@@ -147,11 +137,11 @@ fun RoutineEditorScreen(
         }
     }
     val save = {
-        if (problems.isNotEmpty() || goneBy) {
+        if (problems.isNotEmpty()) {
             showMissingName = true
         } else {
             val saved = draft
-            closeWith { if (routineId == null) routines.create(saved) else routines.update(routineId, saved) }
+            closeWith { routines.save(opened, saved) }
         }
     }
 
@@ -257,7 +247,7 @@ fun RoutineEditorScreen(
             if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
             CouplingField(routines, routineId, draft.times.size, draft.coupledWith, onChange = { draft = draft.copy(coupledWith = it) })
-            RepetitionFields(draft.repetition, today, goneBy, onChange = { draft = draft.copy(repetition = it) })
+            RepetitionFields(draft.repetition, today, DraftProblem.GoneBy in problems, onChange = { draft = draft.copy(repetition = it) })
             if (draft.repetition !is Repetition.Once) {
                 val end = draft.endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
                 val tooEarly = DraftProblem.EndDateTooEarly in problems

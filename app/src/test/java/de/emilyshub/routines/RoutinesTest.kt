@@ -470,8 +470,9 @@ class RoutinesTest {
 
     @Test
     fun `an end is not before today, and a one-time routine has none`() = runBlocking {
-        assertEquals(setOf(DraftProblem.EndDateTooEarly), draft("Kur", "08:00", endsOn = today.minusDays(1)).problemsOn(today))
-        assertEquals(emptySet<DraftProblem>(), draft("Kur", "08:00", endsOn = today).problemsOn(today))
+        val new = RoutineEditing.New
+        assertEquals(setOf(DraftProblem.EndDateTooEarly), routines.problems(new, draft("Kur", "08:00", endsOn = today.minusDays(1))))
+        assertEquals(emptySet<DraftProblem>(), routines.problems(new, draft("Kur", "08:00", endsOn = today)))
         val once = draft("Arzt", "08:00", repetition = Repetition.Once(today), endsOn = today.plusDays(3))
         assertEquals(null, once.cleaned().endsOn)
     }

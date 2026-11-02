@@ -3,6 +3,7 @@ package de.emilyshub.routines
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import de.emilyshub.places.Whereabouts
 import de.emilyshub.reminders.Tone
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -88,6 +88,51 @@ class Routines(
     }
 
     suspend fun get(id: Long): Routine? = withContext(io) { dao.get(id) }
+
+    /**
+     * The routine [id] as it is saved, to edit (SPEC.md §2), read at once: with its checklist, tags, places and coupling,
+     * and how it is in use; null once it is deleted.
+     */
+    suspend fun editing(id: Long): RoutineEditing? = withContext(io) {
+        database().withTransaction {
+            dao.get(id)?.let { routine ->
+                val draft = routine.toDraft(
+                    dao.checklist(id), dao.tagIdsOf(id).toSet(), dao.placeIdsOf(id).toSet(), othersCoupledWith(id),
+                )
+                RoutineEditing(id, draft, routine.status)
+            }
+        }
+    }
+
+    /**
+     * What keeps [draft] from being saved as [editing] now: its own [RoutineDraft.problems]; for a new end, one before
+     * today, which is no longer to come; for new times or a new date, a single date whose times are all over
+     * ([DraftProblem.GoneBy]). Kept as it was, one past its end or its date may still be renamed.
+     */
+    fun problems(editing: RoutineEditing, draft: RoutineDraft): Set<DraftProblem> {
+        val cleaned = draft.cleaned()
+        val original = editing.original
+        val endMoved = original == null || original.endsOn != cleaned.endsOn
+        val rescheduled = original == null || original.times != cleaned.times || original.repetition != cleaned.repetition
+        return buildSet {
+            addAll(draft.problems)
+            if (endMoved && cleaned.endsOn?.isBefore(today()) == true) add(DraftProblem.EndDateTooEarly)
+            if (rescheduled && !comesDue(cleaned.times, cleaned.repetition)) add(DraftProblem.GoneBy)
+        }
+    }
+
+    /**
+     * Saves [draft] as [editing] has it: a new routine, or the changes to the one opened; refused, with nothing saved,
+     * for its own problems. What depends on the moment ([problems]) the editor tells before saving and is not checked
+     * again here, as the moment can pass while it saves.
+     */
+    suspend fun save(editing: RoutineEditing, draft: RoutineDraft): Saving<DraftProblem> {
+        val problems = draft.problems
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(create(draft))
+        update(id, draft)
+        return Saving.Saved(id)
+    }
 
     /** The routine's checklist, in its order. */
     suspend fun checklist(routineId: Long): List<ChecklistItem> = withContext(io) { dao.checklist(routineId) }

@@ -23,6 +23,9 @@ enum class DraftProblem {
     TargetOutOfRange,
     EndDateTooEarly,
 
+    /** Due once, on a date whose times are all over: it would never come (SPEC.md §2). */
+    GoneBy,
+
     /** Coupled with others (SPEC.md §2), it has to have exactly one time a day. */
     CoupledNeedsOneTime,
 }
@@ -64,10 +67,7 @@ data class RoutineDraft(
     val coupledWith: Set<Long> = emptySet(),
 ) : Serializable {
 
-    /** Its [problems], and an end before [today], which is no longer to come. */
-    fun problemsOn(today: LocalDate): Set<DraftProblem> =
-        problems + listOfNotNull(DraftProblem.EndDateTooEarly.takeIf { cleaned().endsOn?.isBefore(today) == true })
-
+    /** What keeps it from being saved, whenever it is; [Routines.problems] adds what depends on the day. */
     val problems: Set<DraftProblem>
         get() = with(cleaned()) {
             buildSet {
