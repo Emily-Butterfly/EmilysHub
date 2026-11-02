@@ -330,17 +330,20 @@ session (#2) whether it may save.
 
 ## 3 · One composition root: build the hub once from ports
 
-**Status:** done but for step 4. The hub is `EmilysHubApplication` itself rather than a class of its own: its ports
-are `open` (database, `settingsStore`, `clock`, `io`, authenticator, ringer, tones, `toneFiles`, WLAN, location, backup
-key, migration and iterations, `backupFolderAt`, `background`), and every module is a final `val` built from them once,
-with which of them tell the reminders said in one place. `TestApplication` supplies only the ports. A `Hub` class
-apart would have meant the Application passing on its twenty modules one by one to the receivers, services and
-tests that ask it for them; there is no third root to share it with.
+**Status:** done. The hub is `EmilysHubApplication` itself rather than a class of its own: its ports are `open`
+(database, `settingsStore`, `clock`, `io`, authenticator, ringer, tones, `toneFiles`, WLAN, location, backup key,
+migration and iterations, `backupFolderAt`, `background`), and every module is a `final` member built from them once,
+with which of them tell the reminders said in one place. `TestApplication` supplies only the ports. A `Hub` class apart
+would have meant the Application passing on its modules one by one to the receivers, services and tests that ask it for
+them; there is no third root to share it with.
 
 - **Step 3 done.** `Reminders` takes its `ReminderSource`s (`internal constructor`), and looking around goes through
   them too (`needsLookingAround`, `lookAround`), no longer to `todos` past the seam: plan 1, §1 step 6, is done.
-- **Step 4 not done**: `EmilysHubApp` and `AppShell` still take the modules one by one, and `TopLevelScaffold` its
-  `onOpenX`. Worth doing with the next screen added.
+- **Step 4 done.** `Hub.kt` is what the screens may use, an interface the Application implements; `MainActivity` hands
+  it whole to `EmilysHubApp(hub)`, and `AppShell` and `TopLevelScaffold` take it in place of the modules one by one
+  (17, 22 and 31 parameters before; now 1, 9 and 6). `TopLevelScaffold`'s thirteen `onOpenX` are one
+  `open(Destination)`, and the five tab-local views one saveable `TabViews` (`ui/TabViews.kt`). `EmilysHubApp.kt` went
+  from 539 lines to 450. A new module is a member of `Hub` and of the Application, and its use in a screen.
 
 ### Why
 

@@ -62,7 +62,7 @@ import kotlin.coroutines.CoroutineContext
  * settings' storage, the clock, the dispatcher for I/O, and what only works on a device); every module is built from
  * them here, the same way for both.
  */
-open class EmilysHubApplication : Application() {
+open class EmilysHubApplication : Application(), Hub {
 
     // Ports.
 
@@ -82,7 +82,7 @@ open class EmilysHubApplication : Application() {
     /** Where the modules read and write. */
     protected open val io: CoroutineContext = Dispatchers.IO
 
-    open val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
+    override val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
 
     /** What rings while a full-screen alarm is up. */
     open val ringer: AlarmRinger by lazy { AlarmSound(this) }
@@ -94,10 +94,10 @@ open class EmilysHubApplication : Application() {
     open val toneFiles: ToneFiles by lazy { PhoneToneFiles(this) }
 
     /** The WLAN connected to, by which the places are recognised. */
-    open val wifi: CurrentWifi by lazy { SystemWifi(this) }
+    override val wifi: CurrentWifi by lazy { SystemWifi(this) }
 
     /** The position, by which the places with a GPS area are recognised. */
-    open val location: CurrentLocation by lazy { SystemLocation(this) }
+    override val location: CurrentLocation by lazy { SystemLocation(this) }
 
     /** The key the backups' keys are wrapped with. */
     protected open val backupWrappingKey: () -> SecretKey = { KeystoreKeys.getOrCreateAesGcmKey("backup-key") }
@@ -122,43 +122,43 @@ open class EmilysHubApplication : Application() {
     // routines, to-dos, places, looking around, the tones, and a backup restored; goals, notes, tags and the household
     // book never remind of anything (SPEC.md §6, §13).
 
-    val settings: AppSettings by lazy {
+    final override val settings: AppSettings by lazy {
         AppSettings(settingsStore, io, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
     }
 
     /** The phone's tones as the app chooses from them, with audio files of one's own brought into them. */
-    val toneCollection: ToneCollection by lazy { ToneCollection(tones, toneFiles, settingsStore, io) }
+    final override val toneCollection: ToneCollection by lazy { ToneCollection(tones, toneFiles, settingsStore, io) }
 
     /** What sounds for each reminder, by its tone and the defaults in the settings. */
     val sounds: Sounds by lazy { Sounds(tones, settings::defaultTones) }
 
     /** The time of day for all that shows it, turning as the phone's clock changes. */
-    val day: Day by lazy { Day(clock, clockChanges(this)) }
+    final override val day: Day by lazy { Day(clock, clockChanges(this)) }
 
     /** Heute (SPEC.md §1), from the routines, to-dos and notes, for the day it is. */
-    val heute: Heute by lazy { Heute(routines, todos, notes, day) }
+    final override val heute: Heute by lazy { Heute(routines, todos, notes, day) }
 
-    val routines: Routines by lazy { Routines({ database }, clock, io, onChange = ::updateReminders) }
+    final override val routines: Routines by lazy { Routines({ database }, clock, io, onChange = ::updateReminders) }
 
-    val todos: Todos by lazy { Todos({ database }, clock, io, onChange = ::updateReminders) }
+    final override val todos: Todos by lazy { Todos({ database }, clock, io, onChange = ::updateReminders) }
 
-    val places: Places by lazy { Places({ database }, io, onChange = ::updateReminders) }
+    final override val places: Places by lazy { Places({ database }, io, onChange = ::updateReminders) }
 
-    val tags: Tags by lazy { Tags({ database }, io) }
+    final override val tags: Tags by lazy { Tags({ database }, io) }
 
-    val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
+    final override val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
 
-    val notes: Notes by lazy { Notes({ database }, clock, io) }
+    final override val notes: Notes by lazy { Notes({ database }, clock, io) }
 
     /** The household book (SPEC.md §13). */
-    val ledger: Ledger by lazy { Ledger({ database }, clock, io) }
+    final override val ledger: Ledger by lazy { Ledger({ database }, clock, io) }
 
-    val search: Search by lazy { Search({ database }, io) }
+    final override val search: Search by lazy { Search({ database }, io) }
 
     /** Where the device is, by the WLAN connected to, the position, and the places that have them. */
     val locator: Locator by lazy { Locator(wifi, location, places) }
 
-    val backups: Backups by lazy {
+    final override val backups: Backups by lazy {
         Backups(
             database = { database },
             settings = settingsStore,
@@ -172,7 +172,7 @@ open class EmilysHubApplication : Application() {
     }
 
     /** The backups made each night into the folder chosen for them. */
-    val nightlyBackups: NightlyBackups by lazy {
+    final override val nightlyBackups: NightlyBackups by lazy {
         NightlyBackups(backups, settingsStore, clock, ::backupFolderAt, NightAlarm(this), io)
     }
 
@@ -182,7 +182,9 @@ open class EmilysHubApplication : Application() {
     }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
-    val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })
+    final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })
+
+    final override fun probe() = reminders.probe()
 
     override fun onCreate() {
         super.onCreate()
