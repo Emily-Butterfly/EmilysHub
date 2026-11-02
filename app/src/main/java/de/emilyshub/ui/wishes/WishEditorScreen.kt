@@ -33,7 +33,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -57,8 +56,8 @@ import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
-import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
@@ -66,10 +65,10 @@ import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
 import de.emilyshub.wishes.toDraft
-import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.flowOf
 import java.io.Serializable
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** Which wish the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface WishEditorTarget : Serializable {
@@ -107,9 +106,6 @@ fun WishEditorScreen(
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     // As saved, with its parts.
     val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
 
@@ -128,13 +124,7 @@ fun WishEditorScreen(
 
     val problems = draft.problems
     val cleaned = draft.cleaned()
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
@@ -146,14 +136,13 @@ fun WishEditorScreen(
 
     /** Saves the wish, if it can be, and then goes on with [next], which leaves the editor. */
     fun saveAndThen(next: suspend (wishId: Long) -> Unit) {
-        if (wishId == null || closing) return
+        if (wishId == null) return
         if (problems.isNotEmpty()) {
             showMissingTitle = true
             return
         }
-        closing = true
         val saved = draft
-        scope.launchNow {
+        closeWith.leaveThrough {
             wishes.update(wishId, saved)
             next(wishId)
         }

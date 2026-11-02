@@ -201,7 +201,27 @@ for Heute's warning. It belongs with the reminders, not Heute.
 
 ## 2 · Editing sessions: load, check and save a draft behind the domain module
 
-**Status:** not started.
+**Status:** done for routines, bookings, fixed bookings and to-dos, and the close-once code; notes, wishes and places
+keep their own loading, as they hold no rule of saving. Each session is a small `Serializable` value of what is edited
+as it was saved (`RoutineEditing`, `BookingEditing`, `RecurringEditing`, `TodoEditing`), and `save` returns
+`data/Saving.kt`: `Saved(id)` or `Refused(problems)`.
+
+- **Routines** (`RoutineEditingSessionTest`): `editing(id)` in one transaction; `problems(editing, draft)` holds
+  `endMoved` and `goneBy`, the latter now `DraftProblem.GoneBy`; `RoutineDraft.problemsOn` is gone. Saving does not check
+  what depends on the moment again, as before.
+- **Bookings and fixed bookings** (`LedgerEditingTest`): `BookingEditing.closedMonth` is the lock; `save` refuses a month
+  closed meanwhile (`BookingProblem.MonthClosed`) and `delete(editing)` keeps the booking and says so, so the editor no
+  longer catches `IllegalArgumentException`. The first month of a fixed booking a year back at most is now enforced on
+  saving (`RecurringProblem.FirstMonthTooEarly`), not only by the screen's arrow: **behaviour changed, on purpose**.
+- **To-dos** (`TodoEditingSessionTest`): `editing(id)` with which of its series it is, and `save`. `isPast` and
+  `nextFullHour` stay as they are: a hint and a default, not rules of saving.
+- **`ui/Closing.kt`**: `rememberClosing(onClose)` for the seven editors, running the work to its end and once; the wish
+  editor's "save, then open another" goes through `leaveThrough`.
+- **Getters kept**: `Routines.checklist`/`tagIdsOf`/`placeIdsOf`/`coupledWith`, `Todos.checklist`/`tagIdsOf`/
+  `placeIdsOf`, `Ledger.draftOf`/`templateDraftOf`. No editor calls them any more, but some 40 tests read state through
+  them; they can go once those tests read through `editing`.
+- **Not done**: shrinking `RoutineEditingTest` to wiring (step 6). It passes unchanged and still tests the rules end to
+  end; the rules are now also held in-memory.
 
 ### Why
 

@@ -29,7 +29,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -56,10 +55,8 @@ import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
-import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
+import de.emilyshub.ui.rememberClosing
 import java.io.Serializable
 
 /** What the booking editor opens: a new booking, or one saved already. */
@@ -85,9 +82,6 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
     // Null until known: till then, nothing is saved or deleted.
     val closedMonths by remember(ledger) { ledger.closedMonths() }.collectAsState(initial = null)
@@ -112,14 +106,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val closedMonth = known?.let { opened.closedMonth(draft, it) }
     val locked = known == null || closedMonth != null
     val context = LocalContext.current.applicationContext
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            // To the end, though the editor is gone meanwhile.
-            scope.launchNow { withContext(NonCancellable) { work() } }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = save@{
         if (locked) return@save
         if (problems.isNotEmpty()) {

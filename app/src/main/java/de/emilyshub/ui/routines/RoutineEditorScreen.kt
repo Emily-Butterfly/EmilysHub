@@ -29,7 +29,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -60,8 +59,8 @@ import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
-import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.ui.reminders.ToneField
 import de.emilyshub.wishes.Wishes
@@ -104,9 +103,6 @@ fun RoutineEditorScreen(
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val today = rememberToday(day)
 
     val opened = editing
@@ -129,13 +125,7 @@ fun RoutineEditorScreen(
     // How the routine is in use; none for a new one.
     val status = opened.status
     // Does [work] and closes the editor, once: its changes not saved are dropped.
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingName = true

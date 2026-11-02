@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -58,7 +57,7 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
-import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.rememberClosing
 import java.io.Serializable
 
 /** Which note the editor shows. Serializable, so that the open editor survives rotation and the lock. */
@@ -88,9 +87,6 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     // Counts the tries to save without a title fit to save, each of which goes to the title.
     var titleAsked by remember { mutableIntStateOf(0) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     if (!loaded && noteId != null) {
         LaunchedEffect(noteId) {
@@ -106,13 +102,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     }
 
     val problems = draft.problems
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             // The problem shows at its field, which a long text may have scrolled away.

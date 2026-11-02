@@ -3,6 +3,7 @@ package de.emilyshub.todos
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import de.emilyshub.places.Whereabouts
 import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.ChecklistDraftItem
@@ -87,6 +88,28 @@ class Todos(
 
     /** The to-do, or null once it is deleted. */
     suspend fun get(id: Long): Todo? = withContext(io) { dao.get(id) }
+
+    /**
+     * The to-do [id] as it is saved, to edit (SPEC.md §5), read at once: with its checklist, tags and places, and which of
+     * its series it is; null once it is deleted.
+     */
+    suspend fun editing(id: Long): TodoEditing? = withContext(io) {
+        database().withTransaction {
+            dao.get(id)?.let { todo ->
+                val draft = todo.toDraft(dao.checklist(id), dao.tagIdsOf(id).toSet(), dao.placeIdsOf(id).toSet())
+                TodoEditing(id, draft, todo.seriesNumber)
+            }
+        }
+    }
+
+    /** Saves [draft] as [editing] has it: a new to-do, or the changes to the one opened; refused, with nothing saved, for its problems. */
+    suspend fun save(editing: TodoEditing, draft: TodoDraft): Saving<TodoProblem> {
+        val problems = draft.problems
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(create(draft))
+        update(id, draft)
+        return Saving.Saved(id)
+    }
 
     /** The to-do's checklist, in its order. */
     suspend fun checklist(id: Long): List<TodoChecklistItem> = withContext(io) { dao.checklist(id) }

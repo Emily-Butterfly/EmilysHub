@@ -28,10 +28,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -51,9 +49,9 @@ import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.TodoDraft
+import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.TodoProblem
 import de.emilyshub.todos.Todos
-import de.emilyshub.todos.toDraft
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.ChecklistFields
@@ -67,8 +65,8 @@ import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
-import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.LinkedNotes
+import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.reminders.ToneField
 import de.emilyshub.ui.routines.FullScreenField
 import de.emilyshub.ui.routines.NameOnLockScreenField
@@ -103,48 +101,40 @@ fun TodoEditorScreen(
     onOpenNote: (Long) -> Unit,
 ) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (todoId == null) TodoEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
     // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
     var recurrenceChosen by rememberSaveable { mutableStateOf(false) }
-    var loaded by rememberSaveable { mutableStateOf(todoId == null) }
-    // Which of its series it is, as the end tells how many are left.
-    var seriesNumber by rememberSaveable { mutableIntStateOf(1) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
-    if (!loaded && todoId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(todoId) {
-            val todo = todos.get(todoId)
-            if (todo == null) {
+            val saved = todos.editing(checkNotNull(todoId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = todo.toDraft(todos.checklist(todoId), todos.tagIdsOf(todoId), todos.placeIdsOf(todoId))
-                seriesNumber = todo.seriesNumber
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
     }
+    // Which of its series it is, as the end tells how many are left.
+    val seriesNumber = opened.seriesNumber
 
     val problems = draft.problems
     val cleaned = draft.cleaned()
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
         } else {
             val saved = draft
-            closeWith { if (todoId == null) todos.create(saved) else todos.update(todoId, saved) }
+            closeWith { todos.save(opened, saved) }
         }
     }
 
@@ -213,11 +203,11 @@ fun TodoEditorScreen(
                 start = todos.nextFullHour(),
                 onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
             )
-            draft.due.date?.let { day ->
+            draft.due.date?.let { dueDay ->
                 ShowBeforeFields(draft.showsDaysBefore, onChange = { draft = draft.copy(showsDaysBefore = it) })
                 RecurrenceFields(
                     recurrence = draft.recurrence,
-                    due = day,
+                    due = dueDay,
                     onChange = {
                         draft = draft.copy(recurrence = it)
                         recurrenceChosen = true
@@ -226,7 +216,7 @@ fun TodoEditorScreen(
                 if (draft.recurrence != null) {
                     EndFields(
                         draft.end,
-                        earliest = day,
+                        earliest = dueDay,
                         tooEarly = TodoProblem.EndDateTooEarly in problems,
                         seriesNumber = seriesNumber,
                         onChange = { draft = draft.copy(end = it) },

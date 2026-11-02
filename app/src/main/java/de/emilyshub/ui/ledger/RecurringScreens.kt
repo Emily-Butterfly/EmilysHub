@@ -36,7 +36,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,10 +60,10 @@ import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
 import de.emilyshub.ui.fields.RadioOption
-import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.ui.rememberClosing
 import java.io.Serializable
 
 /** What the editor of fixed bookings opens: a new one, or one saved already. */
@@ -140,8 +139,6 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var dayText by rememberSaveable { mutableStateOf(draft.day.toString()) }
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val categories by remember(ledger) { ledger.categories() }.collectAsState(initial = emptyList())
 
     val opened = editing
@@ -161,13 +158,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
 
     val problems = ledger.problems(opened, draft)
     val bookingProblems = draft.asBooking.problems
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true

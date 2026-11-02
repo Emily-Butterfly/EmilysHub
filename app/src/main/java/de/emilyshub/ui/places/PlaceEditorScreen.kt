@@ -62,7 +62,7 @@ import de.emilyshub.places.toDraft
 import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.rememberClosing
 import kotlinx.coroutines.launch
 import java.io.Serializable
 import kotlin.math.roundToInt
@@ -93,9 +93,6 @@ fun PlaceEditorScreen(
     // Only after a first try to save, so that a fresh form does not start out in red.
     var triedToSave by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    // Saving and deleting close the editor at once; this keeps a second tap in the same frame from doing it twice.
-    var closing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val all by remember(places) { places.all() }.collectAsState(initial = null)
     val access = rememberLocationAccess()
 
@@ -114,13 +111,7 @@ fun PlaceEditorScreen(
     // The other places, which its name is checked against; saving waits for them.
     val others = all?.filter { it.id != placeId } ?: return
     val problems = draft.problems(others)
-    val closeWith = { work: suspend () -> Unit ->
-        if (!closing) {
-            closing = true
-            scope.launchNow { work() }
-            onClose()
-        }
-    }
+    val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
             triedToSave = true
