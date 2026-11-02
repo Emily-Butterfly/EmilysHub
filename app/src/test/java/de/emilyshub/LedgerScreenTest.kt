@@ -503,6 +503,25 @@ class LedgerScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `the button has as much room to the title as to the magnifier, and stays in the middle`() {
+        launchApp().use {
+            compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
+            compose.waitForIdle()
+
+            val title = compose.onNode(hasText("Notizen") and isHeading()).getBoundsInRoot()
+            val button = compose.onNode(hasContentDescription("Haushaltsbuch öffnen")).getBoundsInRoot()
+            // The magnifier as it is seen, not the room around it to tap.
+            val magnifier = compose.onNode(hasContentDescription("Suchen"), useUnmergedTree = true).getBoundsInRoot()
+
+            assertEquals(411f / 2, ((button.left + button.right) / 2).value, 1f)
+            assertEquals((magnifier.left - button.right).value, (button.left - title.right).value, 1f)
+            assertTrue(title.left.value >= 4f)
+        }
+    }
+
+    @Test
     @Config(qualifiers = "w411dp-h915dp", fontScale = 2f)
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun `with large type the button shows a euro sign, still a quarter wide, and the title gives way to it`() {

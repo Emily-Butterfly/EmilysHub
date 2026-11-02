@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -29,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +38,12 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -105,6 +111,7 @@ import de.emilyshub.ui.wishes.WishEditorTarget
 import de.emilyshub.ui.wishes.WishReviewScreen
 import de.emilyshub.ui.wishes.WishlistScreen
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * The whole UI. Nothing is drawn before the settings are known, not even the theme, and nothing but
@@ -350,24 +357,36 @@ private fun TopLevelScaffold(
         topBar = {
             BoxWithConstraints {
                 // The household book is reached from the notes (SPEC.md §1, §13): a button in the middle of the bar,
-                // a quarter of the screen wide, which the title keeps clear of.
+                // a quarter of the screen wide. The title ends as far left of it as the magnifier begins right of it.
                 val ledgerButton = current == TopLevelDestination.Notes
                 val buttonWidth = maxWidth / 4
-                val titleWidth = if (ledgerButton) Modifier.widthIn(max = maxWidth * 3 / 8 - TITLE_START - TITLE_GAP) else Modifier
+                var magnifierLeft by remember { mutableStateOf<Float?>(null) }
+                val titlePlace = if (ledgerButton) {
+                    val (buttonLeft, buttonRight) = with(LocalDensity.current) { (maxWidth * 3 / 8).toPx() to (maxWidth * 5 / 8).toPx() }
+                    val gap = magnifierLeft?.let { it - buttonRight } ?: with(LocalDensity.current) { TITLE_GAP.toPx() }
+                    Modifier.endingAt(buttonLeft - gap, minStart = with(LocalDensity.current) { TITLE_MIN_START.toPx() })
+                } else {
+                    Modifier
+                }
                 TopAppBar(
                     title = {
                         Text(
                             stringResource(current.label),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = titleWidth.semantics { heading() },
+                            modifier = titlePlace.semantics { heading() },
                         )
                     },
                     actions = {
                     // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
                         heuteDay?.flame?.let { StreakFlameButton(it, onOpenStatistics = { open(Destination.Statistics) }) }
                         IconButton(onClick = { open(Destination.Search()) }) {
-                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                            Icon(
+                                Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.search),
+                                // Where it is seen, not the room around it to tap.
+                                modifier = Modifier.onGloballyPositioned { magnifierLeft = it.boundsInRoot().left },
+                            )
                         }
                         IconButton(onClick = { open(Destination.Settings) }) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
@@ -478,6 +497,22 @@ private fun ForgetClosedScreens(screens: SaveableStateHolder, stack: BackStack) 
     }
 }
 
-/** Where the title of the top bar starts, and how far it keeps from the household book's button in the middle. */
-private val TITLE_START = 16.dp
+/**
+ * Places the title so that it ends at [end], in the root's pixels, as far right in its slot or as far left of it as that
+ * takes, but never starting left of [minStart]: shortened with "…" if it does not fit.
+ */
+private fun Modifier.endingAt(end: Float, minStart: Float): Modifier = composed {
+    var slotLeft by remember { mutableFloatStateOf(0f) }
+    onGloballyPositioned { slotLeft = it.positionInRoot().x }
+        .layout { measurable, constraints ->
+            val room = (end - minStart).roundToInt().coerceIn(0, constraints.maxWidth)
+            val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = room))
+            layout(placeable.width, placeable.height) {
+                placeable.place((end - slotLeft - placeable.width).roundToInt(), 0)
+            }
+        }
+}
+
+/** How far the title keeps from the household book's button until the magnifier is placed, and from the screen's edge. */
 private val TITLE_GAP = 8.dp
+private val TITLE_MIN_START = 4.dp
