@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8).
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8); Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -90,3 +90,11 @@ Abgestimmt im Interview vom 31.10.2026; Sammel-Issue #49. Die Reihenfolge der Nu
 | 46 | [Haushaltsbuch: Monatsabschluss & Archiv](46-haushaltsbuch-abschluss-archiv.md) | 🤖 | 44, 45 |
 | 47 | [Haushaltsbuch: Budget je Kategorie](47-haushaltsbuch-budget.md) | 🤖 | 44, 46 |
 | 48 | [Haushaltsbuch: Jahresübersicht](48-haushaltsbuch-jahresuebersicht.md) | 🤖 | 44 |
+
+## Etappe 9 – Erweiterungen
+
+Abgestimmt im Interview vom 02.11.2026.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 50 | [Haushaltsbuch: Saldo übertragen, Anfangssaldo & Knopf in Notizen](50-haushaltsbuch-saldo-uebertrag.md) | 🤖 | – |

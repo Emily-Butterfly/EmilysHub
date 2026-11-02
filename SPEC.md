@@ -18,7 +18,7 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Ziele · Notizen** (der Tab „Ziele“ hieß bis v1 „Wunschliste“).
-Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet ein Knopf oben im Tab Notizen.
+Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“.
 
 ### Heute-Übersicht
 
@@ -250,12 +250,13 @@ Ausschließlich:
 | 6 | Notizen: Tabs, Ordner, Markdown, Anpinnen |
 | 7 | Statistik, Suche über alle Bereiche, Backups |
 | 8 | Erweiterungen (v1.1): Icon, Ziele statt Wunschliste, „Heute nicht“, Wiederholungs-Ende, „Demnächst“, Wecker, Weckzeit und Töne für To-dos, Name auf dem Sperrbildschirm, gekoppelte Routinen, Streak-Flamme, Heatmap, Haushaltsbuch |
+| 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste |
 
 Nach jeder Etappe: installierbare APK.
 
 ## 13. Haushaltsbuch
 
-Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über einen Knopf oben im Tab Notizen.
+Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen (§1).
 
 | Feld | Details |
 |---|---|
@@ -267,8 +268,10 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über einen Knopf oben i
 
 - **Kategorien**: zum Start Vorschläge (Ausgaben: Lebensmittel, Wohnen, Mobilität, Freizeit, Gesundheit, Kleidung, Sonstiges; Einnahmen: Gehalt, Sonstiges). Anlegen, umbenennen, löschen; beim Löschen Rückfrage, die Buchungen wandern nach „Sonstiges“ ihrer Art.
 - **Fixbuchungen**: Vorlagen (z. B. Miete, Gehalt, Abos) mit Abstand monatlich, vierteljährlich, halbjährlich oder jährlich und einem Tag im Monat. An ihrem Tag automatisch eingetragen, nachgetragen, wenn die App an dem Tag nicht lief; im Monat änderbar und löschbar, ohne die Vorlage zu ändern.
-- **Monatsansicht**: Einnahmen, Ausgaben, Saldo; Ausgaben je Kategorie als Balken und als Tortendiagramm; alle Buchungen nach Datum.
+- **Monatsansicht**: Einnahmen, Ausgaben, Saldo (immer Einnahmen − Ausgaben); Ausgaben je Kategorie als Balken und als Tortendiagramm; alle Buchungen nach Datum.
+- **Anfangssaldo**: Jeder Monat kann einen haben, einen eigenen Wert am Monat, keine Buchung; Euro mit Cent, auch 0 oder negativ. Hat ein Monat einen, zeigt die Monatsansicht über den Summen den Anfangssaldo mit seiner Herkunft („aus Oktober übertragen“ oder „von Hand festgelegt“) und darunter den **Endsaldo** = Anfangssaldo + Einnahmen − Ausgaben. Der Anfangssaldo zählt nie als Einnahme: nicht in Summen, Diagrammen, Budgets, Archiv- und Jahressummen, nicht in Buchungsliste und Suche.
+- **Übertrag**: Ein offener Monat ohne Anfangssaldo bietet „Saldo aus Vormonat übertragen“ (aus einem offenen Vormonat mit Rückfrage, sein Endsaldo kann sich noch ändern) und „Anfangssaldo festlegen“. In offenen Monaten lässt er sich von Hand ändern und entfernen. Beim Abschließen fragt der Dialog „Abbrechen · Nur abschließen · Abschließen & übertragen“: Der Endsaldo geht als Anfangssaldo in den Folgemonat (nie in den Kalendermonat von heute) und ersetzt einen vorhandenen, den der Dialog nennt; in einen abgeschlossenen Folgemonat wird nicht übertragen. Ein Übertrag ist ein fester Wert und ändert sich nicht mit dem Vormonat.
 - **Budget** je Ausgaben-Kategorie und Monat: Balken ab 80 % orange, darüber rot („12,50 € über Budget“); kurzer Hinweis beim Speichern einer Buchung, die es überschreitet. Keine Benachrichtigungen.
-- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält sein Budget von damals.
-- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr.
+- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält sein Budget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat.
+- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden.
 - Buchungen kommen in die Backups und in die Suche.
