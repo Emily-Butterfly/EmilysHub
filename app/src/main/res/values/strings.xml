@@ -741,6 +741,8 @@
     <string name="ledger_year_no_expenses">In diesem Jahr gibt es noch keine Ausgaben.</string>
     <string name="ledger_opening">Anfangssaldo</string>
     <string name="ledger_closing">Endsaldo</string>
+    <string name="ledger_foreseen">Voraussichtlicher Endsaldo</string>
+    <string name="ledger_foreseen_hint">mit den Fixbuchungen bis zum Monatsende</string>
     <string name="ledger_opening_carried">aus %1$s übertragen</string>
     <string name="ledger_opening_by_hand">von Hand festgelegt</string>
     <string name="ledger_opening_carry">Saldo aus Vormonat übertragen</string>

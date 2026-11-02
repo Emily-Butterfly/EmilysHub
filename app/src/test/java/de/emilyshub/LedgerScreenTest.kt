@@ -396,6 +396,28 @@ class LedgerScreenTest {
     }
 
     @Test
+    fun `this month foresees its end balance with the fixed bookings still to come, a month gone by does not`() {
+        val rent = runBlocking { app.ledger.categories().first().single { it.name == "Wohnen" }.id }
+        val salary = runBlocking { app.ledger.categories().first().single { it.name == "Gehalt" }.id }
+        runBlocking {
+            app.ledger.setOpening(october, 10_000)
+            app.ledger.createTemplate(RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 30, october))
+            app.ledger.createTemplate(RecurringDraft(BookingKind.Income, "2.000", salary, "", BookingInterval.Monthly, 28, october))
+        }
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Voraussichtlicher Endsaldo").assertIsDisplayed()
+            compose.onNodeWithText("mit den Fixbuchungen bis zum Monatsende").assertIsDisplayed()
+            compose.onNodeWithText("1.250,00 €").assertIsDisplayed()
+
+            compose.onNodeWithContentDescription("Voriger Monat").performClick()
+            compose.onNodeWithText("September 2026").assertIsDisplayed()
+            compose.onNodeWithText("Voraussichtlicher Endsaldo").assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun `the end balance of a month still open is carried over after saying it may change`() {
         book("Gehalt", BookingKind.Income, "120", "2026-09-01")
 

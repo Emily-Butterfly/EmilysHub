@@ -55,10 +55,11 @@ class Ledger(
         val earlier = combine(dao.observeBookingMonths(), dao.observeSkippedMonths(), dao.observeSkippedBetween(from, to), ::Earlier)
         val (previous, next) = month.minusMonths(1) to month.plusMonths(1)
         val previousBalance = dao.observeBetween(previous.atDay(1), previous.atEndOfMonth()).map { summary(it).balance }
+        val openingsAndFixed = combine(dao.observeOpenings(), dao.observeTemplates(), ::Pair)
         emitAll(
             combine(
-                dao.observeClosed(), booked, earlier, dao.observeOpenings(), previousBalance,
-            ) { closedMonths, (bookings, categories, kept), earlierMonths, openings, balanceBefore ->
+                dao.observeClosed(), booked, earlier, openingsAndFixed, previousBalance,
+            ) { closedMonths, (bookings, categories, kept), earlierMonths, (openings, fixed), balanceBefore ->
                 val closed = closedMonths.map { it.month }.toSet()
                 val isClosed = month in closed
                 val budgets = if (isClosed) {
@@ -77,6 +78,8 @@ class Ledger(
                     next = NextMonth(next, next in closed, openings.find { it.month == next }),
                     closed = isClosed,
                     canClose = canClose(month),
+                    // Only for this month while open: those of a month gone by are entered, those of one to come all are.
+                    upcoming = if (month == thisMonth() && !isClosed) stillToCome(fixed, to) else null,
                     // Entered by hand once it is open again; none while closed.
                     skipped = if (isClosed) 0 else earlierMonths.skippedHere.size,
                     stillOpen = (earlierMonths.booked + earlierMonths.skipped).distinct().map(YearMonth::parse)
@@ -86,6 +89,19 @@ class Ledger(
             },
         )
     }.flowOn(io)
+
+    /**
+     * What the [fixed] bookings still to be entered after today, up to [end], bring in less what they take out; none if
+     * none is to come. Each comes once, one entered and deleted since not again.
+     */
+    private fun stillToCome(fixed: List<RecurringWithCategory>, end: LocalDate): Long? {
+        val today = today()
+        val coming = fixed.flatMap { (template, category) ->
+            val sign = if (category.kind == BookingKind.Income) 1 else -1
+            template.dueDates().takeWhile { !it.isAfter(end) }.filter { it.isAfter(today) }.map { sign * template.amountCents }.toList()
+        }
+        return coming.takeIf { it.isNotEmpty() }?.sum()
+    }
 
     private data class Booked(val bookings: List<BookingWithCategory>, val categories: List<LedgerCategory>, val kept: List<ClosedBudget>)
 

@@ -203,6 +203,7 @@ fun LedgerScreen(
             }
             item(key = "sums") { Sums(summary.income, summary.expenses, summary.balance) }
             here.closingBalance?.let { closing -> item(key = "closing-balance") { ClosingRow(closing) } }
+            here.foreseenEnd?.let { foreseen -> item(key = "foreseen") { ForeseenRow(foreseen) } }
             if (summary.expensesByCategory.isNotEmpty()) {
                 item(key = "by-category") { ExpensesByCategory(summary.expensesByCategory, summary.expenses) }
             }

@@ -8,7 +8,9 @@ import java.time.YearMonth
  * month before it ([previous]), whose end balance it may carry over, and the one after ([next]), into which its own
  * may be carried when it is closed; whether it is [closed]; whether it [canClose]
  * now, gone by or on its last day; how many fixed bookings it [skipped] while closed, to enter now it is open again,
- * none while closed; and the earlier months [stillOpen], itself not among them, the latest first.
+ * none while closed; the earlier months [stillOpen], itself not among them, the latest first; and for this month
+ * while open, what the fixed bookings still to come in it bring in less what they take out ([upcoming]), none if none
+ * is to come, nor for any other month.
  */
 data class LedgerMonth(
     val month: YearMonth,
@@ -18,6 +20,7 @@ data class LedgerMonth(
     val next: NextMonth,
     val closed: Boolean,
     val canClose: Boolean,
+    val upcoming: Long?,
     val skipped: Int,
     val stillOpen: List<YearMonth>,
 ) {
@@ -26,6 +29,12 @@ data class LedgerMonth(
 
     /** Its end balance as the page shows it: only with an opening balance. */
     val closingBalance: Long? get() = opening?.let { endBalance }
+
+    /**
+     * What it is foreseen to end with: its end balance with the fixed bookings still to come in it (SPEC.md §13); only
+     * for this month while open, and while one is still to come.
+     */
+    val foreseenEnd: Long? get() = upcoming?.let { endBalance + it }
 
     /** What can be done with it now. */
     val offers: MonthOffer

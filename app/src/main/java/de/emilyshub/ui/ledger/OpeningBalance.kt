@@ -83,6 +83,31 @@ internal fun ClosingRow(cents: Long) {
     }
 }
 
+/**
+ * What this month is foreseen to end with (SPEC.md §13): its end balance with the fixed bookings still to come in it,
+ * incomes and expenses alike.
+ */
+@Composable
+internal fun ForeseenRow(cents: Long) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.ledger_foreseen), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.ledger_foreseen_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(Money.format(cents), style = MaterialTheme.typography.titleMedium)
+    }
+}
+
 /** An open month without an opening balance: the end balance of the month before carried over, or one set by hand. */
 @Composable
 internal fun OpeningOffers(onCarry: () -> Unit, onSet: () -> Unit) {

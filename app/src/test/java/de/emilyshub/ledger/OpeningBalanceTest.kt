@@ -193,6 +193,33 @@ class OpeningBalanceTest {
         assertEquals(7_000L, total.use?.left)
     }
 
+    @Test
+    fun `this month foresees its end balance with the fixed bookings still to come, others do not`() = runBlocking {
+        ledger.setOpening(november, 10_000)
+        expense("30", "2026-11-01")
+        // Today's is entered already; those to come this month count, others not.
+        fixed(BookingKind.Expense, "Wohnen", "850", day = 2)
+        fixed(BookingKind.Expense, "Wohnen", "850", day = 15)
+        fixed(BookingKind.Income, "Gehalt", "2.500", day = 28)
+        fixed(BookingKind.Expense, "Freizeit", "100", day = 20, interval = BookingInterval.Quarterly, first = YearMonth.of(2026, 12))
+
+        val month = shown(november)
+        assertEquals(10_000L - 3_000 - 85_000, month.endBalance)
+        assertEquals(10_000L - 3_000 - 85_000 - 85_000 + 250_000, month.foreseenEnd)
+        assertNull(shown(october).foreseenEnd)
+        assertNull(shown(YearMonth.of(2026, 12)).foreseenEnd)
+    }
+
+    @Test
+    fun `a fixed booking entered and deleted this month is not foreseen again, and with none to come nothing is foreseen`() =
+        runBlocking {
+            fixed(BookingKind.Expense, "Wohnen", "850", day = 1)
+            val entered = shown(november).summary.bookings.single().booking.id
+            ledger.delete(entered)
+
+            assertNull(shown(november).foreseenEnd)
+        }
+
     private suspend fun shown(month: YearMonth): LedgerMonth = ledger.month(month).first()
 
     private suspend fun expense(amount: String, date: String): Long = book(BookingKind.Expense, "Lebensmittel", amount, date)
@@ -202,5 +229,17 @@ class OpeningBalanceTest {
     private suspend fun book(kind: BookingKind, category: String, amount: String, date: String): Long {
         val id = ledger.categories().first().single { it.kind == kind && it.name == category }.id
         return ledger.create(BookingDraft(kind, amount, LocalDate.parse(date), id))
+    }
+
+    private suspend fun fixed(
+        kind: BookingKind,
+        category: String,
+        amount: String,
+        day: Int,
+        interval: BookingInterval = BookingInterval.Monthly,
+        first: YearMonth = november,
+    ): Long {
+        val id = ledger.categories().first().single { it.kind == kind && it.name == category }.id
+        return ledger.createTemplate(RecurringDraft(kind, amount, id, "", interval, day, first))
     }
 }
