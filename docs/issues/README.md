@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8); Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8); Etappen 9 und 10 haben keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -102,3 +102,21 @@ Abgestimmt im Interview vom 02.11.2026.
 | 52 | [Haushaltsbuch: Fixbuchungen mit Ende](52-haushaltsbuch-fixbuchungen-mit-ende.md) | 🤖 | – |
 | 53 | [Haushaltsbuch: Budget für einzelne Monate](53-haushaltsbuch-monatsbudget.md) | 🤖 | – |
 | 54 | [Notizen: Archiv für Notizen und Ordner](54-notizen-archiv.md) | 🤖 | – |
+
+## Etappe 10 – Sonstiges, Heute & Dokumentation
+
+Abgestimmt im Interview vom 07.11.2026. #55–#57 hängen nicht voneinander ab; die Dokumentation baut aufeinander auf.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 55 | [Sonstiges: Ziele wandern unter „Sonstiges“](55-sonstiges-mit-zielen.md) | 🤖 | – |
+| 56 | [Heute: „€“ öffnet das Haushaltsbuch](56-heute-haushaltsbuch-knopf.md) | 🤖 | – |
+| 57 | [Heute: Gestern nachtragen](57-heute-gestern-nachtragen.md) | 🤖 | – |
+| 58 | [Dokumentation: eigener verschlüsselter Bereich mit Passwort & Fingerabdruck](58-doku-sperre.md) | 🤖 | 55 |
+| 59 | [Dokumentation: Patienten, Archiv & Löschhinweis](59-doku-patienten.md) | 🤖 | 58 |
+| 60 | [Dokumentation: Termine mit Dokumentation & Vorlage](60-doku-termine.md) | 🤖 | 59 |
+| 61 | [Dokumentation: Tests zentral anlegen](61-doku-tests.md) | 🤖 | 58 |
+| 62 | [Dokumentation: Testwerte am Termin & Verlauf](62-doku-messungen-und-verlauf.md) | 🤖 | 60, 61 |
+| 63 | [Dokumentation im Backup, doppelt verschlüsselt](63-doku-backup.md) | 🤖 | 58 |
+
+Zurückgestellt: **interaktive Assessmentbögen** (besprechen, sobald #55–#63 erledigt sind) und ein **Export** je Patient.

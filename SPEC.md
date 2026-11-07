@@ -1,6 +1,6 @@
 # EmilysHub – Spezifikation
 
-Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele und Notizen.
+Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele, Notizen, Haushaltsbuch und eine gesperrte Dokumentation zu Patienten.
 
 ## 1. Grundlagen
 
@@ -17,8 +17,8 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 
 ### Navigation
 
-Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Ziele · Notizen** (der Tab „Ziele“ hieß bis v1 „Wunschliste“).
-Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“.
+Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab) und **Dokumentation** (§14). Beide öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Die Ziele bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme.
 
 ### Heute-Übersicht
 
@@ -29,7 +29,17 @@ Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen 
 - Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5)
 - **Heatmap** der letzten 6 Monate unter den Einträgen: je Tag ein Kästchen, je mehr Routinen und To-dos erledigt, desto kräftiger
 - **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau, solange heute noch etwas offen und nichts erledigt ist; Tippen öffnet die Statistik
+- **„€“** in der oberen Leiste links neben der Flamme: öffnet den laufenden Monat im Haushaltsbuch (§13)
+- **„‹ Gestern“** über der Liste: der Vortag zum Nachtragen (unten)
 - Warnbanner bei fehlenden Berechtigungen, fehlgeschlagenem oder veraltetem Backup
+
+### Gestern nachtragen
+
+- „‹ Gestern“ zeigt den Vortag, deutlich markiert („Gestern, Fr. 6. Nov. – nachtragen“), mit „Heute ›“ zurück; die Zurück-Taste führt ebenfalls zurück. Es geht nur einen Tag zurück.
+- Gezeigt werden nur die Routinen und To-dos des Vortags, ohne Demnächst, angepinnte Notizen, Heatmap und Warnbanner.
+- Verpasste, ausgelassene und noch offene Routinen lassen sich als erledigt abhaken, offene To-dos ebenso; der Haken lässt sich wieder entfernen. Überspringen und „Heute nicht“ gibt es dort nicht.
+- Nachgetragenes zählt voll als erledigt am Vortag: für Streak, Flamme, Statistik und Heatmap, ohne Sondermarkierung. Ein To-do gilt als gestern erledigt; bei Wiederholung „ab Erledigung“ rechnet der nächste Termin ab gestern.
+- Wechsel des Tabs oder ein neuer Start der App zeigt wieder den heutigen Tag.
 
 ## 2. Routinen
 
@@ -58,6 +68,7 @@ Startbildschirm ist **Heute**. Orte, Statusseite, Backups und Sicherheit liegen 
 - **Verpasst** wird automatisch gesetzt, wenn das Zeitfenster abläuft.
 - **Ausgelassen**: mit „Heute nicht“ bewusst für den Tag fallen gelassen, und zwar alle restlichen Fälligkeiten der Routine von heute. Es kommen keine Erinnerungen mehr; zählt wie Verpasst, wird aber eigens angezeigt. In Heute rückgängig zu machen, solange der Tag läuft.
 - Pausierte Tage zählen nicht als verpasst.
+- Am Vortag (§1, Gestern nachtragen) lassen sich verpasste, ausgelassene und offene Fälligkeiten nachträglich als **Erledigt** abhaken; ohne Haken sind sie wieder verpasst.
 
 ### Gekoppelte Routinen
 
@@ -114,11 +125,12 @@ Ankommen erkennt die App beim Verbinden mit einem WLAN. Solange ein To-do auf ei
 - Erledigte To-dos wandern ins **Archiv** (wiederherstellen oder endgültig löschen).
 - Ein **wiederkehrendes** To-do wandert abgehakt ebenso ins Archiv; zugleich erscheint das nächste mit der nächsten Fälligkeit.
 - Überfällige To-dos stehen oben in der Heute-Übersicht.
+- Am Vortag (§1, Gestern nachtragen) abgehakt, gilt ein To-do als **gestern erledigt**.
 - To-dos mit Vorlauf stehen in Heute unter **Demnächst**, nach Fälligkeit sortiert, bis sie fällig sind; abhaken geht dort sofort. „Demnächst“ erinnert nicht.
 
 ## 6. Ziele
 
-Bis v1 hieß der Bereich „Wunschliste“; überall ist jetzt von Zielen die Rede.
+Bis v1 hieß der Bereich „Wunschliste“; überall ist jetzt von Zielen die Rede. Erreichbar über Sonstiges (§1).
 
 | Feld | Details |
 |---|---|
@@ -186,7 +198,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 ## 8. Übergreifend
 
 - **Gemeinsame Tags** für alle Bereiche.
-- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch).
+- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch); die Dokumentation hat ihre eigene (§14).
 - **Statistik** pro Routine und gesamt:
   - Aktueller und längster Streak
   - Kalender-Ansicht (erledigt / übersprungen / ausgelassen / verpasst)
@@ -194,6 +206,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
   - Nur Tage, an denen die Routine fällig war, zählen.
   - **Übersprungen** unterbricht den Streak nicht, **Verpasst** und **Ausgelassen** schon; Ausgelassen zählt in der Erledigt-Quote als nicht erledigt.
   - Durch eine gekoppelte Routine erledigte Fälligkeiten zählen wie Übersprungen.
+  - Am Vortag Nachgetragenes zählt wie Erledigt.
 
 ## 9. Sicherheit
 
@@ -205,6 +218,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 | Zugriff auf entsperrtes Handy | App-Sperre per Fingerabdruck mit Geräte-PIN als Ersatz; erneute Sperre nach 1 min im Hintergrund |
 | Mitlesen | `FLAG_SECURE` (keine Screenshots, ausgeblendet in „Zuletzt verwendet“); Sperrbildschirm zeigt nur „Erinnerung fällig“, Namen nur von Einträgen, die es erlauben (Standard: aus) |
 | Manipulierte Dateien | Backup-Import mit Authentifizierung (AES-GCM) und strenger Schemaprüfung; Markdown ohne HTML/Links |
+| Gesundheitsdaten (Dokumentation, §14) | Eigene SQLCipher-Datenbank, deren Schlüssel nur Doku-Passwort oder Fingerabdruck freigeben, nicht der Schlüssel der übrigen App; Sperre beim Verlassen, im Hintergrund und nach 5 min ohne Eingabe; nicht in Suche, Heute und Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich und beim Sperren geleert; gelöschte Daten überschrieben |
 
 Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 
@@ -217,6 +231,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 - Hinweis in der Heute-Übersicht, wenn das letzte Backup älter als 30 Tage ist oder fehlgeschlagen ist.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
+- Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
 
 ## 11. Berechtigungen
 
@@ -257,12 +272,13 @@ Ausschließlich:
 | 7 | Statistik, Suche über alle Bereiche, Backups |
 | 8 | Erweiterungen (v1.1): Icon, Ziele statt Wunschliste, „Heute nicht“, Wiederholungs-Ende, „Demnächst“, Wecker, Weckzeit und Töne für To-dos, Name auf dem Sperrbildschirm, gekoppelte Routinen, Streak-Flamme, Heatmap, Haushaltsbuch |
 | 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste, voraussichtlicher Endsaldo, Fixbuchungen mit Ende |
+| 10 | Sonstiges mit Zielen und Dokumentation, „€“ und „Gestern nachtragen“ in Heute, Dokumentation: Sperre, Patienten, Termine, Tests, Backup |
 
 Nach jeder Etappe: installierbare APK.
 
 ## 13. Haushaltsbuch
 
-Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen (§1).
+Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen und über das „€“ in Heute (§1).
 
 | Feld | Details |
 |---|---|
@@ -283,3 +299,62 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der M
 - **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält sein Budget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat.
 - **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden.
 - Buchungen kommen in die Backups und in die Suche.
+
+## 14. Dokumentation
+
+Persönliche Arbeitsnotizen zu Patienten, **keine** offizielle Behandlungsdokumentation (Patientenakte nach §630f BGB): frei änderbar und löschbar, ohne Aufbewahrungsfrist. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher ist die Dokumentation eine Insel mit eigener Sperre. Erreichbar über Sonstiges (§1).
+
+### Sperre & Verschlüsselung
+
+- **Doku-Passwort** (mindestens 8 Zeichen): beim ersten Öffnen festgelegt, zweimal eingegeben, mit dem Hinweis, dass es sich nicht wiederherstellen lässt. **Fingerabdruck** optional als Abkürzung, das Passwort als Ersatz; die Geräte-PIN gilt nicht. Ein am Handy neu eingerichteter Fingerabdruck verlangt einmal das Passwort.
+- Eigene, mit SQLCipher verschlüsselte Datenbank. Ihr Schlüssel lässt sich nur mit dem Doku-Passwort oder dem Fingerabdruck öffnen, nicht mit dem Schlüssel der übrigen App; ohne beides kommt niemand an die Daten.
+- Sperrt sich **sofort** beim Verlassen (anderer Tab, zurück zu Sonstiges), wenn die App in den Hintergrund geht oder der Bildschirm ausgeht, und nach **5 Minuten** ohne Eingabe. Was gerade getippt wird, wird vorher gespeichert.
+- Doku-Passwort ändern und Fingerabdruck an/aus im Menü der Dokumentation, nicht in den Einstellungen.
+
+### Insel
+
+- Nicht in der Suche über alle Bereiche, nicht in Heute, keine Pins, gemeinsamen Tags oder Verknüpfungen, keine Erinnerungen oder Benachrichtigungen, nicht in Statistik und Heatmap.
+- Die Tastatur wird gebeten, in der Dokumentation keine Wörter zu lernen.
+- Kopierter Text ist als vertraulich markiert (keine Vorschau) und wird beim Sperren aus der Zwischenablage gelöscht.
+- Kein Export (wird später entschieden); nur das Backup (§10) verlässt das Gerät, in der eigenen Verschlüsselung.
+
+### Startseite
+
+- Oben ein **Löschhinweis**, sobald Patienten seit über 12 Monaten abgeschlossen sind („3 Personen seit über 12 Monaten abgeschlossen – jetzt löschen?“); nur hier, keine Benachrichtigung
+- Eigene **Suche** über Patienten, ihre Felder, Termin-Dokumentationen und Bemerkungen
+- Die **aktiven Patienten**, zuletzt behandelte zuerst (umschaltbar auf Name), je mit dem letzten Termin; „+ Patient“
+- Menü: Tests · Termin-Vorlage · Archiv · Doku-Passwort ändern · Fingerabdruck
+
+### Patienten
+
+| Feld | Details |
+|---|---|
+| Name / Kürzel | Pflicht, freier Text |
+| Geburtsjahr | Optional, nur das Jahr |
+| Diagnose | Optional, Markdown |
+| Anamnese | Optional, Markdown |
+| Therapeutische Zielsetzung | Optional, Markdown |
+| Sonstiges | Optional, Markdown |
+| Status | Aktiv oder abgeschlossen |
+
+- Die Seite eines Patienten hat drei Reiter: **Übersicht** (die Felder) · **Termine** · **Tests**.
+- **Abschließen**: ins Doku-Archiv, nur zum Lesen, wiederherstellbar.
+- **Endgültig löschen** mit Rückfrage, mit allen Terminen und Messungen; die Datenbank überschreibt Gelöschtes. In älteren Backups steckt es noch: die nächtlichen fallen nach 7 Nächten weg, die von Hand gespeicherten bleiben, bis man sie löscht.
+
+### Termine
+
+- Datum (Pflicht, Standard heute), Uhrzeit optional und **eine** Dokumentation als Markdown
+- Optionale **Termin-Vorlage**, zentral angelegt, füllt neue Termine vor; im Termin frei änderbar
+- Im Reiter Termine die neuesten oben, mit Datum und der ersten Zeile als Vorschau
+- Termine sind nur Daten, an denen dokumentiert wird: keine Erinnerungen.
+
+### Tests
+
+- **Zentral angelegt**. Ein Test hat einen oder mehrere **Werte**, optional eine **Summe** daraus.
+- Je Wert: Name, Einheit (optional), erlaubter Bereich (optional), Nachkommastellen ja/nein, **Richtung** (höher oder niedriger ist besser); die Reihenfolge ist frei.
+- Nur Zahlenwerte; je Messung eine optionale Bemerkung.
+- Änderungen an einem Test gelten auch für seine alten Messungen (Hinweis mit ihrer Anzahl). Ein Wert, der schon gemessen wurde, wird beim Entfernen stillgelegt statt gelöscht. Ein Test lässt sich archivieren (für neue Messungen nicht mehr wählbar) oder mit allen Messungen endgültig löschen.
+- **Messungen** immer an einem Termin, mit dessen Datum; mehrere Tests je Termin.
+- **Entwicklung** im Reiter Tests: je gemessenem Test eine Karte mit dem letzten Wert (bzw. der Summe) und der Veränderung zur ersten Messung, besser oder schlechter nach der Richtung. Der Verlauf zeigt je Wert ein Liniendiagramm über die Zeit und darunter alle Messungen als Tabelle; eine Zeile öffnet ihren Termin. Kein Vergleich zwischen Patienten.
+
+Zurückgestellt: **interaktive Assessmentbögen** (werden nach den übrigen Slices besprochen) und ein **Export** je Patient.
