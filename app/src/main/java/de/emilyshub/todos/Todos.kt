@@ -24,6 +24,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
@@ -176,6 +177,38 @@ class Todos(
     }
 
     /**
+     * Ticks the to-do off late, as done yesterday (SPEC.md §1, Gestern nachtragen), at [endOf] it, as [finish] has it:
+     * one coming again from when it was done comes again from yesterday. Only one open and due by yesterday; undone, as
+     * on Heute, by [reopen].
+     */
+    suspend fun markDoneYesterday(id: Long) = write {
+        database().withTransaction {
+            val yesterday = today().minusDays(1)
+            val todo = dao.get(id)?.takeIf { it.doneAt == null && it.dueBy(yesterday) } ?: return@withTransaction
+            finish(todo, doneAt = endOf(yesterday))
+        }
+    }
+
+    /**
+     * Ticks an item of the checklist of a to-do of yesterday off, or unticks it, as [tick] does on Heute, but with all
+     * of it ticked off, it is done yesterday, as [markDoneYesterday] has it. Only one due by yesterday, open or done
+     * that day.
+     */
+    suspend fun tickYesterday(todoId: Long, itemId: Long, ticked: Boolean): Boolean = write {
+        database().withTransaction {
+            val yesterday = today().minusDays(1)
+            val todo = dao.get(todoId)?.takeIf { it.dueBy(yesterday) && openOrDoneOn(it, yesterday) } ?: return@withTransaction false
+            tick(todo, itemId, ticked, doneAt = endOf(yesterday))
+        }
+    }
+
+    /** When what is ticked off late on [date] counts as done (SPEC.md §1): at 23:59 that day, in the time zone now. */
+    fun endOf(date: LocalDate): Instant = dueAt(date, LATE, clock.zone).toInstant()
+
+    /** Whether it is due on [date] or before. */
+    private fun Todo.dueBy(date: LocalDate): Boolean = dueDate?.isAfter(date) == false
+
+    /**
      * Opens the to-do again, out of the archive, as [openAgain] has it. What of its checklist was ticked off stays so,
      * unless all of it was, as that made it done.
      */
@@ -324,26 +357,32 @@ class Todos(
     suspend fun tick(todoId: Long, itemId: Long, ticked: Boolean): Boolean = write {
         database().withTransaction {
             val todo = dao.get(todoId) ?: return@withTransaction false
-            if (dao.checklist(todoId).none { it.id == itemId }) return@withTransaction false
-            val done = todo.doneAt != null
-            when {
-                ticked && !done -> {
-                    dao.setTicked(itemId, ticked = true)
-                    doneIfAllTicked(todoId)
-                }
-                // Done as a whole, every item counts as ticked off until one is unticked.
-                !ticked && done -> {
-                    dao.setAllTicked(todoId, ticked = true)
-                    dao.setTicked(itemId, ticked = false)
-                    openAgain(todo)
-                    false
-                }
-                !ticked -> {
-                    dao.setTicked(itemId, ticked = false)
-                    false
-                }
-                else -> false
+            tick(todo, itemId, ticked, doneAt = now())
+        }
+    }
+
+    /** Ticks the item [itemId] of [todo]'s checklist off, or unticks it, as [tick] has it; all ticked off, done at [doneAt]. */
+    private suspend fun tick(todo: Todo, itemId: Long, ticked: Boolean, doneAt: Instant): Boolean {
+        val todoId = todo.id
+        if (dao.checklist(todoId).none { it.id == itemId }) return false
+        val done = todo.doneAt != null
+        return when {
+            ticked && !done -> {
+                dao.setTicked(itemId, ticked = true)
+                doneIfAllTicked(todoId, doneAt)
             }
+            // Done as a whole, every item counts as ticked off until one is unticked.
+            !ticked && done -> {
+                dao.setAllTicked(todoId, ticked = true)
+                dao.setTicked(itemId, ticked = false)
+                openAgain(todo)
+                false
+            }
+            !ticked -> {
+                dao.setTicked(itemId, ticked = false)
+                false
+            }
+            else -> false
         }
     }
 
@@ -425,19 +464,18 @@ class Todos(
     }
 
     /** Ticks the to-do off if all of its checklist is, as [finish] has it, and tells whether it did. */
-    private suspend fun doneIfAllTicked(todoId: Long): Boolean =
-        dao.checklist(todoId).allTicked().also { allTicked -> if (allTicked) dao.get(todoId)?.let { finish(it) } }
+    private suspend fun doneIfAllTicked(todoId: Long, doneAt: Instant = now()): Boolean =
+        dao.checklist(todoId).allTicked().also { allTicked -> if (allTicked) dao.get(todoId)?.let { finish(it, doneAt) } }
 
     /**
-     * Ticks the to-do, open, off now, and settles its goal (SPEC.md §6): done if that was the last part open. One coming
+     * Ticks the to-do, open, off at [doneAt], now unless caught up late, and settles its goal (SPEC.md §6): done if that was the last part open. One coming
      * again (SPEC.md §5) comes again at once as the next, due as its recurrence says, with all of it but the ticks of its
      * checklist, reminding as one just saved; the notes linked to it are linked to the next too. The next takes its
      * place in its goal, which stays as it is: the one done stays in the goal as a part done before, no part of it any
      * more.
      */
-    private suspend fun finish(todo: Todo) = watchingGoals { watch ->
+    private suspend fun finish(todo: Todo, doneAt: Instant = now()) = watchingGoals { watch ->
         watch.todo(todo.id)
-        val doneAt = now()
         val recurrence = todo.recurrence
         val due = todo.dueDate
         val nextDue = due?.let { recurrence?.nextDue(it, dayOf(doneAt)) }
@@ -536,3 +574,6 @@ class Todos(
     /** Whether there is a checklist and all of it is ticked off. */
     private fun List<TodoChecklistItem>.allTicked() = isNotEmpty() && all { it.ticked }
 }
+
+/** The minute of a day that what is caught up on it late counts as done at (SPEC.md §1, Gestern nachtragen). */
+private val LATE: LocalTime = LocalTime.of(23, 59)

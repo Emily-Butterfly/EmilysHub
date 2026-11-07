@@ -384,6 +384,70 @@ class Routines(
         }
     }
 
+    /**
+     * Catches yesterday's occurrence up (SPEC.md §1, Gestern nachtragen): [done] ticks it off late, missed, dropped or
+     * still open, and it counts as done that day in full, covering the rest of its group then (SPEC.md §2); not [done]
+     * unticks one done, which is missed then, or open while its time window still is. Only one of yesterday, of an active
+     * routine, and not one skipped, by hand or by another of its group: those stay as they are; today's are ticked off
+     * on Heute ([markDone]), and older ones not at all.
+     */
+    suspend fun catchUp(occurrenceId: Long, done: Boolean) = write {
+        database().withTransaction {
+            val occurrence = ofYesterday(occurrenceId) ?: return@withTransaction
+            when {
+                done && occurrence.status != OccurrenceStatus.Done -> lifecycle.catchUp(occurrenceId)
+                !done && occurrence.status == OccurrenceStatus.Done -> {
+                    dao.deleteTicks(occurrenceId)
+                    uncatch(occurrenceId)
+                }
+            }
+        }
+    }
+
+    /**
+     * Ticks an item of the checklist of yesterday's occurrence off, or unticks it, as [tick] does on Heute, for one
+     * [catchUp] takes: with all of it ticked off it is caught up as done; unticking one of it done unticks that.
+     */
+    suspend fun catchUpTick(occurrenceId: Long, itemId: Long, ticked: Boolean) = write {
+        database().withTransaction {
+            val occurrence = ofYesterday(occurrenceId) ?: return@withTransaction
+            val items = dao.checklist(occurrence.routineId).map { it.id }
+            if (itemId !in items) return@withTransaction
+            val done = occurrence.status == OccurrenceStatus.Done
+            when {
+                ticked && !done -> {
+                    dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
+                    if (dao.ticks(occurrenceId).containsAll(items)) lifecycle.catchUp(occurrenceId)
+                }
+                // Done as a whole, every item counts as ticked off until one is unticked.
+                !ticked && done -> {
+                    dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
+                    dao.deleteTick(occurrenceId, itemId)
+                    uncatch(occurrenceId)
+                }
+                !ticked -> dao.deleteTick(occurrenceId, itemId)
+            }
+        }
+    }
+
+    /** The occurrence, if it is one of yesterday that [catchUp] takes. */
+    private suspend fun ofYesterday(occurrenceId: Long): Occurrence? {
+        val occurrence = dao.occurrence(occurrenceId) ?: return null
+        val routine = dao.get(occurrence.routineId) ?: return null
+        val takes = occurrence.date == today().minusDays(1) && routine.status == RoutineStatus.Active &&
+            occurrence.coveredBy == null && occurrence.status in CATCH_UP
+        return occurrence.takeIf { takes }
+    }
+
+    /**
+     * Unticks yesterday's occurrence done: open again with what it covered of its group, then missed, those too, once
+     * their time window is over and none of the group can be done that day any more ([markMissed]).
+     */
+    private suspend fun uncatch(occurrenceId: Long) {
+        lifecycle.move(listOf(occurrenceId), OccurrenceStatus.Open)
+        lifecycle.missNow(now())
+    }
+
     /** Puts the occurrence off ("Später"): it is reminded of again at [until]. */
     suspend fun putOff(occurrenceId: Long, until: Instant) = write { dao.putOff(occurrenceId, until) }
 
@@ -702,6 +766,11 @@ class Routines(
         val problems = draft.problems
         require(problems.isEmpty()) { "Invalid routine: $problems" }
         return draft.cleaned()
+    }
+
+    private companion object {
+        /** What of yesterday can be caught up on ([catchUp]): skipped is left as it is. */
+        val CATCH_UP = setOf(OccurrenceStatus.Open, OccurrenceStatus.Missed, OccurrenceStatus.Dropped, OccurrenceStatus.Done)
     }
 }
 

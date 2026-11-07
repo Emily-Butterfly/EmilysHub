@@ -9,8 +9,8 @@ import java.time.LocalDate
 
 /**
  * Where an occurrence's status changes (SPEC.md §2, §6), and the only place that writes one: whatever [Routines] does
- * to an occurrence, ticking it off, skipping, undoing, "Heute nicht", missing it, comes here as a [move], which keeps
- * what hangs on a status:
+ * to an occurrence, ticking it off, skipping, undoing, "Heute nicht", missing it, catching it up late ([catchUp]), comes
+ * here as a [move], which keeps what hangs on a status:
  *
  * - on a day one of a coupled group is done, what of the other active routines of the group is open or missed that day
  *   is skipped by it ("covered"), also once their time window is over, and one undone then comes back so too; one no
@@ -30,8 +30,16 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
      * Moves the occurrences [ids] to [status], as the class describes (SPEC.md §2, §6); one moved is skipped by no
      * other any more. Those gone are left out, and those missed too: once missed, an occurrence stays so.
      */
-    suspend fun move(ids: Collection<Long>, status: OccurrenceStatus) {
-        val moving = dao.occurrencesWithRoutines(ids.distinct()).filter { it.occurrence.status != OccurrenceStatus.Missed }
+    suspend fun move(ids: Collection<Long>, status: OccurrenceStatus) = move(ids, status, missedToo = false)
+
+    /**
+     * Catches the occurrence [id] up as done, late (SPEC.md §1, Gestern nachtragen): as [move] has it, but missed too, as
+     * the day was done after all.
+     */
+    suspend fun catchUp(id: Long) = move(listOf(id), OccurrenceStatus.Done, missedToo = true)
+
+    private suspend fun move(ids: Collection<Long>, status: OccurrenceStatus, missedToo: Boolean) {
+        val moving = dao.occurrencesWithRoutines(ids.distinct()).filter { missedToo || it.occurrence.status != OccurrenceStatus.Missed }
         if (moving.isEmpty()) return
         val movingIds = moving.map { it.occurrence.id }
         val days = moving.mapNotNull { (occurrence, routine) -> routine.coupling?.let { CoupledDay(it, occurrence.date) } }.distinct()
@@ -39,7 +47,7 @@ internal class OccurrenceLifecycle(private val database: () -> HubDatabase, priv
             // No longer done, what they skipped of their group by being done comes back; asked of every one, not only
             // those done, so that one left skipped by an occurrence no longer done, as an older version did, is too.
             if (status != OccurrenceStatus.Done) dao.uncover(by = movingIds)
-            dao.setStatuses(movingIds, status)
+            if (missedToo) dao.setStatusesEvenIfMissed(movingIds, status) else dao.setStatuses(movingIds, status)
             days.forEach { cover(it) }
         }
     }

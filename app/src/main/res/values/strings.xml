@@ -47,6 +47,10 @@
     <string name="today_more">Mehr zu „%1$s“</string>
     <string name="today_drop">Heute nicht</string>
     <string name="today_yesterday_at">Gestern, %1$s</string>
+    <string name="today_to_yesterday">‹ Gestern</string>
+    <string name="yesterday_title">Gestern, %1$s – nachtragen</string>
+    <string name="yesterday_to_today">Heute ›</string>
+    <string name="yesterday_empty">Gestern stand nichts an.</string>
     <string name="today_waiting_for">Wartet auf %1$s</string>
     <string name="names_or">" oder "</string>
     <string name="today_undo">Rückgängig</string>

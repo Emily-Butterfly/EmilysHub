@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,6 +44,7 @@ import de.emilyshub.today.Heute
 import de.emilyshub.today.HeuteDay
 import de.emilyshub.today.RoutineOffer
 import de.emilyshub.today.TodayEntry
+import de.emilyshub.today.catchUpTickable
 import de.emilyshub.today.covered
 import de.emilyshub.today.offer
 import de.emilyshub.today.tickable
@@ -56,6 +60,7 @@ import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.endText
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.shortWeekdayDayAndMonth
 import de.emilyshub.ui.notes.PinnedNotes
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
@@ -67,7 +72,8 @@ import java.time.LocalDate
  * skip a routine, through [heute]; above them the [warnings], while something the reminders need from Android is
  * lacking or the backups are amiss; the notes pinned here, which open with a tap ([onOpenNote]); the to-dos shown
  * before their day under "Demnächst"; and under it all, what was done each day of the last six months
- * ([TodayHeatmap]). Nothing until all of it is there, so that Heute does not say there is nothing before it comes.
+ * ([TodayHeatmap]). Nothing until all of it is there, so that Heute does not say there is nothing before it comes. Above
+ * it all, the way to yesterday, to catch up on it ([onOpenYesterday], [YesterdayScreen]).
  */
 @Composable
 fun TodayScreen(
@@ -76,6 +82,7 @@ fun TodayScreen(
     contentPadding: PaddingValues,
     warnings: @Composable () -> Unit,
     onOpenNote: (Long) -> Unit,
+    onOpenYesterday: () -> Unit,
 ) {
     day ?: return
     val scope = rememberCoroutineScope()
@@ -87,6 +94,7 @@ fun TodayScreen(
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
+            ToYesterday(onOpenYesterday)
             warnings()
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
             // What was done stays in view on a day with nothing due (SPEC.md §1).
@@ -95,6 +103,7 @@ fun TodayScreen(
         return
     }
     LazyColumn(contentPadding = contentPadding) {
+        item(key = "yesterday") { ToYesterday(onOpenYesterday) }
         item(key = "warnings") { Column { warnings() } }
         if (pinned.isNotEmpty()) {
             item(key = "pinned-notes") { PinnedNotes(pinned, onOpen = onOpenNote, onUnpin = { act { unpin(it) } }) }
@@ -125,6 +134,68 @@ fun TodayScreen(
     }
 }
 
+/**
+ * Yesterday, to catch up on (SPEC.md §1, Gestern nachtragen), as [heute] has it: plainly marked as such at the top,
+ * with the way back to Heute ([onToday]); its routines and to-dos only, each to tick off late or untick, its checklist
+ * too, but neither skipped nor dropped. Nothing until it is there; anew past midnight.
+ */
+@Composable
+fun YesterdayScreen(heute: Heute, contentPadding: PaddingValues, onToday: () -> Unit) {
+    val yesterday = remember(heute) { heute.yesterday() }.collectAsStateWithLifecycle(initialValue = null).value ?: return
+    val scope = rememberCoroutineScope()
+    val act: Act = remember(heute, scope) { { action -> scope.launchNow { heute.action() } } }
+    LazyColumn(contentPadding = contentPadding) {
+        item(key = "header") { YesterdayHeader(yesterday.date, onToday) }
+        if (yesterday.entries.isEmpty()) {
+            item(key = "nothing-due") {
+                Text(
+                    text = stringResource(R.string.yesterday_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
+        items(yesterday.entries, key = { it.key }) { entry ->
+            when (entry) {
+                is TodayEntry.OfRoutine -> RoutineEntry(entry, yesterday.date, act, catchingUp = true)
+                is TodayEntry.OfTodo -> TodoEntry(entry, yesterday.date, act, catchingUp = true)
+            }
+        }
+    }
+}
+
+/** The narrow line above Heute that leads to yesterday ([onClick]). */
+@Composable
+private fun ToYesterday(onClick: () -> Unit) {
+    Row(Modifier.padding(horizontal = 4.dp)) {
+        TextButton(onClick = onClick) { Text(stringResource(R.string.today_to_yesterday)) }
+    }
+}
+
+/** What marks yesterday as such, the day it is, with the way back to Heute ([onToday]). */
+@Composable
+private fun YesterdayHeader(date: LocalDate, onToday: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.yesterday_title, date.shortWeekdayDayAndMonth()),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 12.dp)
+                    .semantics { heading() },
+            )
+            TextButton(onClick = onToday) { Text(stringResource(R.string.yesterday_to_today)) }
+        }
+    }
+}
+
 /** Heute as [heute] has it while it shows, collected only then, and read anew on return to the app; null until it is all there. */
 @Composable
 fun rememberHeute(heute: Heute): HeuteDay? =
@@ -133,36 +204,51 @@ fun rememberHeute(heute: Heute): HeuteDay? =
 /** Runs what is done with Heute, to the end even if Heute goes. */
 private typealias Act = (suspend Heute.() -> Unit) -> Unit
 
-/** A routine's occurrence on Heute, with its checklist under it. */
+/**
+ * A routine's occurrence on Heute, with its checklist under it; on the day before when [catchingUp] on it, only to tick
+ * off late or untick ([DueRoutine.catchUpTickable]).
+ */
 @Composable
-private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act) {
+private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act, catchingUp: Boolean = false) {
     val routine = entry.routine
     Column {
         DueRoutineRow(
             routine = routine,
             fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
-            onDoneChange = { done -> act { setDone(entry, done) } },
+            tickable = if (catchingUp) routine.catchUpTickable else routine.tickable,
+            offer = if (catchingUp) RoutineOffer.None else routine.offer,
+            onDoneChange = { done -> act { if (catchingUp) catchUp(entry, done) else setDone(entry, done) } },
             onSkip = { act { skip(routine) } },
             onDrop = { act { drop(routine) } },
             onUndo = { act { undo(routine) } },
         )
+        val checklistTickable = if (catchingUp) routine.catchUpTickable else routine.status.checklistTickable
         routine.checklist.forEach { item ->
-            ChecklistRow(item, tickable = routine.status.checklistTickable) { ticked -> act { tick(entry, item.itemId, ticked) } }
+            ChecklistRow(item, tickable = checklistTickable) { ticked ->
+                act { if (catchingUp) catchUpTick(entry, item.itemId, ticked) else tick(entry, item.itemId, ticked) }
+            }
         }
     }
 }
 
 /**
  * A to-do on Heute, with its checklist under it, [upcoming] under "Demnächst" if so: ticked off, it is done and stays
- * here, ticked, for the day.
+ * here, ticked, for the day. On the day before when [catchingUp] on it, ticked off as done then.
  */
 @Composable
-private fun TodoEntry(entry: TodayEntry.OfTodo, today: LocalDate, act: Act, upcoming: Boolean = false) {
+private fun TodoEntry(entry: TodayEntry.OfTodo, today: LocalDate, act: Act, upcoming: Boolean = false, catchingUp: Boolean = false) {
     val todo = entry.todo
     Column {
-        DueTodoRow(todo = todo, today = today, upcoming = upcoming, onDoneChange = { done -> act { setDone(entry, done) } })
+        DueTodoRow(
+            todo = todo,
+            today = today,
+            upcoming = upcoming,
+            onDoneChange = { done -> act { if (catchingUp) catchUp(entry, done) else setDone(entry, done) } },
+        )
         todo.checklist.forEach { item ->
-            ChecklistRow(item, tickable = true) { ticked -> act { tick(entry, item.itemId, ticked) } }
+            ChecklistRow(item, tickable = true) { ticked ->
+                act { if (catchingUp) catchUpTick(entry, item.itemId, ticked) else tick(entry, item.itemId, ticked) }
+            }
         }
     }
 }
@@ -221,11 +307,16 @@ private val TodayEntry.key: String
         is TodayEntry.OfTodo -> "todo:${todo.todoId}"
     }
 
-/** Ticking the box marks it done, unticking undoes that; a skipped one offers to undo instead. */
+/**
+ * Ticking the box marks it done, unticking undoes that, while [tickable]; besides, what it [offer]s: to skip or drop
+ * one open, or undo that.
+ */
 @Composable
 private fun DueRoutineRow(
     routine: DueRoutine,
     fromDayBefore: Boolean,
+    tickable: Boolean,
+    offer: RoutineOffer,
     onDoneChange: (Boolean) -> Unit,
     onSkip: () -> Unit,
     onDrop: () -> Unit,
@@ -233,7 +324,6 @@ private fun DueRoutineRow(
 ) {
     val done = routine.status == OccurrenceStatus.Done
     val covered = routine.covered
-    val tickable = routine.tickable
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -279,7 +369,7 @@ private fun DueRoutineRow(
                 }
             }
         }
-        when (routine.offer) {
+        when (offer) {
             RoutineOffer.SkipOrDrop -> {
                 TextButton(onClick = onSkip) { Text(stringResource(R.string.today_skip)) }
                 MoreMenu(routine.name, onDrop)

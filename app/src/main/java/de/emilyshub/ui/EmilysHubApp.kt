@@ -104,6 +104,7 @@ import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.TodayScreen
+import de.emilyshub.ui.today.YesterdayScreen
 import de.emilyshub.ui.today.rememberHeute
 import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
@@ -206,6 +207,9 @@ private fun AppShell(
     val back = { stack = stack.pop() }
     // Here, so that they stay while an entry is open and while another tab shows.
     var tabs by rememberSaveable { mutableStateOf(TabViews()) }
+    // Whether Heute shows yesterday, to catch up on (SPEC.md §1): kept while a screen is open over it, but not past
+    // another tab, a new start or the lock, after which Heute shows the day it is again.
+    var yesterday by remember { mutableStateOf(false) }
 
     // What a screen over the tabs keeps while one opened from it covers it: what was typed in an editor a note was
     // opened from, say. The tabs keep only what is kept here above.
@@ -219,12 +223,19 @@ private fun AppShell(
         // What is open in Sonstiges goes back to its list first.
         val closeMore = { tabs = tabs.copy(more = null) }
         BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null, onBack = closeMore)
+        // Back from yesterday leads to Heute.
+        BackHandler(enabled = current == TopLevelDestination.Today && yesterday) { yesterday = false }
         TopLevelScaffold(
             hub = hub,
             current = current,
-            // Sonstiges tapped again leads to its list, as the back arrow does.
-            onSelect = { if (it == TopLevelDestination.More && current == it) closeMore() else current = it },
+            onSelect = {
+                yesterday = false
+                // Sonstiges tapped again leads to its list, as the back arrow does.
+                if (it == TopLevelDestination.More && current == it) closeMore() else current = it
+            },
             onCloseMore = closeMore,
+            yesterday = yesterday,
+            onYesterdayChange = { yesterday = it },
             tabs = tabs,
             onTabsChange = { tabs = it },
             open = open,
@@ -344,7 +355,7 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: (
 /**
  * The tabs ([current], [onSelect]) with the bar above them, each tab shown as [tabs] has it ([onTabsChange]); what is
  * tapped there opens over them ([open]). What is open in Sonstiges shows its name in the bar, with the arrow back to the
- * list ([onCloseMore]).
+ * list ([onCloseMore]). Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -353,6 +364,8 @@ private fun TopLevelScaffold(
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onCloseMore: () -> Unit,
+    yesterday: Boolean,
+    onYesterdayChange: (Boolean) -> Unit,
     tabs: TabViews,
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
@@ -446,16 +459,21 @@ private fun TopLevelScaffold(
         },
     ) { contentPadding ->
         when (current) {
-            TopLevelDestination.Today -> TodayScreen(
-                day = heuteDay,
-                heute = hub.heute,
-                contentPadding = contentPadding,
-                warnings = {
-                    SetupWarning(hub.routines, hub.todos, onCheck = { open(Destination.Status) })
-                    BackupWarningCard(hub.nightlyBackups, onOpen = { open(Destination.Backups) })
-                },
-                onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
-            )
+            TopLevelDestination.Today -> if (yesterday) {
+                YesterdayScreen(hub.heute, contentPadding, onToday = { onYesterdayChange(false) })
+            } else {
+                TodayScreen(
+                    day = heuteDay,
+                    heute = hub.heute,
+                    contentPadding = contentPadding,
+                    warnings = {
+                        SetupWarning(hub.routines, hub.todos, onCheck = { open(Destination.Status) })
+                        BackupWarningCard(hub.nightlyBackups, onOpen = { open(Destination.Backups) })
+                    },
+                    onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
+                    onOpenYesterday = { onYesterdayChange(true) },
+                )
+            }
             TopLevelDestination.Routines -> RoutinesScreen(
                 routines = hub.routines,
                 tags = hub.tags,

@@ -173,6 +173,10 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id IN (:ids) AND status != :missed")
     suspend fun setStatuses(ids: Collection<Long>, status: OccurrenceStatus, missed: OccurrenceStatus = OccurrenceStatus.Missed)
 
+    /** Sets the status of [ids] as [setStatuses] does, of those missed too: for one caught up late (SPEC.md §1). */
+    @Query("UPDATE occurrences SET status = :status, covered_by = NULL WHERE id IN (:ids)")
+    suspend fun setStatusesEvenIfMissed(ids: Collection<Long>, status: OccurrenceStatus)
+
     /** The routines in the coupled group [coupling], whatever their status. */
     @Query("SELECT id FROM routines WHERE coupling = :coupling")
     suspend fun inCoupling(coupling: Long): List<Long>
