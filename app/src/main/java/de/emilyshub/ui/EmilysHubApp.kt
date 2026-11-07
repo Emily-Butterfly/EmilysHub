@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -214,10 +215,15 @@ private fun AppShell(
     if (top == null) {
         // Heute is the start screen: back from any other area returns there before leaving the app.
         BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
+        // What is open in Sonstiges goes back to its list first.
+        val closeMore = { tabs = tabs.copy(more = null) }
+        BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null, onBack = closeMore)
         TopLevelScaffold(
             hub = hub,
             current = current,
-            onSelect = { current = it },
+            // Sonstiges tapped again leads to its list, as the back arrow does.
+            onSelect = { if (it == TopLevelDestination.More && current == it) closeMore() else current = it },
+            onCloseMore = closeMore,
             tabs = tabs,
             onTabsChange = { tabs = it },
             open = open,
@@ -336,7 +342,8 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: (
 
 /**
  * The tabs ([current], [onSelect]) with the bar above them, each tab shown as [tabs] has it ([onTabsChange]); what is
- * tapped there opens over them ([open]).
+ * tapped there opens over them ([open]). What is open in Sonstiges shows its name in the bar, with the arrow back to the
+ * list ([onCloseMore]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -344,6 +351,7 @@ private fun TopLevelScaffold(
     hub: Hub,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
+    onCloseMore: () -> Unit,
     tabs: TabViews,
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
@@ -370,10 +378,18 @@ private fun TopLevelScaffold(
                 } else {
                     Modifier
                 }
+                val moreOpen = tabs.more.takeIf { current == TopLevelDestination.More }
                 TopAppBar(
+                    navigationIcon = {
+                        if (moreOpen != null) {
+                            IconButton(onClick = onCloseMore) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
+                            }
+                        }
+                    },
                     title = {
                         Text(
-                            stringResource(current.label),
+                            stringResource(moreOpen?.label ?: current.label),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = titlePlace.semantics { heading() },
@@ -459,19 +475,22 @@ private fun TopLevelScaffold(
                 onCreate = { openTodo(TodoEditorTarget.New) },
                 onOpenArchive = { open(Destination.TodoArchive) },
             )
-            TopLevelDestination.Wishlist -> WishlistScreen(
-                wishes = hub.wishes,
-                todos = hub.todos,
-                tags = hub.tags,
-                tagFilter = tabs.wishTagFilter,
-                onTagFilterChange = { onTabsChange(tabs.copy(wishTagFilter = it)) },
-                contentPadding = contentPadding,
-                onOpen = { openWish(WishEditorTarget.Edit(it)) },
-                onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
-                onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
-                onCreate = { openWish(WishEditorTarget.New()) },
-                onOpenReview = { open(Destination.WishReview) },
-            )
+            TopLevelDestination.More -> when (tabs.more) {
+                null -> MoreScreen(contentPadding, onOpen = { onTabsChange(tabs.copy(more = it)) })
+                MoreEntry.Goals -> WishlistScreen(
+                    wishes = hub.wishes,
+                    todos = hub.todos,
+                    tags = hub.tags,
+                    tagFilter = tabs.wishTagFilter,
+                    onTagFilterChange = { onTabsChange(tabs.copy(wishTagFilter = it)) },
+                    contentPadding = contentPadding,
+                    onOpen = { openWish(WishEditorTarget.Edit(it)) },
+                    onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
+                    onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
+                    onCreate = { openWish(WishEditorTarget.New()) },
+                    onOpenReview = { open(Destination.WishReview) },
+                )
+            }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,
                 view = tabs.notes,

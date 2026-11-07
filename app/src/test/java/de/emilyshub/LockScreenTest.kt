@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -129,6 +130,22 @@ class LockScreenTest {
             compose.unlockWithFingerprint(authenticator)
 
             tab("Notizen").assertIsSelected()
+        }
+    }
+
+    @Test
+    fun `the goals open in Sonstiges are still open after unlocking again`() {
+        authenticator.deviceSecure = true
+
+        launchApp().use { scenario ->
+            compose.unlockWithFingerprint(authenticator)
+            compose.openGoals()
+
+            scenario.leaveAndReturn { ShadowSystemClock.advanceBy(Duration.ofMinutes(5)) }
+            compose.unlockWithFingerprint(authenticator)
+
+            tab("Sonstiges").assertIsSelected()
+            compose.onNode(isHeading() and hasText("Ziele")).assertIsDisplayed()
         }
     }
 

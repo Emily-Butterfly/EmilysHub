@@ -7,7 +7,8 @@ import java.io.Serializable
 /**
  * How each tab shows what it lists, kept while an entry is open over it and while another tab shows: the tag the
  * routines, to-dos and goals are filtered by, if any, the to-dos' order, and the notes' tab and folder. Not
- * navigation: the screens over the tabs are the back stack's. Serializable, so that it outlives rotation and the lock.
+ * navigation: the screens over the tabs are the back stack's. And what is open in "Sonstiges" ([more]), none while its
+ * list shows. Serializable, so that it outlives rotation and the lock.
  */
 data class TabViews(
     val routineTagFilter: Long? = null,
@@ -15,4 +16,5 @@ data class TabViews(
     val todoTagFilter: Long? = null,
     val wishTagFilter: Long? = null,
     val notes: NotesView = NotesView(),
+    val more: MoreEntry? = null,
 ) : Serializable

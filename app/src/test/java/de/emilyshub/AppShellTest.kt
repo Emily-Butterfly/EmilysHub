@@ -3,11 +3,13 @@ package de.emilyshub
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -26,7 +28,7 @@ class AppShellTest {
         val labels = compose.onAllNodes(isSelectable()).fetchSemanticsNodes()
             .map { node -> node.config[SemanticsProperties.Text].joinToString { it.text } }
 
-        assertEquals(listOf("Heute", "Routinen", "To-dos", "Ziele", "Notizen"), labels)
+        assertEquals(listOf("Heute", "Routinen", "To-dos", "Notizen", "Sonstiges"), labels)
     }
 
     @Test
@@ -37,7 +39,7 @@ class AppShellTest {
 
     @Test
     fun `tapping a tab opens that area`() {
-        for (area in listOf("Routinen", "To-dos", "Ziele", "Notizen", "Heute")) {
+        for (area in listOf("Routinen", "To-dos", "Notizen", "Sonstiges", "Heute")) {
             tab(area).performClick().assertIsSelected()
             heading(area).assertIsDisplayed()
         }
@@ -45,7 +47,7 @@ class AppShellTest {
 
     @Test
     fun `back from another area returns to Heute`() {
-        tab("Ziele").performClick()
+        tab("Sonstiges").performClick()
 
         pressBack()
 
@@ -72,6 +74,58 @@ class AppShellTest {
         compose.onNodeWithContentDescription("Zurück").performClick()
 
         heading("Routinen").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the goals open in Sonstiges, under the bottom bar, and the back arrow leads to the list`() {
+        tab("Sonstiges").performClick()
+        compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+
+        heading("Ziele").assertIsDisplayed()
+        compose.onNodeWithText("Noch keine Ziele.", substring = true).assertIsDisplayed()
+        tab("Sonstiges").assertIsSelected()
+        compose.onNodeWithContentDescription("Suchen").assertIsDisplayed()
+
+        compose.onNodeWithContentDescription("Zurück").performClick()
+        heading("Sonstiges").assertIsDisplayed()
+        compose.onNode(hasText("Ziele") and hasClickAction()).assertIsDisplayed()
+    }
+
+    @Test
+    fun `back leads from the goals to the list of Sonstiges and from there to Heute`() {
+        tab("Sonstiges").performClick()
+        compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+
+        pressBack()
+        heading("Sonstiges").assertIsDisplayed()
+        pressBack()
+        heading("Heute").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the goals stay open while another tab shows, and after rotation`() {
+        tab("Sonstiges").performClick()
+        compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+
+        tab("To-dos").performClick()
+        heading("To-dos").assertIsDisplayed()
+        tab("Sonstiges").performClick()
+        heading("Ziele").assertIsDisplayed()
+
+        compose.activityRule.scenario.recreate()
+        heading("Ziele").assertIsDisplayed()
+        tab("Sonstiges").assertIsSelected()
+    }
+
+    @Test
+    fun `tapping Sonstiges again while the goals show leads to the list`() {
+        tab("Sonstiges").performClick()
+        compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+
+        tab("Sonstiges").performClick()
+
+        heading("Sonstiges").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Zurück").assertDoesNotExist()
     }
 
     private fun tab(label: String) = compose.onNode(isSelectable() and hasText(label))

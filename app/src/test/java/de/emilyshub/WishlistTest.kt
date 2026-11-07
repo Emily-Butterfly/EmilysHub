@@ -185,7 +185,7 @@ class WishlistTest {
         assertEquals(emptyList<Any>(), alarms.alarmsFor(ReminderReceiver.ACTION_REMIND))
     }
 
-    private fun openWishlist() = compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+    private fun openWishlist() = compose.openGoals()
 
     private fun field(label: String) = compose.onNode(hasSetTextAction() and hasText(label))
 

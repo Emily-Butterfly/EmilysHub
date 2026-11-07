@@ -5,8 +5,12 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
@@ -156,6 +160,12 @@ fun TestApplication.wish(
     parent: Long? = null,
 ): Long = runBlocking {
     wishes.create(WishDraft(title, period = period, status = status, doneOn = doneOn, tagIds = tags, parentId = parent))
+}
+
+/** Opens the goals (SPEC.md §6): under "Sonstiges" in the bottom bar, then "Ziele" in its list. */
+fun ComposeTestRule.openGoals() {
+    onNode(isSelectable() and hasText("Sonstiges")).performClick()
+    onNode(hasText("Ziele") and hasClickAction()).performClick()
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */

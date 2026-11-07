@@ -32,12 +32,14 @@ class SearchScreenTest {
     @Test
     fun `the search is there on every tab`() {
         launchApp().use {
-            for (area in listOf("Heute", "Routinen", "To-dos", "Ziele", "Notizen")) {
+            for (area in listOf("Heute", "Routinen", "To-dos", "Notizen", "Sonstiges")) {
                 compose.onNode(hasText(area) and hasClickAction()).performClick()
-                compose.onNodeWithContentDescription("Suchen").performClick()
-                compose.onNode(isHeading() and hasText("Suche")).assertIsDisplayed()
-                compose.onNodeWithContentDescription("Zurück").performClick()
+                searchAndBack()
             }
+            // And with the goals open in Sonstiges.
+            compose.openGoals()
+            searchAndBack()
+            compose.onNode(isHeading() and hasText("Ziele")).assertIsDisplayed()
         }
     }
 
@@ -75,6 +77,12 @@ class SearchScreenTest {
             compose.onNode(hasSetTextAction() and hasText("Suchbegriff")).performTextInput("Nordlicht")
             waitFor("Nichts gefunden.")
         }
+    }
+
+    private fun searchAndBack() {
+        compose.onNodeWithContentDescription("Suchen").performClick()
+        compose.onNode(isHeading() and hasText("Suche")).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Zurück").performClick()
     }
 
     /** Waits for [text] to show: the search looks again a moment after typing stops. */
