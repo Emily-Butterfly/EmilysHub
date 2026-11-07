@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7) und #49 **EmilysHub v1.1** (Etappe 8); Etappen 9 und 10 haben keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8) und #64 **Etappe 10**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -105,7 +105,7 @@ Abgestimmt im Interview vom 02.11.2026.
 
 ## Etappe 10 – Sonstiges, Heute & Dokumentation
 
-Abgestimmt im Interview vom 07.11.2026. #55–#57 hängen nicht voneinander ab; die Dokumentation baut aufeinander auf.
+Abgestimmt im Interview vom 07.11.2026; Sammel-Issue #64. #55–#57 hängen nicht voneinander ab; die Dokumentation baut aufeinander auf.
 
 | # | Slice | Art | Blockiert durch |
 |---|---|---|---|
@@ -119,4 +119,4 @@ Abgestimmt im Interview vom 07.11.2026. #55–#57 hängen nicht voneinander ab; 
 | 62 | [Dokumentation: Testwerte am Termin & Verlauf](62-doku-messungen-und-verlauf.md) | 🤖 | 60, 61 |
 | 63 | [Dokumentation im Backup, doppelt verschlüsselt](63-doku-backup.md) | 🤖 | 58 |
 
-Zurückgestellt: **interaktive Assessmentbögen** (besprechen, sobald #55–#63 erledigt sind) und ein **Export** je Patient.
+Zurückgestellt: **interaktive Assessmentbögen** und ein **Export** je Patient. Sobald #55–#63 alle geschlossen sind, gilt, was #64 unter „Danach: zurückgestellt“ sagt: im Chat danach fragen und sie in einem Interview klären, bevor #64 geschlossen wird.
