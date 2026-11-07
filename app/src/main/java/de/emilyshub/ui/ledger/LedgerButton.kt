@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,5 +52,17 @@ fun LedgerButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 )
             }
         }
+    }
+}
+
+/**
+ * The small "€" atop Heute that opens the household book (SPEC.md §1, §13), as large as the icons beside it; to
+ * accessibility services "Haushaltsbuch öffnen", as the notes' button.
+ */
+@Composable
+fun LedgerIconButton(onClick: () -> Unit) {
+    val name = stringResource(R.string.ledger_open)
+    IconButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = name }) {
+        Text(stringResource(R.string.ledger_open_short), style = MaterialTheme.typography.titleLarge, maxLines = 1, softWrap = false)
     }
 }

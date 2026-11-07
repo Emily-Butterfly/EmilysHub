@@ -71,6 +71,7 @@ import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
 import de.emilyshub.ui.ledger.LedgerButton
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
+import de.emilyshub.ui.ledger.LedgerIconButton
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.LedgerYearScreen
 import de.emilyshub.ui.ledger.RecurringEditorScreen
@@ -396,7 +397,11 @@ private fun TopLevelScaffold(
                         )
                     },
                     actions = {
-                    // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
+                        // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
+                        if (current == TopLevelDestination.Today) {
+                            LedgerIconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) })
+                        }
+                        // Only on Heute: the streak spurs on there, where the day's routines are ticked off (SPEC.md §1).
                         heuteDay?.flame?.let { StreakFlameButton(it, onOpenStatistics = { open(Destination.Statistics) }) }
                         IconButton(onClick = { open(Destination.Search()) }) {
                             Icon(

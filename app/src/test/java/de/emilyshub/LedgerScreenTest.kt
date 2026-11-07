@@ -63,7 +63,6 @@ class LedgerScreenTest {
     @Test
     fun `opened from the notes it shows this month, and back goes to the notes`() {
         launchApp().use {
-            compose.onNodeWithContentDescription("Haushaltsbuch öffnen").assertDoesNotExist()
             compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Haushaltsbuch öffnen").performClick()
 
@@ -594,8 +593,6 @@ class LedgerScreenTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun `in the notes the button to the household book sits in the middle of the top bar, a quarter of the screen wide`() {
         launchApp().use {
-            // Not on Heute.
-            compose.onNode(hasContentDescription("Haushaltsbuch öffnen")).assertDoesNotExist()
             compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
 
             val button = compose.onNode(hasContentDescription("Haushaltsbuch öffnen"))
