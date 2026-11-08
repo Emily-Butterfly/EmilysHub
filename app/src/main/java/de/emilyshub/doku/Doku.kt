@@ -2,6 +2,7 @@ package de.emilyshub.doku
 
 import android.app.Activity
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,6 +11,7 @@ import de.emilyshub.backup.BackupFile
 import de.emilyshub.backup.BackupKey
 import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.DokuVault
+import de.emilyshub.logged
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -133,7 +135,10 @@ class Doku internal constructor(
     /** Reads the key file, to know whether the Doku has its password yet and whether the fingerprint is on; once. */
     suspend fun load() {
         if (state != null) return
-        val read = withContext(io) { keyFile.read() }
+        val read = withContext(io) {
+            files.recover()
+            keyFile.read()
+        }
         keys = read
         if (state == null) state = read?.lockedState() ?: DokuState.New
     }
@@ -294,7 +299,7 @@ class Doku internal constructor(
         withContext(io) {
             val stored = keyFile.read() ?: return@withContext null
             // What is in the write-ahead log into the database first, so that the backup carries no more than it needs.
-            opened?.database?.openHelper?.writableDatabase?.query("PRAGMA wal_checkpoint(TRUNCATE)")?.use { it.moveToFirst() }
+            opened?.database?.checkpoint()
             files.snapshot(stored.passwordOnly(), BackupFile.MAX_BYTES) ?: throw BackupException(BackupProblem.TooLarge)
         }
     }
@@ -302,6 +307,7 @@ class Doku internal constructor(
     /**
      * Puts [snapshot] in place of the Doku, locked first, then runs [during]; if that fails, the Doku is put back as it
      * was. Then the Doku password of the snapshot holds, and the fingerprint is off, to be turned on once it is open.
+     * Called where the Doku's state is, as unlocking is; only the files are read and written on [io].
      */
     override suspend fun <T> replacedBy(snapshot: DokuSnapshot, during: suspend () -> T): T {
         lock()
@@ -327,12 +333,17 @@ class Doku internal constructor(
                 }
                 throw e
             }
-            withContext(io + NonCancellable) {
-                replacement.done()
-                fingerprint.deleteKey()
-            }
             keys = snapshot.keys
             if (state != null) state = snapshot.keys.lockedState()
+            // All is restored now: what is left to tidy up must not make it look as though it had failed.
+            try {
+                withContext(io + NonCancellable) {
+                    replacement.done()
+                    fingerprint.deleteKey()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Tidying up after the Doku was restored failed: ${e.logged}")
+            }
             result
         }
     }
@@ -379,6 +390,8 @@ class Doku internal constructor(
     private fun DokuKeys.lockedState() = DokuState.Locked(fingerprint = hasFingerprint, fingerprintLost = fingerprintLost)
 
     companion object {
+        private const val TAG = "EmilysHub"
+
         /** The fewest characters a Doku password has. */
         const val MIN_PASSWORD_LENGTH = 8
 

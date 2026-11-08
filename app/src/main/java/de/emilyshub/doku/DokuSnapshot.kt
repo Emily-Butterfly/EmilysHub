@@ -1,5 +1,6 @@
 package de.emilyshub.doku
 
+import de.emilyshub.backup.BackupKey
 import java.io.IOException
 
 /**
@@ -21,9 +22,6 @@ class DokuSnapshot internal constructor(
     fun opensWith(password: String): Boolean = keys.openWithPassword(password)?.also { it.fill(0) } != null
 
     companion object {
-        /** Not so many that checking the password could take minutes, as with the backups. */
-        private val ACCEPTED_ITERATIONS = 1_000..5_000_000
-
         /**
          * The snapshot of these parts, as a backup holds them; null if they are not one: the keys damaged, sealed under
          * the fingerprint, or with more iterations than the app would ever set.
@@ -36,7 +34,7 @@ class DokuSnapshot internal constructor(
             } catch (_: IOException) {
                 return null
             }
-            if (keys.hasFingerprint || keys.fingerprintLost || keys.iterations !in ACCEPTED_ITERATIONS || schema < 1) return null
+            if (keys.hasFingerprint || keys.fingerprintLost || keys.iterations !in BackupKey.ACCEPTED_ITERATIONS || schema < 1) return null
             return DokuSnapshot(schema, keys, database, wal)
         }
     }

@@ -245,16 +245,7 @@ class DokuBackupTest {
         val snapshot = runBlocking { checkNotNull(doku.snapshot()) }
         doku.lock()
         app.deleteDatabase(DokuDatabase.NAME)
-        val elsewhere = Doku(
-            keyFile = File(app.noBackupFilesDir, "doku-elsewhere.key"),
-            databaseFile = databaseFile,
-            fingerprint = FakeFingerprint(),
-            openDatabase = { testDokuDatabase(app) },
-            clipboard = DokuClipboard(app),
-            io = Dispatchers.Unconfined,
-            background = CoroutineScope(Dispatchers.Unconfined),
-            iterations = FEW_ITERATIONS,
-        ).also { runBlocking { it.load() } }
+        val elsewhere = dokuAt(File(app.noBackupFilesDir, "doku-elsewhere.key"))
         assertEquals(DokuState.New, elsewhere.state)
 
         runBlocking { elsewhere.replacedBy(snapshot) {} }
@@ -263,6 +254,41 @@ class DokuBackupTest {
         runBlocking { assertTrue(elsewhere.unlockWithPassword(DOKU_PASSWORD)) }
         assertEquals(listOf("Frau M."), runBlocking { elsewhere.withDatabase { db -> db.patients().all().map { it.name } } })
         elsewhere.lock()
+    }
+
+    @Test
+    fun `a restore cut off while the files were put in place is undone at the next start`() {
+        setUpDoku()
+        patient("Frau M.")
+        doku.lock()
+        val keyFile = File(app.noBackupFilesDir, "doku.key")
+        // Killed after the files before were set aside, the first of the backup's already in place.
+        keyFile.renameTo(File("${keyFile.path}.old"))
+        databaseFile.renameTo(File("${databaseFile.path}.old"))
+        databaseFile.writeBytes(ByteArray(10))
+        File("${keyFile.path}.restore").writeBytes(ByteArray(10))
+
+        val restarted = dokuAt(keyFile)
+
+        assertEquals(DokuState.Locked(fingerprint = false), restarted.state)
+        runBlocking { assertTrue(restarted.unlockWithPassword(DOKU_PASSWORD)) }
+        assertEquals(listOf("Frau M."), runBlocking { restarted.withDatabase { db -> db.patients().all().map { it.name } } })
+        restarted.lock()
+        assertEquals(emptyList<String>(), leftOver())
+    }
+
+    @Test
+    fun `a restore cut off once the files were in place keeps them, the files before deleted`() {
+        setUpDoku()
+        doku.lock()
+        val keyFile = File(app.noBackupFilesDir, "doku.key")
+        keyFile.copyTo(File("${keyFile.path}.old"))
+        databaseFile.copyTo(File("${databaseFile.path}.old"))
+
+        val restarted = dokuAt(keyFile)
+
+        assertEquals(DokuState.Locked(fingerprint = false), restarted.state)
+        assertEquals(emptyList<String>(), leftOver())
     }
 
     @Test
@@ -279,9 +305,26 @@ class DokuBackupTest {
 
         unlock()
         assertEquals(listOf("Frau M.", "Herr K."), patients())
-        val leftOver = listOf(databaseFile.parentFile, app.noBackupFilesDir).flatMap { it?.listFiles().orEmpty().toList() }
-        assertEquals(emptyList<String>(), leftOver.map { it.name }.filter { it.endsWith(".old") || it.endsWith(".restore") })
+        assertEquals(emptyList<String>(), leftOver())
     }
+
+    /** The files kept aside or staged by a restore that are still there. */
+    private fun leftOver() = listOf(databaseFile.parentFile, app.noBackupFilesDir)
+        .flatMap { it?.listFiles().orEmpty().toList() }
+        .map { it.name }
+        .filter { it.endsWith(".old") || it.endsWith(".restore") }
+
+    /** A Doku over the database here and [keyFile], as a new process finds it. */
+    private fun dokuAt(keyFile: File) = Doku(
+        keyFile = keyFile,
+        databaseFile = databaseFile,
+        fingerprint = FakeFingerprint(),
+        openDatabase = { testDokuDatabase(app) },
+        clipboard = DokuClipboard(app),
+        io = Dispatchers.Unconfined,
+        background = CoroutineScope(Dispatchers.Unconfined),
+        iterations = FEW_ITERATIONS,
+    ).also { runBlocking { it.load() } }
 
     private fun setUpDoku() = runBlocking { doku.setUp(DOKU_PASSWORD) }
 

@@ -19,6 +19,10 @@ from the schema Room exported for it (`BackupMigration.dataColumnsOf`).
 
 Nothing else: no list of tables or columns to keep by hand in the backups or their tests.
 
+**`DokuDatabase`** goes into the backups as its encrypted file, not by its tables: a change to it takes the entity, its
+version, a migration in `doku/DokuMigrations.kt` with a test in `DokuMigrationTest`, and the exported schema. Its
+`VERSION` also goes into each backup, and a backup with a higher one is refused as of a newer version of the app.
+
 **Renaming** a table or column is the exception, in the tests only: the migration renames it in a backup of the
 version before as in the app's own database, as backups are brought up to date by the app's migrations; but `asOf`
 builds a backup of that version from today's, under the new name, which that version did not have. A test of a backup

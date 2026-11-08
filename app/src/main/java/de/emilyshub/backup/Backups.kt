@@ -118,18 +118,16 @@ class Backups(
      * password that held when it was made, or nothing changes ([BackupProblem.WrongDokuPassword]); without one, the
      * Doku here stays as it is. Should the rest fail, the Doku is put back as it was.
      */
-    suspend fun restore(backup: Backup, dokuPassword: String? = null) = withContext(io + NonCancellable) {
+    suspend fun restore(backup: Backup, dokuPassword: String? = null) = withContext(NonCancellable) {
         val dokuToRestore = backup.content.doku?.takeIf { dokuPassword != null }
-        if (dokuToRestore != null && !dokuToRestore.opensWith(checkNotNull(dokuPassword))) {
+        if (dokuToRestore != null && !withContext(io) { dokuToRestore.opensWith(dokuPassword.orEmpty()) }) {
             throw BackupException(BackupProblem.WrongDokuPassword)
         }
-        if (settings().get(KEY) == null) store(backup.key)
-        if (dokuToRestore == null) {
-            replaceAllWith(backup.content, keep = true)
-        } else {
-            doku.replacedBy(dokuToRestore) { replaceAllWith(backup.content, keep = true) }
-        }
-        onRestore()
+        withContext(io) { if (settings().get(KEY) == null) store(backup.key) }
+        val replace = suspend { withContext(io) { replaceAllWith(backup.content, keep = true) } }
+        // The Doku's state changes where the caller is, as when it is unlocked.
+        if (dokuToRestore == null) replace() else doku.replacedBy(dokuToRestore, replace)
+        withContext(io) { onRestore() }
     }
 
     /** The name a backup made today is offered to be saved under: "EmilysHub-Backup-2026-10-23.emhb". */

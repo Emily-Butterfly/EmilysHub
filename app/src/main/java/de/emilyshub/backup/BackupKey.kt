@@ -31,6 +31,9 @@ class BackupKey(val salt: ByteArray, val iterations: Int, internal val secret: B
     companion object {
         /** As OWASP recommends for PBKDF2-HMAC-SHA256. */
         const val ITERATIONS = 600_000
+
+        /** Far beyond any the app sets, but not so far that opening a backup could take minutes. */
+        val ACCEPTED_ITERATIONS = 1_000..5_000_000
         const val SALT_BYTES = 16
         const val CHECK_BYTES = 16
         const val SECRET_BYTES = 32

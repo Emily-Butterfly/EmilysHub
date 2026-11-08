@@ -75,6 +75,11 @@ abstract class DokuDatabase : RoomDatabase() {
 
     abstract fun measurements(): MeasurementDao
 
+    /** Moves what the write-ahead log holds into the database file, so that the file alone holds it. */
+    fun checkpoint() {
+        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+    }
+
     companion object {
         const val VERSION = 4
         const val NAME = "doku.db"

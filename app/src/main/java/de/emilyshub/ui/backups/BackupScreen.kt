@@ -233,7 +233,7 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
             onEditDokuPassword = { wrongDokuPassword = false },
             onReplace = { dokuPassword ->
                 work {
-                    var asked = false
+                    var askAgain = false
                     outcome = failingWith(R.string.backup_restore_failed) {
                         try {
                             backups.restore(backup, dokuPassword)
@@ -242,11 +242,11 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
                             if (e.problem != BackupProblem.WrongDokuPassword) throw e
                             // Nothing has changed: the Doku password is asked for again.
                             wrongDokuPassword = true
-                            asked = true
+                            askAgain = true
                             null
                         }
                     }
-                    if (!asked) opened = null
+                    if (!askAgain) opened = null
                     // Taken over from the backup if there was none.
                     hasPassword = backups.hasPassword()
                 }

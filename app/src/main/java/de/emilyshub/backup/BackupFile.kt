@@ -32,8 +32,6 @@ object BackupFile {
     private const val TAG_BITS = 128
     private const val HEADER_BYTES = 4 + 1 + 4 + BackupKey.SALT_BYTES + BackupKey.CHECK_BYTES + NONCE_BYTES
 
-    /** Far beyond any the app sets, but not so far that opening a file could take minutes. */
-    private val ACCEPTED_ITERATIONS = 1_000..5_000_000
 
     fun seal(plaintext: ByteArray, key: BackupKey): ByteArray {
         // Not to be read back, so not to be written either.
@@ -52,7 +50,7 @@ object BackupFile {
         if (format != FORMAT || file.size < HEADER_BYTES + TAG_BITS / 8) damaged()
         val header = ByteBuffer.wrap(file, MAGIC.size + 1, HEADER_BYTES - MAGIC.size - 1)
         val iterations = header.int
-        if (iterations !in ACCEPTED_ITERATIONS) damaged()
+        if (iterations !in BackupKey.ACCEPTED_ITERATIONS) damaged()
         val salt = ByteArray(BackupKey.SALT_BYTES).also(header::get)
         val check = ByteArray(BackupKey.CHECK_BYTES).also(header::get)
         val nonce = ByteArray(NONCE_BYTES).also(header::get)
