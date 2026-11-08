@@ -10,12 +10,15 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import de.emilyshub.data.Converters
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
- * A setting of the Doku, kept in its own database: nothing of the Doku goes into the app's. None yet: the table is
- * here because Room needs one, and for the settings the start page and the appointment template bring (#59, #60).
+ * A setting of the Doku, kept in its own database: nothing of the Doku goes into the app's. Such as how the start page
+ * orders the patients, and the appointment template (#60).
  */
 @Entity(tableName = "doku_setting")
 data class DokuSetting(@PrimaryKey val key: String, val value: String)
@@ -48,15 +51,25 @@ value class RawKey(val bytes: ByteArray) {
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
  */
-@Database(entities = [DokuSetting::class], version = DokuDatabase.VERSION)
+@Database(entities = [DokuSetting::class, Patient::class], version = DokuDatabase.VERSION)
+@TypeConverters(Converters::class)
 abstract class DokuDatabase : RoomDatabase() {
     abstract fun settings(): DokuSettingsDao
 
+    abstract fun patients(): PatientDao
+
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
         const val NAME = "doku.db"
 
-        val MIGRATIONS: List<Migration> = emptyList()
+        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2)
+
+        /** What is deleted is overwritten on disk, not only marked free (SPEC.md §14): on each opening, as the pragma lasts as long as the connection. */
+        val SECURE_DELETE = object : Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                db.query("PRAGMA secure_delete = ON").use { it.moveToFirst() }
+            }
+        }
 
         /** Opens `doku.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): DokuDatabase {
@@ -64,6 +77,7 @@ abstract class DokuDatabase : RoomDatabase() {
             return Room.databaseBuilder(context, DokuDatabase::class.java, name)
                 .openHelperFactory(SupportOpenHelperFactory(rawKey.bytes))
                 .addMigrations(*MIGRATIONS.toTypedArray())
+                .addCallback(SECURE_DELETE)
                 .build()
         }
 

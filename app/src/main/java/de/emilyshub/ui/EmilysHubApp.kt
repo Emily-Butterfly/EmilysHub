@@ -68,6 +68,8 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
+import de.emilyshub.ui.doku.DokuPage
+import de.emilyshub.ui.doku.DokuPages
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -223,8 +225,11 @@ private fun AppShell(
         // Heute is the start screen: back from any other area returns there before leaving the app.
         BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
         // What is open in Sonstiges goes back to its list first.
-        val closeMore = { tabs = tabs.copy(more = null) }
+        val closeMore = { tabs = tabs.copy(more = null, doku = DokuPages()) }
         BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null, onBack = closeMore)
+        // Within the Doku, back leads to the page it was opened from first.
+        val dokuBack = { tabs = tabs.copy(doku = tabs.doku.back()) }
+        BackHandler(enabled = current == TopLevelDestination.More && tabs.more == MoreEntry.Doku && tabs.doku.canGoBack, onBack = dokuBack)
         // Back from yesterday leads to Heute.
         BackHandler(enabled = current == TopLevelDestination.Today && yesterday) { yesterday = false }
         TopLevelScaffold(
@@ -241,7 +246,7 @@ private fun AppShell(
                     current = it
                 }
             },
-            onCloseMore = closeMore,
+            onCloseMore = { if (tabs.more == MoreEntry.Doku && tabs.doku.canGoBack) dokuBack() else closeMore() },
             yesterday = yesterday,
             onYesterdayChange = { yesterday = it },
             tabs = tabs,
@@ -419,7 +424,9 @@ private fun TopLevelScaffold(
                     },
                     actions = {
                         // The Doku's settings are in its own menu, there only while it is open (SPEC.md §14).
-                        if (moreOpen == MoreEntry.Doku) DokuMenu(hub.doku)
+                        if (moreOpen == MoreEntry.Doku) {
+                            DokuMenu(hub.doku, onOpenArchive = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Archive))) })
+                        }
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {
                             LedgerIconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) })
@@ -523,7 +530,13 @@ private fun TopLevelScaffold(
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
                 )
-                MoreEntry.Doku -> DokuArea(hub.doku, contentPadding)
+                MoreEntry.Doku -> DokuArea(
+                    doku = hub.doku,
+                    patients = hub.patients,
+                    pages = tabs.doku,
+                    onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
+                    contentPadding = contentPadding,
+                )
             }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,

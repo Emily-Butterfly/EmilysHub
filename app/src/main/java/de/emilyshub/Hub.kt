@@ -4,6 +4,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.doku.Doku
+import de.emilyshub.doku.Patients
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
@@ -46,6 +47,9 @@ interface Hub {
 
     /** The Doku (SPEC.md §14), with its own lock. */
     val doku: Doku
+
+    /** The Doku's patients, read and written only while it is open. */
+    val patients: Patients
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

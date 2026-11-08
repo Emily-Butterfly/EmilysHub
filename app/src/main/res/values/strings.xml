@@ -833,4 +833,61 @@
     <string name="doku_change_password_repeat">Neues Passwort wiederholen</string>
     <string name="doku_change_password_backups">Ältere Backups brauchen weiter das alte Passwort.</string>
     <string name="doku_change_password">Ändern</string>
+
+    <!-- Dokumentation: Patienten (SPEC.md §14) -->
+    <string name="doku_patient_add">+ Patient</string>
+    <string name="doku_patient_new">Neuer Patient</string>
+    <string name="doku_patient_edit">Name und Geburtsjahr</string>
+    <string name="doku_patient_edit_action">Name und Geburtsjahr ändern</string>
+    <string name="doku_patient_name">Name / Kürzel</string>
+    <string name="doku_patient_name_missing">Gib einen Namen oder ein Kürzel ein.</string>
+    <string name="doku_patient_birth_year">Geburtsjahr (optional)</string>
+    <string name="doku_patient_birth_year_invalid">Ein Jahr von 1900 bis %1$d</string>
+    <string name="doku_patient_create">Anlegen</string>
+    <string name="doku_patient_born">Jg. %1$d (≈ %2$d Jahre)</string>
+    <string name="doku_patient_overview">Übersicht</string>
+    <string name="doku_patient_appointments">Termine</string>
+    <string name="doku_patient_tests">Tests</string>
+    <string name="doku_patient_no_appointments">Noch keine Termine</string>
+    <string name="doku_patient_no_tests">Noch keine Tests</string>
+    <string name="doku_field_diagnosis">Diagnose</string>
+    <string name="doku_field_anamnesis">Anamnese</string>
+    <string name="doku_field_goals">Therapeutische Zielsetzung</string>
+    <string name="doku_field_other">Sonstiges</string>
+    <string name="doku_field_empty">–</string>
+    <string name="doku_field_edit">%1$s bearbeiten</string>
+    <string name="doku_field_hint">Markdown wie in den Notizen, ohne HTML und Links.</string>
+    <string name="doku_field_done">Fertig</string>
+    <string name="doku_patient_menu">Menü des Patienten</string>
+    <string name="doku_patient_close">Abschließen</string>
+    <string name="doku_patient_restore">Wiederherstellen</string>
+    <string name="doku_patient_delete">Endgültig löschen</string>
+    <string name="doku_patient_delete_title">„%1$s“ endgültig löschen?</string>
+    <string name="doku_patient_delete_text">Mit allen Terminen und Messungen. In älteren Backups ist er noch enthalten: in den nächtlichen bis zu 7 Nächte, in den von Hand gespeicherten, bis du sie löschst.</string>
+    <string name="doku_patient_closed_on">Abgeschlossen am %1$s – nur zum Lesen</string>
+    <string name="doku_last_seen">letzter Termin %1$s</string>
+    <string name="doku_never_seen">noch kein Termin</string>
+    <string name="doku_order_last_seen">Zuletzt behandelt</string>
+    <string name="doku_order_name">Name</string>
+    <string name="doku_search">Patienten suchen</string>
+    <string name="doku_search_nothing">Nichts gefunden</string>
+    <string name="doku_search_archived">Archiv</string>
+    <string name="doku_menu_archive">Archiv</string>
+    <string name="doku_archive_title">Doku-Archiv</string>
+    <string name="doku_archive_empty">Keine abgeschlossenen Patienten</string>
+    <string name="doku_archive_closed_on">abgeschlossen am %1$s</string>
+    <string name="doku_archive_overdue">seit über 12 Monaten</string>
+    <plurals name="doku_overdue_hint">
+        <item quantity="one">%1$d Person seit über 12 Monaten abgeschlossen – jetzt löschen?</item>
+        <item quantity="other">%1$d Personen seit über 12 Monaten abgeschlossen – jetzt löschen?</item>
+    </plurals>
+    <plurals name="doku_overdue_delete">
+        <item quantity="one">Diese %1$d endgültig löschen</item>
+        <item quantity="other">Diese %1$d endgültig löschen</item>
+    </plurals>
+    <plurals name="doku_overdue_delete_title">
+        <item quantity="one">%1$d Person endgültig löschen?</item>
+        <item quantity="other">%1$d Personen endgültig löschen?</item>
+    </plurals>
+    <string name="doku_overdue_delete_text">Mit allen Terminen und Messungen. In älteren Backups sind sie noch enthalten: in den nächtlichen bis zu 7 Nächte, in den von Hand gespeicherten, bis du sie löschst.</string>
 </resources>

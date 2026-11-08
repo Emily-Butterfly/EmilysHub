@@ -32,20 +32,20 @@ import kotlinx.coroutines.launch
 
 /**
  * The Doku's menu in the top bar, only while it is open (SPEC.md §14): its settings live here, not in the app's. For
- * now "Doku-Passwort ändern" and the fingerprint on or off; tests, the appointment template and the archive follow.
+ * now the archive, "Doku-Passwort ändern" and the fingerprint on or off; tests and the appointment template follow.
  */
 @Composable
-fun DokuMenu(doku: Doku) {
+fun DokuMenu(doku: Doku, onOpenArchive: () -> Unit) {
     val open = doku.state as? DokuState.Open ?: return
     var changingPassword by remember { mutableStateOf(false) }
     // The password fields of its dialog too ask the keyboard to learn nothing.
-    DokuInsel(doku) { DokuMenuButton(doku, open, onChangePassword = { changingPassword = true }) }
+    DokuInsel(doku) { DokuMenuButton(doku, open, onOpenArchive, onChangePassword = { changingPassword = true }) }
     if (changingPassword) DokuInsel(doku) { ChangePassword(doku, onClose = { changingPassword = false }) }
 }
 
 /** The three dots, and what they open. */
 @Composable
-private fun DokuMenuButton(doku: Doku, open: DokuState.Open, onChangePassword: () -> Unit) {
+private fun DokuMenuButton(doku: Doku, open: DokuState.Open, onOpenArchive: () -> Unit, onChangePassword: () -> Unit) {
     val activity = checkNotNull(LocalActivity.current)
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
@@ -54,6 +54,13 @@ private fun DokuMenuButton(doku: Doku, open: DokuState.Open, onChangePassword: (
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_menu))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.doku_menu_archive)) },
+                onClick = {
+                    expanded = false
+                    onOpenArchive()
+                },
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_menu_change_password)) },
                 onClick = {

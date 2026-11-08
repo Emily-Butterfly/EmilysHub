@@ -103,6 +103,15 @@ class Doku internal constructor(
     /** The open database; only while [state] is [DokuState.Open]. */
     val database: DokuDatabase get() = requireOpen().database
 
+    /**
+     * What [block] makes of the open database, on [io]; null once the Doku is locked. Locking waits for it to finish
+     * before the database is closed, so that nothing reads or writes a closed database.
+     */
+    suspend fun <T> withDatabase(block: suspend (DokuDatabase) -> T): T? = openingAndClosing.withLock {
+        val database = opened?.database ?: return@withLock null
+        withContext(io) { block(database) }
+    }
+
     /** Whether the fingerprint can be turned on: a strong one is set up on the phone. */
     val canUseFingerprint: Boolean get() = fingerprint.isEnrolled()
 

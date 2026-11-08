@@ -48,18 +48,18 @@ import de.emilyshub.R
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuState
 import de.emilyshub.doku.FingerprintUnlock
-import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.doku.Patients
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * The Doku in the tab of Sonstiges (SPEC.md §14): its password set on first opening, its lock screen, and only once
- * unlocked its start page. It locks as [DokuLocker] says, and after five minutes without a touch. Each unlock starts on
- * its start page.
+ * unlocked its [pages] ([onPagesChange]). It locks as [DokuLocker] says, and after five minutes without a touch. Each
+ * unlock starts on its start page.
  */
 @Composable
-fun DokuArea(doku: Doku, contentPadding: PaddingValues) {
+fun DokuArea(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
     val activity = checkNotNull(LocalActivity.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(doku, lifecycle) {
@@ -87,13 +87,43 @@ fun DokuArea(doku: Doku, contentPadding: PaddingValues) {
                     }
                 },
             )
-            is DokuState.Locked -> LockedScreen(doku, activity, state, scope, contentPadding)
+            is DokuState.Locked -> {
+                // What was open goes with the lock: the next unlock starts on the start page.
+                LaunchedEffect(Unit) { if (pages != DokuPages()) onPagesChange(DokuPages()) }
+                LockedScreen(doku, activity, state, scope, contentPadding)
+            }
             is DokuState.Open -> {
                 IdleLock(doku)
-                PlaceholderScreen(stringResource(R.string.doku_no_patients), contentPadding)
+                OpenPage(doku, patients, pages, onPagesChange, contentPadding)
                 if (state.offerFingerprint) FingerprintAgain(doku, activity, scope)
             }
         }
+    }
+}
+
+/** The page of the open Doku on top of [pages]. */
+@Composable
+private fun OpenPage(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+    val open = { page: DokuPage -> onPagesChange(pages.open(page)) }
+    when (val page = pages.top) {
+        DokuPage.Home -> DokuHome(
+            doku = doku,
+            patients = patients,
+            contentPadding = contentPadding,
+            onOpen = { open(DokuPage.Patient(it)) },
+            onOpenArchive = { open(DokuPage.Archive) },
+        )
+        DokuPage.Archive -> DokuArchivePage(doku, patients, contentPadding, onOpen = { open(DokuPage.Patient(it)) })
+        is DokuPage.Patient -> PatientPage(
+            doku = doku,
+            patients = patients,
+            page = page,
+            contentPadding = contentPadding,
+            onTab = { onPagesChange(pages.replaceTop(page.copy(tab = it))) },
+            onEditText = { open(DokuPage.Text(page.id, it)) },
+            onGone = { deleted -> onPagesChange(if (deleted) pages.without(page.id) else pages.back()) },
+        )
+        is DokuPage.Text -> PatientTextPage(doku, patients, page, contentPadding, onDone = { onPagesChange(pages.back()) })
     }
 }
 

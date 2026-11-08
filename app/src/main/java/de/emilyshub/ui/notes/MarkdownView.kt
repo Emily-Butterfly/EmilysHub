@@ -2,6 +2,7 @@ package de.emilyshub.ui.notes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -48,11 +49,22 @@ import de.emilyshub.notes.ListItem
  * and a link shows only its words. A task shows whether it is ticked off, which is changed in the text, by its "[x]".
  */
 fun LazyListScope.markdownBlocks(blocks: List<Block>) {
-    items(blocks) { block ->
-        // A block written right to left, as in Arabic, puts its bullet, box or quote bar on the right.
-        val direction = if (startsRightToLeft(block)) LayoutDirection.Rtl else LocalLayoutDirection.current
-        CompositionLocalProvider(LocalLayoutDirection provides direction) { MarkdownBlock(block) }
+    items(blocks) { block -> DirectedBlock(block) }
+}
+
+/** The [blocks] as [markdownBlocks] shows them, in a column of their own: for a short text among others, such as a patient's fields. */
+@Composable
+fun MarkdownText(blocks: List<Block>, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        blocks.forEach { DirectedBlock(it) }
     }
+}
+
+/** A block written right to left, as in Arabic, puts its bullet, box or quote bar on the right. */
+@Composable
+private fun DirectedBlock(block: Block) {
+    val direction = if (startsRightToLeft(block)) LayoutDirection.Rtl else LocalLayoutDirection.current
+    CompositionLocalProvider(LocalLayoutDirection provides direction) { MarkdownBlock(block) }
 }
 
 /** Whether the first letter of [block] with a direction of its own, as Arabic or Hebrew letters have, goes right to left. */

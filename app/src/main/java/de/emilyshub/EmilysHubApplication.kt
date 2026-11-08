@@ -17,6 +17,7 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuClipboard
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.Fingerprint
+import de.emilyshub.doku.Patients
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.ledger.Ledger
@@ -206,6 +207,8 @@ open class EmilysHubApplication : Application(), Hub {
             iterations = backupIterations,
         )
     }
+
+    final override val patients: Patients by lazy { Patients(doku, clock, background) }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

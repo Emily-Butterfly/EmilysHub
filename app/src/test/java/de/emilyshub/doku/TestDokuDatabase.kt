@@ -12,4 +12,6 @@ fun testDokuDatabase(context: Context): DokuDatabase =
         .allowMainThreadQueries()
         .setQueryExecutor(Runnable::run)
         .setTransactionExecutor(Runnable::run)
+        .addMigrations(*DokuDatabase.MIGRATIONS.toTypedArray())
+        .addCallback(DokuDatabase.SECURE_DELETE)
         .build()

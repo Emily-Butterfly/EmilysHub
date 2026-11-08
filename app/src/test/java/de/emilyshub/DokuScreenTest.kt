@@ -378,26 +378,6 @@ class DokuScreenTest {
         }
     }
 
-    private fun ComposeTestRule.openDoku() {
-        onNode(isSelectable() and hasText("Sonstiges")).performClick()
-        onNode(hasText("Dokumentation") and hasClickAction()).performClick()
-    }
-
-    private fun ComposeTestRule.setUpDoku(withFingerprint: Boolean = false) {
-        field("Doku-Passwort").performTextInput(PASSWORD)
-        field("Doku-Passwort wiederholen").performTextInput(PASSWORD)
-        onNodeWithText("Verstanden").performScrollTo().performClick()
-        if (withFingerprint) onNodeWithText("Mit Fingerabdruck entsperren").performScrollTo().performClick()
-        onNodeWithText("Passwort festlegen").performScrollTo().performClick()
-    }
-
-    private fun ComposeTestRule.unlockDoku(password: String = PASSWORD) {
-        field("Passwort").performTextReplacement(password)
-        onNodeWithText("Entsperren").performClick()
-    }
-
-    private fun ComposeTestRule.field(label: String): SemanticsNodeInteraction = onNode(hasSetTextAction() and hasText(label))
-
     /** What the focused text field tells the keyboard, as Android asks for it. */
     private fun ActivityScenario<MainActivity>.editorInfo(): EditorInfo {
         compose.waitForIdle()
@@ -411,6 +391,6 @@ class DokuScreenTest {
     }
 
     private companion object {
-        const val PASSWORD = "geheim-geheim"
+        const val PASSWORD = DOKU_PASSWORD
     }
 }
