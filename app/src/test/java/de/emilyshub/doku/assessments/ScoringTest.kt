@@ -153,7 +153,7 @@ class ScoringTest {
 
     @Test
     fun `a band without a name leaves a range unnamed`() {
-        val bands = listOf(Band.upTo(2, ""), Band.upTo(9, "viel"))
+        val bands = listOf(Band.upTo(2, null), Band.upTo(9, "viel"))
         val form = form(Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.LowerIsBetter, bands = bands))
 
         assertEquals(null, Scoring.results(form, chosen("a" to "1", "b" to "1", "c" to "0")).single().band)
@@ -168,5 +168,18 @@ class ScoringTest {
         assertEquals(0L, value(form, emptyMap()))
         assertEquals(300L, value(form, mapOf("k" to Answer.Checked(setOf("x", "z")))))
         assertEquals(0L..400L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test
+    fun `a scored checklist under a condition counts only once shown`() {
+        val items = listOf(
+            YesNoItem("hurts", "Haben Sie Schmerzen?"),
+            ChecklistItem("k", "Trifft zu:", listOf(Option("x", "x", 1)), scored = true, showIf = Condition.ifYes("hurts")),
+        )
+        val form = form(Score("sum", "Summe", listOf("k"), direction = Direction.LowerIsBetter), items = items)
+
+        assertEquals(null, value(form, mapOf("hurts" to Answer.YesNo(false))))
+        assertEquals(0L, value(form, mapOf("hurts" to Answer.YesNo(true))))
+        assertEquals(false, Scoring.reachesResultUnanswered(form))
     }
 }

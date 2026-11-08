@@ -10,7 +10,7 @@ private fun yesNoItems(vararg statements: String): List<Item> =
     statements.mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
 
 /** Options scored 0, 1, 2 … in the order given, as the originals number them. */
-private fun scored(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label, i) }
+private fun numbered(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label, i) }
 
 /** Cervical Spine Instability-Skala, as in "Cervical-Spine-Instability-Skala_CSIQ_11-2026.pdf". */
 private val CSIQ: Assessment = run {
@@ -103,7 +103,7 @@ private val HDI: Assessment = run {
                 direction = Direction.LowerIsBetter,
                 // Below 10 the original names nothing; 70 lies between its 68 and 72, and counts as severe (08.11.2026).
                 bands = listOf(
-                    Band.upTo(8, ""),
+                    Band.upTo(8, null),
                     Band.upTo(28, "Leichte Beeinträchtigung"),
                     Band.upTo(48, "Moderate Beeinträchtigung"),
                     Band.upTo(70, "Schwere Beeinträchtigung"),
@@ -157,8 +157,8 @@ private val LSIQ: Assessment = run {
                 items = items.map(Item::id),
                 direction = Direction.LowerIsBetter,
                 bands = listOf(
-                    Band.upTo(8, ""),
-                    Band.upTo(15, "typisch für Patienten, die besser auf motorische Kontrollübungen bzw. koordinatives Training ansprechen"),
+                    Band.upTo(8, null),
+                    Band.upTo(15, "typisch für Patienten, die besser auf motorische Kontrollübungen, bzw. koordinatives Training ansprechen"),
                 ),
             ),
         ),
@@ -170,7 +170,7 @@ private val MICHELI: Assessment = run {
     // Six answers from 0 to 5, as the original scores Teil A; "Schmerz, aber kein Einfluss" as 1 (08.11.2026).
     val a1 = ChoiceItem(
         "a1", "1. In welchem Ausmaß beeinflusst der Schmerz Ihre sportliche Aktivität?",
-        scored(
+        numbered(
             "Ich habe keinen Schmerz.",
             "Ich habe Schmerz, aber er hat keinen Einfluss.",
             "Der Schmerz hat nur einen geringen/minimalen Einfluss.",
@@ -181,7 +181,7 @@ private val MICHELI: Assessment = run {
     )
     val b1 = ChoiceItem(
         "b1", "1. In welchem Ausmaß ist Ihr Schmerz mit Streckbewegungen der Wirbelsäule oder Aktivitäten in aufrechter Haltung verbunden?",
-        scored(
+        numbered(
             "Ich kann mit maximaler Geschwindigkeit rennen und ohne Einschränkung die Wirbelsäule strecken.",
             "Ich kann mit maximaler Geschwindigkeit rennen aber die Streckung der Wirbelsäule schmerzt etwas.",
             "Rennen und Streckbewegungen der Wirbelsäule verursachen Schmerz.",
@@ -191,7 +191,7 @@ private val MICHELI: Assessment = run {
     )
     val b2 = ChoiceItem(
         "b2", "2. In welchem Ausmaß ist Ihr Schmerz mit Beugebewegungen der Wirbelsäule oder Aktivitäten in gebeugter Haltung verbunden?",
-        scored(
+        numbered(
             "Ich kann ohne Einschränkung sitzen und die Wirbelsäule beugen.",
             "Ich kann sitzen aber die Beugung der Wirbelsäule schmerzt etwas.",
             "Sitzen und beugen der Wirbelsäule verursacht etwas Schmerz.",
@@ -200,7 +200,7 @@ private val MICHELI: Assessment = run {
     )
     val b3 = ChoiceItem(
         "b3", "3. In welchem Ausmaß ist Ihr Schmerz mit Sprungbelastungen verbunden?",
-        scored(
+        numbered(
             "Ich kann ohne Schmerz springen.",
             "Springen verursacht etwas Schmerz.",
             "Springen verursacht starke Schmerzen.",
@@ -236,7 +236,7 @@ private val MICHELI: Assessment = run {
 /** Neck Disability Index, validated German version, as in "Neck-Disability-Index_09-2026.pdf". */
 private val NDI: Assessment = run {
     val sections = listOf(
-        "Schmerzintensität" to scored(
+        "Schmerzintensität" to numbered(
             "Momentan habe ich keine Schmerzen.",
             "Ich habe im Moment sehr geringe Schmerzen.",
             "Ich habe im Moment mäßige Schmerzen.",
@@ -244,7 +244,7 @@ private val NDI: Assessment = run {
             "Ich habe im Moment sehr starke Schmerzen.",
             "Ich habe im Moment die stärksten Schmerzen, die ich mir vorstellen kann.",
         ),
-        "Persönliche Körperpflege (z.B. Waschen, Anziehen)" to scored(
+        "Persönliche Körperpflege (z.B. Waschen, Anziehen)" to numbered(
             "Ich kann meine Körperpflege erledigen, ohne dass dies zusätzliche Schmerzen verursacht.",
             "Ich kann meine Körperpflege erledigen, aber es verursacht mir zusätzliche Schmerzen.",
             "Das Erledigen der Körperpflege ist schmerzhaft und ich bin dabei langsam und vorsichtig.",
@@ -252,7 +252,7 @@ private val NDI: Assessment = run {
             "Ich brauche täglich Hilfe bei den meisten Verrichtungen meiner Körperpflege.",
             "Ich ziehe mich nicht an, wasche mich nur mit Mühe und bleibe im Bett.",
         ),
-        "Heben" to scored(
+        "Heben" to numbered(
             "Ich kann schwere Gegenstände ohne zusätzliche Schmerzen heben.",
             "Ich kann schwere Gegenstände heben, aber dies verursacht zusätzliche Schmerzen.",
             "Meine Schmerzen hindern mich daran, schwere Gegenstände vom Boden aufzuheben. Aber ich kann schwere Gegenstände " +
@@ -262,7 +262,7 @@ private val NDI: Assessment = run {
             "Ich kann nur sehr leichte Gegenstände heben.",
             "Ich kann überhaupt nichts heben oder tragen.",
         ),
-        "Lesen" to scored(
+        "Lesen" to numbered(
             "Ich kann lesen soviel ich will, ohne Nackenschmerzen zu bekommen.",
             "Ich kann lesen soviel ich will, aber ich bekomme davon leichte Nackenschmerzen.",
             "Ich kann lesen soviel ich will, aber ich bekomme davon mäßige Nackenschmerzen.",
@@ -270,7 +270,7 @@ private val NDI: Assessment = run {
             "Ich kann wegen starker Nackenschmerzen kaum lesen.",
             "Ich kann überhaupt nicht mehr lesen.",
         ),
-        "Kopfschmerzen" to scored(
+        "Kopfschmerzen" to numbered(
             "Ich habe überhaupt keine Kopfschmerzen.",
             "Ich habe leichte Kopfschmerzen, die unregelmäßig auftreten.",
             "Ich habe mäßige Kopfschmerzen, die unregelmäßig auftreten.",
@@ -278,7 +278,7 @@ private val NDI: Assessment = run {
             "Ich habe starke Kopfschmerzen, die regelmäßig auftreten.",
             "Ich habe die meiste Zeit Kopfschmerzen.",
         ),
-        "Konzentration" to scored(
+        "Konzentration" to numbered(
             "Ich kann mich, wenn ich will, ohne Schwierigkeiten voll konzentrieren.",
             "Ich kann mich, wenn ich will, mit leichten Schwierigkeiten voll konzentrieren.",
             "Ich habe ziemliche Schwierigkeiten, mich zu konzentrieren, wenn ich es will.",
@@ -286,7 +286,7 @@ private val NDI: Assessment = run {
             "Ich habe sehr große Schwierigkeiten, mich zu konzentrieren, wenn ich es will.",
             "Ich kann mich überhaupt nicht konzentrieren.",
         ),
-        "Arbeit" to scored(
+        "Arbeit" to numbered(
             "Ich kann soviel Arbeit erledigen, wie ich möchte.",
             "Ich kann nur meine übliche Arbeit erledigen, aber nicht mehr.",
             "Ich kann den größten Teil meiner üblichen Arbeit verrichten, aber nicht mehr.",
@@ -294,7 +294,7 @@ private val NDI: Assessment = run {
             "Ich kann kaum eine Arbeit erledigen.",
             "Ich kann überhaupt keine Arbeit erledigen.",
         ),
-        "Auto fahren" to scored(
+        "Auto fahren" to numbered(
             "Ich kann Auto fahren, ohne Nackenschmerzen zu bekommen.",
             "Ich kann Auto fahren, so lange ich will, mit leichten Nackenschmerzen.",
             "Ich kann Auto fahren, so lange ich will, mit mäßigen Nackenschmerzen.",
@@ -302,7 +302,7 @@ private val NDI: Assessment = run {
             "Ich kann wegen starker Nackenschmerzen kaum Auto fahren.",
             "Ich kann überhaupt nicht Auto fahren.",
         ),
-        "Schlafen" to scored(
+        "Schlafen" to numbered(
             "Ich habe keine Schlafprobleme.",
             "Mein Schlaf ist kaum gestört (weniger als 1 Stunde schlaflos).",
             "Mein Schlaf ist leicht gestört (1-2 Stunden schlaflos).",
@@ -310,7 +310,7 @@ private val NDI: Assessment = run {
             "Mein Schlaf ist stark gestört (3-5 Stunden schlaflos).",
             "Mein Schlaf ist komplett gestört (5-7 Stunden schlaflos).",
         ),
-        "Freizeitaktivität (FA) - Erholung" to scored(
+        "Freizeitaktivität (FA) - Erholung" to numbered(
             "Ich kann alle meine Freizeitaktivitäten ohne Nackenschmerzen ausüben.",
             "Ich kann, wenn auch mit einigen Nackenschmerzen, alle meine Freizeitaktivitäten ausüben.",
             "Wegen Nackenschmerzen kann ich die meisten, aber nicht alle meiner täglichen Freizeitaktivitäten ausüben.",
@@ -344,7 +344,11 @@ private val NDI: Assessment = run {
                 rule = ScoreRule.Percent,
                 unit = "%",
                 direction = Direction.LowerIsBetter,
-                bands = listOf(Band.upTo(8, "geringe Symptomatik"), Band.upTo(40, ""), Band.upTo(100, "sehr schwere Symptomatik")),
+                bands = listOf(
+                    Band.upTo(8, "Patienten mit einer geringen Symptomatik"),
+                    Band.upTo(40, null),
+                    Band.upTo(100, "Patienten mit einer sehr schweren Symptomatik, der auch eine Chronifizierung begünstigt"),
+                ),
                 // One section left out lowers the most possible; with two the result is "–" (08.11.2026).
                 minAnswered = items.size - 1,
             ),
@@ -355,7 +359,7 @@ private val NDI: Assessment = run {
 /** Oswestry Disability Index, German version (Mannion et al. 2006), as in "Oswestry-Disability-Index_ODI_11-2026.pdf". */
 private val ODI: Assessment = run {
     val sections = listOf(
-        "Schmerzstärke" to scored(
+        "Schmerzstärke" to numbered(
             "Ich habe momentan keine Schmerzen.",
             "Die Schmerzen sind momentan sehr schwach.",
             "Die Schmerzen sind momentan mäßig.",
@@ -363,7 +367,7 @@ private val ODI: Assessment = run {
             "Die Schmerzen sind momentan sehr stark.",
             "Die Schmerzen sind momentan so schlimm wie nur vorstellbar.",
         ),
-        "Körperpflege (Waschen, Anziehen, etc.)" to scored(
+        "Körperpflege (Waschen, Anziehen, etc.)" to numbered(
             "Ich kann meine Körperpflege normal durchführen, ohne dass die Schmerzen dadurch stärker werden.",
             "Ich kann meine Körperpflege normal durchführen, aber es ist schmerzhaft.",
             "Meine Körperpflege normal durchzuführen ist schmerzhaft und ich bin langsam und vorsichtig.",
@@ -371,7 +375,7 @@ private val ODI: Assessment = run {
             "Ich brauche täglich Hilfe bei den meisten Aspekten der Körperpflege.",
             "Ich kann mich nicht selbst anziehen, wasche mich mit Mühe und bleibe im Bett.",
         ),
-        "Heben" to scored(
+        "Heben" to numbered(
             "Ich kann schwere Gegenstände heben, ohne dass die Schmerzen dadurch stärker werden.",
             "Ich kann schwere Gegenstände heben, aber die Schmerzen werden dadurch stärker.",
             "Schmerzen hindern mich daran, schwere Gegenstände vom Boden zu heben, aber es geht, wenn sie geeignet stehen (z.B. auf einem Tisch).",
@@ -379,7 +383,7 @@ private val ODI: Assessment = run {
             "Ich kann nur sehr leichte Gegenstände heben.",
             "Ich kann überhaupt nichts heben oder tragen.",
         ),
-        "Gehen" to scored(
+        "Gehen" to numbered(
             "Schmerzen hindern mich nicht daran, so weit zu gehen, wie ich möchte.",
             "Schmerzen hindern mich daran, mehr als 1-2 km zu gehen.",
             "Schmerzen hindern mich daran, mehr als 0,5 km zu gehen.",
@@ -387,7 +391,7 @@ private val ODI: Assessment = run {
             "Ich kann nur mit einem Stock oder Krücken gehen.",
             "Ich bin die meiste Zeit im Bett und muss mich zur Toilette schleppen.",
         ),
-        "Sitzen" to scored(
+        "Sitzen" to numbered(
             "Ich kann auf jedem Stuhl so lange sitzen, wie ich möchte.",
             "Ich kann auf meinem Lieblingsstuhl so lange sitzen, wie ich möchte.",
             "Schmerzen hindern mich daran, länger als 1 Stunde zu sitzen.",
@@ -395,7 +399,7 @@ private val ODI: Assessment = run {
             "Schmerzen hindern mich daran, länger als 10 Minuten zu sitzen.",
             "Schmerzen hindern mich daran, überhaupt zu sitzen.",
         ),
-        "Stehen" to scored(
+        "Stehen" to numbered(
             "Ich kann so lange stehen, wie ich möchte, ohne dass die Schmerzen dadurch stärker werden.",
             "Ich kann so lange stehen, wie ich möchte, aber die Schmerzen werden dadurch stärker.",
             "Schmerzen hindern mich daran, länger als 1 Stunde zu stehen.",
@@ -403,7 +407,7 @@ private val ODI: Assessment = run {
             "Schmerzen hindern mich daran, länger als 10 Minuten zu stehen.",
             "Schmerzen hindern mich daran, überhaupt zu stehen.",
         ),
-        "Schlafen" to scored(
+        "Schlafen" to numbered(
             "Mein Schlaf ist nie durch Schmerzen gestört.",
             "Mein Schlaf ist gelegentlich durch Schmerzen gestört.",
             "Ich schlafe auf Grund von Schmerzen weniger als 6 Stunden.",
@@ -411,7 +415,7 @@ private val ODI: Assessment = run {
             "Ich schlafe auf Grund von Schmerzen weniger als 2 Stunden.",
             "Schmerzen hindern mich daran, überhaupt zu schlafen.",
         ),
-        "Sexualleben" to scored(
+        "Sexualleben" to numbered(
             "Mein Sexualleben ist normal und die Schmerzen werden dadurch nicht stärker.",
             "Mein Sexualleben ist normal, aber die Schmerzen werden dadurch stärker.",
             "Mein Sexualleben ist nahezu normal, aber sehr schmerzhaft.",
@@ -419,7 +423,7 @@ private val ODI: Assessment = run {
             "Ich habe auf Grund von Schmerzen fast kein Sexualleben.",
             "Schmerzen verhindern jegliches Sexualleben.",
         ),
-        "Sozialleben" to scored(
+        "Sozialleben" to numbered(
             "Mein Sozialleben ist normal und die Schmerzen werden durch nicht stärker.",
             "Mein Sozialleben ist normal, aber die Schmerzen werden dadurch stärker.",
             "Schmerzen haben keinen wesentlichen Einfluss auf mein Sozialleben, außer dass sie meine eher aktiven Interessen, z.B. Sport, einschränken.",
@@ -427,7 +431,7 @@ private val ODI: Assessment = run {
             "Schmerzen schränken mein Sozialleben auf mein Zuhause ein.",
             "Ich habe auf Grund von Schmerzen kein Sozialleben.",
         ),
-        "Reisen" to scored(
+        "Reisen" to numbered(
             "Ich kann überallhin reisen und die Schmerzen werden dadurch nicht stärker.",
             "Ich kann überallhin reisen, aber die Schmerzen werden dadurch stärker.",
             "Trotz starker Schmerzen kann ich länger als 2 Stunden unterwegs sein.",
@@ -518,9 +522,12 @@ private val RMDQ: Assessment = run {
             "besten beschreibt. Denken Sie bitte nur an die Beschwerden von heute. Trifft ein Satz für Ihre Beschwerden von " +
             "heute zu, kreuzen Sie diesen Satz an. Falls ein Satz die Beschwerden nicht beschreibt, kreuzen Sie diesen Satz " +
             "nicht an und gehen Sie zum nächsten Satz.\n\n" +
-            "Die minimale klinisch relevante Veränderung beträgt bei Patienten mit geringer Behinderung (<9) 1-2, mit großer " +
-            "Behinderung (>16) 8, bei nicht genauer bestimmten Patienten 5. Bei Werten unter 4 bzw. über 20 sind nur geringe " +
-            "Veränderungen zu erwarten.",
+            "Die minimale klinisch relevante Veränderung wird von diversen Autoren unterschiedlich angegeben und beträgt " +
+            "zwischen 2-8 Punkten. Es wird daher vorgeschlagen diese Grenze abhängig vom Behinderungsgrad zu bestimmen: Bei " +
+            "Patienten mit geringer Behinderung (<9): 1-2. Bei Patienten mit großer Behinderung (>16): 8. Bei nicht genauer " +
+            "bestimmten Patienten: 5. Bei Werten unter 4 bzw. über 20 sind nur geringe Veränderungen zu erwarten und der " +
+            "Fragebogen ist entweder nicht aussagekräftig bzw. die minimal klinisch relevante Veränderung übersteigt den " +
+            "Ausgangswert.",
         sections = listOf(Section(items = listOf(list))),
         scores = listOf(Score("score", "Score", listOf(list.id), direction = Direction.LowerIsBetter)),
     )
@@ -566,13 +573,14 @@ private val VOMS: Assessment = run {
             ),
             test(
                 "sakkaden-h", "2. Sakkaden (schnelle Blickfolge) – horizontal",
-                "Ausgangsstellung: Der Patient und der Untersucher sitzen sich gegenüber. Der Untersucher hält 2 Ziele (z.B. " +
+                "Dieser Test wird zuerst horizontal und dann vertikal durchgeführt. " +
+                    "Ausgangsstellung: Der Patient und der Untersucher sitzen sich gegenüber. Der Untersucher hält 2 Ziele (z.B. " +
                     "Stifte) ca. 90cm vom Patient entfernt. Zur Mitte haben diese einen Abstand von ca. 45cm. Aktion: Der Patient " +
                     "schaut nur mit seinen Augen so schnell wie möglich von Ziel zu Ziel, ohne den Kopf zu bewegen. Eine " +
                     "Wiederholung gilt vom Startpunkt aus (rechts-links-rechts, bzw. oben-unten-oben). Der Patient führt 10 " +
                     "Wiederholungen durch.",
             ),
-            test("sakkaden-v", "2. Sakkaden (schnelle Blickfolge) – vertikal", "Wie horizontal, oben-unten-oben."),
+            test("sakkaden-v", "2. Sakkaden (schnelle Blickfolge) – vertikal", "Dieser Test wird zuerst horizontal und dann vertikal durchgeführt."),
             test(
                 "konvergenz", "3. Konvergenz (Doppelbild bei Nähe)",
                 "Ausgangsstellung: Der Patient sitzt (falls notwendig mit Korrekturlinsen). Der Therapeut sitzt, die " +
@@ -585,13 +593,14 @@ private val VOMS: Assessment = run {
             ),
             test(
                 "vor-h", "4. Vestibulookulärer Reflex (Blickstabilisierung bei Kopfbewegung) – horizontal",
-                "Ausgangsstellung: Der Patient und der Untersucher sitzen sich gegenüber. Der Untersucher hält das Ziel ca. " +
+                "Dieser Test wird zuerst horizontal und dann vertikal durchgeführt. " +
+                    "Ausgangsstellung: Der Patient und der Untersucher sitzen sich gegenüber. Der Untersucher hält das Ziel ca. " +
                     "90cm vom Patient entfernt. Das Ziel (z.B. Stift) wird mit den Augen fokussiert. Aktion: Der Patient bewegt " +
                     "den Kopf aus der Mitte um 20° zuerst nach rechts und links (horizontal) und dann nach oben und unten " +
                     "(vertikal), während er das Ziel weiterhin mit den Augen fokussiert. Bewegungsgeschwindigkeit: 180 Schläge " +
                     "pro Minute (Metronom). Eine Wiederholung gilt vom Startpunkt aus. Der Patient führt 10 Wiederholungen durch.",
             ),
-            test("vor-v", "4. Vestibulookulärer Reflex (Blickstabilisierung bei Kopfbewegung) – vertikal", "Wie horizontal, nach oben und unten."),
+            test("vor-v", "4. Vestibulookulärer Reflex (Blickstabilisierung bei Kopfbewegung) – vertikal", "Dieser Test wird zuerst horizontal und dann vertikal durchgeführt."),
             test(
                 "vms", "5. Visual Motion Sensitivity",
                 "Ausgangsstellung: Der Patient steht (Füße schulterbreit) mit Blick zu einem belebten Teil der Klinik. Der " +

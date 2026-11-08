@@ -33,15 +33,16 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     }
 
     /**
-     * Deletes new form [id] again if nothing of it is answered and it has no result, so that "+ Bogen" alone keeps nothing; on [background],
-     * for the page as it closes, not once the Doku is locked.
+     * Deletes new form [id] again if nothing of it is answered, so that "+ Bogen" alone keeps nothing; on [background],
+     * for the page as it closes, not once the Doku is locked. One whose result stands without an answer, such as an RMDQ
+     * with nothing ticked, which is 0, stays if [confirmed] by "Fertig", and counts as used (08.11.2026).
      */
-    fun dropIfEmptyLater(id: Long) {
-        background.launch { doku.changing { dropIfEmpty(it, id) } }
+    fun dropIfEmptyLater(id: Long, confirmed: Boolean = false) {
+        background.launch { doku.changing { dropIfEmpty(it, id, confirmed) } }
     }
 
-    /** As [dropIfEmptyLater], to be done as the Doku locks ([DokuSaver]). */
-    fun pendingDrop(id: Long): suspend (DokuDatabase) -> Unit = { dropIfEmpty(it, id) }
+    /** As [dropIfEmptyLater], to be done as the Doku locks ([DokuSaver]): not confirmed. */
+    fun pendingDrop(id: Long): suspend (DokuDatabase) -> Unit = { dropIfEmpty(it, id, confirmed = false) }
 
     /** Filled-in form [id]; none once deleted or locked. */
     suspend fun get(id: Long): FilledAssessment? = doku.withDatabase { read(it, id) }
@@ -135,14 +136,22 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     }
 
     /**
-     * Deletes form [id] if it has no answer, nor a result without one, as a checklist with nothing ticked makes 0, and its
-     * patient is active.
+     * Deletes form [id] of an active patient if nothing of it is answered; unless [confirmed] and its result stands without
+     * an answer ([Scoring.reachesResultUnanswered]), when it stays and goes to the top of those last used.
      */
-    private suspend fun dropIfEmpty(database: DokuDatabase, id: Long) {
+    private suspend fun dropIfEmpty(database: DokuDatabase, id: Long, confirmed: Boolean) {
         val entry = database.assessments().get(id) ?: return
         if (!isChangeable(database, entry.appointmentId) || database.assessments().answers(id).isNotEmpty()) return
-        val reached = BuiltInAssessments.byId(entry.assessmentId)?.let { form -> Scoring.results(form, emptyMap()).any { it.value != null } } == true
-        if (!reached) database.assessments().delete(id)
+        if (confirmed && BuiltInAssessments.byId(entry.assessmentId)?.let(Scoring::reachesResultUnanswered) == true) {
+            markUsed(database, entry.assessmentId)
+        } else {
+            database.assessments().delete(id)
+        }
+    }
+
+    /** Puts form [assessmentId] on top of those last used. */
+    private suspend fun markUsed(database: DokuDatabase, assessmentId: String) {
+        database.settings().put(DokuSetting(RECENT_KEY, withRecent(idsOf(database.settings().get(RECENT_KEY)), assessmentId).joinToString(",")))
     }
 
     /**
@@ -161,9 +170,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         val answeredBefore = id != null && database.assessments().answers(id).isNotEmpty()
         val saved = database.assessments().save(AssessmentEntry(id ?: 0, appointmentId, assessmentId), stored)
         // Used once answered: one added by "+ Bogen" and left empty goes again, and was not used.
-        if (!answeredBefore && stored.isNotEmpty()) {
-            database.settings().put(DokuSetting(RECENT_KEY, withRecent(idsOf(database.settings().get(RECENT_KEY)), assessmentId).joinToString(",")))
-        }
+        if (!answeredBefore && stored.isNotEmpty()) markUsed(database, assessmentId)
         return saved
     }
 

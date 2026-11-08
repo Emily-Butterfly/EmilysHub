@@ -49,4 +49,4 @@ Abgestimmt im Interview vom 08.11.2026.
   - ODI und NDI: höchstens ein Abschnitt darf fehlen; fehlen zwei, „Ergebnis: –“.
   - Micheli Teil A: sechs Antworten von 0 bis 5, mit „Ich habe Schmerz, aber er hat keinen Einfluss.“ als 1; Teil C in ganzen Zentimetern 0–10.
   - HDI: Gesamtpunktzahl und die Teilskalen Emotional (E) und Funktional (F); 70 Punkte zählen als „Schwere Beeinträchtigung“.
-- RMDQ: angekreuzte Sätze zählen je einen Punkt, nichts angekreuzt ist 0; dafür eine Ankreuzliste mit Punkten. Ein neuer Bogen ohne Antwort, aber mit Ergebnis, bleibt.
+- RMDQ: angekreuzte Sätze zählen je einen Punkt, nichts angekreuzt ist 0; dafür eine Ankreuzliste mit Punkten. Ein neuer RMDQ ohne Kreuz bleibt nur mit „Fertig“ als 0 stehen; mit Zurück oder beim Sperren geht er wieder (nachgefragt am 08.11.2026).

@@ -58,6 +58,8 @@ class SpineAssessmentsTest {
     @Test
     fun `the LSIQ counts its yeses from 0 to 15, and from 9 on marks who responds to motor control`() {
         assertEquals(15, form("lsiq").items.size)
+        assertEquals(0L, results("lsiq", yesNo("lsiq", emptySet())).single().value)
+        assertNull(results("lsiq", yesNo("lsiq", (1..15).toSet()) - "15").single().value)
         assertEquals(1500L, results("lsiq", yesNo("lsiq", (1..15).toSet())).single().value)
         assertEquals(400L, results("lsiq", yesNo("lsiq", setOf(2, 4, 6, 8))).single().value)
 
@@ -126,7 +128,7 @@ class SpineAssessmentsTest {
 
     @Test
     fun `the NDI bands mark little up to 8 percent and very severe above 40`() {
-        assertEquals(listOf("geringe Symptomatik", null, null, "sehr schwere Symptomatik"), listOf(800L, 801L, 4000L, 4001L).map { bandAt("ndi", it) })
+        assertEquals(listOf("Patienten mit einer geringen Symptomatik", null, null, "Patienten mit einer sehr schweren Symptomatik, der auch eine Chronifizierung begünstigt"), listOf(800L, 801L, 4000L, 4001L).map { bandAt("ndi", it) })
     }
 
     @Test

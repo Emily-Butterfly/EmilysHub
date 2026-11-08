@@ -3,7 +3,7 @@ package de.emilyshub.doku.assessments
 /** A [score] reckoned from the answers: its [value] in hundredths and the [band] it lies in, none while too little is answered. */
 data class ScoreResult(val score: Score, val value: Long?) {
     /** The name of the band [value] lies in, if the score has bands. */
-    val band: String? get() = value?.let { v -> score.bands.firstOrNull { v <= it.upTo }?.label?.ifEmpty { null } }
+    val band: String? get() = value?.let { v -> score.bands.firstOrNull { v <= it.upTo }?.label }
 }
 
 /** How a form reckons its results from its answers, as the original does (SPEC.md §14): pure logic, without Android. */
@@ -12,8 +12,11 @@ object Scoring {
     /** Each score of [form] from [answers] by item id; items not shown ([visible]) count for nothing. */
     fun results(form: Assessment, answers: Map<String, Answer>): List<ScoreResult> {
         val shown = visible(form, answers).map(Item::id).toSet()
-        return form.scores.map { score -> ScoreResult(score, value(form, score, answers.filterKeys { it in shown })) }
+        return form.scores.map { score -> ScoreResult(score, value(form, score, answers.filterKeys { it in shown }, shown)) }
     }
+
+    /** Whether [form] reaches a result with nothing answered, as one counting what is ticked, nothing being 0. */
+    fun reachesResultUnanswered(form: Assessment): Boolean = results(form, emptyMap()).any { it.value != null }
 
     /** The items of [form] shown with [answers]: each without a condition, or whose condition holds of an item shown. */
     fun visible(form: Assessment, answers: Map<String, Answer>): List<Item> {
@@ -63,12 +66,12 @@ object Scoring {
         else -> false
     }
 
-    /** [score] of [form] from [answers], in hundredths; none while fewer than its [Score.minAnswered] are answered. */
-    private fun value(form: Assessment, score: Score, answers: Map<String, Answer>): Long? {
+    /** [score] of [form] from [answers] to the items [shown], in hundredths; none while fewer than its [Score.minAnswered] are answered. */
+    private fun value(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Long? {
         val answered = score.items.mapNotNull { id ->
             val item = checkNotNull(form.item(id))
-            // Nothing checked of a scored checklist is an answer too: none applies.
-            val answer = answers[id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true }
+            // Nothing checked of a scored checklist shown is an answer too: none applies.
+            val answer = answers[id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true && id in shown }
             answer?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
         }
         if (answered.size < score.minAnswered) return null

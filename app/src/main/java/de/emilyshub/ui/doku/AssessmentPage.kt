@@ -210,9 +210,11 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
     var answers by remember { mutableStateOf(filled.answers) }
     var deleted by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    // Closed by "Fertig": a new one with nothing answered but a result, such as an RMDQ, stays.
+    var confirmed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     if (sheet.canChange) {
-        SaveAnswers(doku, assessments, page, original = filled.answers, current = answers, skip = { deleted })
+        SaveAnswers(doku, assessments, page, original = filled.answers, current = answers, skip = { deleted }, confirmed = { confirmed })
     }
     val form = filled.form
 
@@ -231,7 +233,14 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
                     .semantics { heading() },
             )
             if (sheet.canChange) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.doku_assessment_done)) }
+                TextButton(
+                    onClick = {
+                        confirmed = true
+                        onDone()
+                    },
+                ) {
+                    Text(stringResource(R.string.doku_assessment_done))
+                }
                 AssessmentMenu(doku, onDelete = { deleting = true })
             }
         }
@@ -299,13 +308,23 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
 
 /**
  * Saves [current], once it is not [original] any more, as the page closes and before the Doku locks; a new form left
- * empty goes again then, but not as the screen turns, after which the page goes on with it. Nothing once [skip] says so.
+ * empty goes again then, unless [confirmed] by "Fertig" with a result ([Assessments.dropIfEmptyLater]), but not as the
+ * screen turns, after which the page goes on with it. Nothing once [skip] says so.
  */
 @Composable
-private fun SaveAnswers(doku: Doku, assessments: Assessments, page: DokuPage.Assessment, original: Map<String, Answer>, current: Map<String, Answer>, skip: () -> Boolean) {
+private fun SaveAnswers(
+    doku: Doku,
+    assessments: Assessments,
+    page: DokuPage.Assessment,
+    original: Map<String, Answer>,
+    current: Map<String, Answer>,
+    skip: () -> Boolean,
+    confirmed: () -> Boolean,
+) {
     val activity = LocalActivity.current
     val answers by rememberUpdatedState(current)
     val skipNow by rememberUpdatedState(skip)
+    val confirmedNow by rememberUpdatedState(confirmed)
     DisposableEffect(page) {
         val empty = { page.new && answers.isEmpty() }
         val changed = { !skipNow() && answers != original }
@@ -323,7 +342,7 @@ private fun SaveAnswers(doku: Doku, assessments: Assessments, page: DokuPage.Ass
             saver.close()
             when {
                 skipNow() -> Unit
-                empty() -> if (activity?.isChangingConfigurations != true) assessments.dropIfEmptyLater(page.id)
+                empty() -> if (activity?.isChangingConfigurations != true) assessments.dropIfEmptyLater(page.id, confirmedNow())
                 changed() -> assessments.saveLater(page.appointmentId, page.id, page.assessmentId, answers)
             }
         }
@@ -471,7 +490,8 @@ private fun answerText(answer: Answer): String = when (answer) {
     is Answer.Chosen -> answer.optionId
     is Answer.YesNo -> stringResource(if (answer.yes) R.string.doku_assessment_yes else R.string.doku_assessment_no)
     is Answer.OnScale -> "${answer.value}"
-    is Answer.Checked -> (answer.optionIds.sorted() + listOfNotNull(answer.other.ifEmpty { null })).joinToString(", ")
+    // Numbers as numbers: 1, 3, 13.
+    is Answer.Checked -> (answer.optionIds.sortedWith(compareBy({ it.toIntOrNull() ?: Int.MAX_VALUE }, { it })) + listOfNotNull(answer.other.ifEmpty { null })).joinToString(", ")
     is Answer.Number -> TestNumber.format(answer.hundredths)
     is Answer.Text -> answer.text
     is Answer.Regions -> (answer.regions.map(BodyRegion::label) + listOfNotNull(answer.text.ifEmpty { null })).joinToString(", ")

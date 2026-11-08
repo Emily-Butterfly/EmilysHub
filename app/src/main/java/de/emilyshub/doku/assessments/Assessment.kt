@@ -224,10 +224,10 @@ enum class ScoreRule {
     ZeroTo100,
 }
 
-/** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed if [label] is empty. */
-data class Band(val upTo: Long, val label: String) {
+/** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */
+data class Band(val upTo: Long, val label: String?) {
     companion object {
         /** Up to whole number [upTo]. */
-        fun upTo(upTo: Int, label: String) = Band(upTo * 100L, label)
+        fun upTo(upTo: Int, label: String?) = Band(upTo * 100L, label)
     }
 }

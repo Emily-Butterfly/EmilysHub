@@ -164,6 +164,32 @@ class DokuAssessmentsScreenTest {
     }
 
     @Test
+    fun `an RMDQ with nothing ticked stays as 0 by Fertig, and goes again by back`() {
+        launchApp().use {
+            val patient = compose.openWithPatient()
+            val at = appointment(patient, "2026-10-23")
+            compose.openTab("Termine")
+            compose.onNodeWithText("(leer)").performClick()
+
+            compose.addForm()
+            compose.field("Bogen suchen").performTextInput("rmdq")
+            compose.onNodeWithText("Roland and Morris Disability Questionnaire").performClick()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.waitForIdle()
+            assertEquals(0, runBlocking { checkNotNull(app.assessments.at(at)) }.size)
+
+            compose.addForm()
+            compose.field("Bogen suchen").performTextInput("rmdq")
+            compose.onNodeWithText("Roland and Morris Disability Questionnaire").performClick()
+            compose.onNode(hasText("Score: 0 Punkte")).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Fertig").performClick()
+
+            compose.onNodeWithText("Score: 0 Punkte").performScrollTo().assertIsDisplayed()
+            assertEquals(1, runBlocking { checkNotNull(app.assessments.at(at)) }.size)
+        }
+    }
+
+    @Test
     fun `the tab of the forms has a card, which opens the history, whose rows open the form`() {
         launchApp().use {
             val patient = compose.openWithPatient()

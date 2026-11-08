@@ -269,12 +269,19 @@ class AssessmentsTest {
     }
 
     @Test
-    fun `a new form with nothing ticked but a result stays`() {
+    fun `a new form with nothing ticked but a result stays only once confirmed, and is used then`() {
         val at = appointment("2026-10-23")
-        val rmdq = checkNotNull(runBlocking { assessments.create(at, "rmdq") })
+        val left = checkNotNull(runBlocking { assessments.create(at, "rmdq") })
+        val confirmed = checkNotNull(runBlocking { assessments.create(at, "rmdq") })
+        val phq = checkNotNull(runBlocking { assessments.create(at, "phq-9") })
 
-        assessments.dropIfEmptyLater(rmdq)
+        assessments.dropIfEmptyLater(left)
+        assessments.dropIfEmptyLater(confirmed, confirmed = true)
+        assessments.dropIfEmptyLater(phq, confirmed = true)
 
-        assertEquals(listOf(0L), runBlocking { checkNotNull(assessments.at(at)) }.single().results.map { it.value })
+        val kept = runBlocking { checkNotNull(assessments.at(at)) }
+        assertEquals(listOf(confirmed), kept.map { it.id })
+        assertEquals(listOf(0L), kept.single().results.map { it.value })
+        assertEquals(listOf("rmdq"), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
     }
 }
