@@ -273,6 +273,7 @@ Ausschließlich:
 | 8 | Erweiterungen (v1.1): Icon, Ziele statt Wunschliste, „Heute nicht“, Wiederholungs-Ende, „Demnächst“, Wecker, Weckzeit und Töne für To-dos, Name auf dem Sperrbildschirm, gekoppelte Routinen, Streak-Flamme, Heatmap, Haushaltsbuch |
 | 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste, voraussichtlicher Endsaldo, Fixbuchungen mit Ende |
 | 10 | Sonstiges mit Zielen und Dokumentation, „€“ und „Gestern nachtragen“ in Heute, Dokumentation: Sperre, Patienten, Termine, Tests, Backup |
+| 11 | Dokumentation: Assessmentbögen (eingebaut, nach Unterkategorie) |
 
 Nach jeder Etappe: installierbare APK.
 
@@ -316,14 +317,14 @@ Persönliche Arbeitsnotizen zu Patienten, **keine** offizielle Behandlungsdokume
 - Nicht in der Suche über alle Bereiche, nicht in Heute, keine Pins, gemeinsamen Tags oder Verknüpfungen, keine Erinnerungen oder Benachrichtigungen, nicht in Statistik und Heatmap.
 - Die Tastatur wird gebeten, in der Dokumentation keine Wörter zu lernen.
 - Kopierter Text ist als vertraulich markiert (keine Vorschau) und wird beim Sperren aus der Zwischenablage gelöscht.
-- Kein Export (wird später entschieden); nur das Backup (§10) verlässt das Gerät, in der eigenen Verschlüsselung.
+- Kein Export, auch nicht je Patient (entschieden am 08.11.2026); nur das Backup (§10) verlässt das Gerät, in der eigenen Verschlüsselung.
 
 ### Startseite
 
 - Oben ein **Löschhinweis**, sobald Patienten seit über 12 Monaten abgeschlossen sind („3 Personen seit über 12 Monaten abgeschlossen – jetzt löschen?“); nur hier, keine Benachrichtigung
 - Eigene **Suche** über Patienten, ihre Felder, Termin-Dokumentationen und Bemerkungen
 - Die **aktiven Patienten**, zuletzt behandelte zuerst (umschaltbar auf Name), je mit dem letzten Termin; „+ Patient“
-- Menü: Tests · Termin-Vorlage · Archiv · Doku-Passwort ändern · Fingerabdruck
+- Menü: Tests · Bögen · Termin-Vorlage · Archiv · Doku-Passwort ändern · Fingerabdruck
 
 ### Patienten
 
@@ -337,7 +338,7 @@ Persönliche Arbeitsnotizen zu Patienten, **keine** offizielle Behandlungsdokume
 | Sonstiges | Optional, Markdown |
 | Status | Aktiv oder abgeschlossen |
 
-- Die Seite eines Patienten hat drei Reiter: **Übersicht** (die Felder) · **Termine** · **Tests**.
+- Die Seite eines Patienten hat vier Reiter: **Übersicht** (die Felder) · **Termine** · **Tests** · **Bögen**.
 - **Abschließen**: ins Doku-Archiv, nur zum Lesen, wiederherstellbar.
 - **Endgültig löschen** mit Rückfrage, mit allen Terminen und Messungen; die Datenbank überschreibt Gelöschtes. In älteren Backups steckt es noch: die nächtlichen fallen nach 7 Nächten weg, die von Hand gespeicherten bleiben, bis man sie löscht.
 
@@ -357,4 +358,15 @@ Persönliche Arbeitsnotizen zu Patienten, **keine** offizielle Behandlungsdokume
 - **Messungen** immer an einem Termin, mit dessen Datum; mehrere Tests je Termin.
 - **Entwicklung** im Reiter Tests: je gemessenem Test eine Karte mit dem letzten Wert (bzw. der Summe) und der Veränderung zur ersten Messung, besser oder schlechter nach der Richtung. Der Verlauf zeigt je Wert ein Liniendiagramm über die Zeit und darunter alle Messungen als Tabelle; eine Zeile öffnet ihren Termin. Kein Vergleich zwischen Patienten.
 
-Zurückgestellt: **interaktive Assessmentbögen** (werden nach den übrigen Slices besprochen) und ein **Export** je Patient.
+### Assessmentbögen
+
+Abgestimmt im Interview vom 08.11.2026.
+
+- **Eingebaut, nicht änderbar**: die Bögen aus der Kategorie „Scores“ der Downloads von DIGOTOR (digotor.info), übernommen wird ihr Inhalt (Items, Antworten, Punkte, Auswertung), nicht die PDFs. Keine eigenen Bögen; ein neuer Bogen kommt mit einem App-Update. Weggelassen werden Fachtexte (Artikel, Schlafhygiene, Nachbehandlung und Expertenkonsens Spinalstenose), Varianten (Word, mit DIGOTOR-Logo) und der englische Anamnesebogen.
+- Der Wortlaut der Bögen steht im Quellcode; das Repo ist deshalb **privat**.
+- **Bausteine**: Antwort-Items mit festen Antworten und Punkten; ohne Punkte Ja/Nein, Skala (z. B. 0–10), Ankreuzliste, Freitext und **Körperregionen** zum Ankreuzen mit Freitext (statt „bitte einzeichnen“).
+- **Auswertung wie im Original**: Summe, Prozent, Teilskalen, umgekehrt gepolte Items, Regeln für fehlende Antworten und die Einstufung als Text; live im Bogen. Reicht das Beantwortete nach diesen Regeln nicht, „Ergebnis: –“. Die Richtung (höher oder niedriger ist besser) je Ergebnis kommt aus dem Bogen.
+- **Am Termin**: „+ Bogen“ unter den Tests; ein Bogen hat das Datum seines Termins, ein Termin kann mehrere haben. Ändern, mit Rückfrage löschen; ein gelöschter Termin nimmt seine Bögen mit. Beim abgeschlossenen Patienten nur zum Lesen. Ausgefüllt wird nur in der eigenen Hand, kein Patientenmodus zum Weiterreichen des Handys.
+- **Auswahl** bei „+ Bogen“: nach Unterkategorie wie bei DIGOTOR, Suche nach Name und Abkürzung, oben „Zuletzt benutzt“ (die letzten 5). Ein Bogen in mehreren Kategorien ist derselbe Bogen. Unter **Bögen** im Menü lassen sich Bögen ausblenden.
+- **Reiter Bögen** beim Patienten: je Bogen mit Ergebnis eine Karte wie bei den Tests (letztes Ergebnis, Veränderung zur ersten Ausfüllung, besser oder schlechter); der Verlauf mit einem Liniendiagramm je Ergebnis (bei Teilskalen je Teilskala) und einer Tabelle, eine Zeile öffnet den Bogen am Termin. Darunter die Bögen ohne Ergebnis nach Datum.
+- Die Doku-Suche findet die Freitexte der Bögen; Bögen kommen ins Backup; es gelten die Regeln der Insel.

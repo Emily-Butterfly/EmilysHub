@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8) und #64 **Etappe 10**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10** und #77 **Etappe 11**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -119,4 +119,23 @@ Abgestimmt im Interview vom 07.11.2026; Sammel-Issue #64. #55–#57 hängen nich
 | 62 | [Dokumentation: Testwerte am Termin & Verlauf](62-doku-messungen-und-verlauf.md) | 🤖 | 60, 61 |
 | 63 | [Dokumentation im Backup, doppelt verschlüsselt](63-doku-backup.md) | 🤖 | 58 |
 
-Zurückgestellt: **interaktive Assessmentbögen** und ein **Export** je Patient. Sobald #55–#63 alle geschlossen sind, gilt, was #64 unter „Danach: zurückgestellt“ sagt: im Chat danach fragen und sie in einem Interview klären, bevor #64 geschlossen wird.
+Die zurückgestellten **Assessmentbögen** wurden im Interview vom 08.11.2026 geklärt (Etappe 11); einen **Export** je Patient gibt es nicht.
+
+## Etappe 11 – Dokumentation: Assessmentbögen
+
+Abgestimmt im Interview vom 08.11.2026; Sammel-Issue #77. #66 braucht #65, weil sonst der Wortlaut der Bögen öffentlich gepusht würde. #67–#76 hängen nur an #66, nicht voneinander.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 65 | [Repo privat schalten](65-repo-privat.md) | 🙋 | – |
+| 66 | [Bögen: Grundgerüst, Anamnesebogen & PHQ-9](66-boegen-grundgeruest.md) | 🤖 | 65 |
+| 67 | [Bögen: Wirbelsäule](67-boegen-wirbelsaeule.md) | 🤖 | 66 |
+| 68 | [Bögen: Untere Extremität – Knie & Hüfte](68-boegen-knie-huefte.md) | 🤖 | 66 |
+| 69 | [Bögen: Untere Extremität – Fuß, Sprunggelenk & Übrige](69-boegen-fuss-sprunggelenk.md) | 🤖 | 66 |
+| 70 | [Bögen: Obere Extremität](70-boegen-obere-extremitaet.md) | 🤖 | 66 |
+| 71 | [Bögen: Schmerz](71-boegen-schmerz.md) | 🤖 | 66 |
+| 72 | [Bögen: Psychosoziales](72-boegen-psychosoziales.md) | 🤖 | 66 |
+| 73 | [Bögen: Kiefer / CMD](73-boegen-kiefer-cmd.md) | 🤖 | 66 |
+| 74 | [Bögen: Neurologie](74-boegen-neurologie.md) | 🤖 | 66 |
+| 75 | [Bögen: Schlafverhalten](75-boegen-schlaf.md) | 🤖 | 66 |
+| 76 | [Bögen: Verschiedenes](76-boegen-verschiedenes.md) | 🤖 | 66 |
