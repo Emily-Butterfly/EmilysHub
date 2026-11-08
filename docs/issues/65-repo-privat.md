@@ -15,9 +15,9 @@ Die Bögen kommen mit ihrem vollen Wortlaut in den Quellcode. Der Wortlaut gehö
 
 ### Schritte
 
-- [ ] Auf GitHub: Emily-Butterfly/EmilysHub → Settings → General → Danger Zone → **Change visibility** → **Make private**
+- [x] Auf GitHub: Emily-Butterfly/EmilysHub → Settings → General → Danger Zone → **Change visibility** → **Make private**
 - [ ] Prüfen, dass der Build in GitHub Actions weiterläuft und die signierte APK als Artefakt entsteht (private Repos haben ein begrenztes Kontingent an Actions-Minuten)
-- [ ] Kurz im Issue bestätigen; danach dürfen #66 bis #76 Wortlaut pushen
+- [x] Kurz im Issue bestätigen; danach dürfen #66 bis #76 Wortlaut pushen
 
 ## Entscheidungen
 
