@@ -163,8 +163,13 @@ internal fun AppointmentPage(
     if (choosingForm) {
         ChooseAssessment(doku, assessments, onChoose = { assessmentId ->
             choosingForm = false
-            measuring = true
-            scope.launch { assessments.create(page.id, assessmentId)?.let { onFill(assessmentId, it, true) } }
+            scope.launch {
+                assessments.create(page.id, assessmentId)?.let {
+                    // Filled in at, the appointment is no longer untouched; not before the form is there.
+                    measuring = true
+                    onFill(assessmentId, it, true)
+                }
+            }
         }, onDismiss = { choosingForm = false })
     }
 

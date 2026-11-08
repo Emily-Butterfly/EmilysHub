@@ -122,6 +122,13 @@ class ScoringTest {
     }
 
     @Test
+    fun `an answer that no longer fits its item, which changed its kind, stays apart as well`() {
+        val form = form(items = listOf(choice("a"), TextItem("b", "Wo?")))
+
+        assertEquals(mapOf("a" to Answer.YesNo(true)), Scoring.orphans(form, mapOf("a" to Answer.YesNo(true), "b" to Answer.Text("Knie"))))
+    }
+
+    @Test
     fun `a score's range follows from its rule and items`() {
         val form = form(
             Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.LowerIsBetter),

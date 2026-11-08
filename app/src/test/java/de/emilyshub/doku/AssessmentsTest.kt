@@ -109,10 +109,11 @@ class AssessmentsTest {
     }
 
     @Test
-    fun `a form added by + Bogen is used last, and goes again if left empty`() {
+    fun `a form added by + Bogen is used once answered, and goes again if left empty`() {
         val at = appointment("2026-10-23")
-        val empty = checkNotNull(runBlocking { assessments.create(at, "phq-9") })
+        val empty = checkNotNull(runBlocking { assessments.create(at, "anamnese-v8") })
         val answered = checkNotNull(runBlocking { assessments.create(at, "phq-9") })
+        assertEquals(emptyList<String>(), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
         fill(at, "phq-9", phq9(2), id = answered)
 
         assessments.dropIfEmptyLater(empty)
@@ -171,8 +172,8 @@ class AssessmentsTest {
         assertEquals(emptyList<String>(), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
 
         fill(at, "phq-9", phq9(0))
-        fill(at, "anamnese-v8", emptyMap())
-        fill(at, "anamnese-v8", emptyMap())
+        fill(at, "anamnese-v8", mapOf("8" to Answer.Text("Kopfweh")))
+        fill(at, "anamnese-v8", mapOf("8" to Answer.Text("Rücken")))
 
         assertEquals(listOf("anamnese-v8", "phq-9"), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
 
@@ -205,9 +206,9 @@ class AssessmentsTest {
     @Test
     fun `a card shows each result's last value, its band, and the change since the first, the way the form says is better`() {
         fill(appointment("2026-09-01"), "phq-9", phq9(3, 3, 3, 3, 3, 0, 0, 0, 0))
-        // Not complete: no result, leaves the card as it is.
-        fill(appointment("2026-09-20"), "phq-9", phq9(0))
         fill(appointment("2026-10-01"), "phq-9", phq9(1, 1, 1, 1, 1, 0, 0, 0, 0))
+        // Not complete: no result, leaves the card as it is.
+        fill(appointment("2026-10-05"), "phq-9", phq9(0))
         fill(appointment("2026-10-10"), "anamnese-v8", mapOf("8" to Answer.Text("Kopfweh")))
 
         val card = cards().scored.single()

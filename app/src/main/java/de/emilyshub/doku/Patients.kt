@@ -126,8 +126,8 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
             val appointments = all.groupBy(Appointment::patientId)
             val patientOf = all.associate { it.id to it.patientId }
             val remarks = database.measurements().remarked().groupBy({ it.measurement.appointmentId }, { it.measurement.remark })
-            val words = database.assessments().worded().groupBy({ it.entryId }, { it.text })
-            val forms = database.assessments().allDated().filter { it.entry.id in words }
+            val formWords = database.assessments().worded().groupBy({ it.entryId }, { it.text })
+            val forms = database.assessments().allDated().filter { it.entry.id in formWords }
             val formsOf = forms.groupBy { patientOf[it.entry.appointmentId] }
             database.patients().all()
                 .sortedWith(compareBy(InputText.byName) { it.name })
@@ -145,7 +145,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
                         emptyList()
                     } else {
                         formsOf[patient.id].orEmpty()
-                            .filter { holdsAll(patient.name, *words[it.entry.id].orEmpty().toTypedArray()) }
+                            .filter { holdsAll(patient.name, *formWords[it.entry.id].orEmpty().toTypedArray()) }
                             .sortedWith(compareByDescending<DatedAssessmentEntry> { it.date }.thenByDescending { it.entry.id })
                             .map { form ->
                                 val name = BuiltInAssessments.byId(form.entry.assessmentId)?.name ?: form.entry.assessmentId

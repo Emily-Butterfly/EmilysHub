@@ -23,16 +23,13 @@ import java.time.LocalDate
 class Assessments(private val doku: Doku, private val background: CoroutineScope) {
 
     /**
-     * Adds form [assessmentId] at appointment [appointmentId], nothing answered yet, and puts it on top of those last used;
-     * its id, none for a closed patient's, a form this version does not know, or once locked.
+     * Adds form [assessmentId] at appointment [appointmentId], nothing answered yet; it counts as used once answered. Its id, none for a closed patient's, a form this version does not know, or once locked.
      */
     suspend fun create(appointmentId: Long, assessmentId: String): Long? = doku.changing { write(it, appointmentId, null, assessmentId, emptyMap()) }
 
     /** Filled-in form [id] to fill in or read, with whether it may be changed; none once deleted or locked. */
     suspend fun sheet(id: Long): AssessmentSheet? = doku.withDatabase { database ->
-        val entry = database.assessments().get(id) ?: return@withDatabase null
-        val appointment = database.appointments().get(entry.appointmentId) ?: return@withDatabase null
-        AssessmentSheet(filled(entry, appointment.date, database.assessments().answers(id)), isChangeable(database, entry.appointmentId))
+        read(database, id)?.let { AssessmentSheet(it, isChangeable(database, it.appointmentId)) }
     }
 
     /**
@@ -47,10 +44,13 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     fun pendingDrop(id: Long): suspend (DokuDatabase) -> Unit = { dropIfEmpty(it, id) }
 
     /** Filled-in form [id]; none once deleted or locked. */
-    suspend fun get(id: Long): FilledAssessment? = doku.withDatabase { database ->
-        val entry = database.assessments().get(id) ?: return@withDatabase null
-        val appointment = database.appointments().get(entry.appointmentId) ?: return@withDatabase null
-        filled(entry, appointment.date, database.assessments().answers(id))
+    suspend fun get(id: Long): FilledAssessment? = doku.withDatabase { read(it, id) }
+
+    /** Filled-in form [id] with its appointment's day, if both are there. */
+    private suspend fun read(database: DokuDatabase, id: Long): FilledAssessment? {
+        val entry = database.assessments().get(id) ?: return null
+        val appointment = database.appointments().get(entry.appointmentId) ?: return null
+        return filled(entry, appointment.date, database.assessments().answers(id))
     }
 
     /** The forms filled in at appointment [appointmentId], in the order they were added; none once locked. */
@@ -65,7 +65,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     /**
      * Saves [answers] to form [assessmentId] as filled-in form [id] or as a new one at appointment [appointmentId]: those
      * to items shown, and to items the form no longer has, so that they stay. Its id; none for a closed patient's, for
-     * a form this version does not know, or once locked. A new one goes to the top of those last used.
+     * a form this version does not know, or once locked. Answered for the first time, it goes to the top of those last used.
      */
     suspend fun save(appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>): Long? =
         doku.changing { write(it, appointmentId, id, assessmentId, answers) }
@@ -113,7 +113,9 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         val (scored, unscored) = filled.partition { it.form?.scores?.isNotEmpty() == true }
         val cards = scored.groupBy { it.assessmentId }.map { (_, all) ->
             val form = checkNotNull(all.first().form)
-            AssessmentCard(form, all.last().date, form.scores.mapNotNull { score -> line(score, all) })
+            // Dated by the last that reached a result, as its values are; else by the last filled in.
+            val lastWithResult = all.lastOrNull { f -> f.results.any { it.value != null } } ?: all.last()
+            AssessmentCard(form, lastWithResult.date, form.scores.mapNotNull { score -> line(score, all) })
         }.sortedWith(compareByDescending<AssessmentCard> { it.lastFilled }.thenBy(InputText.byName) { it.form.name })
         AssessmentCards(cards, unscored.reversed())
     }
@@ -138,6 +140,10 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         if (isChangeable(database, entry.appointmentId) && database.assessments().answers(id).isEmpty()) database.assessments().delete(id)
     }
 
+    /**
+     * Writes [answers] to form [assessmentId] at appointment [appointmentId], as filled-in form [id] or a new one, as
+     * [save] describes; its id, or none.
+     */
     private suspend fun write(database: DokuDatabase, appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>): Long? {
         if (!isChangeable(database, appointmentId)) return null
         if (id != null && database.assessments().get(id)?.let { it.appointmentId == appointmentId && it.assessmentId == assessmentId } != true) return null
@@ -147,8 +153,10 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         val stored = answers.filterKeys { kept == null || it in kept }.mapNotNull { (itemId, answer) ->
             AnswerCodec.encode(answer)?.let { AssessmentAnswer(0, itemId, it.value, InputText.multiLine(it.text)) }
         }
+        val answeredBefore = id != null && database.assessments().answers(id).isNotEmpty()
         val saved = database.assessments().save(AssessmentEntry(id ?: 0, appointmentId, assessmentId), stored)
-        if (id == null) {
+        // Used once answered: one added by "+ Bogen" and left empty goes again, and was not used.
+        if (!answeredBefore && stored.isNotEmpty()) {
             database.settings().put(DokuSetting(RECENT_KEY, withRecent(idsOf(database.settings().get(RECENT_KEY)), assessmentId).joinToString(",")))
         }
         return saved
@@ -174,6 +182,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         return dao.ofPatient(patientId).sortedWith(OLDEST_FIRST).map { filled(it.entry, it.date, answers[it.entry.id].orEmpty()) }
     }
 
+    /** [entry] on [date] with its stored [answers] read back; those of a kind this version does not know left out. */
     private fun filled(entry: AssessmentEntry, date: LocalDate, answers: List<AssessmentAnswer>) = FilledAssessment(
         id = entry.id,
         appointmentId = entry.appointmentId,
@@ -183,6 +192,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         answers = answers.mapNotNull { a -> AnswerCodec.decode(StoredAnswer(a.value, a.text))?.let { a.itemId to it } }.toMap(),
     )
 
+    /** The ids of the forms hidden from "+ Bogen". */
     private suspend fun hidden(database: DokuDatabase): Set<String> = idsOf(database.settings().get(HIDDEN_KEY)).toSet()
 
     /** Whether the appointment's patient is active: a closed patient's forms are only to read. */

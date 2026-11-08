@@ -27,8 +27,23 @@ object Scoring {
         }
     }
 
-    /** What [answers] hold for items [form] no longer has: shown apart, greyed, and counted nowhere. */
-    fun orphans(form: Assessment, answers: Map<String, Answer>): Map<String, Answer> = answers.filterKeys { form.item(it) == null }
+    /**
+     * What [answers] hold for items [form] no longer has, or that no longer fit their item, which changed its kind: shown
+     * apart, greyed, and counted nowhere.
+     */
+    fun orphans(form: Assessment, answers: Map<String, Answer>): Map<String, Answer> =
+        answers.filter { (id, answer) -> form.item(id)?.let { fits(it, answer) } != true }
+
+    /** Whether [answer] is of the kind [item] takes. */
+    fun fits(item: Item, answer: Answer): Boolean = when (item) {
+        is ChoiceItem -> answer is Answer.Chosen
+        is YesNoItem -> answer is Answer.YesNo
+        is ScaleItem -> answer is Answer.OnScale
+        is ChecklistItem -> answer is Answer.Checked
+        is NumberItem -> answer is Answer.Number
+        is TextItem -> answer is Answer.Text
+        is BodyRegionsItem -> answer is Answer.Regions
+    }
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange {

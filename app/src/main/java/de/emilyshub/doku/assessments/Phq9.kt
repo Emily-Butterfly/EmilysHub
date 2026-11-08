@@ -29,7 +29,11 @@ internal val PHQ_9: Assessment = run {
         abbreviation = "PHQ-9",
         categories = listOf(AssessmentCategory.JawCmd, AssessmentCategory.PainPsychosocial),
         source = "PHQ-9, Stand 10/2026",
-        hint = "Wie oft fühlten Sie sich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?",
+        hint = "Wie oft fühlten Sie sich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?\n\n" +
+            "Diagnosestellung: Da sich der Fragebogen ausschließlich auf Selbstauskünfte des Patienten bezieht, müssen die " +
+            "endgültigen Diagnosen durch den behandelnden Arzt überprüft werden. Dabei sollte berücksichtigt werden, wie gut " +
+            "der Patient den Fragebogen verstanden hat. Zusätzlich sind weitere anamnestische Informationen des Patienten, " +
+            "seiner Familienangehörigen bzw. Informationen aus anderen Quellen heranzuziehen.",
         sections = listOf(Section(items = items)),
         scores = listOf(
             Score(

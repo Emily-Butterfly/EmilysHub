@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,6 +64,7 @@ import de.emilyshub.doku.DokuSaver
 import de.emilyshub.doku.FilledAssessment
 import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.assessments.Answer
+import de.emilyshub.doku.assessments.AnswerCodec
 import de.emilyshub.doku.assessments.Assessment
 import de.emilyshub.doku.assessments.BodyRegion
 import de.emilyshub.doku.assessments.BodyRegionsItem
@@ -249,11 +251,15 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
                     section.title?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
                     if (section.hint.isNotEmpty()) Text(section.hint, style = MaterialTheme.typography.bodyMedium)
                     section.items.filter { it.id in shown }.forEach { item ->
-                        ItemField(
-                            item = item,
-                            answer = answers[item.id],
-                            onAnswer = if (sheet.canChange) ({ answer: Answer? -> answers = if (answer == null) answers - item.id else answers + (item.id to answer) }) else null,
-                        )
+                        // By its id, so that what a field keeps stays with its item as conditional ones come and go.
+                        key(item.id) {
+                            ItemField(
+                                item = item,
+                                // One of another kind is shown apart, with those the form no longer has.
+                                answer = answers[item.id]?.takeIf { Scoring.fits(item, it) },
+                                onAnswer = if (sheet.canChange) ({ answer: Answer? -> answers = if (answer == null) answers - item.id else answers + (item.id to answer) }) else null,
+                            )
+                        }
                     }
                 }
             }
@@ -456,10 +462,8 @@ private fun Chip(label: String, chosen: Boolean, enabled: Boolean, onClick: () -
     )
 }
 
-/** Nothing checked and no words is no answer. */
-private fun Answer.Checked.orNone(): Answer? = takeUnless { optionIds.isEmpty() && other.isEmpty() }
-
-private fun Answer.Regions.orNone(): Answer? = takeUnless { regions.isEmpty() && text.isEmpty() }
+/** Nothing checked and no words is no answer, as it is stored ([AnswerCodec]). */
+private fun Answer.orNone(): Answer? = takeIf { AnswerCodec.encode(it) != null }
 
 /** [answer] in words, for an item the form no longer has. */
 @Composable
