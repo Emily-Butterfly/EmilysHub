@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * `doku.db` of an older version is brought up to this one by the Doku's own migrations, its data kept; Room checks the
@@ -37,6 +38,27 @@ class DokuMigrationTest {
                 assertEquals("kept", database.settings().get("probe"))
                 val id = database.patients().insert(Patient(name = "Frau M.", createdAt = Instant.parse("2026-10-23T05:00:00Z")))
                 assertEquals("Frau M.", database.patients().get(id)?.name)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `version 2 gains the appointments and keeps its patients`() {
+        createAsExported(version = 2) {
+            it.execSQL(
+                "INSERT INTO patient (id, name, diagnosis, anamnesis, goals, other, created_at) " +
+                    "VALUES (7, 'Frau M.', 'Schulter', '', '', '', '2026-10-23T05:00:00Z')",
+            )
+        }
+
+        val database = testDokuDatabase(context)
+        try {
+            runBlocking {
+                assertEquals("Schulter", database.patients().get(7)?.diagnosis)
+                val id = database.appointments().insert(Appointment(patientId = 7, date = LocalDate.parse("2026-10-23"), text = "Befund"))
+                assertEquals("Befund", database.appointments().get(id)?.text)
             }
         } finally {
             database.close()

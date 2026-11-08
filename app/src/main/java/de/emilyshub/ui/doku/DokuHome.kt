@@ -45,7 +45,8 @@ import kotlinx.coroutines.launch
 /**
  * The Doku's start page (SPEC.md §14): its own search over the patients, active and archived; the hint to delete those
  * closed twelve months ago or more, which opens the archive ([onOpenArchive]); and the active patients, by the last
- * appointment or by name, as last chosen, with "+ Patient". A patient tapped or added opens ([onOpen]).
+ * appointment or by name, as last chosen, with "+ Patient". A patient tapped or added opens ([onOpen]); an appointment
+ * the search found, by its documentation, opens itself ([onOpenAppointment]).
  */
 @Composable
 internal fun DokuHome(
@@ -53,6 +54,7 @@ internal fun DokuHome(
     patients: Patients,
     contentPadding: PaddingValues,
     onOpen: (Long) -> Unit,
+    onOpenAppointment: (patientId: Long, id: Long) -> Unit,
     onOpenArchive: () -> Unit,
 ) {
     // Not saveable, as all that is typed in the Doku: nothing of it goes into the saved state.
@@ -81,11 +83,16 @@ internal fun DokuHome(
         if (query.isNotBlank()) {
             val found = hits.orEmpty()
             if (hits != null && found.isEmpty()) item { EmptyLine(stringResource(R.string.doku_search_nothing)) }
-            items(found, key = { it.id }) { hit ->
+            items(found, key = { hit -> hit.appointment?.let { "appointment ${it.id}" } ?: "patient ${hit.id}" }) { hit ->
+                val appointment = hit.appointment
+                val details = listOfNotNull(
+                    appointment?.let { stringResource(R.string.doku_search_appointment, it.date.numericDate()) },
+                    stringResource(R.string.doku_search_archived).takeIf { hit.archived },
+                )
                 PatientLine(
                     name = hit.name,
-                    detail = stringResource(R.string.doku_search_archived).takeIf { hit.archived },
-                    onClick = { onOpen(hit.id) },
+                    detail = details.joinToString(" · ").ifEmpty { null },
+                    onClick = { if (appointment != null) onOpenAppointment(hit.id, appointment.id) else onOpen(hit.id) },
                 )
             }
             return@LazyColumn

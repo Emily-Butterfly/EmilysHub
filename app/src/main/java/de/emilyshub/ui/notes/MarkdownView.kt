@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.notes.Block
 import de.emilyshub.notes.Inline
 import de.emilyshub.notes.ListItem
+import de.emilyshub.notes.Markdown
 
 /**
  * The [blocks] of a note's Markdown, one below the other, as text only (SPEC.md §7, §9): nothing in them can be tapped,
@@ -70,11 +71,11 @@ private fun DirectedBlock(block: Block) {
 /** Whether the first letter of [block] with a direction of its own, as Arabic or Hebrew letters have, goes right to left. */
 internal fun startsRightToLeft(block: Block): Boolean {
     val text = when (block) {
-        is Block.Heading -> plainText(block.text)
-        is Block.Paragraph -> plainText(block.text)
-        is Block.Quote -> plainText(block.text)
-        is Block.Bullets -> block.items.joinToString(" ") { plainText(it.text) }
-        is Block.Numbered -> block.items.joinToString(" ") { plainText(it.text) }
+        is Block.Heading -> Markdown.plainText(block.text)
+        is Block.Paragraph -> Markdown.plainText(block.text)
+        is Block.Quote -> Markdown.plainText(block.text)
+        is Block.Bullets -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
+        is Block.Numbered -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
         // Code reads left to right whatever it holds.
         is Block.Code, Block.Rule -> ""
     }
@@ -85,16 +86,6 @@ internal fun startsRightToLeft(block: Block): Boolean {
             else -> null
         }
     } ?: false
-}
-
-private fun plainText(parts: List<Inline>): String = parts.joinToString("") { part ->
-    when (part) {
-        is Inline.Text -> part.text
-        is Inline.Code -> part.text
-        is Inline.Bold -> plainText(part.content)
-        is Inline.Italic -> plainText(part.content)
-        is Inline.Link -> plainText(part.content)
-    }
 }
 
 @Composable

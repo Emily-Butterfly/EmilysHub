@@ -20,6 +20,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
@@ -37,8 +38,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Patient
 import de.emilyshub.doku.PatientField
@@ -46,30 +49,40 @@ import de.emilyshub.doku.Patients
 import de.emilyshub.doku.toDraft
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * A patient's page (SPEC.md §14): at the top the name and the year of birth with the age it makes, ✎ to change them,
  * and the patient's menu; below the three tabs Übersicht · Termine · Tests, on [page]'s tab ([onTab]). The overview
  * shows the four texts as they read, each tapped to write it ([onEditText]). A closed patient's page is only to read,
- * its menu offering to restore them. Once closed or deleted, the page is gone ([onGone]).
+ * its menu offering to restore them. The appointments, the latest first, open by a tap ([onOpenAppointment]), and an
+ * active patient's "+ Termin" adds one, its documentation the template's. Once closed or deleted, the page is gone ([onGone]).
  */
 @Composable
 internal fun PatientPage(
     doku: Doku,
     patients: Patients,
+    appointments: Appointments,
     page: DokuPage.Patient,
     contentPadding: PaddingValues,
     onTab: (PatientTab) -> Unit,
     onEditText: (PatientField) -> Unit,
+    onOpenAppointment: (Long) -> Unit,
     onGone: (deleted: Boolean) -> Unit,
 ) {
     val patient = rememberDokuLoad(patients, page.id) { patients.get(page.id) } ?: return
     val scope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    val addAppointment = {
+        scope.launch { appointments.create(patient.id)?.let(onOpenAppointment) }
+        Unit
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -103,7 +116,13 @@ internal fun PatientPage(
         }
         when (page.tab) {
             PatientTab.Overview -> Overview(patient, onEditText = onEditText.takeUnless { patient.isClosed })
-            PatientTab.Appointments -> PlaceholderScreen(stringResource(R.string.doku_patient_no_appointments), PaddingValues())
+            PatientTab.Appointments -> AppointmentList(
+                patients = patients,
+                appointments = appointments,
+                patient = patient,
+                onAdd = if (patient.isClosed) null else addAppointment,
+                onOpen = onOpenAppointment,
+            )
             PatientTab.Tests -> PlaceholderScreen(stringResource(R.string.doku_patient_no_tests), PaddingValues())
         }
     }
@@ -210,6 +229,44 @@ private fun Overview(patient: Patient, onEditText: ((PatientField) -> Unit)?) {
         }
     }
 }
+
+/**
+ * The appointments of [patient], the latest first, each with its day, its time if any, and its preview line, "(leer)"
+ * for no text; "+ Termin" on top, unless only to read ([onAdd] null).
+ */
+@Composable
+private fun AppointmentList(patients: Patients, appointments: Appointments, patient: Patient, onAdd: (() -> Unit)?, onOpen: (Long) -> Unit) {
+    val rows = rememberDokuLoad(patients, patient.id) { appointments.of(patient.id) } ?: return
+    LazyColumn(contentPadding = PaddingValues(bottom = 8.dp)) {
+        if (onAdd != null) {
+            item {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onAdd) { Text(stringResource(R.string.doku_appointment_add)) }
+                }
+            }
+        }
+        if (rows.isEmpty()) item { EmptyLine(stringResource(R.string.doku_patient_no_appointments)) }
+        items(rows, key = { it.id }) { row ->
+            ListItem(
+                headlineContent = { Text(appointmentWhen(row.date, row.time)) },
+                supportingContent = {
+                    Text(
+                        row.preview ?: stringResource(R.string.doku_appointment_empty),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                modifier = Modifier.clickable { onOpen(row.id) },
+            )
+            HorizontalDivider()
+        }
+    }
+}
+
+/** The day of an appointment and its time, if any: "23.10.2026, 09:30". */
+@Composable
+internal fun appointmentWhen(date: LocalDate, time: LocalTime?): String =
+    time?.let { stringResource(R.string.doku_appointment_when, date.numericDate(), it.clockTime()) } ?: date.numericDate()
 
 /** Whether to delete for good what [title] names, as [text] says it goes: with all that belongs to it, but not from older backups. */
 @Composable

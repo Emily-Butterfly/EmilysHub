@@ -3,6 +3,7 @@ package de.emilyshub
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
+import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Patients
 import de.emilyshub.ledger.Ledger
@@ -50,6 +51,9 @@ interface Hub {
 
     /** The Doku's patients, read and written only while it is open. */
     val patients: Patients
+
+    /** The patients' appointments and the appointment template, as [patients]. */
+    val appointments: Appointments
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

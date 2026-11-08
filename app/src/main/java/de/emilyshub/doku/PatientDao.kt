@@ -28,9 +28,16 @@ abstract class PatientDao {
     @Query("DELETE FROM patient WHERE id = :id")
     protected abstract suspend fun deleteOne(id: Long)
 
-    /** Deletes each of [ids] with all that belongs to them, or none of them. Their appointments and measurements follow (#60, #62). */
+    /** Deletes the appointments of patient [id]: as the foreign key would, but not only if foreign keys are on. */
+    @Query("DELETE FROM appointment WHERE patient_id = :id")
+    protected abstract suspend fun deleteAppointments(id: Long)
+
+    /** Deletes each of [ids] with all that belongs to them, or none of them: their appointments, and measurements with #62. */
     @Transaction
     open suspend fun delete(ids: Collection<Long>) {
-        ids.forEach { deleteOne(it) }
+        ids.forEach {
+            deleteAppointments(it)
+            deleteOne(it)
+        }
     }
 }

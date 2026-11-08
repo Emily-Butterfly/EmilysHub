@@ -1,0 +1,199 @@
+package de.emilyshub.ui.doku
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import de.emilyshub.R
+import de.emilyshub.doku.Appointment
+import de.emilyshub.doku.Appointments
+import de.emilyshub.doku.Doku
+import de.emilyshub.doku.Patients
+import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.fields.DateDialog
+import de.emilyshub.ui.fields.DateValue
+import de.emilyshub.ui.fields.LabelledValue
+import de.emilyshub.ui.fields.TimeDialog
+import de.emilyshub.ui.numericDate
+import kotlinx.coroutines.launch
+import java.time.LocalTime
+
+/**
+ * An appointment (SPEC.md §14): its day, in the past or to come, and its time if any, each changed at once; and its
+ * documentation in Markdown, saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku
+ * locks, never into the saved state. "Löschen" in its menu asks first. A closed patient's is only to read. Once
+ * deleted, or gone, the page closes ([onDone]).
+ */
+@Composable
+internal fun AppointmentPage(
+    doku: Doku,
+    patients: Patients,
+    appointments: Appointments,
+    page: DokuPage.Appointment,
+    contentPadding: PaddingValues,
+    onDone: () -> Unit,
+) {
+    // The text once, as it was on opening; the day and time anew with each change.
+    var loaded by remember { mutableStateOf<Loaded?>(null) }
+    LaunchedEffect(page) {
+        val appointment = appointments.get(page.id)
+        val patient = patients.get(page.patientId)
+        if (appointment == null || patient == null) onDone() else loaded = Loaded(appointment.text, patient.name, appointments.canChange(page.id))
+    }
+    val opened = loaded ?: return
+    val appointment = rememberDokuLoad(patients, page.id) { appointments.get(page.id) }
+    var text by remember { mutableStateOf(opened.text) }
+    var deleted by remember { mutableStateOf(false) }
+    if (opened.canChange) {
+        SaveOnClose(
+            doku = doku,
+            key = page,
+            original = opened.text,
+            current = text,
+            pending = { appointments.pendingText(page.id, it) },
+            saveLater = { appointments.setTextLater(page.id, it) },
+            skip = { deleted },
+        )
+    }
+    val current = appointment ?: return
+    val scope = rememberCoroutineScope()
+    var pickingDate by remember { mutableStateOf(false) }
+    var pickingTime by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+
+    DokuTextEditor(
+        title = opened.patientName,
+        label = stringResource(R.string.doku_appointment_documentation),
+        text = text,
+        onTextChange = if (opened.canChange) ({ typed: String -> text = typed }) else null,
+        hint = stringResource(R.string.doku_field_hint),
+        contentPadding = contentPadding,
+        actions = {
+            if (opened.canChange) {
+                TextButton(onClick = onDone) { Text(stringResource(R.string.doku_field_done)) }
+                AppointmentMenu(onDelete = { deleting = true })
+            }
+        },
+        header = {
+            val time = current.time?.clockTime() ?: stringResource(R.string.doku_appointment_no_time)
+            if (opened.canChange) {
+                DateValue(stringResource(R.string.doku_appointment_date), current.date, onClick = { pickingDate = true })
+                LabelledValue(
+                    label = stringResource(R.string.doku_appointment_time),
+                    value = time,
+                    modifier = Modifier.clickable(
+                        onClickLabel = stringResource(R.string.doku_appointment_time_change),
+                        role = Role.Button,
+                        onClick = { pickingTime = true },
+                    ),
+                )
+                if (current.time != null) {
+                    TextButton(onClick = { scope.launch { appointments.setTime(page.id, null) } }) {
+                        Text(stringResource(R.string.doku_appointment_remove_time))
+                    }
+                }
+            } else {
+                LabelledValue(stringResource(R.string.doku_appointment_date), current.date.numericDate())
+                LabelledValue(stringResource(R.string.doku_appointment_time), time)
+            }
+        },
+    )
+
+    if (pickingDate) {
+        // Dialogs have windows of their own, which the Doku's island does not reach.
+        DokuInsel(doku) {
+            DateDialog(
+                initial = current.date,
+                onConfirm = { date ->
+                    pickingDate = false
+                    scope.launch { appointments.setDate(page.id, date) }
+                },
+                onDismiss = { pickingDate = false },
+            )
+        }
+    }
+    if (pickingTime) {
+        DokuInsel(doku) {
+            TimeDialog(
+                initial = current.time ?: LocalTime.of(DEFAULT_HOUR, 0),
+                onConfirm = { time ->
+                    pickingTime = false
+                    scope.launch { appointments.setTime(page.id, time) }
+                },
+                onDismiss = { pickingTime = false },
+            )
+        }
+    }
+    if (deleting) {
+        ConfirmDeletingAppointment(
+            doku = doku,
+            appointment = current,
+            onDelete = {
+                deleting = false
+                deleted = true
+                scope.launch {
+                    appointments.delete(page.id)
+                    onDone()
+                }
+            },
+            onDismiss = { deleting = false },
+        )
+    }
+}
+
+/** What the page opened with: the text as it was, the patient's name, and whether it may be changed. */
+private data class Loaded(val text: String, val patientName: String, val canChange: Boolean)
+
+/** The three dots of an appointment, with "Löschen". */
+@Composable
+private fun AppointmentMenu(onDelete: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_appointment_menu))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.doku_appointment_delete)) },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                },
+            )
+        }
+    }
+}
+
+/** Whether to delete [appointment] with its documentation; with #62 it names the measurements that go with it. */
+@Composable
+private fun ConfirmDeletingAppointment(doku: Doku, appointment: Appointment, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.doku_appointment_delete_title, appointment.date.numericDate())) },
+        text = { Text(stringResource(R.string.doku_appointment_delete_text)) },
+        confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.doku_appointment_delete)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        modifier = Modifier.touchesDoku(doku),
+    )
+}
+
+/** The hour a time to pick starts at, for an appointment without one yet. */
+private const val DEFAULT_HOUR = 9

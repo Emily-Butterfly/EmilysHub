@@ -34,8 +34,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
      */
     suspend fun active(order: PatientOrder): List<PatientRow>? = doku.withDatabase { database ->
         val active = database.patients().all().filterNot(Patient::isClosed)
-        // Appointments come with #60, which gives each its last one; until then none has had one.
-        val lastSeen = emptyMap<Long, LocalDate>()
+        val lastSeen = database.appointments().lastSeen(today())
         val sorted = when (order) {
             PatientOrder.LastSeen -> active.sortedWith(
                 compareByDescending<Patient> { lastSeen[it.id] ?: dayOf(it.createdAt) }.thenByDescending { it.createdAt },
@@ -117,19 +116,30 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /**
      * The patients, active and closed, whose name or texts hold every word of [typed], in whatever case and however
-     * their letters were typed, by name; nothing for nothing typed. Appointments and remarks follow (#60, #62).
+     * their letters were typed; and the appointments whose text, with their patient's name, does, unless the name alone
+     * does, which would find all of theirs. By name, each patient before their appointments, the latest first; nothing
+     * for nothing typed. Remarks of measurements follow with #62.
      */
     suspend fun search(typed: String): List<PatientHit> {
         val words = InputText.searchable(InputText.singleLine(typed).take(MAX_SEARCH)).split(' ').filter(String::isNotEmpty)
         if (words.isEmpty()) return emptyList()
+        fun holdsAll(vararg texts: String) = InputText.searchable(texts.joinToString("\n")).let { text -> words.all { it in text } }
         return doku.withDatabase { database ->
+            val appointments = database.appointments().all().groupBy(Appointment::patientId)
             database.patients().all()
-                .filter { patient ->
-                    val text = InputText.searchable((listOf(patient.name) + patient.texts).joinToString("\n"))
-                    words.all { it in text }
-                }
                 .sortedWith(compareBy(InputText.byName) { it.name })
-                .map { PatientHit(it.id, it.name, it.isClosed) }
+                .flatMap { patient ->
+                    val own = PatientHit(patient.id, patient.name, patient.isClosed).takeIf { holdsAll(patient.name, *patient.texts.toTypedArray()) }
+                    val inAppointments = if (holdsAll(patient.name)) {
+                        emptyList()
+                    } else {
+                        appointments[patient.id].orEmpty()
+                            .filter { holdsAll(patient.name, it.text) }
+                            .sortedWith(Appointment.LATEST_FIRST)
+                            .map { PatientHit(patient.id, patient.name, patient.isClosed, AppointmentHit(it.id, it.date)) }
+                    }
+                    listOfNotNull(own) + inAppointments
+                }
         }.orEmpty()
     }
 
@@ -157,7 +167,8 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         }
     }
 
-    private suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
+    /** What [block] makes of the open database, counted as a change if it was open: for the appointments too. */
+    internal suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
         doku.withDatabase(block).also { if (it != null) changes++ }
 
     private fun now(): Instant = clock.instant()

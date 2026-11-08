@@ -46,6 +46,17 @@ object Markdown {
     /** The blocks of [text], one after the other; what is no markup stays as written. */
     fun parse(text: String): List<Block> = BlockReader(text.replace("\r\n", "\n").split('\n')).read()
 
+    /** [parts] as they read, without their marks. */
+    fun plainText(parts: List<Inline>): String = parts.joinToString("") { part ->
+        when (part) {
+            is Inline.Text -> part.text
+            is Inline.Code -> part.text
+            is Inline.Bold -> plainText(part.content)
+            is Inline.Italic -> plainText(part.content)
+            is Inline.Link -> plainText(part.content)
+        }
+    }
+
     private fun inline(text: String): List<Inline> = InlineReader(text).read()
 
     private class BlockReader(private val lines: List<String>) {

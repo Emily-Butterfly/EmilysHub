@@ -7,6 +7,7 @@ import java.io.Serializable
 sealed interface DokuPage : Serializable {
     /** The patient the page is of, if any. */
     val patientId: Long? get() = null
+
     /** The start page: the active patients, the search, and the hint to delete those closed long ago. */
     data object Home : DokuPage
 
@@ -22,6 +23,12 @@ sealed interface DokuPage : Serializable {
     data class Text(val id: Long, val field: PatientField) : DokuPage {
         override val patientId: Long get() = id
     }
+
+    /** Appointment [id] of patient [patientId], to document. */
+    data class Appointment(override val patientId: Long, val id: Long) : DokuPage
+
+    /** The appointment template, to write. */
+    data object Template : DokuPage
 }
 
 /** The tabs of a patient's page. */

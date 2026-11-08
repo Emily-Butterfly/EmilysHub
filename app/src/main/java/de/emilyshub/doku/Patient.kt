@@ -99,8 +99,11 @@ data class PatientRow(val id: Long, val name: String, val lastSeen: LocalDate?)
 /** A patient in the Doku's archive, closed on [closedOn]; [overdue] once that is twelve months ago or more. */
 data class ArchivedPatient(val id: Long, val name: String, val closedOn: LocalDate, val overdue: Boolean)
 
-/** A patient found by the Doku's search, [archived] or active. */
-data class PatientHit(val id: Long, val name: String, val archived: Boolean)
+/** A patient found by the Doku's search, [archived] or active; by the text of one of their appointments if [appointment]. */
+data class PatientHit(val id: Long, val name: String, val archived: Boolean, val appointment: AppointmentHit? = null)
+
+/** An appointment the Doku's search found, of [date]. */
+data class AppointmentHit(val id: Long, val date: LocalDate)
 
 /** How the start page orders the active patients. */
 enum class PatientOrder {

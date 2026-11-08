@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.withResumed
 import de.emilyshub.R
+import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuState
 import de.emilyshub.doku.FingerprintUnlock
@@ -59,7 +60,7 @@ import kotlinx.coroutines.launch
  * unlock starts on its start page.
  */
 @Composable
-fun DokuArea(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+fun DokuArea(doku: Doku, patients: Patients, appointments: Appointments, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
     val activity = checkNotNull(LocalActivity.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(doku, lifecycle) {
@@ -94,7 +95,7 @@ fun DokuArea(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (D
             }
             is DokuState.Open -> {
                 IdleLock(doku)
-                OpenPage(doku, patients, pages, onPagesChange, contentPadding)
+                OpenPage(doku, patients, appointments, pages, onPagesChange, contentPadding)
                 if (state.offerFingerprint) FingerprintAgain(doku, activity, scope)
             }
         }
@@ -103,7 +104,14 @@ fun DokuArea(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (D
 
 /** The page of the open Doku on top of [pages]. */
 @Composable
-private fun OpenPage(doku: Doku, patients: Patients, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+private fun OpenPage(
+    doku: Doku,
+    patients: Patients,
+    appointments: Appointments,
+    pages: DokuPages,
+    onPagesChange: (DokuPages) -> Unit,
+    contentPadding: PaddingValues,
+) {
     val open = { page: DokuPage -> onPagesChange(pages.open(page)) }
     when (val page = pages.top) {
         DokuPage.Home -> DokuHome(
@@ -111,19 +119,27 @@ private fun OpenPage(doku: Doku, patients: Patients, pages: DokuPages, onPagesCh
             patients = patients,
             contentPadding = contentPadding,
             onOpen = { open(DokuPage.Patient(it)) },
+            // Over the patient's appointments, for back to lead there.
+            onOpenAppointment = { patientId, id ->
+                onPagesChange(pages.open(DokuPage.Patient(patientId, PatientTab.Appointments)).open(DokuPage.Appointment(patientId, id)))
+            },
             onOpenArchive = { open(DokuPage.Archive) },
         )
         DokuPage.Archive -> DokuArchivePage(doku, patients, contentPadding, onOpen = { open(DokuPage.Patient(it)) })
         is DokuPage.Patient -> PatientPage(
             doku = doku,
             patients = patients,
+            appointments = appointments,
             page = page,
             contentPadding = contentPadding,
             onTab = { onPagesChange(pages.replaceTop(page.copy(tab = it))) },
             onEditText = { open(DokuPage.Text(page.id, it)) },
+            onOpenAppointment = { open(DokuPage.Appointment(page.id, it)) },
             onGone = { deleted -> onPagesChange(if (deleted) pages.without(page.id) else pages.back()) },
         )
         is DokuPage.Text -> PatientTextPage(doku, patients, page, contentPadding, onDone = { onPagesChange(pages.back()) })
+        is DokuPage.Appointment -> AppointmentPage(doku, patients, appointments, page, contentPadding, onDone = { onPagesChange(pages.back()) })
+        DokuPage.Template -> TemplatePage(doku, appointments, contentPadding, onDone = { onPagesChange(pages.back()) })
     }
 }
 

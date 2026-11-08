@@ -426,7 +426,11 @@ private fun TopLevelScaffold(
                     actions = {
                         // The Doku's settings are in its own menu, there only while it is open (SPEC.md §14).
                         if (moreOpen == MoreEntry.Doku) {
-                            DokuMenu(hub.doku, onOpenArchive = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Archive))) })
+                            DokuMenu(
+                                hub.doku,
+                                onOpenTemplate = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Template))) },
+                                onOpenArchive = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Archive))) },
+                            )
                         }
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {
@@ -534,6 +538,7 @@ private fun TopLevelScaffold(
                 MoreEntry.Doku -> DokuArea(
                     doku = hub.doku,
                     patients = hub.patients,
+                    appointments = hub.appointments,
                     pages = tabs.doku,
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,

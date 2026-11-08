@@ -51,18 +51,20 @@ value class RawKey(val bytes: ByteArray) {
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
  */
-@Database(entities = [DokuSetting::class, Patient::class], version = DokuDatabase.VERSION)
+@Database(entities = [DokuSetting::class, Patient::class, Appointment::class], version = DokuDatabase.VERSION)
 @TypeConverters(Converters::class)
 abstract class DokuDatabase : RoomDatabase() {
     abstract fun settings(): DokuSettingsDao
 
     abstract fun patients(): PatientDao
 
+    abstract fun appointments(): AppointmentDao
+
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "doku.db"
 
-        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2)
+        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3)
 
         /** What is deleted is overwritten on disk, not only marked free (SPEC.md §14): on each opening, as the pragma lasts as long as the connection. */
         val SECURE_DELETE = object : Callback() {
