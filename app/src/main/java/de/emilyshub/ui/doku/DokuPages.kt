@@ -29,6 +29,18 @@ sealed interface DokuPage : Serializable {
 
     /** The appointment template, to write. */
     data object Template : DokuPage
+
+    /** The Doku's tests, those in use and those archived. */
+    data object Tests : DokuPage
+
+    /** Test [id] to change, or a new one. */
+    data class TestEditor(val id: Long?) : DokuPage
+
+    /** Measurement [id] of test [testId] at appointment [appointmentId] of patient [patientId], or a new one. */
+    data class Measurement(override val patientId: Long, val appointmentId: Long, val testId: Long, val id: Long?) : DokuPage
+
+    /** The history of test [testId] for patient [patientId]. */
+    data class History(override val patientId: Long, val testId: Long) : DokuPage
 }
 
 /** The tabs of a patient's page. */

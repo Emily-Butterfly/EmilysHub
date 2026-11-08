@@ -18,7 +18,9 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuClipboard
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.Fingerprint
+import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
+import de.emilyshub.doku.TestCatalog
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.ledger.Ledger
@@ -212,6 +214,10 @@ open class EmilysHubApplication : Application(), Hub {
     final override val patients: Patients by lazy { Patients(doku, clock, background) }
 
     final override val appointments: Appointments by lazy { Appointments(doku, patients, background) }
+
+    final override val tests: TestCatalog by lazy { TestCatalog(doku, patients) }
+
+    final override val measurements: Measurements by lazy { Measurements(doku, patients) }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

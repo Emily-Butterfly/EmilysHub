@@ -20,13 +20,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import de.emilyshub.R
 import de.emilyshub.doku.Appointment
-import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.Patients
+import de.emilyshub.doku.MeasurementView
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
@@ -39,18 +39,21 @@ import java.time.LocalTime
 /**
  * An appointment (SPEC.md §14): its day, in the past or to come, and its time if any, each changed at once; and its
  * documentation in Markdown, saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku
- * locks, never into the saved state. "Löschen" in its menu asks first. A closed patient's is only to read. Once
- * deleted, or gone, the page closes ([onDone]).
+ * locks, never into the saved state. Below it the tests measured at it, each opening to change it, and "+ Test" to
+ * measure one ([onMeasure], with the measurement's id, or none for a new one). "Löschen" in its menu asks first,
+ * naming how many measurements go with it. A closed patient's is only to read. Once deleted, or gone, the page closes
+ * ([onDone]).
  */
 @Composable
 internal fun AppointmentPage(
     doku: Doku,
-    patients: Patients,
-    appointments: Appointments,
+    modules: DokuModules,
     page: DokuPage.Appointment,
     contentPadding: PaddingValues,
+    onMeasure: (testId: Long, id: Long?) -> Unit,
     onDone: () -> Unit,
 ) {
+    val (patients, appointments, tests, measurements) = modules
     // The text once, as it was on opening; the day and time anew with each change.
     var loaded by remember { mutableStateOf<Loaded?>(null) }
     LaunchedEffect(page) {
@@ -78,6 +81,8 @@ internal fun AppointmentPage(
     var pickingDate by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf(false) }
+    val measured = rememberDokuLoad(patients, page.id) { measurements.at(page.id) }
 
     DokuTextEditor(
         title = opened.patientName,
@@ -115,7 +120,21 @@ internal fun AppointmentPage(
                 LabelledValue(stringResource(R.string.doku_appointment_time), time)
             }
         },
+        footer = {
+            MeasurementList(
+                measured = measured.orEmpty(),
+                onOpen = if (opened.canChange) ({ view: MeasurementView -> onMeasure(view.test.id, view.id) }) else null,
+                onAdd = if (opened.canChange) ({ choosing = true }) else null,
+            )
+        },
     )
+
+    if (choosing) {
+        ChooseTest(doku, patients, tests, onChoose = { testId ->
+            choosing = false
+            onMeasure(testId, null)
+        }, onDismiss = { choosing = false })
+    }
 
     if (pickingDate) {
         // The time is typed: its fields too ask the keyboard to learn nothing.
@@ -148,6 +167,7 @@ internal fun AppointmentPage(
         ConfirmDeletingAppointment(
             doku = doku,
             appointment = current,
+            measurements = measured.orEmpty().size,
             onDelete = {
                 deleting = false
                 deleted = true
@@ -184,13 +204,21 @@ private fun AppointmentMenu(doku: Doku, onDelete: () -> Unit) {
     }
 }
 
-/** Whether to delete [appointment] with its documentation; with #62 it names the measurements that go with it. */
+/** Whether to delete [appointment] with its documentation, naming how many [measurements] go with it. */
 @Composable
-private fun ConfirmDeletingAppointment(doku: Doku, appointment: Appointment, onDelete: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmDeletingAppointment(doku: Doku, appointment: Appointment, measurements: Int, onDelete: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.doku_appointment_delete_title, appointment.date.numericDate())) },
-        text = { Text(stringResource(R.string.doku_appointment_delete_text)) },
+        text = {
+            Text(
+                if (measurements > 0) {
+                    pluralStringResource(R.plurals.doku_appointment_delete_text, measurements, measurements)
+                } else {
+                    stringResource(R.string.doku_appointment_delete_text_plain)
+                },
+            )
+        },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.doku_appointment_delete)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
         modifier = Modifier.touchesDoku(doku),

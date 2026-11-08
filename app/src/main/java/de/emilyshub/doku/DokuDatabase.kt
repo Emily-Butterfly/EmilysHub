@@ -18,7 +18,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
  * A setting of the Doku, kept in its own database: nothing of the Doku goes into the app's. Such as how the start page
- * orders the patients, and the appointment template (#60).
+ * orders the patients, and the appointment template.
  */
 @Entity(tableName = "doku_setting")
 data class DokuSetting(@PrimaryKey val key: String, val value: String)
@@ -51,8 +51,19 @@ value class RawKey(val bytes: ByteArray) {
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
  */
-@Database(entities = [DokuSetting::class, Patient::class, Appointment::class], version = DokuDatabase.VERSION)
-@TypeConverters(Converters::class)
+@Database(
+    entities = [
+        DokuSetting::class,
+        Patient::class,
+        Appointment::class,
+        ClinicalTest::class,
+        TestValue::class,
+        Measurement::class,
+        MeasurementValue::class,
+    ],
+    version = DokuDatabase.VERSION,
+)
+@TypeConverters(Converters::class, DokuConverters::class)
 abstract class DokuDatabase : RoomDatabase() {
     abstract fun settings(): DokuSettingsDao
 
@@ -60,11 +71,15 @@ abstract class DokuDatabase : RoomDatabase() {
 
     abstract fun appointments(): AppointmentDao
 
+    abstract fun tests(): TestDao
+
+    abstract fun measurements(): MeasurementDao
+
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "doku.db"
 
-        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3)
+        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3, DOKU_MIGRATION_3_4)
 
         /** What is deleted is overwritten on disk, not only marked free (SPEC.md §14): on each opening, as the pragma lasts as long as the connection. */
         val SECURE_DELETE = object : Callback() {

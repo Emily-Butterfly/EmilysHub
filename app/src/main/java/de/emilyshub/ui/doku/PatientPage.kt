@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -42,13 +43,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.doku.Appointments
+import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Patient
 import de.emilyshub.doku.PatientField
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.toDraft
 import de.emilyshub.notes.Markdown
-import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
@@ -61,20 +62,22 @@ import java.time.LocalTime
  * and the patient's menu; below the three tabs Übersicht · Termine · Tests, on [page]'s tab ([onTab]). The overview
  * shows the four texts as they read, each tapped to write it ([onEditText]). A closed patient's page is only to read,
  * its menu offering to restore them. The appointments, the latest first, open by a tap ([onOpenAppointment]), and an
- * active patient's "+ Termin" adds one, its documentation the template's. Once closed or deleted, the page is gone ([onGone]).
+ * active patient's "+ Termin" adds one, its documentation the template's. The tab Tests has a card for each test
+ * measured, which opens its history ([onOpenHistory]). Once closed or deleted, the page is gone ([onGone]).
  */
 @Composable
 internal fun PatientPage(
     doku: Doku,
-    patients: Patients,
-    appointments: Appointments,
+    modules: DokuModules,
     page: DokuPage.Patient,
     contentPadding: PaddingValues,
     onTab: (PatientTab) -> Unit,
     onEditText: (PatientField) -> Unit,
     onOpenAppointment: (Long) -> Unit,
+    onOpenHistory: (testId: Long) -> Unit,
     onGone: (deleted: Boolean) -> Unit,
 ) {
+    val (patients, appointments, _, measurements) = modules
     val patient = rememberDokuLoad(patients, page.id) { patients.get(page.id) } ?: return
     val scope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf(false) }
@@ -124,7 +127,7 @@ internal fun PatientPage(
                 onAdd = if (patient.isClosed) null else addAppointment,
                 onOpen = onOpenAppointment,
             )
-            PatientTab.Tests -> PlaceholderScreen(stringResource(R.string.doku_patient_no_tests), PaddingValues())
+            PatientTab.Tests -> TestCards(patients, measurements, patient.id, onOpen = onOpenHistory)
         }
     }
 
@@ -272,6 +275,40 @@ private fun AppointmentList(patients: Patients, appointments: Appointments, pati
     }
 }
 
+/**
+ * A card for each test measured of the patient, archived ones too, the one measured last first: its name, the day of the
+ * last measurement, and for the sum, or each value not retired, the last number and its change since the first. A
+ * card tapped opens the test's history ([onOpen]).
+ */
+@Composable
+private fun TestCards(patients: Patients, measurements: Measurements, patientId: Long, onOpen: (Long) -> Unit) {
+    val cards = rememberDokuLoad(patients, patientId) { measurements.cards(patientId) } ?: return
+    if (cards.isEmpty()) return EmptyLine(stringResource(R.string.doku_patient_no_tests))
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(cards, key = { it.test.id }) { card ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClickLabel = stringResource(R.string.doku_history_chart, card.test.name), role = Role.Button) { onOpen(card.test.id) },
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(card.test.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.doku_card_last, card.lastMeasured.numericDate()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    card.lines.forEach { line ->
+                        val label = line.label ?: stringResource(R.string.doku_card_sum)
+                        val change = changeText(line.change, line.unit)
+                        Text(listOfNotNull("$label: ${withUnit(line.last, line.unit)}", change).joinToString(" "))
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** The day of an appointment and its time, if any: "23.10.2026, 09:30". */
 @Composable
 internal fun appointmentWhen(date: LocalDate, time: LocalTime?): String =
@@ -279,11 +316,11 @@ internal fun appointmentWhen(date: LocalDate, time: LocalTime?): String =
 
 /** Whether to delete for good what [title] names, as [text] says it goes: with all that belongs to it, but not from older backups. */
 @Composable
-internal fun ConfirmDeleting(doku: Doku, title: String, text: String, onDelete: () -> Unit, onDismiss: () -> Unit) {
+internal fun ConfirmDeleting(doku: Doku, title: String, text: String?, onDelete: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { Text(text) },
+        text = text?.let { { Text(it) } },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.doku_patient_delete)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
         modifier = Modifier.touchesDoku(doku),

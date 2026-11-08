@@ -68,6 +68,7 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
+import de.emilyshub.ui.doku.DokuModules
 import de.emilyshub.ui.doku.DokuPage
 import de.emilyshub.ui.doku.DokuPages
 import de.emilyshub.ui.ledger.BookingEditorScreen
@@ -428,6 +429,7 @@ private fun TopLevelScaffold(
                         if (moreOpen == MoreEntry.Doku) {
                             DokuMenu(
                                 hub.doku,
+                                onOpenTests = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Tests))) },
                                 onOpenTemplate = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Template))) },
                                 onOpenArchive = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Archive))) },
                             )
@@ -537,8 +539,7 @@ private fun TopLevelScaffold(
                 )
                 MoreEntry.Doku -> DokuArea(
                     doku = hub.doku,
-                    patients = hub.patients,
-                    appointments = hub.appointments,
+                    modules = remember(hub) { DokuModules(hub.patients, hub.appointments, hub.tests, hub.measurements) },
                     pages = tabs.doku,
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,

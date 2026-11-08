@@ -49,7 +49,9 @@ import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuState
 import de.emilyshub.doku.FingerprintUnlock
+import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
+import de.emilyshub.doku.TestCatalog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,7 +62,7 @@ import kotlinx.coroutines.launch
  * unlock starts on its start page.
  */
 @Composable
-fun DokuArea(doku: Doku, patients: Patients, appointments: Appointments, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+internal fun DokuArea(doku: Doku, modules: DokuModules, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
     val activity = checkNotNull(LocalActivity.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(doku, lifecycle) {
@@ -95,24 +97,27 @@ fun DokuArea(doku: Doku, patients: Patients, appointments: Appointments, pages: 
             }
             is DokuState.Open -> {
                 IdleLock(doku)
-                OpenPage(doku, patients, appointments, pages, onPagesChange, contentPadding)
+                OpenPage(doku, modules, pages, onPagesChange, contentPadding)
                 if (state.offerFingerprint) FingerprintAgain(doku, activity, scope)
             }
         }
     }
 }
 
+/** What the open Doku's pages read and write, each only while it is open. */
+internal data class DokuModules(
+    val patients: Patients,
+    val appointments: Appointments,
+    val tests: TestCatalog,
+    val measurements: Measurements,
+)
+
 /** The page of the open Doku on top of [pages]. */
 @Composable
-private fun OpenPage(
-    doku: Doku,
-    patients: Patients,
-    appointments: Appointments,
-    pages: DokuPages,
-    onPagesChange: (DokuPages) -> Unit,
-    contentPadding: PaddingValues,
-) {
+private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+    val (patients, appointments, tests, measurements) = modules
     val open = { page: DokuPage -> onPagesChange(pages.open(page)) }
+    val back = { onPagesChange(pages.back()) }
     when (val page = pages.top) {
         DokuPage.Home -> DokuHome(
             doku = doku,
@@ -128,18 +133,35 @@ private fun OpenPage(
         DokuPage.Archive -> DokuArchivePage(doku, patients, contentPadding, onOpen = { open(DokuPage.Patient(it)) })
         is DokuPage.Patient -> PatientPage(
             doku = doku,
-            patients = patients,
-            appointments = appointments,
+            modules = modules,
             page = page,
             contentPadding = contentPadding,
             onTab = { onPagesChange(pages.replaceTop(page.copy(tab = it))) },
             onEditText = { open(DokuPage.Text(page.id, it)) },
             onOpenAppointment = { open(DokuPage.Appointment(page.id, it)) },
+            onOpenHistory = { open(DokuPage.History(page.id, it)) },
             onGone = { deleted -> onPagesChange(if (deleted) pages.without(page.id) else pages.back()) },
         )
-        is DokuPage.Text -> PatientTextPage(doku, patients, page, contentPadding, onDone = { onPagesChange(pages.back()) })
-        is DokuPage.Appointment -> AppointmentPage(doku, patients, appointments, page, contentPadding, onDone = { onPagesChange(pages.back()) })
-        DokuPage.Template -> TemplatePage(doku, appointments, contentPadding, onDone = { onPagesChange(pages.back()) })
+        is DokuPage.Text -> PatientTextPage(doku, patients, page, contentPadding, onDone = back)
+        is DokuPage.Appointment -> AppointmentPage(
+            doku = doku,
+            modules = modules,
+            page = page,
+            contentPadding = contentPadding,
+            onMeasure = { testId, id -> open(DokuPage.Measurement(page.patientId, page.id, testId, id)) },
+            onDone = back,
+        )
+        DokuPage.Template -> TemplatePage(doku, appointments, contentPadding, onDone = back)
+        DokuPage.Tests -> TestsPage(patients, tests, contentPadding, onOpen = { open(DokuPage.TestEditor(it)) })
+        is DokuPage.TestEditor -> TestEditorPage(doku, tests, page, contentPadding, onDone = back)
+        is DokuPage.Measurement -> MeasurementPage(doku, measurements, page, contentPadding, onDone = back)
+        is DokuPage.History -> HistoryPage(
+            patients = patients,
+            measurements = measurements,
+            page = page,
+            contentPadding = contentPadding,
+            onOpenAppointment = { open(DokuPage.Appointment(page.patientId, it)) },
+        )
     }
 }
 

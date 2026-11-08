@@ -44,7 +44,7 @@ import de.emilyshub.ui.notes.MarkdownText
 
 /**
  * A text of the Doku in Markdown, as in the notes (SPEC.md §14): [title] with [actions] beside it, [header] below, then
- * "Bearbeiten" and "Vorschau" and the text, [hint] below it; only the text scrolls. Only to read without [onTextChange]:
+ * "Bearbeiten" and "Vorschau" and the text, [hint] below it, and [footer] below that; only these scroll. Only to read without [onTextChange]:
  * then it shows only as it reads. It takes no more than [Patient.TEXT_MAX] characters.
  */
 @Composable
@@ -57,6 +57,7 @@ internal fun DokuTextEditor(
     contentPadding: PaddingValues,
     actions: @Composable RowScope.() -> Unit = {},
     header: @Composable ColumnScope.() -> Unit = {},
+    footer: @Composable ColumnScope.() -> Unit = {},
 ) {
     var previewing by remember { mutableStateOf(onTextChange == null) }
     Column(
@@ -121,6 +122,7 @@ internal fun DokuTextEditor(
                         .padding(bottom = 16.dp),
                 )
             }
+            footer()
         }
     }
 }

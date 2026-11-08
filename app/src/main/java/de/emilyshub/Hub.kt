@@ -5,7 +5,9 @@ import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
+import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
+import de.emilyshub.doku.TestCatalog
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
@@ -54,6 +56,12 @@ interface Hub {
 
     /** The patients' appointments and the appointment template, as [patients]. */
     val appointments: Appointments
+
+    /** The Doku's tests, set up once for all patients, as [patients]. */
+    val tests: TestCatalog
+
+    /** The measurements of the tests at the appointments, as [patients]. */
+    val measurements: Measurements
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

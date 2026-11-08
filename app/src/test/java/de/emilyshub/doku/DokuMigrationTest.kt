@@ -65,6 +65,30 @@ class DokuMigrationTest {
         }
     }
 
+    @Test
+    fun `version 3 gains the tests and measurements and keeps its appointments`() {
+        createAsExported(version = 3) {
+            it.execSQL(
+                "INSERT INTO patient (id, name, diagnosis, anamnesis, goals, other, created_at) " +
+                    "VALUES (7, 'Frau M.', '', '', '', '', '2026-10-23T05:00:00Z')",
+            )
+            it.execSQL("INSERT INTO appointment (id, patient_id, date, text) VALUES (3, 7, '2026-10-23', 'Befund')")
+        }
+
+        val database = testDokuDatabase(context)
+        try {
+            runBlocking {
+                assertEquals("Befund", database.appointments().get(3)?.text)
+                val test = database.tests().save(ClinicalTest(name = "Handkraft"), listOf(TestValue(testId = 0, position = 0, name = "rechts")), emptyList())
+                val value = database.tests().values(test).single().id
+                val measurement = database.measurements().save(Measurement(appointmentId = 3, testId = test), listOf(MeasurementValue(0, value, 3000)))
+                assertEquals(listOf(3000L), database.measurements().values(measurement).map(MeasurementValue::amount))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     /** `doku.db` laid out as Room exported the schema of [version], filled by [fill]. */
     private fun createAsExported(version: Int, fill: (SQLiteDatabase) -> Unit) {
         val schema = JSONObject(File("schemas/de.emilyshub.doku.DokuDatabase/$version.json").readText()).getJSONObject("database")
@@ -73,7 +97,10 @@ class DokuMigrationTest {
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {
                 val entity = entities.getJSONObject(i)
-                db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                val table = entity.getString("tableName")
+                db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
+                val indices = entity.optJSONArray("indices") ?: continue
+                for (j in 0 until indices.length()) db.execSQL(indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table))
             }
             val setup = schema.getJSONArray("setupQueries")
             for (i in 0 until setup.length()) db.execSQL(setup.getString(i))
