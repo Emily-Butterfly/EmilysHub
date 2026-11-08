@@ -77,7 +77,11 @@ fun DokuArea(doku: Doku, fingerprint: Fingerprint, contentPadding: PaddingValues
     // Here, so that what the prompts end in is done even once the screen that asked for them is gone.
     val scope = rememberCoroutineScope()
     val enableFingerprint = {
-        fingerprint.authenticate(activity, doku.sealingCipher(), toUnlock = false, onSuccess = { scope.launch { doku.enableFingerprint(it) } }, onOther = {})
+        scope.launch {
+            val cipher = doku.sealingCipher()
+            fingerprint.authenticate(activity, cipher, toUnlock = false, onSuccess = { scope.launch { doku.enableFingerprint(it) } }, onOther = {})
+        }
+        Unit
     }
 
     DokuInsel(doku) {

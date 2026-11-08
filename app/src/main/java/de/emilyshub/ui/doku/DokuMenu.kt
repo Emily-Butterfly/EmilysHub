@@ -72,11 +72,13 @@ private fun Menu(doku: Doku, fingerprint: Fingerprint, open: DokuState.Open, onC
                         if (open.fingerprint) {
                             scope.launch { doku.disableFingerprint() }
                         } else {
-                            fingerprint.authenticate(
-                                activity, doku.sealingCipher(), toUnlock = false,
-                                onSuccess = { scope.launch { doku.enableFingerprint(it) } },
-                                onOther = {},
-                            )
+                            scope.launch {
+                                fingerprint.authenticate(
+                                    activity, doku.sealingCipher(), toUnlock = false,
+                                    onSuccess = { scope.launch { doku.enableFingerprint(it) } },
+                                    onOther = {},
+                                )
+                            }
                         }
                     },
                 )

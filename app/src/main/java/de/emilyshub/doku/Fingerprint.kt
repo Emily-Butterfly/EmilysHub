@@ -37,7 +37,8 @@ interface Fingerprint {
 
     /**
      * Shows the prompt over [activity]; [onSuccess] with [cipher] usable once a finger was recognised. Its second
-     * button says "Passwort" when [toUnlock], else "Abbrechen", and leads to [onOther], as does dismissing it.
+     * button says "Passwort" when [toUnlock], else "Abbrechen", and leads to [onOther]. Dismissed otherwise, by back or as
+     * the app leaves the screen, it leads nowhere: the lock screen asks again on return, or offers to.
      */
     fun authenticate(activity: Activity, cipher: Cipher, toUnlock: Boolean, onSuccess: (Cipher) -> Unit, onOther: () -> Unit)
 }
@@ -78,24 +79,15 @@ class SystemFingerprint(private val context: Context) : Fingerprint {
 
     override fun authenticate(activity: Activity, cipher: Cipher, toUnlock: Boolean, onSuccess: (Cipher) -> Unit, onOther: () -> Unit) {
         val other = activity.getString(if (toUnlock) R.string.doku_password else R.string.cancel)
-        // The second button and any other end of the prompt, such as back or too many tries, lead to the same, once.
-        var ended = false
-        val end = {
-            if (!ended) {
-                ended = true
-                onOther()
-            }
-        }
         val prompt = BiometricPrompt.Builder(activity)
             .setTitle(activity.getString(if (toUnlock) R.string.doku_fingerprint_unlock_title else R.string.doku_fingerprint_enable_title))
             .setAllowedAuthenticators(BIOMETRIC_STRONG)
-            .setNegativeButton(other, activity.mainExecutor) { _, _ -> end() }
+            .setNegativeButton(other, activity.mainExecutor) { _, _ -> onOther() }
             .build()
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) =
                 onSuccess(checkNotNull(result.cryptoObject?.cipher))
 
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) = end()
         }
         prompt.authenticate(BiometricPrompt.CryptoObject(cipher), CancellationSignal(), activity.mainExecutor, callback)
     }

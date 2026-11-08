@@ -224,7 +224,7 @@ class DokuTest {
     fun `a fingerprint confirmed only once the Doku has locked again turns nothing on`() {
         fingerprint.enrolled = true
         setUp()
-        val cipher = doku.sealingCipher()
+        val cipher = runBlocking { doku.sealingCipher() }
         doku.lock()
 
         runBlocking { doku.enableFingerprint(cipher) }
@@ -232,6 +232,30 @@ class DokuTest {
         assertEquals(DokuState.Locked(fingerprint = false), doku.state)
         assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
     }
+
+    @Test
+    fun `an unlock still under way when the Doku is told to lock leaves it locked`() {
+        setUp()
+        doku.lock()
+        val racing = Doku(
+            keyFile = keyFile,
+            fingerprint = fingerprint,
+            // The app leaves the screen just while the database opens.
+            openDatabase = { racingDoku.lock(); testDokuDatabase(context) },
+            clipboard = DokuClipboard(context),
+            io = Dispatchers.Unconfined,
+            background = CoroutineScope(Dispatchers.Unconfined),
+            iterations = 1_000,
+            now = { clock },
+        ).also { racingDoku = it; runBlocking { it.load() } }
+
+        runBlocking { racing.unlockWithPassword(PASSWORD) }
+
+        assertEquals(DokuState.Locked(fingerprint = false), racing.state)
+        assertThrows(IllegalStateException::class.java) { racing.database }
+    }
+
+    private lateinit var racingDoku: Doku
 
     @Test
     fun `the fingerprint is kept off across a restart`() {

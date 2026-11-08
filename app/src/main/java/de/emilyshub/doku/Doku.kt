@@ -78,6 +78,9 @@ class Doku internal constructor(
     private val savers = mutableSetOf<DokuSaver>()
     private var lastTouch = 0L
 
+    /** How often the Doku was told to lock: an unlock still under way when it is told so again does not open it. */
+    private var locks = 0
+
     /** Opening and closing the database, one at a time: an unlock waits for the lock before it to have closed it. */
     private val vault = Mutex()
 
@@ -99,19 +102,21 @@ class Doku internal constructor(
     suspend fun setUp(password: String) {
         require(passwordProblem(password, password) == null) { "The Doku password is too short" }
         check(state == DokuState.New) { "The Doku password is set once" }
+        val since = locks
         val key = DokuKeys.newKey()
         val sealed = withContext(io + NonCancellable) {
             DokuKeys.sealed(key, password, iterations).also(keyFile::write)
         }
         keys = sealed
-        open(key, fingerprint = false)
+        open(key, since, fingerprint = false)
     }
 
     /** Opens the Doku with its password; false, leaving it locked, if [password] is not it. */
     suspend fun unlockWithPassword(password: String): Boolean {
         val locked = state as? DokuState.Locked ?: return state is DokuState.Open
+        val since = locks
         val key = withContext(io) { checkNotNull(keys).openWithPassword(password) } ?: return false
-        open(key, fingerprint = locked.fingerprint, offerFingerprint = locked.fingerprintLost && fingerprint.isEnrolled())
+        open(key, since, fingerprint = locked.fingerprint, offerFingerprint = locked.fingerprintLost && fingerprint.isEnrolled())
         return true
     }
 
@@ -123,7 +128,7 @@ class Doku internal constructor(
     suspend fun unlockingCipher(): Cipher? {
         val current = keys ?: return null
         val iv = current.fingerprintIv ?: return null
-        fingerprint.openingCipher(iv)?.let { return it }
+        withContext(io) { fingerprint.openingCipher(iv) }?.let { return it }
         withContext(io + NonCancellable) {
             fingerprint.deleteKey()
             current.withoutFingerprint().also(keyFile::write)
@@ -138,19 +143,21 @@ class Doku internal constructor(
      */
     suspend fun unlockWithFingerprint(cipher: Cipher): Boolean {
         if (state !is DokuState.Locked) return state is DokuState.Open
+        val since = locks
         val key = try {
             checkNotNull(keys).openWithFingerprint(cipher)
         } catch (_: IllegalStateException) {
             return false
         }
-        open(key, fingerprint = true)
+        open(key, since, fingerprint = true)
         return true
     }
 
     /** The cipher for the fingerprint's prompt to set free, to turn the fingerprint on with; only while open. */
-    fun sealingCipher(): Cipher {
+    suspend fun sealingCipher(): Cipher {
         check(opened != null) { "The Doku is locked" }
-        return fingerprint.sealingCipher()
+        // A new Keystore key is made for it, which takes a while.
+        return withContext(io) { fingerprint.sealingCipher() }
     }
 
     /** Turns the fingerprint on with [cipher], set free by its prompt from [sealingCipher]; not once the Doku has locked meanwhile. */
@@ -219,6 +226,7 @@ class Doku internal constructor(
      * database is closed and the key wiped; and the clipboard emptied if it still holds text copied from the Doku.
      */
     fun lock() {
+        locks++
         val closing = opened ?: return
         val pending = savers.mapNotNull { it.pending() }
         opened = null
@@ -237,7 +245,8 @@ class Doku internal constructor(
         }
     }
 
-    private suspend fun open(key: ByteArray, fingerprint: Boolean, offerFingerprint: Boolean = false) {
+    /** Opens the database with [key], unless the Doku was told to lock [since] the unlock began: it went to the background meanwhile, say. */
+    private suspend fun open(key: ByteArray, since: Int, fingerprint: Boolean, offerFingerprint: Boolean = false) {
         // Opened already, by a second tap say: this key is not needed.
         if (opened != null) return key.fill(0)
         val rawKey = DokuDatabase.rawKey(key)
@@ -248,6 +257,14 @@ class Doku internal constructor(
                     it.openHelper.writableDatabase
                 }
             }
+        }
+        if (locks != since) {
+            withContext(io + NonCancellable) { database.close() }
+            key.fill(0)
+            rawKey.fill(0)
+            // Set up meanwhile, the Doku now has its password.
+            if (state == DokuState.New) state = DokuState.Locked(fingerprint = false)
+            return
         }
         opened = Opened(key, rawKey, database)
         lastTouch = now()
