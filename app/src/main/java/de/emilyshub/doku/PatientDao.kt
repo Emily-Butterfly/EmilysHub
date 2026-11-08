@@ -28,16 +28,18 @@ abstract class PatientDao {
     @Query("DELETE FROM patient WHERE id = :id")
     protected abstract suspend fun deleteOne(id: Long)
 
-    // What belongs to patient [id], deleted as the foreign keys would, but not only if foreign keys are on.
+    /** What patient [id]'s measurements found: deleted as the foreign keys would, but not only if they are on. */
     @Query(
         "DELETE FROM measurement_value WHERE measurement_id IN (SELECT m.id FROM measurement m " +
             "JOIN appointment a ON a.id = m.appointment_id WHERE a.patient_id = :id)",
     )
     protected abstract suspend fun deleteMeasuredValues(id: Long)
 
+    /** The measurements at patient [id]'s appointments. */
     @Query("DELETE FROM measurement WHERE appointment_id IN (SELECT id FROM appointment WHERE patient_id = :id)")
     protected abstract suspend fun deleteMeasurements(id: Long)
 
+    /** Patient [id]'s appointments. */
     @Query("DELETE FROM appointment WHERE patient_id = :id")
     protected abstract suspend fun deleteAppointments(id: Long)
 

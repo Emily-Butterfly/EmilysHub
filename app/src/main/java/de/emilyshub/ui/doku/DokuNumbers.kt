@@ -15,10 +15,13 @@ internal fun withUnit(hundredths: Long, unit: String): String = when {
     else -> "${TestNumber.format(hundredths)} $unit"
 }
 
+/** What [label] names with its [number] in [unit], "Flexion 120°", or "–" for none. */
+internal fun entryText(label: String, number: Long?, unit: String): String = "$label ${number?.let { withUnit(it, unit) } ?: "–"}"
+
 /** How a value changed, in [unit]: "▲ +30° besser seit 03.09.2026", with arrow and word, not by colour alone; none if measured once. */
 @Composable
 internal fun changeText(change: Change, unit: String): String? = when (change) {
-    Change.None -> null
+    Change.MeasuredOnce -> null
     Change.Unchanged -> stringResource(R.string.doku_change_none)
     is Change.Changed -> {
         val arrow = if (change.by > 0) "▲" else "▼"

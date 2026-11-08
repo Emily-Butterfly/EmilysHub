@@ -19,6 +19,16 @@ data class TestDraft(
     /** Whether a sum can be formed: of two values or more; asked for with fewer, it waits for a second one. */
     val canSum: Boolean get() = activeValues.size >= 2
 
+    /**
+     * Whether it changes what measurements of [stored], the test as it was, read by: its name, its sum, or a value it
+     * had, changed or removed. Adding a value or reordering them does not.
+     */
+    fun changesStored(stored: TestDraft): Boolean {
+        val values = values.filter { it.id != null }.associateBy(ValueDraft::id)
+        return name != stored.name || sum != stored.sum || sumDirection != stored.sumDirection ||
+            stored.values.any { it != values[it.id] }
+    }
+
     /** What keeps it from being saved, the names of the other tests [taken]. */
     fun problems(taken: Collection<String>): TestProblems = TestProblems(
         name = InputText.nameProblem(name, NAME_MAX, taken),
@@ -29,6 +39,7 @@ data class TestDraft(
     )
 
     companion object {
+        /** As long as a test's name may be. */
         const val NAME_MAX = 80
     }
 }
@@ -63,8 +74,10 @@ data class ValueDraft(
         if (from != null && to != null && from > to) add(ValueProblem.RangeReversed)
     }
 
+    /** The name on a single line, without surrounding spaces. */
     fun cleanedName(): String = InputText.singleLine(name)
 
+    /** The unit on a single line, without surrounding spaces. */
     fun cleanedUnit(): String = InputText.singleLine(unit)
 
     /** The lower end of the range, none if none, or no number, was typed. */
@@ -76,7 +89,10 @@ data class ValueDraft(
     private fun isNumberOrNone(typed: String) = typed.isBlank() || TestNumber.parse(typed, decimals) != null
 
     companion object {
+        /** As long as a value's name may be. */
         const val NAME_MAX = 80
+
+        /** As long as a unit need be, "Punkte" or "mmHg". */
         const val UNIT_MAX = 20
     }
 }
@@ -95,12 +111,14 @@ fun TestValue.toDraft() = ValueDraft(
 
 /** What keeps a [TestDraft] from being saved, each shown where it is. */
 data class TestProblems(
+    /** The name's, if any. */
     val name: NameProblem?,
     /** Those of each value, in the draft's order. */
     val values: List<Set<ValueProblem>>,
     /** Every value is retired, or there is none. */
     val noActiveValue: Boolean,
 ) {
+    /** Whether there is none: it can be saved. */
     val isEmpty: Boolean get() = name == null && values.all(Set<ValueProblem>::isEmpty) && !noActiveValue
 }
 

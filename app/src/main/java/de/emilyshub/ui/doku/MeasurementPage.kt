@@ -85,11 +85,14 @@ internal fun ColumnScope.MeasurementList(measured: List<MeasurementView>, onOpen
 /** What [view] found, "Flexion 120° · Abduktion –", and its sum, if the test forms one. */
 @Composable
 private fun foundText(view: MeasurementView): String {
-    val found = view.entries.joinToString(" · ") { (value, number) -> "${value.name} ${number?.let { withUnit(it, value.unit) } ?: "–"}" }
-    if (!view.formsSum) return found
-    val sum = view.sum?.let { stringResource(R.string.doku_measurement_sum, TestNumber.format(it)) } ?: stringResource(R.string.doku_measurement_no_sum)
-    return "$found · $sum"
+    val found = view.entries.joinToString(" · ") { (value, number) -> entryText(value.name, number, value.unit) }
+    return if (view.formsSum) "$found · ${sumText(view.sum)}" else found
 }
+
+/** "Summe: 15", or "Summe: –" until every value has its number. */
+@Composable
+private fun sumText(sum: Long?): String =
+    sum?.let { stringResource(R.string.doku_measurement_sum, TestNumber.format(it)) } ?: stringResource(R.string.doku_measurement_no_sum)
 
 /** The tests not archived, to choose one to measure ([onChoose]); a hint where to set them up if there are none. */
 @Composable
@@ -178,10 +181,7 @@ internal fun MeasurementPage(doku: Doku, measurements: Measurements, page: DokuP
             }
             if (tried && problems.nothingEntered) Problem(stringResource(R.string.doku_measurement_nothing))
             if (form.formsSum) {
-                Text(
-                    form.sum(draft)?.let { stringResource(R.string.doku_measurement_sum, TestNumber.format(it)) } ?: stringResource(R.string.doku_measurement_no_sum),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Text(sumText(form.sum(draft)), style = MaterialTheme.typography.titleMedium)
             }
             OutlinedTextField(
                 value = draft.remark,

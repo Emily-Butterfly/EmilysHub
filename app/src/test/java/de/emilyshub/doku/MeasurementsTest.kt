@@ -146,7 +146,7 @@ class MeasurementsTest {
         assertEquals(listOf(600L, 350L), shown.take(2).map { it.entries.single().second })
         assertEquals(listOf("vorher", "nachher"), shown.take(2).map(MeasurementView::remark))
         assertEquals(1500L, shown[2].sum)
-        assertEquals(3, runBlocking { measurements.countAt(at) })
+        assertEquals(3, runBlocking { checkNotNull(measurements.at(at)).size })
     }
 
     @Test
@@ -170,6 +170,24 @@ class MeasurementsTest {
     }
 
     @Test
+    fun `an old number stays as it was when its value no longer takes it, until it is changed`() {
+        val at = appointment("2026-10-20")
+        val id = measure(at, pain, "VAS" to "3,5")
+        runBlocking {
+            val details = checkNotNull(catalog.details(pain))
+            catalog.save(pain, catalog.draftOf(details).let { it.copy(values = it.values.map { value -> value.copy(decimals = false, max = "3") }) })
+        }
+
+        val form = runBlocking { checkNotNull(measurements.form(id)) }
+        val vas = valueId(pain, "VAS")
+
+        assertTrue(form.problems(form.initial).isEmpty)
+        assertEquals(mapOf(vas to 350L), form.numbers(form.initial))
+        assertEquals(mapOf(vas to FieldProblem.NotANumber), form.problems(form.initial.copy(typed = mapOf(vas to "2,5"))).values)
+        assertEquals(mapOf(vas to FieldProblem.OutOfRange), form.problems(form.initial.copy(typed = mapOf(vas to "4"))).values)
+    }
+
+    @Test
     fun `an archived test is not measured anew`() {
         runBlocking { catalog.archive(pain) }
 
@@ -183,10 +201,10 @@ class MeasurementsTest {
         measure(at, pain, "VAS" to "4")
 
         runBlocking { measurements.delete(first) }
-        assertEquals(1, runBlocking { measurements.countAt(at) })
+        assertEquals(1, runBlocking { checkNotNull(measurements.at(at)).size })
 
         runBlocking { appointments.delete(at) }
-        assertEquals(0, runBlocking { measurements.countAt(at) })
+        assertEquals(0, runBlocking { checkNotNull(measurements.at(at)).size })
         assertEquals(emptyList<TestCard>(), cards())
     }
 
@@ -200,7 +218,7 @@ class MeasurementsTest {
         assertNull(runBlocking { measurements.save(at, null, form, draftOf(pain, "VAS" to "1")) })
         runBlocking { measurements.delete(id) }
 
-        assertEquals(1, runBlocking { measurements.countAt(at) })
+        assertEquals(1, runBlocking { checkNotNull(measurements.at(at)).size })
     }
 
     @Test
@@ -228,11 +246,11 @@ class MeasurementsTest {
 
     @Test
     fun `worse is worse either way, and once measured there is no change`() {
-        assertEquals(Change.Changed(-500, better = false, LocalDate.parse("2026-09-01")), changeOf(1000, 500, LocalDate.parse("2026-09-01"), Direction.HigherIsBetter, once = false))
-        assertEquals(Change.Changed(500, better = false, LocalDate.parse("2026-09-01")), changeOf(500, 1000, LocalDate.parse("2026-09-01"), Direction.LowerIsBetter, once = false))
+        assertEquals(Change.Changed(-500, better = false, LocalDate.parse("2026-09-01")), changeOf(1000, 500, LocalDate.parse("2026-09-01"), Direction.HigherIsBetter, measuredOnce = false))
+        assertEquals(Change.Changed(500, better = false, LocalDate.parse("2026-09-01")), changeOf(500, 1000, LocalDate.parse("2026-09-01"), Direction.LowerIsBetter, measuredOnce = false))
         measure(appointment("2026-10-20"), pain, "VAS" to "3")
 
-        assertEquals(Change.None, cards().single().lines.single().change)
+        assertEquals(Change.MeasuredOnce, cards().single().lines.single().change)
     }
 
     @Test

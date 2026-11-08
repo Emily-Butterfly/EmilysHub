@@ -88,6 +88,7 @@ data class MeasurementValue(
 
 /** How the Doku stores what is its own. */
 class DokuConverters {
+    /** As [Direction.stored] has it. */
     @TypeConverter
     fun fromDirection(direction: Direction): String = direction.stored
 

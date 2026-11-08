@@ -24,10 +24,6 @@ abstract class MeasurementDao {
     @Query("SELECT * FROM measurement_value WHERE measurement_id = :measurementId")
     abstract suspend fun values(measurementId: Long): List<MeasurementValue>
 
-    /** How many measurements appointment [appointmentId] has. */
-    @Query("SELECT COUNT(*) FROM measurement WHERE appointment_id = :appointmentId")
-    abstract suspend fun countAt(appointmentId: Long): Int
-
     /** The measurements of patient [patientId], each with the day of its appointment, in no order. */
     @Query(
         "SELECT m.*, a.date AS date, a.time AS time FROM measurement m JOIN appointment a ON a.id = m.appointment_id " +

@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.doku.Affected
 import de.emilyshub.doku.Direction
@@ -73,14 +74,14 @@ import kotlinx.coroutines.launch
 internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestEditor, contentPadding: PaddingValues, onDone: () -> Unit) {
     var loaded by remember { mutableStateOf<Opened?>(null) }
     LaunchedEffect(page) {
-        val list = tests.list() ?: return@LaunchedEffect
+        val taken = tests.takenNames(page.id) ?: return@LaunchedEffect
         val details = page.id?.let { id -> tests.details(id) ?: return@LaunchedEffect onDone() }
-        val taken = (list.active + list.archived).filter { it.id != page.id }.map { it.name }
         loaded = Opened(details, taken)
     }
     val opened = loaded ?: return
     val details = opened.details
-    var draft by remember { mutableStateOf(details?.let(tests::draftOf) ?: TestDraft()) }
+    val stored = remember { details?.let(tests::draftOf) }
+    var draft by remember { mutableStateOf(stored ?: TestDraft()) }
     var tried by remember { mutableStateOf(false) }
     var confirmingSave by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -112,7 +113,8 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                     tried = true
                     when {
                         !problems.isEmpty -> Unit
-                        details != null && details.affected.measurements > 0 -> confirmingSave = true
+                        // Only when what the measurements read by changes: not by adding a value or reordering.
+                        details != null && stored != null && details.affected.measurements > 0 && draft.changesStored(stored) -> confirmingSave = true
                         else -> save()
                     }
                 },
@@ -123,8 +125,18 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                 TestMenu(
                     doku = doku,
                     archived = details.test.isArchived,
-                    onArchive = { scope.launch { tests.archive(details.test.id).also { onDone() } } },
-                    onRestore = { scope.launch { tests.restore(details.test.id).also { onDone() } } },
+                    onArchive = {
+                        scope.launch {
+                            tests.archive(details.test.id)
+                            onDone()
+                        }
+                    },
+                    onRestore = {
+                        scope.launch {
+                            tests.restore(details.test.id)
+                            onDone()
+                        }
+                    },
                     onDelete = { deleting = true },
                 )
             }
@@ -155,7 +167,7 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                     when (nameProblem) {
                         NameProblem.Missing -> Text(stringResource(R.string.doku_test_name_missing))
                         NameProblem.Taken -> Text(stringResource(R.string.doku_test_name_taken))
-                        else -> LengthHint(draft.name.trim().length, TestDraft.NAME_MAX)
+                        else -> LengthHint(InputText.lengthOf(InputText.singleLine(draft.name)), TestDraft.NAME_MAX)
                     }
                 },
                 modifier = Modifier
@@ -194,7 +206,8 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                 }
                 if (tried && problems.noActiveValue) Problem(stringResource(R.string.doku_test_no_active_value))
             }
-            if (draft.canSum) {
+            // Of two values, retired ones too, so that a sum asked for can always be turned off again.
+            if (draft.values.size >= 2) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -206,6 +219,7 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                         Switch(checked = draft.sum, onCheckedChange = null)
                     }
                     if (draft.sum) DirectionChoice(draft.sumDirection, onChange = { draft = draft.copy(sumDirection = it) })
+                    if (draft.sum && !draft.canSum) Text(stringResource(R.string.doku_test_sum_waits), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -307,7 +321,7 @@ private fun ValueCard(
                 supportingText = when {
                     ValueProblem.NameMissing in problems -> ({ Text(stringResource(R.string.doku_test_value_name_missing)) })
                     ValueProblem.NameTaken in problems -> ({ Text(stringResource(R.string.doku_test_value_name_taken)) })
-                    ValueProblem.NameTooLong in problems -> ({ LengthHint(value.cleanedName().length, ValueDraft.NAME_MAX) })
+                    ValueProblem.NameTooLong in problems -> ({ LengthHint(InputText.lengthOf(value.cleanedName()), ValueDraft.NAME_MAX) })
                     else -> null
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -318,7 +332,7 @@ private fun ValueCard(
                 label = { Text(stringResource(R.string.doku_test_value_unit)) },
                 singleLine = true,
                 isError = ValueProblem.UnitTooLong in problems,
-                supportingText = if (ValueProblem.UnitTooLong in problems) ({ LengthHint(value.cleanedUnit().length, ValueDraft.UNIT_MAX) }) else null,
+                supportingText = if (ValueProblem.UnitTooLong in problems) ({ LengthHint(InputText.lengthOf(value.cleanedUnit()), ValueDraft.UNIT_MAX) }) else null,
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -395,6 +409,7 @@ private fun TestMenu(doku: Doku, archived: Boolean, onArchive: () -> Unit, onRes
     }
 }
 
+/** What is wrong with a value's name, to mark its field. */
 private val NAME_PROBLEMS = setOf(ValueProblem.NameMissing, ValueProblem.NameTaken, ValueProblem.NameTooLong)
 
 /** With the item at [from] moved to [to]. */

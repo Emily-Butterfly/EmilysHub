@@ -35,19 +35,17 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
         sumDirection = details.test.sumDirection,
     )
 
-    /** What keeps [draft] from being saved as test [id], or as a new one; none once locked. */
-    suspend fun problems(draft: TestDraft, id: Long?): TestProblems? = doku.withDatabase { database ->
-        draft.problems(taken = database.tests().all().filter { it.id != id }.map(ClinicalTest::name))
-    }
+    /** The names of the tests other than [id], which no other may read the same as; none once locked. */
+    suspend fun takenNames(id: Long?): List<String>? = doku.withDatabase { takenNames(it, id) }
 
     /**
      * Saves [draft], which must have no [problems], as test [id] or a new one; its id, none once locked. Values left out
-     * of the draft are deleted if never measured, else retired. A sum asked for stays asked for, formed only while
-     * two values or more are not retired ([TestDetails.formsSum]).
+     * of the draft are deleted if never measured, else retired. A sum asked for of two values or more stays asked for,
+     * though some are retired, formed only while two or more are not ([TestDetails.formsSum]).
      */
     suspend fun save(id: Long?, draft: TestDraft): Long? = patients.changing { database ->
         val tests = database.tests()
-        val problems = draft.problems(taken = tests.all().filter { it.id != id }.map(ClinicalTest::name))
+        val problems = draft.problems(taken = takenNames(database, id))
         require(problems.isEmpty) { "The test's draft has problems: $problems" }
         val stored = id?.let { tests.get(it) ?: return@changing null }
         val storedValues = id?.let { tests.values(it) }.orEmpty()
@@ -72,15 +70,12 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
         val test = ClinicalTest(
             id = id ?: 0,
             name = InputText.singleLine(draft.name),
-            hasSum = draft.sum,
+            hasSum = draft.sum && values.size >= 2,
             sumDirection = draft.sumDirection,
             archivedOn = stored?.archivedOn,
         )
         tests.save(test, values, deleted = leftOut.filterNot { it.id in measured }.map(TestValue::id))
     }
-
-    /** How many measurements test [id] has, and of how many patients; none once locked. */
-    suspend fun affected(id: Long): Affected? = doku.withDatabase { it.tests().affected(id) }
 
     /** Archives test [id] today: no longer to choose for new measurements; its measurements stay. */
     suspend fun archive(id: Long) = change(id) { it.copy(archivedOn = it.archivedOn ?: patients.today()) }
@@ -93,6 +88,9 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
         patients.changing { it.tests().delete(id) }
     }
 
+    /** The names of the tests other than [id]. */
+    private suspend fun takenNames(database: DokuDatabase, id: Long?) = database.tests().all().filter { it.id != id }.map(ClinicalTest::name)
+
     /** Changes test [id] as [change] has it. */
     private suspend fun change(id: Long, change: (ClinicalTest) -> ClinicalTest) {
         patients.changing { database -> database.tests().get(id)?.let { database.tests().update(change(it)) } }
@@ -104,9 +102,6 @@ data class TestList(val active: List<ClinicalTest>, val archived: List<ClinicalT
 
 /** A test with its [values] in their order, the ids of those [measured], and how many measurements it has. */
 data class TestDetails(val test: ClinicalTest, val values: List<TestValue>, val measured: Set<Long>, val affected: Affected) {
-    /** The values new measurements ask for. */
-    val activeValues: List<TestValue> get() = values.filterNot(TestValue::retired)
-
     /** Whether the test forms a sum: asked for, and of two values or more. */
     val formsSum: Boolean get() = formsSum(test, values)
 }

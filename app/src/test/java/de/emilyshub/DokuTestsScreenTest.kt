@@ -155,7 +155,8 @@ class DokuTestsScreenTest {
             compose.onNodeWithText("Archiviert").assertIsDisplayed()
             compose.onNodeWithText("Barthel-Index").performClick()
             compose.onNodeWithText("Archiviert am 23.10.2026: für neue Messungen nicht wählbar").assertIsDisplayed()
-            compose.onNodeWithContentDescription("Menü des Tests").performClick()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            // In the section "Archiviert" itself.
             compose.onNodeWithText("Wiederherstellen").performClick()
             compose.onNodeWithText("Archiviert").assertDoesNotExist()
 

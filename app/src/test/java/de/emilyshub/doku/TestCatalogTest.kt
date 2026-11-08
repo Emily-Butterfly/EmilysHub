@@ -110,7 +110,7 @@ class TestCatalogTest {
 
         assertEquals(NameProblem.Missing, TestDraft(" ").problems(emptyList()).name)
         assertEquals(NameProblem.TooLong, TestDraft("x".repeat(81)).problems(emptyList()).name)
-        assertEquals(NameProblem.Taken, runBlocking { catalog.problems(barthel.copy(name = "BARTHEL-index"), id = null) }?.name)
+        assertEquals(NameProblem.Taken, barthel.copy(name = "BARTHEL-index").problems(runBlocking { checkNotNull(catalog.takenNames(null)) }).name)
         assertThrows(IllegalArgumentException::class.java) { save(barthel) }
     }
 
@@ -118,7 +118,7 @@ class TestCatalogTest {
     fun `a test keeps its own name when changed`() {
         val id = save(barthel)
 
-        assertTrue(runBlocking { checkNotNull(catalog.problems(draft(id), id)) }.isEmpty)
+        assertTrue(draft(id).problems(runBlocking { checkNotNull(catalog.takenNames(id)) }).isEmpty)
     }
 
     @Test
@@ -242,6 +242,27 @@ class TestCatalogTest {
     }
 
     @Test
+    fun `a change touches the measurements when it changes the test or a value stored, not by adding or reordering`() {
+        val id = save(barthel)
+        val stored = draft(id)
+
+        assertFalse(stored.copy(values = stored.values.reversed() + ValueDraft(name = "Gehen")).changesStored(stored))
+        assertTrue(stored.copy(name = "Barthel").changesStored(stored))
+        assertTrue(stored.copy(sum = false).changesStored(stored))
+        assertTrue(stored.copy(values = stored.values.map { it.copy(unit = "P.") }).changesStored(stored))
+        assertTrue(stored.copy(values = stored.values.drop(1)).changesStored(stored))
+    }
+
+    @Test
+    fun `a sum asked for of a single value is not kept`() {
+        val id = save(barthel)
+
+        save(draft(id).let { it.copy(values = it.values.take(1)) }, id)
+
+        assertFalse(details(id).test.hasSum)
+    }
+
+    @Test
     fun `the measurements a change touches are counted, with their patients`() {
         val id = save(barthel)
         measure(id, "Frau M.", "Essen" to 1000)
@@ -252,7 +273,7 @@ class TestCatalogTest {
             doku.withDatabase { it.measurements().save(Measurement(appointmentId = appointment, testId = id), emptyList()) }
         }
 
-        assertEquals(Affected(measurements = 3, patients = 2), runBlocking { catalog.affected(id) })
+        assertEquals(Affected(measurements = 3, patients = 2), details(id).affected)
     }
 
     @Test
@@ -307,6 +328,6 @@ class TestCatalogTest {
 
         assertNull(runBlocking { doku.withDatabase { it.measurements().get(first) } })
         assertNull(runBlocking { doku.withDatabase { it.measurements().get(second) } })
-        assertEquals(Affected(0, 0), runBlocking { catalog.affected(id) })
+        assertEquals(Affected(0, 0), details(id).affected)
     }
 }

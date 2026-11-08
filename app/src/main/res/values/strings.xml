@@ -924,6 +924,7 @@
     <string name="doku_test_value_reactivate">Wieder aktivieren</string>
     <string name="doku_test_no_active_value">Ein Test braucht mindestens einen Wert, der nicht stillgelegt ist.</string>
     <string name="doku_test_sum">Summe bilden</string>
+    <string name="doku_test_sum_waits">Die Summe ruht, solange weniger als zwei Werte nicht stillgelegt sind.</string>
     <string name="doku_test_menu">Menü des Tests</string>
     <string name="doku_test_archive">Archivieren</string>
     <string name="doku_test_restore">Wiederherstellen</string>

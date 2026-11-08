@@ -119,7 +119,7 @@ class DokuMeasurementsScreenTest {
             compose.onNodeWithText("Endgültig löschen").performClick()
 
             compose.onNodeWithText("Essen", substring = true).assertDoesNotExist()
-            assertEquals(0, runBlocking { app.measurements.countAt(checkNotNull(app.appointments.of(patient)).single().id) })
+            assertEquals(0, runBlocking { checkNotNull(app.measurements.at(checkNotNull(app.appointments.of(patient)).single().id)).size })
         }
     }
 

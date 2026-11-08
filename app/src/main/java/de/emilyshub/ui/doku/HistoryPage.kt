@@ -83,7 +83,7 @@ private fun HistoryLine(row: HistoryRow, names: List<String>, columns: List<Hist
     ) {
         Text(row.date.numericDate(), style = MaterialTheme.typography.titleSmall)
         Text(
-            columns.indices.joinToString(" · ") { i -> "${names[i]} ${row.numbers[i]?.let { withUnit(it, columns[i].unit) } ?: "–"}" },
+            columns.indices.joinToString(" · ") { i -> entryText(names[i], row.numbers[i], columns[i].unit) },
             style = MaterialTheme.typography.bodyMedium,
         )
         if (row.remark.isNotEmpty()) Text(row.remark, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -92,20 +92,21 @@ private fun HistoryLine(row: HistoryRow, names: List<String>, columns: List<Hist
 }
 
 /**
- * [points] of [column] over time, spaced by their days, drawn in the theme's colours: scaled to the value's range if it
- * has both ends, else to its numbers; a measurement without a number leaves a gap, and a single one is a point.
+ * [points] of [column] over time, spaced by their days, drawn in the theme's colours: scaled to the value's range as far
+ * as it has one, else to its numbers; a measurement without a number leaves a gap, and a single one is a point.
  */
 @Composable
 private fun LineChart(label: String, column: HistoryColumn, points: List<Pair<LocalDate, Long?>>) {
     val numbers = points.mapNotNull { it.second }
-    val low = column.min.takeIf { column.max != null } ?: numbers.minOrNull() ?: 0
-    val high = column.max.takeIf { column.min != null } ?: numbers.maxOrNull() ?: 0
+    // Each end by the range where it has one, else by the numbers.
+    val low = column.min ?: numbers.minOrNull() ?: 0
+    val high = column.max ?: numbers.maxOrNull() ?: 0
     val first = points.first().first.toEpochDay()
     val days = (points.last().first.toEpochDay() - first).coerceAtLeast(1)
     val line = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
     val description = stringResource(R.string.doku_history_chart, label) + ": " +
-        points.joinToString(", ") { (date, number) -> "${date.numericDate()} ${number?.let { withUnit(it, column.unit) } ?: "–"}" }
+        points.joinToString(", ") { (date, number) -> entryText(date.numericDate(), number, column.unit) }
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(if (column.unit.isEmpty()) label else "$label (${column.unit})", style = MaterialTheme.typography.titleSmall)
         Text(TestNumber.format(high), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

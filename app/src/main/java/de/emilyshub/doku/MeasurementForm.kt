@@ -5,7 +5,9 @@ import java.time.LocalDate
 
 /**
  * A measurement of [test] as its form asks for it (SPEC.md §14): a field for each of the [fields], the values not
- * retired and, when changing one, a retired value it has a number for; and the sum, if the test [formsSum].
+ * retired and, when changing one, a retired value it has a number for; and the sum, if the test [formsSum]. A number
+ * left as it was [initial]ly keeps counting, though its value has changed since to take it no longer: old measurements
+ * keep their numbers.
  */
 data class MeasurementForm(val test: ClinicalTest, val fields: List<TestValue>, val formsSum: Boolean, val initial: MeasurementDraft) {
 
@@ -14,7 +16,7 @@ data class MeasurementForm(val test: ClinicalTest, val fields: List<TestValue>, 
         val values = buildMap {
             fields.forEach { value ->
                 val typed = draft.typed[value.id].orEmpty()
-                if (typed.isBlank()) return@forEach
+                if (typed.isBlank() || keeps(value, typed)) return@forEach
                 val number = TestNumber.parse(typed, value.decimals)
                 when {
                     number == null -> put(value.id, FieldProblem.NotANumber)
@@ -28,8 +30,13 @@ data class MeasurementForm(val test: ClinicalTest, val fields: List<TestValue>, 
 
     /** The numbers of [draft], by value, those left empty or not fit left out. */
     fun numbers(draft: MeasurementDraft): Map<Long, Long> = fields.mapNotNull { value ->
-        TestNumber.parse(draft.typed[value.id].orEmpty(), value.decimals)?.takeIf(value::allows)?.let { value.id to it }
+        val typed = draft.typed[value.id].orEmpty()
+        val number = if (keeps(value, typed)) TestNumber.parse(typed, decimals = true) else TestNumber.parse(typed, value.decimals)?.takeIf(value::allows)
+        number?.let { value.id to it }
     }.toMap()
+
+    /** Whether [typed] is the number [value] had on opening, kept as it was. */
+    private fun keeps(value: TestValue, typed: String): Boolean = typed.isNotBlank() && typed == initial.typed[value.id]
 
     /** The sum of [draft] as it is typed: once every value not retired has its number; none until then, or without a sum. */
     fun sum(draft: MeasurementDraft): Long? = if (formsSum) sumOf(fields.filterNot(TestValue::retired), numbers(draft)) else null
@@ -42,11 +49,13 @@ data class MeasurementForm(val test: ClinicalTest, val fields: List<TestValue>, 
 
 /** A measurement as typed: the [typed] numbers by value id, and a [remark]. */
 data class MeasurementDraft(val typed: Map<Long, String> = emptyMap(), val remark: String = "") {
+    /** The remark without trailing spaces. */
     fun cleanedRemark(): String = InputText.multiLine(remark)
 }
 
 /** What keeps a measurement from being saved, the [values]' by id. */
 data class MeasurementProblems(val values: Map<Long, FieldProblem>, val nothingEntered: Boolean, val remarkTooLong: Boolean) {
+    /** Whether there is none: it can be saved. */
     val isEmpty: Boolean get() = values.isEmpty() && !nothingEntered && !remarkTooLong
 }
 
@@ -69,17 +78,18 @@ fun sumOf(values: List<TestValue>, numbers: Map<Long, Long>): Long? =
 /** How a value, or a sum, changed from its first measurement to its last. */
 sealed interface Change {
     /** Measured once only: nothing to compare. */
-    data object None : Change
+    data object MeasuredOnce : Change
 
+    /** The same as at first. */
     data object Unchanged : Change
 
     /** By [by], in hundredths, the [better] way or not, since [since]. */
     data class Changed(val by: Long, val better: Boolean, val since: LocalDate) : Change
 }
 
-/** The change from [first] to [last], measured on [since], which is better the [direction] way. */
-fun changeOf(first: Long, last: Long, since: LocalDate, direction: Direction, once: Boolean): Change {
-    if (once) return Change.None
+/** The change from [first] to [last], first measured on [since], which is better the [direction] way; none if [measuredOnce]. */
+fun changeOf(first: Long, last: Long, since: LocalDate, direction: Direction, measuredOnce: Boolean): Change {
+    if (measuredOnce) return Change.MeasuredOnce
     val by = last - first
     if (by == 0L) return Change.Unchanged
     return Change.Changed(by, better = (by > 0) == (direction == Direction.HigherIsBetter), since = since)

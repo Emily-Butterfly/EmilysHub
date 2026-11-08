@@ -18,19 +18,17 @@ class Measurements(private val doku: Doku, private val patients: Patients) {
             val numbers = database.measurements().values(measurement.id).associate { it.valueId to it.amount }
             val test = tests.test(measurement.testId)
             val values = tests.values(measurement.testId)
+            val sum = formsSum(test, values)
             MeasurementView(
                 id = measurement.id,
                 test = test,
                 entries = values.filter { !it.retired || it.id in numbers }.map { it to numbers[it.id] },
-                sum = if (formsSum(test, values)) sumOf(values.filterNot(TestValue::retired), numbers) else null,
-                formsSum = formsSum(test, values),
+                sum = if (sum) sumOf(values.filterNot(TestValue::retired), numbers) else null,
+                formsSum = sum,
                 remark = measurement.remark,
             )
         }
     }
-
-    /** How many measurements appointment [appointmentId] has, for deleting it to say so. */
-    suspend fun countAt(appointmentId: Long): Int = doku.withDatabase { it.measurements().countAt(appointmentId) } ?: 0
 
     /** The form for a new measurement of test [testId]: a field for each value not retired. */
     suspend fun newForm(testId: Long): MeasurementForm? = doku.withDatabase { database ->
@@ -132,7 +130,7 @@ class Measurements(private val doku: Doku, private val patients: Patients) {
     private fun line(label: String?, unit: String, direction: Direction, numbers: List<Pair<LocalDate, Long>>): CardLine? {
         val (since, first) = numbers.firstOrNull() ?: return null
         val last = numbers.last().second
-        return CardLine(label, unit, last, changeOf(first, last, since, direction, once = numbers.size == 1))
+        return CardLine(label, unit, last, changeOf(first, last, since, direction, measuredOnce = numbers.size == 1))
     }
 
     /** The unit of a sum: that of its values, if they all have the same; else none. */
@@ -144,8 +142,10 @@ private class TestsRead(private val database: DokuDatabase) {
     private val tests = mutableMapOf<Long, ClinicalTest>()
     private val values = mutableMapOf<Long, List<TestValue>>()
 
+    /** Test [id], which a measurement has. */
     suspend fun test(id: Long): ClinicalTest = tests[id] ?: checkNotNull(database.tests().get(id)).also { tests[id] = it }
 
+    /** The values of test [testId], in their order. */
     suspend fun values(testId: Long): List<TestValue> = values[testId] ?: database.tests().values(testId).also { values[testId] = it }
 }
 
@@ -167,6 +167,7 @@ private class PatientMeasurements(
             .thenComparator { a, b -> compareValues(a.time, b.time) }
             .thenBy { it.measurement.id }
 
+        /** The measurements of patient [patientId], read at once. */
         suspend fun of(database: DokuDatabase, patientId: Long): PatientMeasurements {
             val dao = database.measurements()
             val numbers = dao.valuesOfPatient(patientId).groupBy(MeasurementValue::measurementId)
@@ -178,13 +179,16 @@ private class PatientMeasurements(
 
 /** A measurement at an appointment: what it found for each value of its test it shows, and the sum, if formed. */
 data class MeasurementView(
+    /** The measurement's id, to change it. */
     val id: Long,
     val test: ClinicalTest,
     /** The values not retired, and those retired it has a number for, each with its number, if any. */
     val entries: List<Pair<TestValue, Long?>>,
     /** The sum, once every value not retired has a number; none until then. */
     val sum: Long?,
+    /** Whether its test forms a sum, so that a missing one shows as "Summe: –". */
     val formsSum: Boolean,
+    /** Its remark, empty for none. */
     val remark: String,
 )
 
