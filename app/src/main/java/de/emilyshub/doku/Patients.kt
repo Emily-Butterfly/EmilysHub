@@ -21,8 +21,8 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     fun today(): LocalDate = LocalDate.now(clock)
 
     /**
-     * The active patients in [order], each with the day of their last appointment up to today, if any. By the latest
-     * entry, a patient's last appointment or else the day they were added, in one list, the latest first (as decided on
+     * The active patients in [order], each with the day of their last appointment up to today, if any. By that day, the
+     * latest first; those without one after all with one, by the day they were added, the latest first (as decided on
      * 08.11.2026); on the same day, the one added later first.
      */
     suspend fun active(order: PatientOrder): List<PatientRow>? = doku.withDatabase { database ->
@@ -30,7 +30,9 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         val lastSeen = database.appointments().lastSeen(today())
         val sorted = when (order) {
             PatientOrder.LastSeen -> active.sortedWith(
-                compareByDescending<Patient> { lastSeen[it.id] ?: dayOf(it.createdAt) }.thenByDescending { it.createdAt },
+                compareBy<Patient> { lastSeen[it.id] == null }
+                    .thenByDescending { lastSeen[it.id] ?: dayOf(it.createdAt) }
+                    .thenByDescending { it.createdAt },
             )
             PatientOrder.Name -> active.sortedWith(compareBy(InputText.byName) { it.name })
         }

@@ -279,7 +279,7 @@ class AppointmentsTest {
     }
 
     @Test
-    fun `the start page goes by the last appointment up to today, then by when added`() {
+    fun `the start page goes by the last appointment up to today, those without one after, by when added`() {
         val seenLongAgo = patient("Früher")
         clock.now = clock.now.plusSeconds(60)
         val seenToday = patient("Heute")
@@ -295,10 +295,10 @@ class AppointmentsTest {
 
         val rows = runBlocking { checkNotNull(patients.active(PatientOrder.LastSeen)) }
 
-        // "Nie", added today after "Heute", goes first on the same day.
-        assertEquals(listOf(never, seenToday, toCome, seenLongAgo), rows.map { it.id })
+        // "Nie", without an appointment, comes after all with one, though added today.
+        assertEquals(listOf(seenToday, toCome, seenLongAgo, never), rows.map { it.id })
         assertEquals(
-            listOf(null, LocalDate.parse("2026-10-23"), LocalDate.parse("2026-10-01"), LocalDate.parse("2026-09-15")),
+            listOf(LocalDate.parse("2026-10-23"), LocalDate.parse("2026-10-01"), LocalDate.parse("2026-09-15"), null),
             rows.map { it.lastSeen },
         )
     }

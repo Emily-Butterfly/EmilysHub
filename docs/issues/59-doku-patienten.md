@@ -58,4 +58,4 @@ Abgestimmt im Interview vom 07.11.2026.
 - Diagnose, Anamnese und Therapeutische Zielsetzung als eigene Felder, dazu ein freies Feld „Sonstiges“.
 - Drei Reiter statt einer langen Seite, damit Termine und Tests auch nach vielen Terminen direkt erreichbar sind.
 - Löschhinweis nach 12 Monaten, weil die DSGVO verlangt, nicht mehr Gebrauchtes zu löschen; ohne Aufbewahrungspflicht, da keine Patientenakte.
-- „Zuletzt behandelt“ nach dem jüngsten Eintrag, in einer Liste: dem letzten Termin, sonst dem Tag des Anlegens; neueste zuerst (08.11.2026).
+- „Zuletzt behandelt“: zuerst die Patienten mit Termin, nach dem letzten Termin bis heute, neueste zuerst; danach die ohne Termin, nach dem Tag des Anlegens, neueste zuerst (08.11.2026).
