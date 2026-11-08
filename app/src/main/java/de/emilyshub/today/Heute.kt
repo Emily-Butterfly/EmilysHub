@@ -103,43 +103,27 @@ class Heute(
         }
     }
 
+    /** Ticks entries off on Heute, or unticks them, which undoes that. */
+    val onToday = Ticking(
+        routineDone = { id, done -> if (done) routines.markDone(id) else routines.reopen(id) },
+        routineTick = { id, item, ticked -> routines.tick(id, item, ticked) },
+        todoDone = { id, done -> if (done) todos.markDone(id) else todos.reopen(id) },
+        todoTick = { id, item, ticked -> todos.tick(id, item, ticked) },
+    )
+
     /**
-     * Catches up on yesterday's [entry] (SPEC.md §1): [done] ticks it off as done then, not [done] unticks it. A routine
+     * Catches up on yesterday's entries (SPEC.md §1): done ticks one off as done then, not done unticks it. A routine
      * as [Routines.catchUp] has it; a to-do done then as [Todos.markDoneYesterday] has it, and opened again as on Heute.
      */
-    suspend fun catchUp(entry: TodayEntry, done: Boolean) {
-        when (entry) {
-            is TodayEntry.OfRoutine -> routines.catchUp(entry.routine.occurrenceId, done)
-            is TodayEntry.OfTodo -> if (done) todos.markDoneYesterday(entry.todo.todoId) else todos.reopen(entry.todo.todoId)
-        }
-    }
+    val onYesterday = Ticking(
+        routineDone = { id, done -> routines.catchUp(id, done) },
+        routineTick = { id, item, ticked -> routines.catchUpTick(id, item, ticked) },
+        todoDone = { id, done -> if (done) todos.markDoneYesterday(id) else todos.reopen(id) },
+        todoTick = { id, item, ticked -> todos.tickYesterday(id, item, ticked) },
+    )
 
-    /** Ticks the item [itemId] of the checklist of yesterday's [entry] off, or unticks it, as [catchUp] has it. */
-    suspend fun catchUpTick(entry: TodayEntry, itemId: Long, ticked: Boolean) {
-        when (entry) {
-            is TodayEntry.OfRoutine -> routines.catchUpTick(entry.routine.occurrenceId, itemId, ticked)
-            is TodayEntry.OfTodo -> todos.tickYesterday(entry.todo.todoId, itemId, ticked)
-        }
-    }
-
-    /** Ticks [entry] off, or unticks it, which undoes that. */
-    suspend fun setDone(entry: TodayEntry, done: Boolean) {
-        when (entry) {
-            is TodayEntry.OfRoutine -> {
-                val id = entry.routine.occurrenceId
-                if (done) routines.markDone(id) else routines.reopen(id)
-            }
-            is TodayEntry.OfTodo -> if (done) todos.markDone(entry.todo.todoId) else todos.reopen(entry.todo.todoId)
-        }
-    }
-
-    /** Ticks the item [itemId] of [entry]'s checklist off, or unticks it. */
-    suspend fun tick(entry: TodayEntry, itemId: Long, ticked: Boolean) {
-        when (entry) {
-            is TodayEntry.OfRoutine -> routines.tick(entry.routine.occurrenceId, itemId, ticked)
-            is TodayEntry.OfTodo -> todos.tick(entry.todo.todoId, itemId, ticked)
-        }
-    }
+    /** [onYesterday] when [catchingUp] on yesterday, [onToday] otherwise. */
+    fun ticking(catchingUp: Boolean): Ticking = if (catchingUp) onYesterday else onToday
 
     /** Skips the routine's occurrence (SPEC.md §2). */
     suspend fun skip(routine: DueRoutine) = routines.skip(routine.occurrenceId)
@@ -191,3 +175,23 @@ val DueRoutine.offer: RoutineOffer
         OccurrenceStatus.Skipped, OccurrenceStatus.Dropped -> if (covered) RoutineOffer.None else RoutineOffer.Undo
         OccurrenceStatus.Done, OccurrenceStatus.Missed -> RoutineOffer.None
     }
+
+/** Ticking entries of one day off, or unticking them: whether a routine's occurrence or a to-do, by its id. */
+class Ticking internal constructor(
+    private val routineDone: suspend (occurrenceId: Long, done: Boolean) -> Unit,
+    private val routineTick: suspend (occurrenceId: Long, itemId: Long, ticked: Boolean) -> Unit,
+    private val todoDone: suspend (todoId: Long, done: Boolean) -> Unit,
+    private val todoTick: suspend (todoId: Long, itemId: Long, ticked: Boolean) -> Unit,
+) {
+    /** Ticks [entry] off, or unticks it. */
+    suspend fun setDone(entry: TodayEntry, done: Boolean) = when (entry) {
+        is TodayEntry.OfRoutine -> routineDone(entry.routine.occurrenceId, done)
+        is TodayEntry.OfTodo -> todoDone(entry.todo.todoId, done)
+    }
+
+    /** Ticks the item [itemId] of [entry]'s checklist off, or unticks it. */
+    suspend fun tick(entry: TodayEntry, itemId: Long, ticked: Boolean) = when (entry) {
+        is TodayEntry.OfRoutine -> routineTick(entry.routine.occurrenceId, itemId, ticked)
+        is TodayEntry.OfTodo -> todoTick(entry.todo.todoId, itemId, ticked)
+    }
+}

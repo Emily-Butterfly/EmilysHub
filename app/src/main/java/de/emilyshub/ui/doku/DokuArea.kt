@@ -139,6 +139,7 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
             onTab = { onPagesChange(pages.replaceTop(page.copy(tab = it))) },
             onEditText = { open(DokuPage.Text(page.id, it)) },
             onOpenAppointment = { open(DokuPage.Appointment(page.id, it)) },
+            onAddedAppointment = { open(DokuPage.Appointment(page.id, it, new = true)) },
             onOpenHistory = { open(DokuPage.History(page.id, it)) },
             onGone = { deleted -> onPagesChange(if (deleted) pages.without(page.id) else pages.back()) },
         )
@@ -148,15 +149,16 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
             modules = modules,
             page = page,
             contentPadding = contentPadding,
-            onMeasure = { testId, id -> open(DokuPage.Measurement(page.patientId, page.id, testId, id)) },
+            // Measured at, a new appointment is no longer left untouched.
+            onMeasure = { testId, id -> onPagesChange(pages.replaceTop(page.copy(new = false)).open(DokuPage.Measurement(page.patientId, page.id, testId, id))) },
             onDone = back,
         )
         DokuPage.Template -> TemplatePage(doku, appointments, contentPadding, onDone = back)
-        DokuPage.Tests -> TestsPage(patients, tests, contentPadding, onOpen = { open(DokuPage.TestEditor(it)) })
+        DokuPage.Tests -> TestsPage(doku, tests, contentPadding, onOpen = { open(DokuPage.TestEditor(it)) })
         is DokuPage.TestEditor -> TestEditorPage(doku, tests, page, contentPadding, onDone = back)
         is DokuPage.Measurement -> MeasurementPage(doku, measurements, page, contentPadding, onDone = back)
         is DokuPage.History -> HistoryPage(
-            patients = patients,
+            doku = doku,
             measurements = measurements,
             page = page,
             contentPadding = contentPadding,

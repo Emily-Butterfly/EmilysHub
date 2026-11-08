@@ -1,15 +1,16 @@
 package de.emilyshub.doku
 
 import de.emilyshub.data.InputText
+import java.time.Clock
+import java.time.LocalDate
 
 /**
  * The Doku's tests (SPEC.md §14), set up once for all patients in its menu. A test changed after it was measured
  * changes for its old measurements too, which keep their numbers; a value measured once is retired rather than deleted,
  * so that no history goes unnoticed. Archived, a test is no longer chosen for new measurements; deleted, it goes with
- * all its measurements. As [patients], all of it is read and written only while [doku] is open, and its changes count in
- * [Patients.changes].
+ * all its measurements. All of it is read and written only while [doku] is open, and its changes count in [Doku.changes].
  */
-class TestCatalog(private val doku: Doku, private val patients: Patients) {
+class TestCatalog(private val doku: Doku, private val clock: Clock) {
 
     /** The tests in use and those archived, each by name; none once locked. */
     suspend fun list(): TestList? = doku.withDatabase { database ->
@@ -43,7 +44,7 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
      * of the draft are deleted if never measured, else retired. A sum asked for of two values or more stays asked for,
      * though some are retired, formed only while two or more are not ([TestDetails.formsSum]).
      */
-    suspend fun save(id: Long?, draft: TestDraft): Long? = patients.changing { database ->
+    suspend fun save(id: Long?, draft: TestDraft): Long? = doku.changing { database ->
         val tests = database.tests()
         val problems = draft.problems(taken = takenNames(database, id))
         require(problems.isEmpty) { "The test's draft has problems: $problems" }
@@ -78,14 +79,14 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
     }
 
     /** Archives test [id] today: no longer to choose for new measurements; its measurements stay. */
-    suspend fun archive(id: Long) = change(id) { it.copy(archivedOn = it.archivedOn ?: patients.today()) }
+    suspend fun archive(id: Long) = change(id) { it.copy(archivedOn = it.archivedOn ?: LocalDate.now(clock)) }
 
     /** Makes archived test [id] choosable again. */
     suspend fun restore(id: Long) = change(id) { it.copy(archivedOn = null) }
 
     /** Deletes test [id] for good, with all its measurements. */
     suspend fun delete(id: Long) {
-        patients.changing { it.tests().delete(id) }
+        doku.changing { it.tests().delete(id) }
     }
 
     /** The names of the tests other than [id]. */
@@ -93,7 +94,7 @@ class TestCatalog(private val doku: Doku, private val patients: Patients) {
 
     /** Changes test [id] as [change] has it. */
     private suspend fun change(id: Long, change: (ClinicalTest) -> ClinicalTest) {
-        patients.changing { database -> database.tests().get(id)?.let { database.tests().update(change(it)) } }
+        doku.changing { database -> database.tests().get(id)?.let { database.tests().update(change(it)) } }
     }
 }
 

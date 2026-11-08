@@ -26,10 +26,10 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.doku.Doku
 import de.emilyshub.doku.HistoryColumn
 import de.emilyshub.doku.HistoryRow
 import de.emilyshub.doku.Measurements
-import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestNumber
 import de.emilyshub.ui.numericDate
 import java.time.LocalDate
@@ -41,13 +41,13 @@ import java.time.LocalDate
  */
 @Composable
 internal fun HistoryPage(
-    patients: Patients,
+    doku: Doku,
     measurements: Measurements,
     page: DokuPage.History,
     contentPadding: PaddingValues,
     onOpenAppointment: (Long) -> Unit,
 ) {
-    val history = rememberDokuLoad(patients, page) { measurements.history(page.patientId, page.testId) } ?: return
+    val history = rememberDokuLoad(doku, page) { measurements.history(page.patientId, page.testId) } ?: return
     val sumLabel = stringResource(R.string.doku_card_sum)
     val name = { column: HistoryColumn -> column.name ?: sumLabel }
     LazyColumn(contentPadding = contentPadding) {

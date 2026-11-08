@@ -24,8 +24,11 @@ sealed interface DokuPage : Serializable {
         override val patientId: Long get() = id
     }
 
-    /** Appointment [id] of patient [patientId], to document. */
-    data class Appointment(override val patientId: Long, val id: Long) : DokuPage
+    /**
+     * Appointment [id] of patient [patientId], to document; [new] when just added by "+ Termin", to go again if left
+     * untouched.
+     */
+    data class Appointment(override val patientId: Long, val id: Long, val new: Boolean = false) : DokuPage
 
     /** The appointment template, to write. */
     data object Template : DokuPage

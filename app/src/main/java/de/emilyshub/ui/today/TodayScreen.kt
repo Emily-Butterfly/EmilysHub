@@ -217,7 +217,7 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
             fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
             tickable = if (catchingUp) routine.catchUpTickable else routine.tickable,
             offer = if (catchingUp) RoutineOffer.None else routine.offer,
-            onDoneChange = { done -> act { if (catchingUp) catchUp(entry, done) else setDone(entry, done) } },
+            onDoneChange = { done -> act { ticking(catchingUp).setDone(entry, done) } },
             onSkip = { act { skip(routine) } },
             onDrop = { act { drop(routine) } },
             onUndo = { act { undo(routine) } },
@@ -225,7 +225,7 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
         val checklistTickable = if (catchingUp) routine.catchUpTickable else routine.status.checklistTickable
         routine.checklist.forEach { item ->
             ChecklistRow(item, tickable = checklistTickable) { ticked ->
-                act { if (catchingUp) catchUpTick(entry, item.itemId, ticked) else tick(entry, item.itemId, ticked) }
+                act { ticking(catchingUp).tick(entry, item.itemId, ticked) }
             }
         }
     }
@@ -243,11 +243,11 @@ private fun TodoEntry(entry: TodayEntry.OfTodo, today: LocalDate, act: Act, upco
             todo = todo,
             today = today,
             upcoming = upcoming,
-            onDoneChange = { done -> act { if (catchingUp) catchUp(entry, done) else setDone(entry, done) } },
+            onDoneChange = { done -> act { ticking(catchingUp).setDone(entry, done) } },
         )
         todo.checklist.forEach { item ->
             ChecklistRow(item, tickable = true) { ticked ->
-                act { if (catchingUp) catchUpTick(entry, item.itemId, ticked) else tick(entry, item.itemId, ticked) }
+                act { ticking(catchingUp).tick(entry, item.itemId, ticked) }
             }
         }
     }

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.emilyshub.backup.BackupException
@@ -128,6 +129,14 @@ class Doku internal constructor(
         val database = opened?.database ?: return@withLock null
         withContext(io) { block(database) }
     }
+
+    /** How many changes were made through [changing]: Compose state, read by the screens to read anew. */
+    var changes by mutableIntStateOf(0)
+        private set
+
+    /** What [block] makes of the open database, as [withDatabase], counted in [changes] if it was open. */
+    suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
+        withDatabase(block).also { if (it != null) changes++ }
 
     /** Whether the fingerprint can be turned on: a strong one is set up on the phone. */
     val canUseFingerprint: Boolean get() = fingerprint.isEnrolled()

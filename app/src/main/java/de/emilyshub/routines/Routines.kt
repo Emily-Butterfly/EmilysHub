@@ -365,22 +365,11 @@ class Routines(
         database().withTransaction {
             val occurrence = dao.occurrence(occurrenceId)?.takeIf { it.status.checklistTickable } ?: return@withTransaction
             val routine = dao.get(occurrence.routineId)?.takeIf { it.status == RoutineStatus.Active } ?: return@withTransaction
-            val items = dao.checklist(routine.id).map { it.id }
-            if (itemId !in items) return@withTransaction
-            val done = occurrence.status == OccurrenceStatus.Done
-            when {
-                ticked && !done -> {
-                    dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
-                    tickOffIfAllTicked(occurrenceId, items)
-                }
-                // Done as a whole, every item counts as ticked off until one is unticked.
-                !ticked && done -> {
-                    dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
-                    dao.deleteTick(occurrenceId, itemId)
-                    reopen(occurrence, routine)
-                }
-                !ticked -> dao.deleteTick(occurrenceId, itemId)
-            }
+            tickItem(
+                occurrence, itemId, ticked,
+                allTicked = { lifecycle.move(listOf(occurrenceId), OccurrenceStatus.Done) },
+                unticked = { reopen(occurrence, routine) },
+            )
         }
     }
 
@@ -411,22 +400,41 @@ class Routines(
     suspend fun catchUpTick(occurrenceId: Long, itemId: Long, ticked: Boolean) = write {
         database().withTransaction {
             val occurrence = ofYesterday(occurrenceId) ?: return@withTransaction
-            val items = dao.checklist(occurrence.routineId).map { it.id }
-            if (itemId !in items) return@withTransaction
-            val done = occurrence.status == OccurrenceStatus.Done
-            when {
-                ticked && !done -> {
-                    dao.insertTicks(listOf(ChecklistTick(occurrenceId, itemId)))
-                    if (dao.ticks(occurrenceId).containsAll(items)) lifecycle.catchUp(occurrenceId)
-                }
-                // Done as a whole, every item counts as ticked off until one is unticked.
-                !ticked && done -> {
-                    dao.insertTicks((items - itemId).map { ChecklistTick(occurrenceId, it) })
-                    dao.deleteTick(occurrenceId, itemId)
-                    uncatch(occurrenceId)
-                }
-                !ticked -> dao.deleteTick(occurrenceId, itemId)
+            tickItem(
+                occurrence, itemId, ticked,
+                allTicked = { lifecycle.catchUp(occurrenceId) },
+                unticked = { uncatch(occurrenceId) },
+            )
+        }
+    }
+
+    /**
+     * Ticks the item [itemId] of the [occurrence]'s checklist off, or unticks it: with all of it ticked off on one not
+     * done yet, [allTicked] ticks it off; unticking an item of one done, [unticked] opens it again, the others still
+     * ticked off. Nothing for an item not on its routine's checklist.
+     */
+    private suspend fun tickItem(
+        occurrence: Occurrence,
+        itemId: Long,
+        ticked: Boolean,
+        allTicked: suspend () -> Unit,
+        unticked: suspend () -> Unit,
+    ) {
+        val items = dao.checklist(occurrence.routineId).map { it.id }
+        if (itemId !in items) return
+        val done = occurrence.status == OccurrenceStatus.Done
+        when {
+            ticked && !done -> {
+                dao.insertTicks(listOf(ChecklistTick(occurrence.id, itemId)))
+                if (dao.ticks(occurrence.id).containsAll(items)) allTicked()
             }
+            // Done as a whole, every item counts as ticked off until one is unticked.
+            !ticked && done -> {
+                dao.insertTicks((items - itemId).map { ChecklistTick(occurrence.id, it) })
+                dao.deleteTick(occurrence.id, itemId)
+                unticked()
+            }
+            !ticked -> dao.deleteTick(occurrence.id, itemId)
         }
     }
 

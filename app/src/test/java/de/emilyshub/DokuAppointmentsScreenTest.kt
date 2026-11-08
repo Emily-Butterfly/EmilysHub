@@ -92,6 +92,25 @@ class DokuAppointmentsScreenTest {
     }
 
     @Test
+    fun `a new appointment left untouched goes again, one written in stays`() {
+        launchApp().use {
+            compose.openNewDoku()
+            val (patient, _) = patient("Frau M.")
+
+            compose.openAppointments("Frau M.")
+            compose.onNodeWithText("+ Termin").performClick()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Noch keine Termine").assertIsDisplayed()
+
+            compose.onNodeWithText("+ Termin").performClick()
+            compose.field("Dokumentation").performTextInput("Mobilisation")
+            compose.onNodeWithText("Fertig").performClick()
+            compose.onNode(hasText("23.10.2026") and hasText("Mobilisation")).assertIsDisplayed()
+            assertEquals(1, runBlocking { app.appointments.of(patient) }?.size)
+        }
+    }
+
+    @Test
     fun `an appointment's text and time are changed, and the list keeps the latest first`() {
         launchApp().use {
             compose.openNewDoku()

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.doku
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,11 +14,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -25,7 +28,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import de.emilyshub.R
 import de.emilyshub.doku.Appointment
+import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
+import de.emilyshub.doku.DokuSaver
 import de.emilyshub.doku.MeasurementView
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.DateDialog
@@ -39,8 +44,9 @@ import java.time.LocalTime
 /**
  * An appointment (SPEC.md §14): its day, in the past or to come, and its time if any, each changed at once; and its
  * documentation in Markdown, saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku
- * locks, never into the saved state. Below it the tests measured at it, each opening to change it, and "+ Test" to
- * measure one ([onMeasure], with the measurement's id, or none for a new one). "Löschen" in its menu asks first,
+ * locks, never into the saved state. A new one ([DokuPage.Appointment.new]) left untouched goes again as the page
+ * closes or the Doku locks ([Appointments.dropIfUntouchedLater]), so that "+ Termin" alone keeps nothing. Below it the
+ * tests measured at it, each opening to change it, and "+ Test" to measure one ([onMeasure], with the measurement's id, or none for a new one). "Löschen" in its menu asks first,
  * naming how many measurements go with it. A closed patient's is only to read. Once deleted, or gone, the page closes
  * ([onDone]).
  */
@@ -59,17 +65,21 @@ internal fun AppointmentPage(
     LaunchedEffect(page) {
         val appointment = appointments.get(page.id)
         val patient = patients.get(page.patientId)
-        if (appointment == null || patient == null) onDone() else loaded = Loaded(appointment.text, patient.name, appointments.canChange(page.id))
+        if (appointment == null || patient == null) onDone() else loaded = Loaded(appointment, patient.name, appointments.canChange(page.id))
     }
     val opened = loaded ?: return
-    val appointment = rememberDokuLoad(patients, page.id) { appointments.get(page.id) }
-    var text by remember { mutableStateOf(opened.text) }
+    val appointment = rememberDokuLoad(doku, page.id) { appointments.get(page.id) }
+    var text by remember { mutableStateOf(opened.appointment.text) }
     var deleted by remember { mutableStateOf(false) }
+    var measuring by remember { mutableStateOf(false) }
     if (opened.canChange) {
+        if (page.new) {
+            DropIfUntouched(doku, appointments, page.id, keep = { deleted || measuring || text != opened.appointment.text })
+        }
         SaveOnClose(
             doku = doku,
             key = page,
-            original = opened.text,
+            original = opened.appointment.text,
             current = text,
             pending = { appointments.pendingText(page.id, it) },
             saveLater = { appointments.setTextLater(page.id, it) },
@@ -82,7 +92,7 @@ internal fun AppointmentPage(
     var pickingTime by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
-    val measured = rememberDokuLoad(patients, page.id) { measurements.at(page.id) }
+    val measured = rememberDokuLoad(doku, page.id) { measurements.at(page.id) }
 
     DokuTextEditor(
         title = opened.patientName,
@@ -123,15 +133,16 @@ internal fun AppointmentPage(
         footer = {
             MeasurementList(
                 measured = measured.orEmpty(),
-                onOpen = if (opened.canChange) ({ view: MeasurementView -> onMeasure(view.test.id, view.id) }) else null,
+                onOpen = if (opened.canChange) ({ view: MeasurementView -> measuring = true; onMeasure(view.test.id, view.id) }) else null,
                 onAdd = if (opened.canChange) ({ choosing = true }) else null,
             )
         },
     )
 
     if (choosing) {
-        ChooseTest(doku, patients, tests, onChoose = { testId ->
+        ChooseTest(doku, tests, onChoose = { testId ->
             choosing = false
+            measuring = true
             onMeasure(testId, null)
         }, onDismiss = { choosing = false })
     }
@@ -181,8 +192,30 @@ internal fun AppointmentPage(
     }
 }
 
-/** What the page opened with: the text as it was, the patient's name, and whether it may be changed. */
-private data class Loaded(val text: String, val patientName: String, val canChange: Boolean)
+/** What the page opened with: the appointment as it was, the patient's name, and whether it may be changed. */
+private data class Loaded(val appointment: Appointment, val patientName: String, val canChange: Boolean)
+
+/**
+ * Deletes new appointment [id] again as the page closes or the Doku locks, if left untouched
+ * ([Appointments.dropIfUntouchedLater]), unless it is to [keep]: what is typed in it is, or it was deleted or is measured
+ * at. Not as the screen turns, after which the page goes on with it.
+ */
+@Composable
+private fun DropIfUntouched(doku: Doku, appointments: Appointments, id: Long, keep: () -> Boolean) {
+    val activity = LocalActivity.current
+    val keepNow by rememberUpdatedState(keep)
+    DisposableEffect(id) {
+        val saver = doku.addSaver(DokuSaver { if (keepNow()) null else appointments.pendingDrop(id) })
+        onDispose {
+            saver.close()
+            when {
+                activity?.isChangingConfigurations == true -> Unit
+                keepNow() -> appointments.keep(id)
+                else -> appointments.dropIfUntouchedLater(id)
+            }
+        }
+    }
+}
 
 /** The three dots of an appointment, with "Löschen". */
 @Composable

@@ -112,12 +112,12 @@ class HeuteTest {
         assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
 
-        heute.setDone(seen.last().entries.single(), done = true)
+        heute.onToday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
         assertEquals(StreakFlame(days = 1, todayOpen = false), seen.last().flame)
         assertEquals(1, seen.last().doneToday())
 
-        heute.setDone(seen.last().entries.single(), done = false)
+        heute.onToday.setDone(seen.last().entries.single(), done = false)
         runCurrent()
         assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
@@ -128,7 +128,7 @@ class HeuteTest {
         app.todo("Müll", due = Due.On(FRIDAY))
         val seen = collect()
 
-        heute.setDone(seen.last().entries.single(), done = true)
+        heute.onToday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
 
         val entry = seen.last().entries.single() as TodayEntry.OfTodo

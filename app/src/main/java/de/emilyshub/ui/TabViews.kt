@@ -20,4 +20,10 @@ data class TabViews(
     val notes: NotesView = NotesView(),
     val more: MoreEntry? = null,
     val doku: DokuPages = DokuPages(),
-) : Serializable
+) : Serializable {
+    /** With Sonstiges' list showing again, and the Doku's pages closed. */
+    fun closeMore(): TabViews = copy(more = null, doku = DokuPages())
+
+    /** Back within Sonstiges: within the Doku to the page it was opened from first, else to the list ([closeMore]). */
+    fun backInMore(): TabViews = if (more == MoreEntry.Doku && doku.canGoBack) copy(doku = doku.back()) else closeMore()
+}

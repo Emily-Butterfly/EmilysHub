@@ -6,10 +6,9 @@ import java.time.LocalDate
  * The measurements of the Doku's tests (SPEC.md §14), always at an appointment, with its date; several at one, the
  * same test twice too. Each finds a number for one value or more of its test, and may have a remark. An active
  * patient's are written here, a closed one's only read. The patient's tab Tests shows a card for each test measured,
- * and its history. As [patients], all of it is read and written only while [doku] is open, and its changes count in
- * [Patients.changes].
+ * and its history. All of it is read and written only while [doku] is open, and its changes count in [Doku.changes].
  */
-class Measurements(private val doku: Doku, private val patients: Patients) {
+class Measurements(private val doku: Doku) {
 
     /** The measurements at appointment [appointmentId], in the order they were added; none once locked. */
     suspend fun at(appointmentId: Long): List<MeasurementView>? = doku.withDatabase { database ->
@@ -57,7 +56,7 @@ class Measurements(private val doku: Doku, private val patients: Patients) {
      */
     suspend fun save(appointmentId: Long, id: Long?, form: MeasurementForm, draft: MeasurementDraft): Long? {
         require(form.problems(draft).isEmpty) { "The measurement has problems" }
-        return patients.changing { database ->
+        return doku.changing { database ->
             if (!isChangeable(database, appointmentId)) return@changing null
             if (id != null && database.measurements().get(id)?.appointmentId != appointmentId) return@changing null
             val measurement = Measurement(id = id ?: 0, appointmentId = appointmentId, testId = form.test.id, remark = draft.cleanedRemark())
@@ -68,7 +67,7 @@ class Measurements(private val doku: Doku, private val patients: Patients) {
 
     /** Deletes measurement [id]; one of a closed patient stays, as it is only to read. */
     suspend fun delete(id: Long) {
-        patients.changing { database ->
+        doku.changing { database ->
             val measurement = database.measurements().get(id) ?: return@changing
             if (isChangeable(database, measurement.appointmentId)) database.measurements().delete(id)
         }

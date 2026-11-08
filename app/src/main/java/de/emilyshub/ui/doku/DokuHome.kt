@@ -63,9 +63,9 @@ internal fun DokuHome(
     var adding by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(patients) { order = patients.order() }
-    val rows = rememberDokuLoad(patients, order) { order?.let { patients.active(it) } }
-    val hits = rememberDokuLoad(patients, query) { if (query.isBlank()) null else patients.search(query) }
-    val overdue = rememberDokuLoad(patients) { patients.overdueCount() } ?: 0
+    val rows = rememberDokuLoad(doku, order) { order?.let { patients.active(it) } }
+    val hits = rememberDokuLoad(doku, query) { if (query.isBlank()) null else patients.search(query) }
+    val overdue = rememberDokuLoad(doku) { patients.overdueCount() } ?: 0
 
     LazyColumn(contentPadding = contentPadding) {
         item {
@@ -186,12 +186,12 @@ internal fun EmptyLine(text: String) {
 }
 
 /**
- * What [load] reads of the Doku, read anew as [patients] change and as [keys] do; null until read, and once the Doku
- * is locked. What was read last stays while it is read anew, so that nothing flickers.
+ * What [load] reads of the Doku, read anew as anything in [doku] changes and as [keys] do; null until read, and once
+ * the Doku is locked. What was read last stays while it is read anew, so that nothing flickers.
  */
 @Composable
-internal fun <T> rememberDokuLoad(patients: Patients, vararg keys: Any?, load: suspend () -> T?): T? {
+internal fun <T> rememberDokuLoad(doku: Doku, vararg keys: Any?, load: suspend () -> T?): T? {
     var value by remember { mutableStateOf<T?>(null) }
-    LaunchedEffect(patients.changes, *keys) { value = load() }
+    LaunchedEffect(doku.changes, *keys) { value = load() }
     return value
 }

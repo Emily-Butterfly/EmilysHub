@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 internal fun DokuArchivePage(doku: Doku, patients: Patients, contentPadding: PaddingValues, onOpen: (Long) -> Unit) {
-    val archived = rememberDokuLoad(patients) { patients.archive() } ?: return
+    val archived = rememberDokuLoad(doku) { patients.archive() } ?: return
     // Those shown overdue, the very ones deleted once confirmed.
     val overdueIds = archived.filter(ArchivedPatient::overdue).map(ArchivedPatient::id)
     val overdue = overdueIds.size

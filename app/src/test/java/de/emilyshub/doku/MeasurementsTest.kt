@@ -44,9 +44,9 @@ class MeasurementsTest {
     ).also { runBlocking { it.load(); it.setUp("geheim-geheim") } }
 
     private val patients = Patients(doku, clock, CoroutineScope(Dispatchers.Unconfined))
-    private val appointments = Appointments(doku, patients, CoroutineScope(Dispatchers.Unconfined))
-    private val catalog = TestCatalog(doku, patients)
-    private val measurements = Measurements(doku, patients)
+    private val appointments = Appointments(doku, clock, CoroutineScope(Dispatchers.Unconfined))
+    private val catalog = TestCatalog(doku, clock)
+    private val measurements = Measurements(doku)
 
     @After
     fun closeDatabase() {
@@ -100,6 +100,17 @@ class MeasurementsTest {
         MeasurementDraft(typed.associate { (name, number) -> valueId(testId, name) to number })
 
     private fun cards() = runBlocking { checkNotNull(measurements.cards(patient)) }
+
+    @Test
+    fun `a new appointment with a measurement stays, though nothing else of it was changed`() {
+        val id = checkNotNull(runBlocking { appointments.create(patient) })
+        val created = checkNotNull(runBlocking { appointments.get(id) })
+        measure(id, pain, "VAS" to "3")
+
+        appointments.dropIfUntouchedLater(id)
+
+        assertEquals(created, runBlocking { appointments.get(id) })
+    }
 
     @Test
     fun `numbers are typed with a comma, with no more decimals than allowed, within the range`() {

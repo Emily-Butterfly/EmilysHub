@@ -75,11 +75,11 @@ class CatchUpTest {
         val missed = seen.last().routines().single()
         assertTrue(missed.catchUpTickable)
 
-        heute.catchUp(TodayEntry.OfRoutine(missed), done = true)
+        heute.onYesterday.setDone(TodayEntry.OfRoutine(missed), done = true)
         runCurrent()
         assertEquals(Done, seen.last().routines().single().status)
 
-        heute.catchUp(seen.last().entries.single(), done = false)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = false)
         runCurrent()
         assertEquals(Missed, seen.last().routines().single().status)
     }
@@ -90,11 +90,11 @@ class CatchUpTest {
         app.history(vitamins, YESTERDAY_ISO to Dropped)
         val seen = collect()
 
-        heute.catchUp(seen.last().entries.single(), done = true)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
         assertEquals(Done, seen.last().routines().single().status)
 
-        heute.catchUp(seen.last().entries.single(), done = false)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = false)
         runCurrent()
         assertEquals(Missed, seen.last().routines().single().status)
     }
@@ -107,11 +107,11 @@ class CatchUpTest {
         val seen = collect()
         assertEquals(OccurrenceStatus.Open, seen.last().routines().single().status)
 
-        heute.catchUp(seen.last().entries.single(), done = true)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
         assertEquals(Done, seen.last().routines().single().status)
 
-        heute.catchUp(seen.last().entries.single(), done = false)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = false)
         runCurrent()
         assertEquals(OccurrenceStatus.Open, seen.last().routines().single().status)
     }
@@ -123,7 +123,7 @@ class CatchUpTest {
         val seen = collect()
         assertFalse(seen.last().routines().single().catchUpTickable)
 
-        heute.catchUp(seen.last().entries.single(), done = true)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
 
         assertEquals(Skipped, seen.last().routines().single().status)
@@ -137,12 +137,12 @@ class CatchUpTest {
         val yesterday = collect()
         assertNull(today.last().flame)
 
-        heute.catchUp(yesterday.last().entries.single(), done = true)
+        heute.onYesterday.setDone(yesterday.last().entries.single(), done = true)
         runCurrent()
         assertEquals(StreakFlame(days = 2, todayOpen = true), today.last().flame)
         assertEquals(1, today.last().doneOn(YESTERDAY))
 
-        heute.catchUp(yesterday.last().entries.single(), done = false)
+        heute.onYesterday.setDone(yesterday.last().entries.single(), done = false)
         runCurrent()
         assertNull(today.last().flame)
         assertEquals(0, today.last().doneOn(YESTERDAY))
@@ -156,13 +156,13 @@ class CatchUpTest {
         app.history(work, YESTERDAY_ISO to Missed)
         val seen = collect()
 
-        heute.catchUp(seen.last().entries.first { it.name == "Tabletten zu Hause" }, done = true)
+        heute.onYesterday.setDone(seen.last().entries.first { it.name == "Tabletten zu Hause" }, done = true)
         runCurrent()
         val covered = seen.last().routines().single { it.name == "Tabletten Arbeit" }
         assertEquals(Skipped to "Tabletten zu Hause", covered.status to covered.coveredBy)
         assertFalse(covered.catchUpTickable)
 
-        heute.catchUp(seen.last().entries.first { it.name == "Tabletten zu Hause" }, done = false)
+        heute.onYesterday.setDone(seen.last().entries.first { it.name == "Tabletten zu Hause" }, done = false)
         runCurrent()
         assertEquals(listOf(Missed, Missed), seen.last().routines().map { it.status })
         assertNull(seen.last().routines().single { it.name == "Tabletten Arbeit" }.coveredBy)
@@ -175,16 +175,16 @@ class CatchUpTest {
         val seen = collect()
         val (legs, back) = seen.last().routines().single().checklist
 
-        heute.catchUpTick(seen.last().entries.single(), legs.itemId, ticked = true)
+        heute.onYesterday.tick(seen.last().entries.single(), legs.itemId, ticked = true)
         runCurrent()
         assertEquals(Missed, seen.last().routines().single().status)
         assertTrue(seen.last().routines().single().checklist.first().ticked)
 
-        heute.catchUpTick(seen.last().entries.single(), back.itemId, ticked = true)
+        heute.onYesterday.tick(seen.last().entries.single(), back.itemId, ticked = true)
         runCurrent()
         assertEquals(Done, seen.last().routines().single().status)
 
-        heute.catchUpTick(seen.last().entries.single(), legs.itemId, ticked = false)
+        heute.onYesterday.tick(seen.last().entries.single(), legs.itemId, ticked = false)
         runCurrent()
         val unticked = seen.last().routines().single()
         assertEquals(Missed, unticked.status)
@@ -235,7 +235,7 @@ class CatchUpTest {
         val yesterday = collect()
         assertEquals(listOf("Müll"), today.last().entries.map { it.name })
 
-        heute.catchUp(yesterday.last().entries.single(), done = true)
+        heute.onYesterday.setDone(yesterday.last().entries.single(), done = true)
         runCurrent()
 
         val done = checkNotNull(app.todos.get(rubbish)).doneAt
@@ -245,7 +245,7 @@ class CatchUpTest {
         assertEquals(listOf("Müll"), app.todos.archived().first().map { it.title })
         assertEquals(1, today.last().doneOn(YESTERDAY))
 
-        heute.catchUp(yesterday.last().entries.single(), done = false)
+        heute.onYesterday.setDone(yesterday.last().entries.single(), done = false)
         runCurrent()
         assertNull(checkNotNull(app.todos.get(rubbish)).doneAt)
         assertEquals(listOf("Müll"), today.last().entries.map { it.name })
@@ -256,7 +256,7 @@ class CatchUpTest {
         val plants = app.todo("Blumen gießen", due = Due.On(LocalDate.parse("2026-10-21")), recurrence = Recurrence.EveryNDays(3, fromDone = true))
         val seen = collect()
 
-        heute.catchUp(seen.last().entries.single(), done = true)
+        heute.onYesterday.setDone(seen.last().entries.single(), done = true)
         runCurrent()
 
         val next = checkNotNull(app.todos.get(checkNotNull(app.todos.get(plants)?.nextId)))

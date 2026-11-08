@@ -47,7 +47,6 @@ import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Patient
 import de.emilyshub.doku.PatientField
-import de.emilyshub.doku.Patients
 import de.emilyshub.doku.toDraft
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.clockTime
@@ -62,7 +61,7 @@ import java.time.LocalTime
  * and the patient's menu; below the three tabs Übersicht · Termine · Tests, on [page]'s tab ([onTab]). The overview
  * shows the four texts as they read, each tapped to write it ([onEditText]). A closed patient's page is only to read,
  * its menu offering to restore them. The appointments, the latest first, open by a tap ([onOpenAppointment]), and an
- * active patient's "+ Termin" adds one, its documentation the template's. The tab Tests has a card for each test
+ * active patient's "+ Termin" adds one, its documentation the template's, and opens it ([onAddedAppointment]). The tab Tests has a card for each test
  * measured, which opens its history ([onOpenHistory]). Once closed or deleted, the page is gone ([onGone]).
  */
 @Composable
@@ -74,16 +73,17 @@ internal fun PatientPage(
     onTab: (PatientTab) -> Unit,
     onEditText: (PatientField) -> Unit,
     onOpenAppointment: (Long) -> Unit,
+    onAddedAppointment: (Long) -> Unit,
     onOpenHistory: (testId: Long) -> Unit,
     onGone: (deleted: Boolean) -> Unit,
 ) {
     val (patients, appointments, _, measurements) = modules
-    val patient = rememberDokuLoad(patients, page.id) { patients.get(page.id) } ?: return
+    val patient = rememberDokuLoad(doku, page.id) { patients.get(page.id) } ?: return
     val scope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     val addAppointment = {
-        scope.launch { appointments.create(patient.id)?.let(onOpenAppointment) }
+        scope.launch { appointments.create(patient.id)?.let(onAddedAppointment) }
         Unit
     }
     Column(
@@ -121,13 +121,13 @@ internal fun PatientPage(
         when (page.tab) {
             PatientTab.Overview -> Overview(patient, onEditText = onEditText.takeUnless { patient.isClosed })
             PatientTab.Appointments -> AppointmentList(
-                patients = patients,
+                doku = doku,
                 appointments = appointments,
                 patient = patient,
                 onAdd = if (patient.isClosed) null else addAppointment,
                 onOpen = onOpenAppointment,
             )
-            PatientTab.Tests -> TestCards(patients, measurements, patient.id, onOpen = onOpenHistory)
+            PatientTab.Tests -> TestCards(doku, measurements, patient.id, onOpen = onOpenHistory)
         }
     }
 
@@ -247,8 +247,8 @@ private fun Overview(patient: Patient, onEditText: ((PatientField) -> Unit)?) {
  * for no text; "+ Termin" on top, unless only to read ([onAdd] null).
  */
 @Composable
-private fun AppointmentList(patients: Patients, appointments: Appointments, patient: Patient, onAdd: (() -> Unit)?, onOpen: (Long) -> Unit) {
-    val rows = rememberDokuLoad(patients, patient.id) { appointments.of(patient.id) } ?: return
+private fun AppointmentList(doku: Doku, appointments: Appointments, patient: Patient, onAdd: (() -> Unit)?, onOpen: (Long) -> Unit) {
+    val rows = rememberDokuLoad(doku, patient.id) { appointments.of(patient.id) } ?: return
     LazyColumn(contentPadding = PaddingValues(bottom = 8.dp)) {
         if (onAdd != null) {
             item {
@@ -281,8 +281,8 @@ private fun AppointmentList(patients: Patients, appointments: Appointments, pati
  * card tapped opens the test's history ([onOpen]).
  */
 @Composable
-private fun TestCards(patients: Patients, measurements: Measurements, patientId: Long, onOpen: (Long) -> Unit) {
-    val cards = rememberDokuLoad(patients, patientId) { measurements.cards(patientId) } ?: return
+private fun TestCards(doku: Doku, measurements: Measurements, patientId: Long, onOpen: (Long) -> Unit) {
+    val cards = rememberDokuLoad(doku, patientId) { measurements.cards(patientId) } ?: return
     if (cards.isEmpty()) return EmptyLine(stringResource(R.string.doku_patient_no_tests))
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(cards, key = { it.test.id }) { card ->

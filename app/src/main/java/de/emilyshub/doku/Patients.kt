@@ -1,8 +1,5 @@
 package de.emilyshub.doku
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import de.emilyshub.data.InputText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -15,14 +12,10 @@ import java.time.LocalDate
  * are deleted for good, which the start page suggests twelve months after they were closed. All of it is read and
  * written only while [doku] is open; once it is locked, reads give nothing and writes do nothing.
  *
- * [changes] counts the changes made here, as Compose state, for the screens to read anew. What an editor saves as it
- * closes is written on [background], so that it outlives the editor.
+ * Its changes count in [Doku.changes]. What an editor saves as it closes is written on [background], so that it
+ * outlives the editor.
  */
 class Patients(private val doku: Doku, private val clock: Clock, private val background: CoroutineScope) {
-
-    /** How many changes were made here: Compose state, read by the screens to read anew. */
-    var changes by mutableIntStateOf(0)
-        private set
 
     /** The day it is. */
     fun today(): LocalDate = LocalDate.now(clock)
@@ -62,7 +55,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     suspend fun create(draft: PatientDraft): Long? {
         require(draft.problems(today().year).isEmpty()) { "The patient's draft has problems" }
         val patient = Patient(name = draft.cleanedName(), birthYear = draft.cleanedBirthYear(), createdAt = now())
-        return changing { it.patients().insert(patient) }
+        return doku.changing { it.patients().insert(patient) }
     }
 
     /** Changes the name and year of birth of active patient [id] as [draft] has them, which must have no problems. */
@@ -74,7 +67,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     /** Sets [field] of active patient [id] to [text], which must not be too long ([Patient.textTooLong]). */
     suspend fun setText(id: Long, field: PatientField, text: String) {
         require(!Patient.textTooLong(text)) { "The patient's text is too long" }
-        changing { writeText(it, id, field, text) }
+        doku.changing { writeText(it, id, field, text) }
     }
 
     /** As [setText], but on [background], for an editor that saves as it closes; not once the Doku is locked. */
@@ -90,7 +83,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /** Makes closed patient [id] active again. */
     suspend fun restore(id: Long) {
-        changing { database ->
+        doku.changing { database ->
             val patient = database.patients().get(id)?.takeIf(Patient::isClosed) ?: return@changing
             database.patients().update(patient.copy(closedOn = null))
         }
@@ -98,14 +91,14 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /** Deletes patient [id] for good, with all that belongs to them. */
     suspend fun delete(id: Long) {
-        changing { it.patients().delete(listOf(id)) }
+        doku.changing { it.patients().delete(listOf(id)) }
     }
 
     /**
      * Deletes for good the patients of [shown], as the archive showed them overdue, with all that belongs to them: not
      * one that has turned overdue since, nor one restored meanwhile; how many.
      */
-    suspend fun deleteOverdue(shown: Collection<Long>): Int = changing { database ->
+    suspend fun deleteOverdue(shown: Collection<Long>): Int = doku.changing { database ->
         val today = today()
         val overdue = database.patients().all()
             .filter { patient -> patient.id in shown && patient.closedOn?.let { isOverdue(it, today) } == true }
@@ -151,7 +144,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /** Keeps [order] as the start page's, in the Doku's database. */
     suspend fun setOrder(order: PatientOrder) {
-        changing { it.settings().put(DokuSetting(ORDER, order.name)) }
+        doku.changing { it.settings().put(DokuSetting(ORDER, order.name)) }
     }
 
     /** Sets [field] of active patient [id] to [text], cleaned; a closed one is only to read. */
@@ -162,15 +155,11 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /** Changes active patient [id] as [change] has it; a closed one is only to read. */
     private suspend fun changeActive(id: Long, change: (Patient) -> Patient) {
-        changing { database ->
+        doku.changing { database ->
             val patient = database.patients().get(id)?.takeUnless(Patient::isClosed) ?: return@changing
             database.patients().update(change(patient))
         }
     }
-
-    /** What [block] makes of the open database, counted as a change if it was open: for the appointments too. */
-    internal suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
-        doku.withDatabase(block).also { if (it != null) changes++ }
 
     private fun now(): Instant = clock.instant()
 

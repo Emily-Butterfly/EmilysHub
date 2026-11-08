@@ -45,8 +45,8 @@ class TestCatalogTest {
     ).also { runBlocking { it.load(); it.setUp("geheim-geheim") } }
 
     private val patients = Patients(doku, clock, CoroutineScope(Dispatchers.Unconfined))
-    private val appointments = Appointments(doku, patients, CoroutineScope(Dispatchers.Unconfined))
-    private val catalog = TestCatalog(doku, patients)
+    private val appointments = Appointments(doku, clock, CoroutineScope(Dispatchers.Unconfined))
+    private val catalog = TestCatalog(doku, clock)
 
     @After
     fun closeDatabase() {

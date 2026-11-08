@@ -35,11 +35,11 @@ import kotlinx.coroutines.launch
  * the tests, the appointment template, the archive, "Doku-Passwort ändern" and the fingerprint on or off.
  */
 @Composable
-fun DokuMenu(doku: Doku, onOpenTests: () -> Unit, onOpenTemplate: () -> Unit, onOpenArchive: () -> Unit) {
+fun DokuMenu(doku: Doku, onOpen: (DokuPage) -> Unit) {
     val open = doku.state as? DokuState.Open ?: return
     var changingPassword by remember { mutableStateOf(false) }
     // The password fields of its dialog too ask the keyboard to learn nothing.
-    DokuInsel(doku) { DokuMenuButton(doku, open, onOpenTests, onOpenTemplate, onOpenArchive, onChangePassword = { changingPassword = true }) }
+    DokuInsel(doku) { DokuMenuButton(doku, open, onOpen, onChangePassword = { changingPassword = true }) }
     if (changingPassword) DokuInsel(doku) { ChangePassword(doku, onClose = { changingPassword = false }) }
 }
 
@@ -48,9 +48,7 @@ fun DokuMenu(doku: Doku, onOpenTests: () -> Unit, onOpenTemplate: () -> Unit, on
 private fun DokuMenuButton(
     doku: Doku,
     open: DokuState.Open,
-    onOpenTests: () -> Unit,
-    onOpenTemplate: () -> Unit,
-    onOpenArchive: () -> Unit,
+    onOpen: (DokuPage) -> Unit,
     onChangePassword: () -> Unit,
 ) {
     val activity = checkNotNull(LocalActivity.current)
@@ -61,27 +59,15 @@ private fun DokuMenuButton(
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_menu))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.doku_menu_tests)) },
-                onClick = {
-                    expanded = false
-                    onOpenTests()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.doku_menu_template)) },
-                onClick = {
-                    expanded = false
-                    onOpenTemplate()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.doku_menu_archive)) },
-                onClick = {
-                    expanded = false
-                    onOpenArchive()
-                },
-            )
+            MENU_PAGES.forEach { (label, page) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(label)) },
+                    onClick = {
+                        expanded = false
+                        onOpen(page)
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_menu_change_password)) },
                 onClick = {
@@ -164,3 +150,10 @@ private fun ChangePassword(doku: Doku, onClose: () -> Unit) {
         modifier = Modifier.touchesDoku(doku),
     )
 }
+
+/** The pages the menu opens, by their label: the tests, the appointment template and the archive. */
+private val MENU_PAGES = listOf(
+    R.string.doku_menu_tests to DokuPage.Tests,
+    R.string.doku_menu_template to DokuPage.Template,
+    R.string.doku_menu_archive to DokuPage.Archive,
+)

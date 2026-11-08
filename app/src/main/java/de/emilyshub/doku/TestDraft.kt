@@ -4,8 +4,8 @@ import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 
 /**
- * A test as typed in its editor, before it is checked (SPEC.md §9): its [name], its [values] in their order, the
- * retired ones among them, and whether to form the [sum].
+ * A test as typed in its editor (SPEC.md §14), before it is checked (§9: strict input checks): its [name], its [values]
+ * in their order, the retired ones among them, and whether to form the [sum].
  */
 data class TestDraft(
     val name: String = "",

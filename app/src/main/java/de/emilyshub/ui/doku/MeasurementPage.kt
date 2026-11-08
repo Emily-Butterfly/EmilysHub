@@ -48,7 +48,6 @@ import de.emilyshub.doku.FieldProblem
 import de.emilyshub.doku.MeasurementForm
 import de.emilyshub.doku.MeasurementView
 import de.emilyshub.doku.Measurements
-import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.TestValue
@@ -96,8 +95,8 @@ private fun sumText(sum: Long?): String =
 
 /** The tests not archived, to choose one to measure ([onChoose]); a hint where to set them up if there are none. */
 @Composable
-internal fun ChooseTest(doku: Doku, patients: Patients, tests: TestCatalog, onChoose: (Long) -> Unit, onDismiss: () -> Unit) {
-    val choosable = rememberDokuLoad(patients) { tests.choosable() }
+internal fun ChooseTest(doku: Doku, tests: TestCatalog, onChoose: (Long) -> Unit, onDismiss: () -> Unit) {
+    val choosable = rememberDokuLoad(doku) { tests.choosable() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.doku_measurement_choose)) },

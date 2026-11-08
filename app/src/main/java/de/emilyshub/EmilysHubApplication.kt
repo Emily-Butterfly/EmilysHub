@@ -215,11 +215,11 @@ open class EmilysHubApplication : Application(), Hub {
 
     final override val patients: Patients by lazy { Patients(doku, clock, background) }
 
-    final override val appointments: Appointments by lazy { Appointments(doku, patients, background) }
+    final override val appointments: Appointments by lazy { Appointments(doku, clock, background) }
 
-    final override val tests: TestCatalog by lazy { TestCatalog(doku, patients) }
+    final override val tests: TestCatalog by lazy { TestCatalog(doku, clock) }
 
-    final override val measurements: Measurements by lazy { Measurements(doku, patients) }
+    final override val measurements: Measurements by lazy { Measurements(doku) }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

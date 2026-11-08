@@ -69,8 +69,6 @@ import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
 import de.emilyshub.ui.doku.DokuModules
-import de.emilyshub.ui.doku.DokuPage
-import de.emilyshub.ui.doku.DokuPages
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -225,13 +223,8 @@ private fun AppShell(
     if (top == null) {
         // Heute is the start screen: back from any other area returns there before leaving the app.
         BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
-        // What is open in Sonstiges goes back to its list first.
-        val closeMore = { tabs = tabs.copy(more = null, doku = DokuPages()) }
-        BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null, onBack = closeMore)
-        // Within the Doku, back leads to the page it was opened from first.
-        val dokuCanGoBack = tabs.more == MoreEntry.Doku && tabs.doku.canGoBack
-        val dokuBack = { tabs = tabs.copy(doku = tabs.doku.back()) }
-        BackHandler(enabled = current == TopLevelDestination.More && dokuCanGoBack, onBack = dokuBack)
+        // What is open in Sonstiges goes back to its list first; within the Doku, to the page it was opened from first.
+        BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null) { tabs = tabs.backInMore() }
         // Back from yesterday leads to Heute.
         BackHandler(enabled = current == TopLevelDestination.Today && yesterday) { yesterday = false }
         TopLevelScaffold(
@@ -242,13 +235,12 @@ private fun AppShell(
                 // Sonstiges tapped again leads to its list, as the back arrow does. Left for another tab, the Doku locks
                 // and Sonstiges shows its list again on return.
                 if (it == TopLevelDestination.More && current == it) {
-                    closeMore()
+                    tabs = tabs.closeMore()
                 } else {
-                    if (tabs.more == MoreEntry.Doku) closeMore()
+                    if (tabs.more == MoreEntry.Doku) tabs = tabs.closeMore()
                     current = it
                 }
             },
-            onCloseMore = { if (dokuCanGoBack) dokuBack() else closeMore() },
             yesterday = yesterday,
             onYesterdayChange = { yesterday = it },
             tabs = tabs,
@@ -370,7 +362,7 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: (
 /**
  * The tabs ([current], [onSelect]) with the bar above them, each tab shown as [tabs] has it ([onTabsChange]); what is
  * tapped there opens over them ([open]). What is open in Sonstiges shows its name in the bar, with the arrow back to the
- * list ([onCloseMore]). Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it.
+ * list, back within it as [TabViews.backInMore] has it. Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -378,7 +370,6 @@ private fun TopLevelScaffold(
     hub: Hub,
     current: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
-    onCloseMore: () -> Unit,
     yesterday: Boolean,
     onYesterdayChange: (Boolean) -> Unit,
     tabs: TabViews,
@@ -411,7 +402,7 @@ private fun TopLevelScaffold(
                 TopAppBar(
                     navigationIcon = {
                         if (moreOpen != null) {
-                            IconButton(onClick = onCloseMore) {
+                            IconButton(onClick = { onTabsChange(tabs.backInMore()) }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                             }
                         }
@@ -427,12 +418,7 @@ private fun TopLevelScaffold(
                     actions = {
                         // The Doku's settings are in its own menu, there only while it is open (SPEC.md §14).
                         if (moreOpen == MoreEntry.Doku) {
-                            DokuMenu(
-                                hub.doku,
-                                onOpenTests = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Tests))) },
-                                onOpenTemplate = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Template))) },
-                                onOpenArchive = { onTabsChange(tabs.copy(doku = tabs.doku.open(DokuPage.Archive))) },
-                            )
+                            DokuMenu(hub.doku, onOpen = { page -> onTabsChange(tabs.copy(doku = tabs.doku.open(page))) })
                         }
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {

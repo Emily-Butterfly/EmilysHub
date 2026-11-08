@@ -45,7 +45,7 @@ class AppointmentsTest {
     ).also { runBlocking { it.load(); it.setUp(PASSWORD) } }
 
     private val patients = Patients(doku, clock, CoroutineScope(Dispatchers.Unconfined))
-    private val appointments = Appointments(doku, patients, CoroutineScope(Dispatchers.Unconfined))
+    private val appointments = Appointments(doku, clock, CoroutineScope(Dispatchers.Unconfined))
 
     @After
     fun closeDatabase() {
@@ -203,6 +203,59 @@ class AppointmentsTest {
 
         assertEquals("Getippt", get(id).text)
         assertEquals("# Befund", runBlocking { appointments.template() })
+    }
+
+    @Test
+    fun `a new appointment left as it was made goes again, also as the Doku locks`() {
+        val patient = patient()
+        val left = appointment(patient)
+        appointments.dropIfUntouchedLater(left)
+        assertNull(runBlocking { appointments.get(left) })
+
+        val locked = appointment(patient)
+        val saver = doku.addSaver { appointments.pendingDrop(locked) }
+        doku.lock()
+        saver.close()
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+
+        assertNull(runBlocking { appointments.get(locked) })
+        assertEquals(emptyList<AppointmentRow>(), rows(patient))
+    }
+
+    @Test
+    fun `a new appointment kept, or asked about once, is no longer new`() {
+        val patient = patient()
+        val kept = appointment(patient)
+        appointments.keep(kept)
+        val asked = appointment(patient)
+        appointments.dropIfUntouchedLater(asked)
+        val again = appointment(patient)
+
+        appointments.dropIfUntouchedLater(kept)
+        appointments.dropIfUntouchedLater(again)
+        appointments.dropIfUntouchedLater(again)
+
+        assertEquals(listOf(kept), rows(patient).map { it.id })
+        assertNull(appointments.pendingDrop(kept))
+    }
+
+    @Test
+    fun `a new appointment stays once its day, its time or its text was changed`() {
+        val patient = patient()
+        val changes: List<suspend (Long) -> Unit> = listOf(
+            { appointments.setDate(it, LocalDate.parse("2026-10-22")) },
+            { appointments.setTime(it, LocalTime.parse("09:30")) },
+            { appointments.setText(it, "Mobilisation") },
+        )
+
+        val kept = changes.map { change ->
+            val id = appointment(patient)
+            runBlocking { change(id) }
+            appointments.dropIfUntouchedLater(id)
+            id
+        }
+
+        assertEquals(kept.toSet(), rows(patient).map { it.id }.toSet())
     }
 
     @Test

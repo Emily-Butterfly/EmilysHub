@@ -22,7 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.doku.ClinicalTest
-import de.emilyshub.doku.Patients
+import de.emilyshub.doku.Doku
 import de.emilyshub.doku.TestCatalog
 import kotlinx.coroutines.launch
 
@@ -31,8 +31,8 @@ import kotlinx.coroutines.launch
  * "+ Test" adds one. A test tapped, or added, opens in its editor ([onOpen], with none for a new one).
  */
 @Composable
-internal fun TestsPage(patients: Patients, tests: TestCatalog, contentPadding: PaddingValues, onOpen: (Long?) -> Unit) {
-    val list = rememberDokuLoad(patients) { tests.list() } ?: return
+internal fun TestsPage(doku: Doku, tests: TestCatalog, contentPadding: PaddingValues, onOpen: (Long?) -> Unit) {
+    val list = rememberDokuLoad(doku) { tests.list() } ?: return
     val scope = rememberCoroutineScope()
     LazyColumn(contentPadding = contentPadding) {
         item {
