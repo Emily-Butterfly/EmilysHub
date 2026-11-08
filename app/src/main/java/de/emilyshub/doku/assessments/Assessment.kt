@@ -66,7 +66,7 @@ data class Section(val title: String? = null, val hint: String = "", val items: 
 
 /**
  * An answer to choose, with its [points]; [exclusive] such as "nein", which unchecks the others of a checklist;
- * [notApplicable] such as "Nicht zutreffend", which answers an item but counts as left out, without points.
+ * [notApplicable] such as "Nicht zutreffend", which answers a [ChoiceItem] but counts as left out, without points.
  */
 data class Option(val id: String, val label: String, val points: Int = 0, val exclusive: Boolean = false, val notApplicable: Boolean = false)
 

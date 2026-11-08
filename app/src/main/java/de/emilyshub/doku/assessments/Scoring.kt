@@ -41,7 +41,7 @@ object Scoring {
     fun fits(item: Item, answer: Answer): Boolean = when (item) {
         is ChoiceItem -> answer is Answer.Chosen
         is YesNoItem -> answer is Answer.YesNo
-        is ScaleItem -> answer is Answer.OnScale
+        is ScaleItem -> answer is Answer.OnScale && answer.value in item.steps
         is ChecklistItem -> answer is Answer.Checked
         is NumberItem -> answer is Answer.Number
         is TextItem -> answer is Answer.Text
@@ -54,16 +54,23 @@ object Scoring {
         val ranges = items.map { checkNotNull(range(it)) }
         return when (score.rule) {
             ScoreRule.Sum -> {
-                // Items shown in place of each other, by different answers to the same item, count as one: the least and
-                // the most of them.
-                val alternatives = items.zip(ranges).groupBy { (item, _) -> item.showIf?.itemId to item.id.takeIf { item.showIf == null } }.values.map { group ->
-                    val exclusive = group.size > 1 && group.flatMap { (item, _) -> item.showIf!!.values }.let { it.size == it.toSet().size }
-                    if (exclusive) listOf(group.minOf { it.second.first } to group.maxOf { it.second.second }) else group.map { it.second }
-                }.flatten()
-                alternatives.sumOf { it.first } * HUNDRED..alternatives.sumOf { it.second } * HUNDRED
+                val counted = alternativesOnce(form, items.zip(ranges))
+                counted.sumOf { it.first } * HUNDRED..counted.sumOf { it.second } * HUNDRED
             }
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
             ScoreRule.Percent, ScoreRule.ZeroTo100 -> 0L..HUNDRED * HUNDRED
+        }
+    }
+
+    /**
+     * The [ranges] of items, but items shown in place of each other, by different options of the same choice, as one: the
+     * least and the most of them, as only one of them is answered.
+     */
+    private fun alternativesOnce(form: Assessment, ranges: List<Pair<Item, Pair<Long, Long>>>): List<Pair<Long, Long>> {
+        val (alternatives, alone) = ranges.partition { (item, _) -> item.showIf?.let { form.item(it.itemId) } is ChoiceItem }
+        return alone.map { it.second } + alternatives.groupBy { (item, _) -> checkNotNull(item.showIf).itemId }.values.flatMap { group ->
+            val options = group.flatMap { (item, _) -> checkNotNull(item.showIf).values }
+            if (options.size == options.toSet().size) listOf(group.minOf { it.second.first } to group.maxOf { it.second.second }) else group.map { it.second }
         }
     }
 

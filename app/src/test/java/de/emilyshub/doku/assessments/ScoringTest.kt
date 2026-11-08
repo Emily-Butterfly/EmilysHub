@@ -220,4 +220,26 @@ class ScoringTest {
         assertEquals(0L..800L, Scoring.range(form, form.scores.single()))
         assertEquals(700L, value(form, chosen("a" to "2", "w" to "y", "y" to "5")))
     }
+
+    @Test
+    fun `a number between the steps of a scale is kept apart, as answered to another scale`() {
+        val scale = ScaleItem("s", "Wie zuversichtlich?", min = 0, max = 100, step = 10)
+        val form = form(items = listOf(scale))
+
+        assertEquals(mapOf("s" to Answer.OnScale(75)), Scoring.orphans(form, mapOf("s" to Answer.OnScale(75))))
+        assertEquals(emptyMap<String, Answer>(), Scoring.orphans(form, mapOf("s" to Answer.OnScale(70))))
+    }
+
+    @Test
+    fun `items shown by different ticks of a checklist may show together, and count each in a score's range`() {
+        val list = ChecklistItem("w", "Welche?", listOf(Option("x", "x"), Option("y", "y")))
+        val items = listOf(
+            list,
+            ChoiceItem("x", "Frage x", zeroToThree, showIf = Condition("w", setOf("x"))),
+            ChoiceItem("y", "Frage y", zeroToThree, showIf = Condition("w", setOf("y"))),
+        )
+        val form = form(Score("sum", "Summe", listOf("x", "y"), direction = Direction.HigherIsBetter), items = items)
+
+        assertEquals(0L..600L, Scoring.range(form, form.scores.single()))
+    }
 }
