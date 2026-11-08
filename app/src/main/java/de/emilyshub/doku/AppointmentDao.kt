@@ -35,9 +35,11 @@ abstract class AppointmentDao {
     @Query("SELECT patient_id, MAX(date) AS last_seen FROM appointment WHERE date <= :today GROUP BY patient_id")
     abstract suspend fun lastSeen(today: LocalDate): Map<@MapColumn("patient_id") Long, @MapColumn("last_seen") LocalDate>
 
-    /** Deletes appointment [id] with its measurements, or nothing. */
+    /** Deletes appointment [id] with its measurements and forms, or nothing. */
     @Transaction
     open suspend fun delete(id: Long) {
+        deleteAnswers(id)
+        deleteAssessments(id)
         deleteMeasuredValues(id)
         deleteMeasurements(id)
         deleteOne(id)
@@ -48,6 +50,12 @@ abstract class AppointmentDao {
 
     @Query("DELETE FROM measurement WHERE appointment_id = :id")
     protected abstract suspend fun deleteMeasurements(id: Long)
+
+    @Query("DELETE FROM assessment_answer WHERE entry_id IN (SELECT id FROM assessment_entry WHERE appointment_id = :id)")
+    protected abstract suspend fun deleteAnswers(id: Long)
+
+    @Query("DELETE FROM assessment_entry WHERE appointment_id = :id")
+    protected abstract suspend fun deleteAssessments(id: Long)
 
     @Query("DELETE FROM appointment WHERE id = :id")
     protected abstract suspend fun deleteOne(id: Long)

@@ -100,10 +100,19 @@ data class PatientRow(val id: Long, val name: String, val lastSeen: LocalDate?)
 data class ArchivedPatient(val id: Long, val name: String, val closedOn: LocalDate, val overdue: Boolean)
 
 /** A patient found by the Doku's search, [archived] or active; by the text of one of their appointments if [appointment]. */
-data class PatientHit(val id: Long, val name: String, val archived: Boolean, val appointment: AppointmentHit? = null)
+data class PatientHit(
+    val id: Long,
+    val name: String,
+    val archived: Boolean,
+    val appointment: AppointmentHit? = null,
+    val assessment: AssessmentHit? = null,
+)
 
 /** An appointment the Doku's search found, of [date]. */
 data class AppointmentHit(val id: Long, val date: LocalDate)
+
+/** A filled-in form the Doku's search found by its words: [id], of form [assessmentId] named [name], at [appointmentId] of [date]. */
+data class AssessmentHit(val id: Long, val assessmentId: String, val appointmentId: Long, val date: LocalDate, val name: String)
 
 /** How the start page orders the active patients. */
 enum class PatientOrder {

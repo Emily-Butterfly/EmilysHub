@@ -525,7 +525,7 @@ private fun TopLevelScaffold(
                 )
                 MoreEntry.Doku -> DokuArea(
                     doku = hub.doku,
-                    modules = remember(hub) { DokuModules(hub.patients, hub.appointments, hub.tests, hub.measurements) },
+                    modules = remember(hub) { DokuModules(hub.patients, hub.appointments, hub.tests, hub.measurements, hub.assessments) },
                     pages = tabs.doku,
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,

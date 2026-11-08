@@ -60,6 +60,8 @@ value class RawKey(val bytes: ByteArray) {
         TestValue::class,
         Measurement::class,
         MeasurementValue::class,
+        AssessmentEntry::class,
+        AssessmentAnswer::class,
     ],
     version = DokuDatabase.VERSION,
 )
@@ -75,16 +77,18 @@ abstract class DokuDatabase : RoomDatabase() {
 
     abstract fun measurements(): MeasurementDao
 
+    abstract fun assessments(): AssessmentDao
+
     /** Moves what the write-ahead log holds into the database file, so that the file alone holds it. */
     fun checkpoint() {
         openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
     }
 
     companion object {
-        const val VERSION = 4
+        const val VERSION = 5
         const val NAME = "doku.db"
 
-        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3, DOKU_MIGRATION_3_4)
+        val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3, DOKU_MIGRATION_3_4, DOKU_MIGRATION_4_5)
 
         /** What is deleted is overwritten on disk, not only marked free (SPEC.md §14): on each opening, as the pragma lasts as long as the connection. */
         val SECURE_DELETE = object : Callback() {

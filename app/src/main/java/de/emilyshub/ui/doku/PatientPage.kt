@@ -58,11 +58,12 @@ import java.time.LocalTime
 
 /**
  * A patient's page (SPEC.md §14): at the top the name and the year of birth with the age it makes, ✎ to change them,
- * and the patient's menu; below the three tabs Übersicht · Termine · Tests, on [page]'s tab ([onTab]). The overview
+ * and the patient's menu; below the four tabs Übersicht · Termine · Tests · Bögen, on [page]'s tab ([onTab]). The overview
  * shows the four texts as they read, each tapped to write it ([onEditText]). A closed patient's page is only to read,
  * its menu offering to restore them. The appointments, the latest first, open by a tap ([onOpenAppointment]), and an
  * active patient's "+ Termin" adds one, its documentation the template's, and opens it ([onAddedAppointment]). The tab Tests has a card for each test
- * measured, which opens its history ([onOpenHistory]). Once closed or deleted, the page is gone ([onGone]).
+ * measured, which opens its history ([onOpenHistory]); the tab Bögen one for each form with a result, which opens its
+ * history ([onOpenAssessmentHistory]), and below the forms without, each opening ([onOpenAssessment]). Once closed or deleted, the page is gone ([onGone]).
  */
 @Composable
 internal fun PatientPage(
@@ -75,9 +76,11 @@ internal fun PatientPage(
     onOpenAppointment: (Long) -> Unit,
     onAddedAppointment: (Long) -> Unit,
     onOpenHistory: (testId: Long) -> Unit,
+    onOpenAssessmentHistory: (assessmentId: String) -> Unit,
+    onOpenAssessment: (appointmentId: Long, assessmentId: String, id: Long) -> Unit,
     onGone: (deleted: Boolean) -> Unit,
 ) {
-    val (patients, appointments, _, measurements) = modules
+    val (patients, appointments, _, measurements, assessments) = modules
     val patient = rememberDokuLoad(doku, page.id) { patients.get(page.id) } ?: return
     val scope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf(false) }
@@ -128,6 +131,7 @@ internal fun PatientPage(
                 onOpen = onOpenAppointment,
             )
             PatientTab.Tests -> TestCards(doku, measurements, patient.id, onOpen = onOpenHistory)
+            PatientTab.Assessments -> AssessmentCards(doku, assessments, patient.id, onOpenHistory = onOpenAssessmentHistory, onOpen = onOpenAssessment)
         }
     }
 
@@ -341,4 +345,5 @@ private val PatientTab.label: Int
         PatientTab.Overview -> R.string.doku_patient_overview
         PatientTab.Appointments -> R.string.doku_patient_appointments
         PatientTab.Tests -> R.string.doku_patient_tests
+        PatientTab.Assessments -> R.string.doku_patient_assessments
     }

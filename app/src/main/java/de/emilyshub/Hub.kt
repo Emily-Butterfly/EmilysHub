@@ -4,6 +4,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.doku.Appointments
+import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
@@ -62,6 +63,9 @@ interface Hub {
 
     /** The measurements of the tests at the appointments, as [patients]. */
     val measurements: Measurements
+
+    /** The built-in forms filled in at the appointments, as [patients]. */
+    val assessments: Assessments
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

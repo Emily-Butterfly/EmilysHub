@@ -96,7 +96,7 @@ private fun HistoryLine(row: HistoryRow, names: List<String>, columns: List<Hist
  * as it has one, else to its numbers; a measurement without a number leaves a gap, and a single one is a point.
  */
 @Composable
-private fun LineChart(label: String, column: HistoryColumn, points: List<Pair<LocalDate, Long?>>) {
+internal fun LineChart(label: String, column: HistoryColumn, points: List<Pair<LocalDate, Long?>>) {
     val numbers = points.mapNotNull { it.second }
     // Each end by the range where it has one, else by the numbers.
     val low = column.min ?: numbers.minOrNull() ?: 0

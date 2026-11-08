@@ -44,10 +44,28 @@ sealed interface DokuPage : Serializable {
 
     /** The history of test [testId] for patient [patientId]. */
     data class History(override val patientId: Long, val testId: Long) : DokuPage
+
+    /**
+     * Filled-in form [id] of [assessmentId] at appointment [appointmentId] of patient [patientId]; [new] when just added by
+     * "+ Bogen", to go again if left empty.
+     */
+    data class Assessment(
+        override val patientId: Long,
+        val appointmentId: Long,
+        val assessmentId: String,
+        val id: Long,
+        val new: Boolean = false,
+    ) : DokuPage
+
+    /** The history of form [assessmentId] for patient [patientId]. */
+    data class AssessmentHistory(override val patientId: Long, val assessmentId: String) : DokuPage
+
+    /** The built-in forms, each to hide from "+ Bogen". */
+    data object Assessments : DokuPage
 }
 
 /** The tabs of a patient's page. */
-enum class PatientTab { Overview, Appointments, Tests }
+enum class PatientTab { Overview, Appointments, Tests, Assessments }
 
 /**
  * The pages of the Doku opened one over the other, its start page at the bottom. Within the Doku's tab, not over the

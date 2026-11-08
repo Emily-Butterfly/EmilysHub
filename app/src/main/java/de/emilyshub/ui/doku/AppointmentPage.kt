@@ -46,8 +46,9 @@ import java.time.LocalTime
  * documentation in Markdown, saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku
  * locks, never into the saved state. A new one ([DokuPage.Appointment.new]) left untouched goes again as the page
  * closes or the Doku locks ([Appointments.dropIfUntouchedLater]), so that "+ Termin" alone keeps nothing. Below it the
- * tests measured at it, each opening to change it, and "+ Test" to measure one ([onMeasure], with the measurement's id, or none for a new one). "Löschen" in its menu asks first,
- * naming how many measurements go with it. A closed patient's is only to read. Once deleted, or gone, the page closes
+ * tests measured at it, each opening to change it, and "+ Test" to measure one ([onMeasure], with the measurement's id,
+ * or none for a new one); below them the forms filled in at it, and "+ Bogen" to fill one in ([onFill], new). "Löschen" in
+ * its menu asks first, naming how many measurements and forms go with it. A closed patient's is only to read. Once deleted, or gone, the page closes
  * ([onDone]).
  */
 @Composable
@@ -57,9 +58,10 @@ internal fun AppointmentPage(
     page: DokuPage.Appointment,
     contentPadding: PaddingValues,
     onMeasure: (testId: Long, id: Long?) -> Unit,
+    onFill: (assessmentId: String, id: Long, new: Boolean) -> Unit,
     onDone: () -> Unit,
 ) {
-    val (patients, appointments, tests, measurements) = modules
+    val (patients, appointments, tests, measurements, assessments) = modules
     // The text once, as it was on opening; the day and time anew with each change.
     var loaded by remember { mutableStateOf<Loaded?>(null) }
     LaunchedEffect(page) {
@@ -93,6 +95,8 @@ internal fun AppointmentPage(
     var deleting by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
     val measured = rememberDokuLoad(doku, page.id) { measurements.at(page.id) }
+    val filled = rememberDokuLoad(doku, page.id) { assessments.at(page.id) }
+    var choosingForm by remember { mutableStateOf(false) }
 
     DokuTextEditor(
         title = opened.patientName,
@@ -136,6 +140,15 @@ internal fun AppointmentPage(
                 onOpen = if (opened.canChange) ({ view: MeasurementView -> measuring = true; onMeasure(view.test.id, view.id) }) else null,
                 onAdd = if (opened.canChange) ({ choosing = true }) else null,
             )
+            // Only to read, they open all the same.
+            AssessmentList(
+                filled = filled.orEmpty(),
+                onOpen = { form ->
+                    measuring = true
+                    onFill(form.assessmentId, form.id, false)
+                },
+                onAdd = if (opened.canChange) ({ choosingForm = true }) else null,
+            )
         },
     )
 
@@ -145,6 +158,14 @@ internal fun AppointmentPage(
             measuring = true
             onMeasure(testId, null)
         }, onDismiss = { choosing = false })
+    }
+
+    if (choosingForm) {
+        ChooseAssessment(doku, assessments, onChoose = { assessmentId ->
+            choosingForm = false
+            measuring = true
+            scope.launch { assessments.create(page.id, assessmentId)?.let { onFill(assessmentId, it, true) } }
+        }, onDismiss = { choosingForm = false })
     }
 
     if (pickingDate) {
@@ -179,6 +200,7 @@ internal fun AppointmentPage(
             doku = doku,
             appointment = current,
             measurements = measured.orEmpty().size,
+            assessments = filled.orEmpty().size,
             onDelete = {
                 deleting = false
                 deleted = true
@@ -237,18 +259,29 @@ private fun AppointmentMenu(doku: Doku, onDelete: () -> Unit) {
     }
 }
 
-/** Whether to delete [appointment] with its documentation, naming how many [measurements] go with it. */
+/** Whether to delete [appointment] with its documentation, naming how many [measurements] and [assessments] go with it. */
 @Composable
-private fun ConfirmDeletingAppointment(doku: Doku, appointment: Appointment, measurements: Int, onDelete: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmDeletingAppointment(
+    doku: Doku,
+    appointment: Appointment,
+    measurements: Int,
+    assessments: Int,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val counted = listOfNotNull(
+        pluralStringResource(R.plurals.doku_count_measurements, measurements, measurements).takeIf { measurements > 0 },
+        pluralStringResource(R.plurals.doku_count_assessments, assessments, assessments).takeIf { assessments > 0 },
+    )
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.doku_appointment_delete_title, appointment.date.numericDate())) },
         text = {
             Text(
-                if (measurements > 0) {
-                    pluralStringResource(R.plurals.doku_appointment_delete_text, measurements, measurements)
-                } else {
-                    stringResource(R.string.doku_appointment_delete_text_plain)
+                when (counted.size) {
+                    0 -> stringResource(R.string.doku_appointment_delete_text_plain)
+                    1 -> stringResource(R.string.doku_appointment_delete_text, counted[0])
+                    else -> stringResource(R.string.doku_appointment_delete_text_both, counted[0], counted[1])
                 },
             )
         },

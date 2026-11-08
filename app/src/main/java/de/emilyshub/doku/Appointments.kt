@@ -64,7 +64,7 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
 
     /**
      * Deletes new appointment [id] again if it is still as [create] made it: on the same day, at no time, with the
-     * template's text and no measurement at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md
+     * template's text and no measurement or form at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md
      * §14). On [background], for the page as it closes; not once the Doku is locked. Once asked, it is no longer new.
      */
     fun dropIfUntouchedLater(id: Long) {
@@ -108,10 +108,12 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
         database.appointments().update(appointment.copy(text = InputText.multiLine(text)))
     }
 
-    /** Deletes the appointment [created] if it is still as it was and nothing was measured at it. */
+    /** Deletes the appointment [created] if it is still as it was and nothing was measured or filled in at it. */
     private suspend fun dropIfUntouched(database: DokuDatabase, created: Appointment) {
         val appointment = changeable(database, created.id) ?: return
-        if (appointment == created && database.measurements().at(created.id).isEmpty()) database.appointments().delete(created.id)
+        if (appointment == created && database.measurements().at(created.id).isEmpty() && database.assessments().at(created.id).isEmpty()) {
+            database.appointments().delete(created.id)
+        }
     }
 
     /** Sets the template to [text], cleaned. */

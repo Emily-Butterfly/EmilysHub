@@ -39,16 +39,29 @@ abstract class PatientDao {
     @Query("DELETE FROM measurement WHERE appointment_id IN (SELECT id FROM appointment WHERE patient_id = :id)")
     protected abstract suspend fun deleteMeasurements(id: Long)
 
+    /** The answers of the forms at patient [id]'s appointments. */
+    @Query(
+        "DELETE FROM assessment_answer WHERE entry_id IN (SELECT e.id FROM assessment_entry e " +
+            "JOIN appointment a ON a.id = e.appointment_id WHERE a.patient_id = :id)",
+    )
+    protected abstract suspend fun deleteAnswers(id: Long)
+
+    /** The forms at patient [id]'s appointments. */
+    @Query("DELETE FROM assessment_entry WHERE appointment_id IN (SELECT id FROM appointment WHERE patient_id = :id)")
+    protected abstract suspend fun deleteAssessments(id: Long)
+
     /** Patient [id]'s appointments. */
     @Query("DELETE FROM appointment WHERE patient_id = :id")
     protected abstract suspend fun deleteAppointments(id: Long)
 
-    /** Deletes each of [ids] with all that belongs to them, their appointments and measurements, or none of them. */
+    /** Deletes each of [ids] with all that belongs to them, their appointments, measurements and forms, or none of them. */
     @Transaction
     open suspend fun delete(ids: Collection<Long>) {
         ids.forEach {
             deleteMeasuredValues(it)
             deleteMeasurements(it)
+            deleteAnswers(it)
+            deleteAssessments(it)
             deleteAppointments(it)
             deleteOne(it)
         }

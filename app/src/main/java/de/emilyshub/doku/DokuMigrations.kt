@@ -57,3 +57,20 @@ val DOKU_MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_measurement_value_value_id` ON `measurement_value` (`value_id`)")
     }
 }
+
+/** 4 → 5: the forms filled in at appointments, with their answers (#66). */
+val DOKU_MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `assessment_entry` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`appointment_id` INTEGER NOT NULL, `assessment_id` TEXT NOT NULL, " +
+                "FOREIGN KEY(`appointment_id`) REFERENCES `appointment`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_assessment_entry_appointment_id` ON `assessment_entry` (`appointment_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `assessment_answer` (`entry_id` INTEGER NOT NULL, `item_id` TEXT NOT NULL, " +
+                "`value` TEXT NOT NULL, `text` TEXT NOT NULL, PRIMARY KEY(`entry_id`, `item_id`), " +
+                "FOREIGN KEY(`entry_id`) REFERENCES `assessment_entry`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}

@@ -14,6 +14,7 @@ import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.doku.Appointments
+import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuClipboard
 import de.emilyshub.doku.DokuDatabase
@@ -220,6 +221,8 @@ open class EmilysHubApplication : Application(), Hub {
     final override val tests: TestCatalog by lazy { TestCatalog(doku, clock) }
 
     final override val measurements: Measurements by lazy { Measurements(doku) }
+
+    final override val assessments: Assessments by lazy { Assessments(doku, background) }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

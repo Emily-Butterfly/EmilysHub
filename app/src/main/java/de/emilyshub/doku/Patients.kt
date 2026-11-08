@@ -1,6 +1,7 @@
 package de.emilyshub.doku
 
 import de.emilyshub.data.InputText
+import de.emilyshub.doku.assessments.BuiltInAssessments
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -112,16 +113,22 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     /**
      * The patients, active and closed, whose name or texts hold every word of [typed], in whatever case and however
      * their letters were typed; and the appointments whose text, or the remarks of their measurements, with their
-     * patient's name, do, unless the name alone does, which would find all of theirs. By name, each patient before their
-     * appointments, the latest first; nothing for nothing typed.
+     * patient's name, do, unless the name alone does, which would find all of theirs; and so the forms filled in, by their
+     * words. By name, each patient before their appointments, the latest first, then their forms, the latest first;
+     * nothing for nothing typed.
      */
     suspend fun search(typed: String): List<PatientHit> {
         val words = InputText.searchable(InputText.singleLine(typed).take(MAX_SEARCH)).split(' ').filter(String::isNotEmpty)
         if (words.isEmpty()) return emptyList()
         fun holdsAll(vararg texts: String) = InputText.searchable(texts.joinToString("\n")).let { text -> words.all { it in text } }
         return doku.withDatabase { database ->
-            val appointments = database.appointments().all().groupBy(Appointment::patientId)
+            val all = database.appointments().all()
+            val appointments = all.groupBy(Appointment::patientId)
+            val patientOf = all.associate { it.id to it.patientId }
             val remarks = database.measurements().remarked().groupBy({ it.measurement.appointmentId }, { it.measurement.remark })
+            val words = database.assessments().worded().groupBy({ it.entryId }, { it.text })
+            val forms = database.assessments().allDated().filter { it.entry.id in words }
+            val formsOf = forms.groupBy { patientOf[it.entry.appointmentId] }
             database.patients().all()
                 .sortedWith(compareBy(InputText.byName) { it.name })
                 .flatMap { patient ->
@@ -134,7 +141,18 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
                             .sortedWith(Appointment.LATEST_FIRST)
                             .map { PatientHit(patient.id, patient.name, patient.isClosed, AppointmentHit(it.id, it.date)) }
                     }
-                    listOfNotNull(own) + inAppointments
+                    val inForms = if (holdsAll(patient.name)) {
+                        emptyList()
+                    } else {
+                        formsOf[patient.id].orEmpty()
+                            .filter { holdsAll(patient.name, *words[it.entry.id].orEmpty().toTypedArray()) }
+                            .sortedWith(compareByDescending<DatedAssessmentEntry> { it.date }.thenByDescending { it.entry.id })
+                            .map { form ->
+                                val name = BuiltInAssessments.byId(form.entry.assessmentId)?.name ?: form.entry.assessmentId
+                                PatientHit(patient.id, patient.name, patient.isClosed, assessment = AssessmentHit(form.entry.id, form.entry.assessmentId, form.entry.appointmentId, form.date, name))
+                            }
+                    }
+                    listOfNotNull(own) + inAppointments + inForms
                 }
         }.orEmpty()
     }

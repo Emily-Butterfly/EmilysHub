@@ -85,4 +85,28 @@ class DokuMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 4 gains the forms and keeps its measurements`() {
+        createDokuAsExported(context, version = 4) {
+            it.execSQL(
+                "INSERT INTO patient (id, name, diagnosis, anamnesis, goals, other, created_at) " +
+                    "VALUES (7, 'Frau M.', '', '', '', '', '2026-10-23T05:00:00Z')",
+            )
+            it.execSQL("INSERT INTO appointment (id, patient_id, date, text) VALUES (3, 7, '2026-10-23', 'Befund')")
+            it.execSQL("INSERT INTO doku_test (id, name, has_sum, sum_direction) VALUES (2, 'Handkraft', 0, 'higher')")
+            it.execSQL("INSERT INTO measurement (id, appointment_id, test_id, remark) VALUES (5, 3, 2, 'kräftig')")
+        }
+
+        val database = testDokuDatabase(context)
+        try {
+            runBlocking {
+                assertEquals("kräftig", database.measurements().get(5)?.remark)
+                val id = database.assessments().save(AssessmentEntry(appointmentId = 3, assessmentId = "phq-9"), listOf(AssessmentAnswer(0, "1", "c:2", "")))
+                assertEquals(listOf("c:2"), database.assessments().answers(id).map(AssessmentAnswer::value))
+            }
+        } finally {
+            database.close()
+        }
+    }
 }
