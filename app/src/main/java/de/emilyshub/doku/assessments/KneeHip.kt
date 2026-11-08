@@ -11,24 +11,8 @@ internal val KNEE_HIP: List<Assessment> by lazy {
     listOf(ACL_RSI, HARRIS, HOOS, HOS, ICRS, KOOS, KOOS_CHILD, KOS_ADL, KUJALA, LESS, LYSHOLM, TEGNER, VISA_P_G)
 }
 
-/** Options with the [points] given, in the order of the original, their ids numbered from 0. */
-private fun scored(vararg options: Pair<String, Int>): List<Option> =
-    options.mapIndexed { i, (label, points) -> Option("$i", label, points) }
-
-/** Five answers scored 0 for the first to 4 for the last, as the KOOS scores them: 0 for few symptoms. */
-private fun zeroToFour(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label, i) }
-
 /** An item of the KOOS or KOOS-Kind: scored as the original, 0 for few symptoms, and counted the other way round. */
 private fun koosItem(id: String, text: String, options: List<Option>) = ChoiceItem(id, text, options, reversed = true)
-
-/** Five answers scored 4 for the first to 0 for the last, as the HOOS scores them: 4 for few symptoms. */
-private fun fourToZero(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label, labels.size - 1 - i) }
-
-/** Each of [items]' ids. */
-private fun ids(items: List<Item>): List<String> = items.map(Item::id)
-
-/** Half of [n] items, rounded up: the HOOS's least to answer. */
-private fun half(n: Int): Int = (n + 1) / 2
 
 /** Anterior Cruciate Ligament – Return to Sport after Injury, as in "…_ACL-RSI-Skala_11-2026.pdf". */
 private val ACL_RSI: Assessment = run {
@@ -453,14 +437,14 @@ private val ICRS: Assessment = run {
 
 /** Knee Injury and Osteoarthritis Outcome Score, German version (Kessler et al. 2003), as in "…_KOOS_11-2026.pdf". */
 private val KOOS: Assessment = run {
-    val strength = zeroToFour("keine", "schwach", "mäßig", "stark", "sehr stark")
+    val strength = numbered("keine", "schwach", "mäßig", "stark", "sehr stark")
     // Typed "einge" for some items and "Sehr große" for one in the original; read as the rest.
-    val difficulty = zeroToFour("keine", "wenig", "einige", "große", "sehr große")
-    val often = zeroToFour("niemals", "selten", "manchmal", "oft", "immer")
-    val can = zeroToFour("immer", "oft", "manchmal", "selten", "niemals")
+    val difficulty = numbered("keine", "wenig", "einige", "große", "sehr große")
+    val often = numbered("niemals", "selten", "manchmal", "oft", "immer")
+    val can = numbered("immer", "oft", "manchmal", "selten", "niemals")
     val painWhen = "Wie ausgeprägt waren Ihre Schmerzen in der vergangenen Woche, als Sie z.B.:"
     val trouble = "Welche Schwierigkeiten hatten Sie letzte Woche, als Sie z.B.:"
-    val pain = listOf(koosItem("1", "1. Wie oft tut Ihnen Ihr Knie weh?", zeroToFour("niemals", "monatlich", "wöchentlich", "täglich", "immer"))) +
+    val pain = listOf(koosItem("1", "1. Wie oft tut Ihnen Ihr Knie weh?", numbered("niemals", "monatlich", "wöchentlich", "täglich", "immer"))) +
         listOf(
             "sich im Knie drehten?",
             "Ihr Knie ganz ausstreckten?",
@@ -507,14 +491,14 @@ private val KOOS: Assessment = run {
         koosItem("38", "38. $trouble sich hinknieten?", difficulty),
     )
     val quality = listOf(
-        koosItem("39", "39. Wie oft spüren Sie Ihr erkranktes Knie?", zeroToFour("nie", "monatlich", "wöchentlich", "täglich", "immer")),
+        koosItem("39", "39. Wie oft spüren Sie Ihr erkranktes Knie?", numbered("nie", "monatlich", "wöchentlich", "täglich", "immer")),
         koosItem(
             "40", "40. Haben Sie Ihre Lebensweise verändert, um eventuell Ihrem Knie schadende Tätigkeiten zu vermeiden?",
-            zeroToFour("nicht", "wenig", "etwas", "stark", "vollständig"),
+            numbered("nicht", "wenig", "etwas", "stark", "vollständig"),
         ),
         koosItem(
             "41", "41. Wie sehr macht es Ihnen zu schaffen, daß Ihr Knie nicht stabil ist?",
-            zeroToFour("Gar nicht", "wenig", "einiges", "schlimm", "sehr schlimm"),
+            numbered("Gar nicht", "wenig", "einiges", "schlimm", "sehr schlimm"),
         ),
         koosItem("42", "42. Wie würden Sie insgesamt die Schwierigkeiten bewerten, die Sie durch das Knie haben?", difficulty),
     )
@@ -584,18 +568,18 @@ private fun koosSubscale(id: String, name: String, items: List<Item>) = Score(
 
 /** KOOS-Kind Knie-Fragebogen, German version (Neuhaus et al. 2022), as in "…_KOOS-child_11-2026.pdf". */
 private val KOOS_CHILD: Assessment = run {
-    val often = zeroToFour("nie", "selten", "manchmal", "oft", "immer")
-    val hard = zeroToFour("überhaupt nicht", "wenig schwierig", "mäßig schwierig", "schwierig", "sehr schwierig")
+    val often = numbered("nie", "selten", "manchmal", "oft", "immer")
+    val hard = numbered("überhaupt nicht", "wenig schwierig", "mäßig schwierig", "schwierig", "sehr schwierig")
     val symptoms = listOf(
         koosItem("s1", "S1. Wie oft war Dein Knie in den letzten 7 Tagen geschwollen?", often),
         koosItem("s2", "S2. Wie oft hat Dein Knie in den letzten 7 Tagen irgendwelche Geräusche (z.B. ein Knirschen, ein Klicken) gemacht?", often),
         koosItem("s3", "S3. Wie oft war Dein Knie in den letzten 7 Tagen blockiert, wenn Du es bewegt hast?", often),
-        koosItem("s4", "S4. Wie oft konntest Du Dein Knie in den letzten 7 Tagen selbständig ganz strecken?", zeroToFour("immer", "oft", "manchmal", "selten", "nie")),
-        koosItem("s5", "S5. Wie oft konntest Du Dein Knie in den letzten 7 Tagen selbständig ganz beugen?", zeroToFour("immer", "oft", "manchmal", "selten", "nie")),
+        koosItem("s4", "S4. Wie oft konntest Du Dein Knie in den letzten 7 Tagen selbständig ganz strecken?", numbered("immer", "oft", "manchmal", "selten", "nie")),
+        koosItem("s5", "S5. Wie oft konntest Du Dein Knie in den letzten 7 Tagen selbständig ganz beugen?", numbered("immer", "oft", "manchmal", "selten", "nie")),
         koosItem("s6", "S6. Wie schwierig war es in den letzten 7 Tagen für Dich, direkt nach dem Aufwachen am Morgen Dein Knie zu bewegen?", hard),
     )
-    val painHowOften = koosItem("p1", "P1. Wie oft hattest Du im letzten Monat Knieschmerzen?", zeroToFour("nie", "selten", "manchmal", "oft", "die ganze Zeit"))
-    val painfulness = zeroToFour("keine Schmerzen", "ein wenig Schmerzen", "mäßige Schmerzen", "starke Schmerzen", "sehr starke Schmerzen")
+    val painHowOften = koosItem("p1", "P1. Wie oft hattest Du im letzten Monat Knieschmerzen?", numbered("nie", "selten", "manchmal", "oft", "die ganze Zeit"))
+    val painfulness = numbered("keine Schmerzen", "ein wenig Schmerzen", "mäßige Schmerzen", "starke Schmerzen", "sehr starke Schmerzen")
     val painDuring = listOf(
         "p2" to "P2. Bei Drehbewegungen auf Deinem verletzten Knie während dem Gehen/Stehen/Rennen.",
         "p3" to "P3. Beim vollen Strecken des verletzten Knies.",
@@ -629,10 +613,10 @@ private val KOOS_CHILD: Assessment = run {
         "spn7" to "SPN7. Wie viel Schwierigkeiten hattest Du aufgrund Deines verletzten Knies in den letzten 7 Tagen dabei, Sport zu treiben?",
     ).map { (id, text) -> koosItem(id, text, hard) }
     val quality = listOf(
-        koosItem("q1", "Q1. Wie oft denkst Du über Deine Knieprobleme nach?", zeroToFour("nie", "wenig", "manchmal", "oft", "die ganze Zeit")),
-        koosItem("q2", "Q2. Wie stark hast Du Deine Lebensgewohnheiten aufgrund der Knieverletzung geändert?", zeroToFour("überhaupt nicht", "ein wenig", "etwas", "stark", "sehr stark")),
-        koosItem("q3", "Q3. Wie sehr vertraust Du Deinem verletzten Knie?", zeroToFour("vollständig", "weitgehend", "teilweise", "kaum", "überhaupt nicht")),
-        koosItem("q4", "Q4. Wie viele Probleme hast Du mit Deinem verletzten Knie insgesamt?", zeroToFour("keine", "wenig", "an und zu", "viel", "extrem")),
+        koosItem("q1", "Q1. Wie oft denkst Du über Deine Knieprobleme nach?", numbered("nie", "wenig", "manchmal", "oft", "die ganze Zeit")),
+        koosItem("q2", "Q2. Wie stark hast Du Deine Lebensgewohnheiten aufgrund der Knieverletzung geändert?", numbered("überhaupt nicht", "ein wenig", "etwas", "stark", "sehr stark")),
+        koosItem("q3", "Q3. Wie sehr vertraust Du Deinem verletzten Knie?", numbered("vollständig", "weitgehend", "teilweise", "kaum", "überhaupt nicht")),
+        koosItem("q4", "Q4. Wie viele Probleme hast Du mit Deinem verletzten Knie insgesamt?", numbered("keine", "wenig", "an und zu", "viel", "extrem")),
         koosItem(
             "qn5",
             "QN5. Wie schwierig war es für Dich aufgrund Deines verletzten Knies, in die Schule zu kommen oder in der Schule " +

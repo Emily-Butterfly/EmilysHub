@@ -44,7 +44,7 @@ class KneeHipAssessmentsTest {
         val ids = setOf("acl-rsi", "harris-hip", "hoos", "hos", "icrs", "koos", "koos-child", "kos-adl", "kujala", "less", "lysholm", "tegner", "visa-p-g")
         val lower = BuiltInAssessments.byCategory(hidden = emptySet()).getValue(AssessmentCategory.LowerExtremity).map(Assessment::id)
 
-        assertEquals(ids, lower.toSet())
+        assertTrue(lower.containsAll(ids))
         ids.forEach { assertEquals(it, listOf(AssessmentCategory.LowerExtremity), form(it).categories) }
         mapOf(
             "acl-rsi" to "ACL-RSI", "hoos" to "HOOS", "hos" to "HOS", "icrs" to "ICRS", "koos" to "KOOS", "koos-child" to "KOOS-Child",

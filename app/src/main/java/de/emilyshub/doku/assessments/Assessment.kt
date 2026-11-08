@@ -236,6 +236,9 @@ enum class ScoreRule {
 
     /** Their sum from its least to its most, as 0 to 100. */
     ZeroTo100,
+
+    /** Their sum in percent of the most all its items could reach: an item left out counts its least. */
+    PercentOfAll,
 }
 
 /** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */

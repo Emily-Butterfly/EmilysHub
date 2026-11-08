@@ -9,9 +9,6 @@ internal val SPINE: List<Assessment> by lazy { listOf(CSIQ, HDI, LSIQ, MICHELI, 
 private fun yesNoItems(vararg statements: String): List<Item> =
     statements.mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
 
-/** Options scored 0, 1, 2 … in the order given, as the originals number them. */
-private fun numbered(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label, i) }
-
 /** Cervical Spine Instability-Skala, as in "Cervical-Spine-Instability-Skala_CSIQ_11-2026.pdf". */
 private val CSIQ: Assessment = run {
     val items = yesNoItems(

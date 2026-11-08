@@ -242,4 +242,15 @@ class ScoringTest {
 
         assertEquals(0L..600L, Scoring.range(form, form.scores.single()))
     }
+
+    @Test
+    fun `a percentage of all keeps the most possible, an item left out counting 0`() {
+        val form = form(Score("all", "Prozent", listOf("a", "b", "c"), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter, minAnswered = 1))
+
+        // 3 + 2 of 9
+        assertEquals(5556L, value(form, chosen("a" to "3", "b" to "2")))
+        assertEquals(10000L, value(form, chosen("a" to "3", "b" to "3", "c" to "3")))
+        assertEquals(null, value(form, emptyMap()))
+        assertEquals(0L..10000L, Scoring.range(form, form.scores.single()))
+    }
 }

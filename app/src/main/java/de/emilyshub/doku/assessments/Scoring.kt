@@ -58,7 +58,7 @@ object Scoring {
                 counted.sumOf { it.first } * HUNDRED..counted.sumOf { it.second } * HUNDRED
             }
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
-            ScoreRule.Percent, ScoreRule.ZeroTo100 -> 0L..HUNDRED * HUNDRED
+            ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll -> 0L..HUNDRED * HUNDRED
         }
     }
 
@@ -99,6 +99,10 @@ object Scoring {
             ScoreRule.Mean -> rounded(sum * HUNDRED, answered.size.toLong())
             ScoreRule.Percent -> rounded(sum * HUNDRED * HUNDRED, most)
             ScoreRule.ZeroTo100 -> rounded((sum - least) * HUNDRED * HUNDRED, most - least)
+            ScoreRule.PercentOfAll -> {
+                val all = score.items.mapNotNull { range(checkNotNull(form.item(it))) }
+                rounded((sum + (all.sumOf { it.first } - least)) * HUNDRED * HUNDRED, all.sumOf { it.second })
+            }
         }
     }
 
