@@ -36,7 +36,9 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun DokuArchivePage(doku: Doku, patients: Patients, contentPadding: PaddingValues, onOpen: (Long) -> Unit) {
     val archived = rememberDokuLoad(patients) { patients.archive() } ?: return
-    val overdue = archived.count(ArchivedPatient::overdue)
+    // Those shown overdue, the very ones deleted once confirmed.
+    val overdueIds = archived.filter(ArchivedPatient::overdue).map(ArchivedPatient::id)
+    val overdue = overdueIds.size
     var deleting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LazyColumn(contentPadding = contentPadding) {
@@ -83,7 +85,7 @@ internal fun DokuArchivePage(doku: Doku, patients: Patients, contentPadding: Pad
             text = stringResource(R.string.doku_overdue_delete_text),
             onDelete = {
                 deleting = false
-                scope.launch { patients.deleteOverdue() }
+                scope.launch { patients.deleteOverdue(overdueIds) }
             },
             onDismiss = { deleting = false },
         )

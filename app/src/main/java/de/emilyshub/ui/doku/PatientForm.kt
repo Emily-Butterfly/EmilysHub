@@ -74,7 +74,7 @@ internal fun PatientDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = PatientProblem.BirthYearInvalid in problems,
                     supportingText = if (PatientProblem.BirthYearInvalid in problems) {
-                        { Text(stringResource(R.string.doku_patient_birth_year_invalid, year)) }
+                        { Text(stringResource(R.string.doku_patient_birth_year_invalid, PatientDraft.FIRST_YEAR, year)) }
                     } else {
                         null
                     },

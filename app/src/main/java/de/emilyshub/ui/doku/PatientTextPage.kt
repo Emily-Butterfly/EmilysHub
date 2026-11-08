@@ -36,7 +36,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuSaver
-import de.emilyshub.doku.PatientDraft
+import de.emilyshub.doku.Patient
 import de.emilyshub.doku.Patients
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.fields.LengthHint
@@ -45,7 +45,7 @@ import de.emilyshub.ui.notes.MarkdownText
 /**
  * One of a patient's four texts, to write in Markdown as in the notes, "Bearbeiten" and "Vorschau" (SPEC.md §14). What
  * is typed is saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku locks; it never
- * goes into the saved state. It takes no more than [PatientDraft.TEXT_MAX] characters.
+ * goes into the saved state. It takes no more than [Patient.TEXT_MAX] characters.
  */
 @Composable
 internal fun PatientTextPage(doku: Doku, patients: Patients, page: DokuPage.Text, contentPadding: PaddingValues, onDone: () -> Unit) {
@@ -61,7 +61,7 @@ internal fun PatientTextPage(doku: Doku, patients: Patients, page: DokuPage.Text
     val current by rememberUpdatedState(text)
     DisposableEffect(page) {
         val changed = { current != original }
-        val saver = doku.addSaver(DokuSaver { if (changed()) patients.pendingText(page.field, page.id, current) else null })
+        val saver = doku.addSaver(DokuSaver { if (changed()) patients.pendingText(page.id, page.field, current) else null })
         onDispose {
             saver.close()
             if (changed()) patients.setTextLater(page.id, page.field, current)
@@ -109,19 +109,19 @@ internal fun PatientTextPage(doku: Doku, patients: Patients, page: DokuPage.Text
                     MarkdownText(blocks)
                 }
             } else {
-            OutlinedTextField(
-                value = text,
-                // No more than it takes, so that what is typed can always be saved.
-                onValueChange = { typed -> if (!PatientDraft.textTooLong(typed)) text = typed },
-                label = { Text(stringResource(page.field.label)) },
-                minLines = 8,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                supportingText = {
-                    Column {
-                        Text(stringResource(R.string.doku_field_hint))
-                        LengthHint(InputText.lengthOf(InputText.multiLine(text)), PatientDraft.TEXT_MAX)
-                    }
-                },
+                OutlinedTextField(
+                    value = text,
+                    // No more than it takes, so that what is typed can always be saved.
+                    onValueChange = { typed -> if (!Patient.textTooLong(typed)) text = typed },
+                    label = { Text(stringResource(page.field.label)) },
+                    minLines = 8,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    supportingText = {
+                        Column {
+                            Text(stringResource(R.string.doku_field_hint))
+                            LengthHint(InputText.lengthOf(InputText.multiLine(text)), Patient.TEXT_MAX)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),

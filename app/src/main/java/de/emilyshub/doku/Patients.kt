@@ -20,24 +20,29 @@ import java.time.LocalDate
  */
 class Patients(private val doku: Doku, private val clock: Clock, private val background: CoroutineScope) {
 
+    /** How many changes were made here: Compose state, read by the screens to read anew. */
     var changes by mutableIntStateOf(0)
         private set
 
     /** The day it is. */
     fun today(): LocalDate = LocalDate.now(clock)
 
-    /** The active patients in [order], each with the day of their last appointment up to today, if any. */
+    /**
+     * The active patients in [order], each with the day of their last appointment up to today, if any. By the latest
+     * entry, a patient's last appointment or else the day they were added, in one list, the latest first (as decided on
+     * 08.11.2026); on the same day, the one added later first.
+     */
     suspend fun active(order: PatientOrder): List<PatientRow>? = doku.withDatabase { database ->
         val active = database.patients().all().filterNot(Patient::isClosed)
-        // Appointments come with #60; until then none has had one.
-        val rows = active.map { it to null as LocalDate? }
-        when (order) {
-            PatientOrder.LastSeen -> rows.sortedWith(
-                compareByDescending<Pair<Patient, LocalDate?>> { (patient, lastSeen) -> lastSeen ?: dayOf(patient.createdAt) }
-                    .thenByDescending { (patient, _) -> patient.createdAt },
+        // Appointments come with #60, which gives each its last one; until then none has had one.
+        val lastSeen = emptyMap<Long, LocalDate>()
+        val sorted = when (order) {
+            PatientOrder.LastSeen -> active.sortedWith(
+                compareByDescending<Patient> { lastSeen[it.id] ?: dayOf(it.createdAt) }.thenByDescending { it.createdAt },
             )
-            PatientOrder.Name -> rows.sortedWith(compareBy(InputText.byName) { (patient, _) -> patient.name })
-        }.map { (patient, lastSeen) -> PatientRow(patient.id, patient.name, lastSeen) }
+            PatientOrder.Name -> active.sortedWith(compareBy(InputText.byName) { it.name })
+        }
+        sorted.map { PatientRow(it.id, it.name, lastSeen[it.id]) }
     }
 
     /** The closed patients, the one closed last first, those closed twelve months ago or more marked. */
@@ -51,6 +56,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     /** How many patients were closed twelve months ago or more, for the start page to suggest deleting them. */
     suspend fun overdueCount(): Int? = archive()?.count(ArchivedPatient::overdue)
 
+    /** Patient [id], active or closed; none once deleted or the Doku is locked. */
     suspend fun get(id: Long): Patient? = doku.withDatabase { it.patients().get(id) }
 
     /** Adds a patient as [draft] has them, which must have no [PatientDraft.problems]; their id, none once locked. */
@@ -66,10 +72,10 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         changeActive(id) { it.copy(name = draft.cleanedName(), birthYear = draft.cleanedBirthYear()) }
     }
 
-    /** Sets [field] of active patient [id] to [text], which must not be too long ([PatientDraft.textTooLong]). */
+    /** Sets [field] of active patient [id] to [text], which must not be too long ([Patient.textTooLong]). */
     suspend fun setText(id: Long, field: PatientField, text: String) {
-        require(!PatientDraft.textTooLong(text)) { "The patient's text is too long" }
-        changeActive(id) { it.withText(field, InputText.multiLine(text)) }
+        require(!Patient.textTooLong(text)) { "The patient's text is too long" }
+        changing { writeText(it, id, field, text) }
     }
 
     /** As [setText], but on [background], for an editor that saves as it closes; not once the Doku is locked. */
@@ -78,10 +84,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
     }
 
     /** What a text editor has typed for [field] of patient [id], to be written as the Doku locks ([DokuSaver]). */
-    fun pendingText(field: PatientField, id: Long, text: String): suspend (DokuDatabase) -> Unit = { database ->
-        val patient = database.patients().get(id)?.takeUnless(Patient::isClosed)
-        if (patient != null) database.patients().update(patient.withText(field, InputText.multiLine(text)))
-    }
+    fun pendingText(id: Long, field: PatientField, text: String): suspend (DokuDatabase) -> Unit = { writeText(it, id, field, text) }
 
     /** Closes patient [id] today: off the start page, into the archive, only to read there. */
     suspend fun close(id: Long) = changeActive(id) { it.copy(closedOn = today()) }
@@ -99,13 +102,18 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         changing { it.patients().delete(listOf(id)) }
     }
 
-    /** Deletes for good all patients closed twelve months ago or more, with all that belongs to them; how many. */
-    suspend fun deleteOverdue(): Int {
-        val overdue = archive()?.filter(ArchivedPatient::overdue)?.map(ArchivedPatient::id).orEmpty()
-        if (overdue.isEmpty()) return 0
-        changing { it.patients().delete(overdue) }
-        return overdue.size
-    }
+    /**
+     * Deletes for good the patients of [shown], as the archive showed them overdue, with all that belongs to them: not
+     * one that has turned overdue since, nor one restored meanwhile; how many.
+     */
+    suspend fun deleteOverdue(shown: Collection<Long>): Int = changing { database ->
+        val today = today()
+        val overdue = database.patients().all()
+            .filter { patient -> patient.id in shown && patient.closedOn?.let { isOverdue(it, today) } == true }
+            .map(Patient::id)
+        database.patients().delete(overdue)
+        overdue.size
+    } ?: 0
 
     /**
      * The patients, active and closed, whose name or texts hold every word of [typed], in whatever case and however
@@ -117,7 +125,7 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         return doku.withDatabase { database ->
             database.patients().all()
                 .filter { patient ->
-                    val text = InputText.searchable(listOf(patient.name, patient.diagnosis, patient.anamnesis, patient.goals, patient.other).joinToString("\n"))
+                    val text = InputText.searchable((listOf(patient.name) + patient.texts).joinToString("\n"))
                     words.all { it in text }
                 }
                 .sortedWith(compareBy(InputText.byName) { it.name })
@@ -130,8 +138,15 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         database.settings().get(ORDER)?.let { stored -> PatientOrder.entries.find { it.name == stored } }
     } ?: PatientOrder.LastSeen
 
+    /** Keeps [order] as the start page's, in the Doku's database. */
     suspend fun setOrder(order: PatientOrder) {
         changing { it.settings().put(DokuSetting(ORDER, order.name)) }
+    }
+
+    /** Sets [field] of active patient [id] to [text], cleaned; a closed one is only to read. */
+    private suspend fun writeText(database: DokuDatabase, id: Long, field: PatientField, text: String) {
+        val patient = database.patients().get(id)?.takeUnless(Patient::isClosed) ?: return
+        database.patients().update(patient.withText(field, InputText.multiLine(text)))
     }
 
     /** Changes active patient [id] as [change] has it; a closed one is only to read. */

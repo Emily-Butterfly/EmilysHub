@@ -842,7 +842,7 @@
     <string name="doku_patient_name">Name / Kürzel</string>
     <string name="doku_patient_name_missing">Gib einen Namen oder ein Kürzel ein.</string>
     <string name="doku_patient_birth_year">Geburtsjahr (optional)</string>
-    <string name="doku_patient_birth_year_invalid">Ein Jahr von 1900 bis %1$d</string>
+    <string name="doku_patient_birth_year_invalid">Ein Jahr von %1$d bis %2$d</string>
     <string name="doku_patient_create">Anlegen</string>
     <string name="doku_patient_born">Jg. %1$d (≈ %2$d Jahre)</string>
     <string name="doku_patient_overview">Übersicht</string>

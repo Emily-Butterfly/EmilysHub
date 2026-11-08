@@ -5,6 +5,8 @@ import java.io.Serializable
 
 /** A page of the Doku, opened within its tab (SPEC.md §14). Only ids: nothing of the Doku goes into the saved state. */
 sealed interface DokuPage : Serializable {
+    /** The patient the page is of, if any. */
+    val patientId: Long? get() = null
     /** The start page: the active patients, the search, and the hint to delete those closed long ago. */
     data object Home : DokuPage
 
@@ -12,10 +14,14 @@ sealed interface DokuPage : Serializable {
     data object Archive : DokuPage
 
     /** A patient's page, on its [tab]. */
-    data class Patient(val id: Long, val tab: PatientTab = PatientTab.Overview) : DokuPage
+    data class Patient(val id: Long, val tab: PatientTab = PatientTab.Overview) : DokuPage {
+        override val patientId: Long get() = id
+    }
 
     /** One of the four texts of patient [id], to write. */
-    data class Text(val id: Long, val field: PatientField) : DokuPage
+    data class Text(val id: Long, val field: PatientField) : DokuPage {
+        override val patientId: Long get() = id
+    }
 }
 
 /** The tabs of a patient's page. */
@@ -26,17 +32,21 @@ enum class PatientTab { Overview, Appointments, Tests }
  * app's tabs: a screen over them leaves the Doku, which locks it. Serializable, so that a rotation keeps the page.
  */
 data class DokuPages(private val pages: List<DokuPage> = listOf(DokuPage.Home)) : Serializable {
+    /** The page shown. */
     val top: DokuPage get() = pages.last()
 
+    /** Whether a page lies under the one shown, for back to lead to. */
     val canGoBack: Boolean get() = pages.size > 1
 
+    /** With [page] opened over the one shown. */
     fun open(page: DokuPage) = DokuPages(pages + page)
 
+    /** Back to the page under the one shown; the start page stays. */
     fun back() = if (canGoBack) DokuPages(pages.dropLast(1)) else this
 
     /** With [page] in place of the top one. */
     fun replaceTop(page: DokuPage) = DokuPages(pages.dropLast(1) + page)
 
     /** Without the pages of patient [id], as once they are deleted. */
-    fun without(id: Long) = DokuPages(pages.filterNot { it is DokuPage.Patient && it.id == id || it is DokuPage.Text && it.id == id })
+    fun without(id: Long) = DokuPages(pages.filterNot { it.patientId == id })
 }

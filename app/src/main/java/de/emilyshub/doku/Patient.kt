@@ -23,7 +23,11 @@ data class Patient(
     @ColumnInfo(name = "created_at") val createdAt: Instant,
     @ColumnInfo(name = "closed_on") val closedOn: LocalDate? = null,
 ) {
+    /** Whether they are closed: in the archive, only to read. */
     val isClosed: Boolean get() = closedOn != null
+
+    /** All four texts, in the order of [PatientField]. */
+    val texts: List<String> get() = PatientField.entries.map(::textOf)
 
     /** The text of [field]. */
     fun textOf(field: PatientField): String = when (field) {
@@ -39,6 +43,14 @@ data class Patient(
         PatientField.Anamnesis -> copy(anamnesis = text)
         PatientField.Goals -> copy(goals = text)
         PatientField.Other -> copy(other = text)
+    }
+
+    companion object {
+        /** Some twenty pages for each of the four texts. */
+        const val TEXT_MAX = 40_000
+
+        /** What keeps [text] from being saved as one of the four texts: too long, once cleaned. */
+        fun textTooLong(text: String): Boolean = InputText.lengthOf(InputText.multiLine(text)) > TEXT_MAX
     }
 }
 
@@ -75,12 +87,6 @@ data class PatientDraft(val name: String, val birthYear: String = "") {
     companion object {
         const val NAME_MAX = 80
         const val FIRST_YEAR = 1900
-
-        /** Some twenty pages for each of the four texts. */
-        const val TEXT_MAX = 40_000
-
-        /** What keeps [text] from being saved as one of the four texts: too long, once cleaned. */
-        fun textTooLong(text: String): Boolean = InputText.lengthOf(InputText.multiLine(text)) > TEXT_MAX
     }
 }
 

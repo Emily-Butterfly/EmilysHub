@@ -9,15 +9,19 @@ import androidx.room.Update
 /** The patients in `doku.db`. */
 @Dao
 abstract class PatientDao {
+    /** Adds [patient]; their new id. */
     @Insert
     abstract suspend fun insert(patient: Patient): Long
 
+    /** Writes [patient] over the one with their id. */
     @Update
     abstract suspend fun update(patient: Patient)
 
+    /** Patient [id], if there is one. */
     @Query("SELECT * FROM patient WHERE id = :id")
     abstract suspend fun get(id: Long): Patient?
 
+    /** All patients, active and closed: few enough to sort and search here. */
     @Query("SELECT * FROM patient")
     abstract suspend fun all(): List<Patient>
 

@@ -228,8 +228,9 @@ private fun AppShell(
         val closeMore = { tabs = tabs.copy(more = null, doku = DokuPages()) }
         BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null, onBack = closeMore)
         // Within the Doku, back leads to the page it was opened from first.
+        val dokuCanGoBack = tabs.more == MoreEntry.Doku && tabs.doku.canGoBack
         val dokuBack = { tabs = tabs.copy(doku = tabs.doku.back()) }
-        BackHandler(enabled = current == TopLevelDestination.More && tabs.more == MoreEntry.Doku && tabs.doku.canGoBack, onBack = dokuBack)
+        BackHandler(enabled = current == TopLevelDestination.More && dokuCanGoBack, onBack = dokuBack)
         // Back from yesterday leads to Heute.
         BackHandler(enabled = current == TopLevelDestination.Today && yesterday) { yesterday = false }
         TopLevelScaffold(
@@ -246,7 +247,7 @@ private fun AppShell(
                     current = it
                 }
             },
-            onCloseMore = { if (tabs.more == MoreEntry.Doku && tabs.doku.canGoBack) dokuBack() else closeMore() },
+            onCloseMore = { if (dokuCanGoBack) dokuBack() else closeMore() },
             yesterday = yesterday,
             onYesterdayChange = { yesterday = it },
             tabs = tabs,

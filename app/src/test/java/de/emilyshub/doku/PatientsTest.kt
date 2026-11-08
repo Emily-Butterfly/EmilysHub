@@ -96,7 +96,7 @@ class PatientsTest {
         runBlocking { patients.setText(id, PatientField.Diagnosis, "  Schulter **links**  \n") }
 
         assertEquals("  Schulter **links**", get(id).diagnosis)
-        assertTrue(PatientDraft.textTooLong("x".repeat(40_001)))
+        assertTrue(Patient.textTooLong("x".repeat(40_001)))
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { patients.setText(id, PatientField.Other, "x".repeat(40_001)) }
         }
@@ -224,10 +224,50 @@ class PatientsTest {
         val active = add("Aktiv")
         on("2027-10-23")
 
-        assertEquals(2, runBlocking { patients.deleteOverdue() })
+        val shown = runBlocking { checkNotNull(patients.archive()) }.filter(ArchivedPatient::overdue).map(ArchivedPatient::id)
+        assertEquals(2, runBlocking { patients.deleteOverdue(shown) })
 
         assertEquals(listOf("Neu"), runBlocking { checkNotNull(patients.archive()) }.map { it.name })
         assertEquals(active, get(active).id)
+    }
+
+    @Test
+    fun `only the overdue ones shown are deleted, not those overdue since`() {
+        val old = add("Alt")
+        runBlocking { patients.close(old) }
+        on("2027-01-10")
+        val later = add("Später")
+        runBlocking { patients.close(later) }
+        on("2027-10-23")
+        val shown = runBlocking { checkNotNull(patients.archive()) }.filter(ArchivedPatient::overdue).map(ArchivedPatient::id)
+        // The dialog stays open into the day "Später" turns overdue too.
+        on("2028-01-10")
+
+        assertEquals(1, runBlocking { patients.deleteOverdue(shown) })
+
+        assertEquals(listOf("Später"), runBlocking { checkNotNull(patients.archive()) }.map { it.name })
+    }
+
+    @Test
+    fun `patients restored meanwhile are not deleted with the overdue ones`() {
+        val old = add("Alt")
+        runBlocking { patients.close(old) }
+        on("2027-10-23")
+        val shown = runBlocking { checkNotNull(patients.archive()) }.map(ArchivedPatient::id)
+        runBlocking { patients.restore(old) }
+
+        assertEquals(0, runBlocking { patients.deleteOverdue(shown) })
+
+        assertEquals(old, get(old).id)
+    }
+
+    @Test
+    fun `by the latest entry, a patient's last appointment or the day they were added, a newer one first`() {
+        val older = add("Älter")
+        on("2026-10-30")
+        val newer = add("Neuer")
+
+        assertEquals(listOf(newer, older), runBlocking { checkNotNull(patients.active(PatientOrder.LastSeen)) }.map { it.id })
     }
 
     @Test
