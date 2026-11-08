@@ -18,12 +18,15 @@ import javax.crypto.spec.SecretKeySpec
  */
 internal class DokuKeys private constructor(
     private val salt: ByteArray,
-    private val iterations: Int,
+    val iterations: Int,
     private val byPassword: ByteArray,
     val byFingerprint: ByteArray?,
     val fingerprintLost: Boolean,
 ) {
     val hasFingerprint: Boolean get() = byFingerprint != null
+
+    /** Only sealed under the Doku password, as a backup takes it along: the fingerprint's key stays on this phone. */
+    fun passwordOnly(): DokuKeys = DokuKeys(salt, iterations, byPassword, byFingerprint = null, fingerprintLost = false)
 
     /** The database key, or null if [password] is not the Doku password. */
     fun openWithPassword(password: String): ByteArray? = try {
@@ -92,6 +95,7 @@ internal class DokuKeys private constructor(
             check(fingerprint in FINGERPRINT_OFF..FINGERPRINT_LOST) { "The Doku key file is damaged" }
             val byFingerprint = if (fingerprint == FINGERPRINT_ON) input.readBlock(sealedSize) else null
             check(byFingerprint == null || byFingerprint.size == sealedSize) { "The Doku key file is damaged" }
+            check(input.read() == -1) { "The Doku key file is damaged" }
             DokuKeys(salt, iterations, byPassword, byFingerprint, fingerprintLost = fingerprint == FINGERPRINT_LOST)
         }
 

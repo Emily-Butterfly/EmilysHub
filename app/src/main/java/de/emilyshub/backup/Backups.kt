@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
@@ -36,6 +37,9 @@ class Backup internal constructor(internal val content: BackupContent, internal 
     val summary: Summary
         get() = Summary(count("routines"), count("todos"), count("wishes"), count("notes"), count("places"), count("tags"))
 
+    /** Whether it holds a Doku, to be restored only with the Doku password that held when it was made. */
+    val hasDoku: Boolean get() = content.doku != null
+
     private fun count(table: String) = content.tables[table]?.rows?.size ?: 0
 }
 
@@ -46,6 +50,10 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  * brought up to this one by [migration]. It is checked strictly before it can be restored. Restoring puts it in place of
  * all data but the settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to
  * follow. [database] and [settings] are only called on [io].
+ *
+ * The [doku] goes along in its own encryption, taken as its files lie, so that a backup neither unlocks it nor asks
+ * for its password, by night too. It comes back only with the Doku password that held when the backup was made, and
+ * else, or from a backup without one, stays as it is.
  */
 class Backups(
     private val database: () -> HubDatabase,
@@ -53,6 +61,7 @@ class Backups(
     private val wrappingKey: () -> SecretKey,
     private val clock: Clock,
     private val migration: BackupMigration,
+    private val doku: DokuVault,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,
     private val onRestore: suspend () -> Unit = {},
@@ -75,7 +84,7 @@ class Backups(
         val database = database()
         val now = clock.instant()
         val tables = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
-        val file = BackupFile.seal(BackupContent(HubDatabase.VERSION, now, tables).toJson(), key)
+        val file = BackupFile.seal(BackupContent(HubDatabase.VERSION, now, tables, doku.snapshot()).toJson(), key)
         output().use { it.write(file) }
         settings().put(Setting(LAST_MADE, now.toString()))
     }
@@ -91,6 +100,7 @@ class Backups(
     suspend fun open(input: () -> InputStream, password: String): Backup = withContext(io) {
         val decrypted = BackupFile.open(input().use(BackupFile::read), password)
         val found = BackupContent.fromJson(decrypted.plaintext)
+        if ((found.doku?.schema ?: 0) > DokuDatabase.VERSION) throw BackupException(BackupProblem.NewerVersion)
         val content = when {
             found.schema > HubDatabase.VERSION -> throw BackupException(BackupProblem.NewerVersion)
             found.schema < HubDatabase.VERSION -> migration.upToDate(found)
@@ -103,10 +113,22 @@ class Backups(
     /**
      * Puts [backup] in place of all data. Its backup password becomes the one here first, unless one is set already: so
      * that a failure leaves the data as they were, as the user is then told.
+     *
+     * Its Doku, if it has one, takes the place of the one here only with a [dokuPassword], which must be the Doku
+     * password that held when it was made, or nothing changes ([BackupProblem.WrongDokuPassword]); without one, the
+     * Doku here stays as it is. Should the rest fail, the Doku is put back as it was.
      */
-    suspend fun restore(backup: Backup) = withContext(io + NonCancellable) {
+    suspend fun restore(backup: Backup, dokuPassword: String? = null) = withContext(io + NonCancellable) {
+        val dokuToRestore = backup.content.doku?.takeIf { dokuPassword != null }
+        if (dokuToRestore != null && !dokuToRestore.opensWith(checkNotNull(dokuPassword))) {
+            throw BackupException(BackupProblem.WrongDokuPassword)
+        }
         if (settings().get(KEY) == null) store(backup.key)
-        replaceAllWith(backup.content, keep = true)
+        if (dokuToRestore == null) {
+            replaceAllWith(backup.content, keep = true)
+        } else {
+            doku.replacedBy(dokuToRestore) { replaceAllWith(backup.content, keep = true) }
+        }
         onRestore()
     }
 

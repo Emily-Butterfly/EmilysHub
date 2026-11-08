@@ -35,6 +35,7 @@ class TestCatalogTest {
 
     private val doku = Doku(
         keyFile = File(context.noBackupFilesDir, "tests-test.key"),
+        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(context) },
         clipboard = DokuClipboard(context),

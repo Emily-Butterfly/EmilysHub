@@ -38,7 +38,8 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
                     // Such as a value an update would never have met, which a migration cannot read.
                     throw BackupException(BackupProblem.Damaged, e)
                 }
-                return BackupContent(HubDatabase.VERSION, content.created, DataTables(db).read())
+                // The Doku as it is: its own migrations bring it up to date once it is opened.
+                return BackupContent(HubDatabase.VERSION, content.created, DataTables(db).read(), content.doku)
             } finally {
                 db.endTransaction()
             }

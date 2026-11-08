@@ -34,6 +34,7 @@ class DokuTest {
     /** The Doku as a new process finds it. */
     private fun newDoku() = Doku(
         keyFile = keyFile,
+        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
         fingerprint = fingerprint,
         openDatabase = { rawKey -> opened += rawKey.bytes; testDokuDatabase(context) },
         clipboard = DokuClipboard(context),
@@ -295,6 +296,7 @@ class DokuTest {
         doku.lock()
         val racing = Doku(
             keyFile = keyFile,
+            databaseFile = context.getDatabasePath(DokuDatabase.NAME),
             fingerprint = fingerprint,
             // The app leaves the screen just while the database opens.
             openDatabase = { racingDoku.lock(); testDokuDatabase(context) },

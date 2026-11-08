@@ -182,6 +182,7 @@ open class EmilysHubApplication : Application(), Hub {
             wrappingKey = backupWrappingKey,
             clock = clock,
             migration = backupMigration,
+            doku = doku,
             io = io,
             iterations = backupIterations,
             onRestore = ::updateReminders,
@@ -202,6 +203,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val doku: Doku by lazy {
         Doku(
             keyFile = File(noBackupFilesDir, "doku.key"),
+            databaseFile = getDatabasePath(DokuDatabase.NAME),
             fingerprint = fingerprint,
             openDatabase = openDokuDatabase,
             clipboard = DokuClipboard(this),

@@ -10,7 +10,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 
 /** Why a backup cannot be opened or made. */
-enum class BackupProblem { NotABackup, Damaged, WrongPassword, TooLarge, NewerVersion, OlderVersion }
+enum class BackupProblem { NotABackup, Damaged, WrongPassword, TooLarge, NewerVersion, OlderVersion, WrongDokuPassword }
 
 class BackupException(val problem: BackupProblem, cause: Throwable? = null) : Exception("Backup: $problem", cause)
 

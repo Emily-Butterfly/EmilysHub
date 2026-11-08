@@ -5,8 +5,13 @@ import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import de.emilyshub.backup.BackupException
+import de.emilyshub.backup.BackupFile
 import de.emilyshub.backup.BackupKey
+import de.emilyshub.backup.BackupProblem
+import de.emilyshub.backup.DokuVault
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -60,9 +65,12 @@ fun interface DokuSaver {
  *
  * It locks when the screen showing it says so ([lock]), and after [IDLE_MILLIS] without a touch or a key ([touched]),
  * by [now], a monotonic clock. It lives as long as the process: a new process starts locked.
+ *
+ * The backups take its [files] along as they lie, encrypted, and put them back ([DokuVault]), without unlocking it.
  */
 class Doku internal constructor(
     private val keyFile: DokuKeyFile,
+    private val files: DokuFiles,
     private val fingerprint: Fingerprint,
     private val openDatabase: (RawKey) -> DokuDatabase,
     /** Where what is copied from the Doku goes. */
@@ -71,9 +79,10 @@ class Doku internal constructor(
     private val background: CoroutineScope,
     private val iterations: Int,
     private val now: () -> Long,
-) {
+) : DokuVault {
     constructor(
         keyFile: File,
+        databaseFile: File,
         fingerprint: Fingerprint,
         openDatabase: (RawKey) -> DokuDatabase,
         clipboard: DokuClipboard,
@@ -81,7 +90,7 @@ class Doku internal constructor(
         background: CoroutineScope,
         iterations: Int = BackupKey.ITERATIONS,
         now: () -> Long = SystemClock::elapsedRealtime,
-    ) : this(DokuKeyFile(keyFile), fingerprint, openDatabase, clipboard, io, background, iterations, now)
+    ) : this(DokuKeyFile(keyFile), DokuFiles(keyFile, databaseFile), fingerprint, openDatabase, clipboard, io, background, iterations, now)
 
     /** Compose state; null until [load] has read the key file. Nothing of the Doku shows unless it is [DokuState.Open]. */
     var state by mutableStateOf<DokuState?>(null)
@@ -97,8 +106,14 @@ class Doku internal constructor(
     /** How often the Doku was told to lock: an unlock still under way when it is told so again does not open it. */
     private var locks = 0
 
-    /** Opening and closing the database, one at a time: an unlock waits for the lock before it to have closed it. */
+    /**
+     * Opening and closing the database, one at a time: an unlock waits for the lock before it to have closed it. Every
+     * read and write of the database holds it too ([withDatabase]), so that nothing writes while it is held.
+     */
     private val openingAndClosing = Mutex()
+
+    /** The closing of the database the last [lock] started. */
+    private var lastClose: Job? = null
 
     /** The open database; only while [state] is [DokuState.Open]. */
     val database: DokuDatabase get() = requireOpen().database
@@ -257,7 +272,7 @@ class Doku internal constructor(
         val pending = savers.mapNotNull { it.pending() }
         opened = null
         state = checkNotNull(keys).lockedState()
-        background.launch(io + NonCancellable) {
+        lastClose = background.launch(io + NonCancellable) {
             openingAndClosing.withLock {
                 try {
                     pending.forEach { it(closing.database) }
@@ -271,6 +286,58 @@ class Doku internal constructor(
     }
 
     /**
+     * The Doku as its files lie now, for a backup, its key sealed only under the Doku password; null before it has one.
+     * Open or locked, it is not unlocked for this, and what is in it holds together, as nothing writes meanwhile. Fails
+     * as [BackupProblem.TooLarge] if it is larger than a backup can be.
+     */
+    override suspend fun snapshot(): DokuSnapshot? = openingAndClosing.withLock {
+        withContext(io) {
+            val stored = keyFile.read() ?: return@withContext null
+            // What is in the write-ahead log into the database first, so that the backup carries no more than it needs.
+            opened?.database?.openHelper?.writableDatabase?.query("PRAGMA wal_checkpoint(TRUNCATE)")?.use { it.moveToFirst() }
+            files.snapshot(stored.passwordOnly(), BackupFile.MAX_BYTES) ?: throw BackupException(BackupProblem.TooLarge)
+        }
+    }
+
+    /**
+     * Puts [snapshot] in place of the Doku, locked first, then runs [during]; if that fails, the Doku is put back as it
+     * was. Then the Doku password of the snapshot holds, and the fingerprint is off, to be turned on once it is open.
+     */
+    override suspend fun <T> replacedBy(snapshot: DokuSnapshot, during: suspend () -> T): T {
+        lock()
+        lastClose?.join()
+        return openingAndClosing.withLock {
+            // An unlock begun meanwhile, with the keys before, does not open it.
+            locks++
+            opened?.let { open ->
+                opened = null
+                state = checkNotNull(keys).lockedState()
+                withContext(io + NonCancellable) { open.database.close() }
+                open.key.fill(0)
+                open.rawKey.wipe()
+            }
+            val replacement = withContext(io + NonCancellable) { files.replaceWith(snapshot) }
+            val result = try {
+                during()
+            } catch (e: Throwable) {
+                try {
+                    withContext(io + NonCancellable) { replacement.undo() }
+                } catch (failed: Exception) {
+                    e.addSuppressed(failed)
+                }
+                throw e
+            }
+            withContext(io + NonCancellable) {
+                replacement.done()
+                fingerprint.deleteKey()
+            }
+            keys = snapshot.keys
+            if (state != null) state = snapshot.keys.lockedState()
+            result
+        }
+    }
+
+    /**
      * Opens the database with [key], unless the Doku was told to lock [since] the unlock began: it left the screen
      * meanwhile, say. After a lost fingerprint, and with one on the phone again, it offers to turn it on again.
      */
@@ -279,6 +346,8 @@ class Doku internal constructor(
         if (opened != null) return key.fill(0)
         val rawKey = DokuDatabase.rawKey(key)
         val database = openingAndClosing.withLock {
+            // Put in place of from a backup meanwhile, say: this key may not fit it.
+            if (locks != since) return@withLock null
             withContext(io) {
                 openDatabase(rawKey).also {
                     // Opened here, so that a damaged file fails now, not on the first screen.
@@ -287,8 +356,8 @@ class Doku internal constructor(
             }
         }
         val current = checkNotNull(keys)
-        if (locks != since) {
-            withContext(io + NonCancellable) { database.close() }
+        if (database == null || locks != since) {
+            database?.let { withContext(io + NonCancellable) { it.close() } }
             key.fill(0)
             rawKey.wipe()
             // Set up meanwhile, the Doku now has its password.

@@ -15,25 +15,25 @@ Die Dokumentation kommt in die Backups, nächtlich wie von Hand, in ihrer eigene
 
 ### Sichern
 
-- [ ] Das Backup enthält einen eigenen Abschnitt „Dokumentation“: die mit SQLCipher verschlüsselte `doku.db` und den mit dem Doku-Passwort verpackten Schlüssel (Salt, Iterationen, verpackter Schlüssel), nicht den an den Fingerabdruck gebundenen
-- [ ] Das Backup entschlüsselt die Doku nicht und fragt nicht nach dem Doku-Passwort
-- [ ] Es sichert eine in sich stimmige Fassung der Doku, auch wenn sie gerade entsperrt ist
-- [ ] Ohne eingerichtete Doku fehlt der Abschnitt
-- [ ] Die Doku zählt zur Größengrenze der Backups; wird sie überschritten, schlägt das Backup fehl wie heute bei zu großen Backups
+- [x] Das Backup enthält einen eigenen Abschnitt „Dokumentation“: die mit SQLCipher verschlüsselte `doku.db` und den mit dem Doku-Passwort verpackten Schlüssel (Salt, Iterationen, verpackter Schlüssel), nicht den an den Fingerabdruck gebundenen
+- [x] Das Backup entschlüsselt die Doku nicht und fragt nicht nach dem Doku-Passwort
+- [x] Es sichert eine in sich stimmige Fassung der Doku, auch wenn sie gerade entsperrt ist
+- [x] Ohne eingerichtete Doku fehlt der Abschnitt
+- [x] Die Doku zählt zur Größengrenze der Backups; wird sie überschritten, schlägt das Backup fehl wie heute bei zu großen Backups
 
 ### Einspielen
 
-- [ ] Hat das Backup eine Doku, fragt das Einspielen zusätzlich nach dem **Doku-Passwort**, das beim Backup galt, und prüft es, bevor etwas ersetzt wird; ein falsches zeigt „Falsches Doku-Passwort“ und ändert nichts
-- [ ] Die Rückfrage vor dem Ersetzen nennt die Doku: „Auch die Dokumentation wird durch die aus dem Backup ersetzt.“
-- [ ] „Ohne Dokumentation einspielen“ spielt alles andere ein; die vorhandene Doku bleibt, wie sie ist
-- [ ] Ein Backup ohne Doku (auch jedes ältere) lässt die vorhandene Doku unverändert
-- [ ] Nach dem Einspielen gilt das Doku-Passwort aus dem Backup; der Fingerabdruck ist aus und lässt sich nach dem ersten Entsperren wieder einschalten
-- [ ] Eine Doku aus einem Backup einer älteren App-Version wird beim ersten Öffnen mit ihren Migrationen auf den Stand gebracht
-- [ ] Fehler beim Einspielen der Doku lassen alle Daten unverändert, wie bei den übrigen Daten
+- [x] Hat das Backup eine Doku, fragt das Einspielen zusätzlich nach dem **Doku-Passwort**, das beim Backup galt, und prüft es, bevor etwas ersetzt wird; ein falsches zeigt „Falsches Doku-Passwort“ und ändert nichts
+- [x] Die Rückfrage vor dem Ersetzen nennt die Doku: „Auch die Dokumentation wird durch die aus dem Backup ersetzt.“
+- [x] „Ohne Dokumentation einspielen“ spielt alles andere ein; die vorhandene Doku bleibt, wie sie ist
+- [x] Ein Backup ohne Doku (auch jedes ältere) lässt die vorhandene Doku unverändert
+- [x] Nach dem Einspielen gilt das Doku-Passwort aus dem Backup; der Fingerabdruck ist aus und lässt sich nach dem ersten Entsperren wieder einschalten
+- [x] Eine Doku aus einem Backup einer älteren App-Version wird beim ersten Öffnen mit ihren Migrationen auf den Stand gebracht
+- [x] Fehler beim Einspielen der Doku lassen alle Daten unverändert, wie bei den übrigen Daten
 
 ### Tests
 
-- [ ] Tests: Roundtrip mit Doku; Backup bei gesperrter und bei entsperrter Doku; falsches Doku-Passwort beim Einspielen; „Ohne Dokumentation einspielen“; älteres Backup ohne Doku lässt die vorhandene; manipulierter Doku-Abschnitt wird abgelehnt; Backup-Passwort allein öffnet die Doku nicht
+- [x] Tests: Roundtrip mit Doku; Backup bei gesperrter und bei entsperrter Doku; falsches Doku-Passwort beim Einspielen; „Ohne Dokumentation einspielen“; älteres Backup ohne Doku lässt die vorhandene; manipulierter Doku-Abschnitt wird abgelehnt; Backup-Passwort allein öffnet die Doku nicht
 
 ## Entscheidungen
 

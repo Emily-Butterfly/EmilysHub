@@ -28,6 +28,7 @@ class DokuLockerTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val doku = Doku(
         keyFile = File(context.noBackupFilesDir, "doku-locker-test.key"),
+        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(context) },
         clipboard = DokuClipboard(context),

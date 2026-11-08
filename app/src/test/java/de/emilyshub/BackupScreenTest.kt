@@ -18,8 +18,12 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.doku.PatientDraft
+import de.emilyshub.doku.PatientOrder
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -187,6 +191,55 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `a backup with a Doku asks for the Doku password it was made with, and brings the Doku back`() {
+        aBackupWithFrauMThenHerrK()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+
+            compose.onNodeWithText("Auch die Dokumentation wird durch die aus dem Backup ersetzt.").assertIsDisplayed()
+            compose.onNodeWithText("Ersetzen").assertIsNotEnabled()
+            enterDokuPassword("Falsch und falsch")
+            compose.onNodeWithText("Ersetzen").performClick()
+            compose.onNodeWithText("Falsches Doku-Passwort").assertIsDisplayed()
+            assertEquals(listOf("Yoga"), routineNames())
+
+            enterDokuPassword(DOKU_PASSWORD)
+            compose.onNodeWithText("Ersetzen").performClick()
+
+            compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+            assertEquals(listOf("Vitamine"), routineNames())
+        }
+        assertEquals(listOf("Frau M."), patientNames())
+    }
+
+    @Test
+    fun `a backup loaded without the Doku leaves the Doku as it is`() {
+        aBackupWithFrauMThenHerrK()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+            compose.onNodeWithText("Ohne Dokumentation einspielen").performClick()
+
+            compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+            assertEquals(listOf("Vitamine"), routineNames())
+        }
+        assertEquals(listOf("Frau M.", "Herr K."), patientNames())
+    }
+
+    @Test
+    fun `a backup without a Doku does not ask for one`() {
+        aBackupOfVitaminsThenYoga()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+
+            compose.onNodeWithText("Auch die Dokumentation", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("Ohne Dokumentation einspielen").assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun `the backups are to be copied off the phone`() {
         launchApp().use {
             openBackups()
@@ -208,6 +261,40 @@ class BackupScreenTest {
         }
         app.routine("Yoga", "18:00")
         shadowOf(app.contentResolver).registerInputStreamSupplier(FILE) { ByteArrayInputStream(file.toByteArray()) }
+    }
+
+    /** [aBackupOfVitaminsThenYoga], with a Doku of Frau M. in it; since then, Herr K. has come, and the Doku is locked. */
+    private fun aBackupWithFrauMThenHerrK() {
+        runBlocking {
+            app.doku.load()
+            app.doku.setUp(DOKU_PASSWORD)
+            app.patients.create(PatientDraft("Frau M."))
+        }
+        aBackupOfVitaminsThenYoga()
+        runBlocking { app.patients.create(PatientDraft("Herr K.")) }
+        app.doku.lock()
+    }
+
+    private fun loadBackup(scenario: ActivityScenario<MainActivity>) {
+        openBackups()
+        compose.onNodeWithText("Backup laden").performScrollTo().performClick()
+        scenario.answer(scenario.documentRequest(), FILE)
+        enterBackupPassword(PASSWORD)
+    }
+
+    private fun enterDokuPassword(password: String) {
+        compose.onNode(hasSetTextAction() and hasText("Doku-Passwort") and hasAnyAncestor(isDialog())).performTextReplacement(password)
+    }
+
+    private fun patientNames(): List<String> = runBlocking {
+        assertTrue(app.doku.unlockWithPassword(DOKU_PASSWORD))
+        checkNotNull(app.patients.active(PatientOrder.Name)).map { it.name }.sorted()
+    }
+
+    @After
+    fun closeDoku() {
+        app.doku.lock()
+        app.deleteDatabase(DokuDatabase.NAME)
     }
 
     private fun openBackups() {
@@ -243,6 +330,7 @@ class BackupScreenTest {
 
     private companion object {
         const val PASSWORD = "Flieder und Lila"
+        const val DOKU_PASSWORD = "Doku-Geheimnis"
         val FILE: Uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ABackup.emhb")
         val FOLDER: Uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABackups")
     }

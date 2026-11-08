@@ -616,6 +616,11 @@
     <string name="backup_replace_contents">Im Backup: %1$s.</string>
     <string name="backup_replace_takes_password">Sein Passwort wird dann auch dein Backup-Passwort auf diesem Gerät.</string>
     <string name="backup_replace">Ersetzen</string>
+    <string name="backup_replace_doku">Auch die Dokumentation wird durch die aus dem Backup ersetzt.</string>
+    <string name="backup_doku_password">Doku-Passwort</string>
+    <string name="backup_doku_password_hint">Das Doku-Passwort, das galt, als das Backup gemacht wurde.</string>
+    <string name="backup_wrong_doku_password">Falsches Doku-Passwort</string>
+    <string name="backup_replace_without_doku">Ohne Dokumentation einspielen</string>
     <string name="backup_restored">Backup geladen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_nightly_title">Jede Nacht</string>

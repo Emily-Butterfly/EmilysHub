@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -67,7 +68,8 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * The backups (SPEC.md §10): the backup password, set once; a backup of all data saved to a file chosen in Android's
  * dialog; the folder the [nightly] backups go to; and one loaded from such a file with the password it was saved with,
- * which replaces all data only once confirmed. Below, the advice to copy the backups off the phone.
+ * which replaces all data only once confirmed, its Doku only with the Doku password that held when it was saved. Below,
+ * the advice to copy the backups off the phone.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +88,8 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
     var picked by rememberSaveable { mutableStateOf<Uri?>(null) }
     var openProblem by remember { mutableStateOf<Int?>(null) }
     var opened by remember { mutableStateOf<Backup?>(null) }
+    // Whether the Doku password given for the backup's Doku was not the one that held when it was made.
+    var wrongDokuPassword by remember { mutableStateOf(false) }
 
     fun work(block: suspend () -> Unit) {
         busy = true
@@ -224,18 +228,33 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
         ConfirmReplacing(
             backup = backup,
             takesPassword = hasPassword == false,
-            onReplace = {
-                opened = null
+            busy = busy,
+            wrongDokuPassword = wrongDokuPassword,
+            onEditDokuPassword = { wrongDokuPassword = false },
+            onReplace = { dokuPassword ->
                 work {
+                    var asked = false
                     outcome = failingWith(R.string.backup_restore_failed) {
-                        backups.restore(backup)
-                        R.string.backup_restored
+                        try {
+                            backups.restore(backup, dokuPassword)
+                            R.string.backup_restored
+                        } catch (e: BackupException) {
+                            if (e.problem != BackupProblem.WrongDokuPassword) throw e
+                            // Nothing has changed: the Doku password is asked for again.
+                            wrongDokuPassword = true
+                            asked = true
+                            null
+                        }
                     }
+                    if (!asked) opened = null
                     // Taken over from the backup if there was none.
                     hasPassword = backups.hasPassword()
                 }
             },
-            onDismiss = { opened = null },
+            onDismiss = {
+                opened = null
+                wrongDokuPassword = false
+            },
         )
     }
 }
@@ -344,14 +363,26 @@ private fun PasswordOfBackup(
 
 /**
  * Asks whether the [backup] is to replace all data, saying when it was made and what it holds, and whether its password
- * [takesPassword] over as the backup password here, there being none yet.
+ * [takesPassword] over as the backup password here, there being none yet. With a Doku in it, the Doku password that
+ * held when it was made is asked for too, shown [wrongDokuPassword] if it was not; or it is restored without the Doku
+ * ([onReplace] with null), which then stays as it is.
  */
 @Composable
-private fun ConfirmReplacing(backup: Backup, takesPassword: Boolean, onReplace: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmReplacing(
+    backup: Backup,
+    takesPassword: Boolean,
+    busy: Boolean,
+    wrongDokuPassword: Boolean,
+    onEditDokuPassword: () -> Unit,
+    onReplace: (dokuPassword: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val created = backup.created
     val summary = backup.summary
+    // Not saveable: a password has no place in the saved state.
+    var dokuPassword by remember { mutableStateOf("") }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.backup_replace_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -368,15 +399,43 @@ private fun ConfirmReplacing(backup: Backup, takesPassword: Boolean, onReplace: 
                 )
                 Text(stringResource(R.string.backup_replace_contents, contents))
                 if (takesPassword) Text(stringResource(R.string.backup_replace_takes_password))
+                if (backup.hasDoku) {
+                    Text(stringResource(R.string.backup_replace_doku))
+                    PasswordField(
+                        value = dokuPassword,
+                        onChange = {
+                            dokuPassword = it
+                            onEditDokuPassword()
+                        },
+                        label = stringResource(R.string.backup_doku_password),
+                        problem = stringResource(R.string.backup_wrong_doku_password).takeIf { wrongDokuPassword },
+                        hint = stringResource(R.string.backup_doku_password_hint),
+                    )
+                }
+                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         },
-        confirmButton = { TextButton(onClick = onReplace) { Text(stringResource(R.string.backup_replace)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(
+                    onClick = { onReplace(dokuPassword.takeIf { backup.hasDoku }) },
+                    enabled = !busy && (!backup.hasDoku || dokuPassword.isNotEmpty()),
+                ) {
+                    Text(stringResource(R.string.backup_replace))
+                }
+                if (backup.hasDoku) {
+                    TextButton(onClick = { onReplace(null) }, enabled = !busy) {
+                        Text(stringResource(R.string.backup_replace_without_doku))
+                    }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
 @Composable
-private fun PasswordField(value: String, onChange: (String) -> Unit, label: String, problem: String?) {
+private fun PasswordField(value: String, onChange: (String) -> Unit, label: String, problem: String?, hint: String? = null) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -385,7 +444,7 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, label: Stri
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
         isError = problem != null,
-        supportingText = problem?.let { { Text(it) } },
+        supportingText = (problem ?: hint)?.let { { Text(it) } },
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -411,6 +470,7 @@ private val BackupProblem.message: Int
         BackupProblem.TooLarge -> R.string.backup_too_large
         BackupProblem.NewerVersion -> R.string.backup_newer_version
         BackupProblem.OlderVersion -> R.string.backup_older_version
+        BackupProblem.WrongDokuPassword -> R.string.backup_wrong_doku_password
     }
 
 /** Android knows no type for a backup of EmilysHub. */

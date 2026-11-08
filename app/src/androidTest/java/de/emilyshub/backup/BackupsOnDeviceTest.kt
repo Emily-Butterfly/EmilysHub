@@ -6,6 +6,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.doku.DokuSnapshot
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.Places
@@ -142,8 +143,16 @@ class BackupsOnDeviceTest {
         wrappingKey = { wrappingKey },
         clock = Clock.systemUTC(),
         migration = BackupMigration(context) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
+        doku = NoDoku,
         iterations = iterations,
     )
+
+    /** No Doku is set up: the backups here are of the rest of the app. */
+    private object NoDoku : DokuVault {
+        override suspend fun snapshot(): DokuSnapshot? = null
+
+        override suspend fun <T> replacedBy(snapshot: DokuSnapshot, during: suspend () -> T): T = during()
+    }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */
     private fun everything(database: HubDatabase): Map<String, List<List<Any?>>> {

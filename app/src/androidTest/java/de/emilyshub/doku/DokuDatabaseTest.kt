@@ -36,6 +36,7 @@ class DokuDatabaseTest {
     /** The real Doku over a database file of its own, with a quick key derivation, closing on the spot when it locks. */
     private val doku = Doku(
         keyFile = keyFile,
+        databaseFile = file,
         fingerprint = SystemFingerprint(context),
         openDatabase = { rawKey -> DokuDatabase.open(context, rawKey, name) },
         clipboard = DokuClipboard(context),
@@ -98,6 +99,24 @@ class DokuDatabaseTest {
 
         assertThrows(SQLiteException::class.java) { readWithKey(appKey) }
         assertEquals("Frau M., Schulter links", readWithPassword())
+    }
+
+    @Test
+    fun `a backup takes the Doku along encrypted, also while open, and puts it back to open with the password`() {
+        setUpWithData()
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+        // While open, the write-ahead log may still hold this.
+        runBlocking { doku.database.settings().put(DokuSetting("later", "Herr K., Knie")) }
+        val snapshot = runBlocking { checkNotNull(doku.snapshot()) }
+        runBlocking { doku.database.settings().put(DokuSetting("probe", "überschrieben")) }
+
+        assertFalse(snapshot.database.contains("Schulter links".toByteArray()))
+        assertFalse(snapshot.wal?.contains("Knie".toByteArray()) ?: false)
+        runBlocking { doku.replacedBy(snapshot) {} }
+
+        assertEquals("Frau M., Schulter links", readWithPassword())
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+        assertEquals("Herr K., Knie", runBlocking { doku.database.settings().get("later") })
     }
 
     @Test

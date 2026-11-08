@@ -30,6 +30,7 @@ class PatientsTest {
 
     private val doku = Doku(
         keyFile = File(context.noBackupFilesDir, "patients-test.key"),
+        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(context) },
         clipboard = DokuClipboard(context),
