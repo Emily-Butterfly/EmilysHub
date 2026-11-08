@@ -102,7 +102,7 @@ class DokuDatabaseTest {
     }
 
     @Test
-    fun `a backup takes the Doku along encrypted, also while open, and puts it back to open with the password`() {
+    fun `a backup takes the Doku along encrypted also while open and puts it back to open with the password`() {
         setUpWithData()
         runBlocking { doku.unlockWithPassword(PASSWORD) }
         // While open, the write-ahead log may still hold this.
