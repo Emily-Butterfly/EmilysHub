@@ -62,3 +62,5 @@ Abgestimmt im Interview vom 08.11.2026.
 - CAIT: links und rechts je ein eigenes Ergebnis; unter 25 die Einstufung des PDFs.
 - Neuer Baustein: ein Prozent immer vom Höchstwert aller Items, Ausgelassenes zählt 0 (Pelvic Girdle Questionnaire).
 - Offensichtliche Tippfehler: Ankle-GO FAAM-Sport „> 80 %“ als „< 80 %“; CAIT „auf der Stell hüpfe“; SEFAS „mir geringen“; FAOS „PS1“ als „SP1“ und „slebst“, „Schwieirgkeiten“, „Frezeitaktivitäten“ in den Hinweisen.
+- FADI heißt wie im Titel des PDFs und bei DIGOTOR „Foot and Ankle Disability Score“; die Auswertung des PDFs nennt ihn „Index“.
+- Ein Bogen ganz ohne Antwort hat kein Ergebnis, auch der Pelvic Girdle Questionnaire (nicht 0 %).

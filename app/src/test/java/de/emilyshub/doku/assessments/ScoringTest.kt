@@ -244,7 +244,7 @@ class ScoringTest {
     }
 
     @Test
-    fun `a percentage of all keeps the most possible, an item left out counting 0`() {
+    fun `a percentage of all keeps the most possible, an item left out counting its least`() {
         val form = form(Score("all", "Prozent", listOf("a", "b", "c"), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter, minAnswered = 1))
 
         // 3 + 2 of 9
@@ -252,5 +252,11 @@ class ScoringTest {
         assertEquals(10000L, value(form, chosen("a" to "3", "b" to "3", "c" to "3")))
         assertEquals(null, value(form, emptyMap()))
         assertEquals(0L..10000L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a percentage of all counts no item shown only under a condition`() {
+        val items = listOf(YesNoItem("w", "Sport?"), ChoiceItem("x", "Frage x", zeroToThree, showIf = Condition.ifYes("w")))
+        form(Score("all", "Prozent", listOf("x"), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter), items = items)
     }
 }

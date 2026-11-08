@@ -262,9 +262,6 @@ private val HOOS: Assessment = run {
         ChoiceItem("q4", "4. Wie groß sind die Schwierigkeiten, die Sie im Allgemeinen mit Ihrer Hüfte haben?", difficulty),
     )
     val function = "Geben Sie bitte für jede der folgenden Tätigkeiten an, wie große Schwierigkeiten Ihnen Ihre Hüfte während der letzten Woche bereitet hat."
-    // Each subscale from 0 to 100 of what is answered, once half of its questions are (08.11.2026).
-    fun subscale(id: String, name: String, items: List<Item>) =
-        Score(id, name, ids(items), rule = ScoreRule.ZeroTo100, unit = "%", direction = Direction.HigherIsBetter, minAnswered = half(items.size))
     Assessment(
         id = "hoos",
         name = "Hip Osteoarthritis Outcome Score",
@@ -311,11 +308,11 @@ private val HOOS: Assessment = run {
             Section("Subskala Lebensqualität", items = quality),
         ),
         scores = listOf(
-            subscale("symptome", "Symptome", symptoms + stiffness),
-            subscale("schmerz", "Schmerz", listOf(painHowOften) + painDuring),
-            subscale("adl", "Aktivitäten des alltäglichen Lebens", adl),
-            subscale("sport", "Sportliche Aktivitäten/Freizeit", sport),
-            subscale("lebensqualitaet", "Lebensqualität", quality),
+            halfAnsweredSubscale("symptome", "Symptome", symptoms + stiffness),
+            halfAnsweredSubscale("schmerz", "Schmerz", listOf(painHowOften) + painDuring),
+            halfAnsweredSubscale("adl", "Aktivitäten des alltäglichen Lebens", adl),
+            halfAnsweredSubscale("sport", "Sportliche Aktivitäten/Freizeit", sport),
+            halfAnsweredSubscale("lebensqualitaet", "Lebensqualität", quality),
         ),
     )
 }
@@ -328,7 +325,7 @@ private val HOS: Assessment = run {
         "Mäßige Schwierigkeiten" to 2,
         "Extreme Schwierigkeiten" to 1,
         "Unmöglich" to 0,
-    ) + Option("na", "Nicht zutreffend", notApplicable = true)
+    ) + notApplicable("Nicht zutreffend")
     val adl = listOf(
         "15 Minuten stehen",
         "In ein gewöhnliches Auto ein- und aussteigen",
@@ -946,17 +943,14 @@ private val VISA_P_G: Assessment = run {
             Option("c", "Wenn Sie während der Sportausübung Schmerzen haben, die Sie zum Abbrechen der Aktivität zwingen, dann beantworten Sie bitte nur die Frage 8c."),
         ),
     )
-    fun minutes(vararg points: Int) = listOf("0 min.", "0-5 min.", "5-10 min.", "11-15 min.", ">15 min.").zip(points.toList()).mapIndexed { i, (label, p) -> Option("$i", label, p) }
-    val training = listOf(
-        ChoiceItem("8a", "8a. Wenn Sie während der Sportausübung keine Schmerzen haben, wie lange können Sie trainieren?", minutes(0, 7, 14, 21, 30), showIf = Condition("8", setOf("a"))),
-        ChoiceItem(
-            "8b", "8b. Wenn Sie während der Sportausübung Schmerzen haben, die Sie aber nicht zum Abbrechen der Aktivität zwingen, wie lange können Sie trainieren?",
-            minutes(0, 4, 10, 14, 20), showIf = Condition("8", setOf("b")),
+    val training = visaTraining(
+        listOf(
+            "8a. Wenn Sie während der Sportausübung keine Schmerzen haben, wie lange können Sie trainieren?",
+            "8b. Wenn Sie während der Sportausübung Schmerzen haben, die Sie aber nicht zum Abbrechen der Aktivität zwingen, wie lange können Sie trainieren?",
+            "8c. Wenn Sie während der Sportausübung Schmerzen haben, die Sie zum Abbrechen der Aktivität zwingen, wie lange können Sie bis zu dem Zeitpunkt noch trainieren?",
         ),
-        ChoiceItem(
-            "8c", "8c. Wenn Sie während der Sportausübung Schmerzen haben, die Sie zum Abbrechen der Aktivität zwingen, wie lange können Sie bis zu dem Zeitpunkt noch trainieren?",
-            minutes(0, 2, 5, 7, 10), showIf = Condition("8", setOf("c")),
-        ),
+        listOf("0 min.", "0-5 min.", "5-10 min.", "11-15 min.", ">15 min."),
+        listOf(listOf(0, 7, 14, 21, 30), listOf(0, 4, 10, 14, 20), listOf(0, 2, 5, 7, 10)),
     )
     val counted = listOf(sitting) + scales + sport + training
     Assessment(

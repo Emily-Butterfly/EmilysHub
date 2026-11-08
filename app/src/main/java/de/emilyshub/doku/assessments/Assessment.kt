@@ -34,6 +34,10 @@ data class Assessment(
         require(ids.size == ids.toSet().size) { "$id: item ids must be unique" }
         require(scores.map(Score::id).toSet().size == scores.size) { "$id: score ids must be unique" }
         scores.forEach { score ->
+            // Of all items, an item hidden would still count its most.
+            require(score.rule != ScoreRule.PercentOfAll || score.items.all { item(it)?.showIf == null }) {
+                "$id: score ${score.id} is a percent of all, which counts no item shown only under a condition"
+            }
             score.items.forEach { itemId ->
                 require(item(itemId)?.scorable == true) { "$id: score ${score.id} counts $itemId, which has no points" }
             }

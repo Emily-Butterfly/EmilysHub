@@ -10,12 +10,9 @@ internal val FOOT_ANKLE: List<Assessment> by lazy {
     listOf(ALR_RSI, ANKLE_GO, ATRS, CAIT, FAAM_G, FADI, FAOS, LEFS, PGQ, RRS, SEFAS, VISA_A, VISA_G)
 }
 
-/** A score better the higher, of all [items], all needed unless [minAnswered] says less. */
-private fun higher(id: String, name: String, items: List<Item>, rule: ScoreRule = ScoreRule.Sum, unit: String = "Punkte", bands: List<Band> = emptyList(), minAnswered: Int = items.size) =
+/** A score of [items], better the higher, all of them needed unless [minAnswered] says less. */
+private fun higherBetter(id: String, name: String, items: List<Item>, rule: ScoreRule = ScoreRule.Sum, unit: String = "Punkte", bands: List<Band> = emptyList(), minAnswered: Int = items.size) =
     Score(id, name, ids(items), rule = rule, unit = unit, direction = Direction.HigherIsBetter, bands = bands, minAnswered = minAnswered)
-
-/** "Nicht zutreffend" and the like: an answer that counts as left out. */
-private fun notApplicable(label: String) = Option("na", label, notApplicable = true)
 
 /** Achilles Tendon Total Rupture Score, German version (Arbab 2024), as in "…_ATRS_10-2026.pdf". */
 private val ATRS: Assessment = run {
@@ -43,7 +40,7 @@ private val ATRS: Assessment = run {
             "Einschränkung, 10 bedeutet keine Einschränkung.\n\n" +
             "Höhere Werte gehen mit einer geringeren Einschränkung bzw. höheren Funktion des Sprunggelenks/der Achillessehne einher.",
         sections = listOf(Section(items = items)),
-        scores = listOf(higher("gesamt", "Gesamtpunktzahl", items)),
+        scores = listOf(higherBetter("gesamt", "Gesamtpunktzahl", items)),
     )
 }
 
@@ -85,7 +82,7 @@ private val ALR_RSI: Assessment = run {
             "behandelt werden.",
         sections = listOf(Section(items = items)),
         // The original counts each question 0 to 10, of 120; its ticks of 0 to 100 come to the same percent.
-        scores = listOf(higher("ergebnis", "Ergebnis", items, rule = ScoreRule.Percent, unit = "%")),
+        scores = listOf(higherBetter("ergebnis", "Ergebnis", items, rule = ScoreRule.Percent, unit = "%")),
     )
 }
 
@@ -121,14 +118,19 @@ private val ANKLE_GO: Assessment = run {
             "Rückkehr zum Sport nach einer lateralen Sprunggelenksverletzung.\n\n" +
             "Der Ankle-GO ist ein zusammengesetzter Score, der auf der Summe von sieben Komponenten basiert und eine objektive " +
             "Bewertung der Hauptdefizite im Zusammenhang mit einer lateralen Sprunggelenksdistorsion (LAS) oder einer " +
-            "chronischen Sprunggelenksinstabilität (CAI) ermöglicht.\n\n" +
+            "chronischen Sprunggelenksinstabilität (CAI) ermöglicht. Er wurde aus vier funktionellen Tests berechnet: dem " +
+            "Einbeinstand (Single Leg Stance, SLS) auf fester Oberfläche, dem modifizierten Star Excursion Balance Test (mSEBT), " +
+            "dem Side Hop Test (SHT) und dem Figure-of-8-Test (F8T). Zusätzlich wurden zwei patientenberichtete Fragebögen " +
+            "verwendet: das Foot and Ankle Ability Measure (FAAM), das zwei Subskalen zur Bewertung von Aktivitäten des täglichen " +
+            "Lebens (FAAMadl) und sportlichen Aktivitäten (FAAMsport) umfasst, sowie das Ankle Ligament Reconstruction–Return to " +
+            "Sport after Injury (ALR-RSI).\n\n" +
             "Ein höherer Wert im Ankle-GO Score bedeutet bessere Funktion, bessere Balance/Kontrolle, bessere subjektive " +
             "Wahrnehmung und ein geringeres Risiko für eine erneute Verletzung hin und damit eine bessere Ausgangslage für z. B. " +
             "die Rückkehr zum Sport. Ein Wert unter 8 Punkten nach 2 Monaten deutet darauf hin, dass eine Rückkehr auf das " +
             "ursprüngliche sportliche Niveau nach 4 Monaten eher unwahrscheinlich ist.",
         sections = listOf(
             Section(
-                "Single leg stance test (SLS) – maximal 3 Punkte",
+                "Einbeinstand (Single Leg Stance, SLS) auf stabiler Oberfläche – maximal 3 Punkte",
                 "Die Testperson steht barfuß auf einem Bein, das Knie ist leicht gebeugt (10°), die Hände liegen auf den Hüften, " +
                     "und die Augen bleiben 20 Sekunden lang geschlossen. Der Test bewertet die statische posturale Kontrolle " +
                     "anhand der Anzahl der Fehler. Ein Fehler wird registriert, wenn z. B. die Hände von den Hüften genommen " +
@@ -138,7 +140,7 @@ private val ANKLE_GO: Assessment = run {
                 sls,
             ),
             Section(
-                "Star excursion balance Test (SEBT) – maximal 7 Punkte",
+                "Modifizierter Star Excursion Balance Test (mSEBT) – maximal 7 Punkte",
                 "Die Testperson steht barfuß auf dem zu testenden Bein im Zentrum eines Y-förmigen Markers und erreicht mit dem " +
                     "anderen Bein so weit wie möglich in drei Richtungen: anterior (ANT), posteromedial (PM) und posterolateral " +
                     "(PL). Die Messung wird abgebrochen, wenn das Gleichgewicht verloren geht, die Hände die Hüften verlassen oder " +
@@ -156,7 +158,7 @@ private val ANKLE_GO: Assessment = run {
                 sht,
             ),
             Section(
-                "Figure-of-8 hop Test (F8T) – maximal 3 Punkte",
+                "Figure-of-8-Test (F8T) – maximal 3 Punkte",
                 "Die Testperson springt in einer 8-förmigen Bahn um zwei 5 m voneinander entfernte Stangen, so schnell wie " +
                     "möglich. Zwei Runden (insgesamt 20 m) werden absolviert. Ein zusätzlicher Punkt wird vergeben, wenn keine " +
                     "Instabilitätsgefühle während des Tests auftreten (Caffrey et al., 2009).",
@@ -166,7 +168,10 @@ private val ANKLE_GO: Assessment = run {
                 "Patienten-Fragebögen (PROMs)",
                 "Foot and Ankle Ability Measure (FAAM), insgesamt 4 Punkte: Dieses Instrument bewertet die vom Patienten " +
                     "berichtete Funktion und besteht aus zwei Subskalen (je 2 Punkte): 21 Items zur Bewertung der " +
-                    "Alltagsaktivitäten (FAAMadl) und 8 Items zu sportlichen Aktivitäten (FAAMsport) (Carcia et al., 2008).\n\n" +
+                    "Alltagsaktivitäten (FAAMadl) und 8 Items zu sportlichen Aktivitäten (FAAMsport) (Carcia et al., 2008). Die " +
+                    "Patientinnen und Patienten beantworten jedes Item auf einer 5-Punkte-Skala (0 = unfähig, die Aktivität " +
+                    "auszuführen; 4 = ohne Schwierigkeiten) oder wählen „nicht anwendbar“, wenn die Einschränkung nicht durch Fuß " +
+                    "oder Sprunggelenk bedingt ist. Der Prozentsatz jeder Subskala wird anschließend berechnet.\n\n" +
                     "Ankle Ligament Reconstruction–Return to Sport after Injury (ALR-RSI), 3 Punkte: Dieser Fragebogen misst die " +
                     "psychologische Bereitschaft von Patientinnen und Patienten mit Sprunggelenksverletzungen, in den Sport " +
                     "zurückzukehren. Er umfasst 12 Fragen mit einer Bewertungsskala von 0 (kein Vertrauen) bis 10 (vollständiges " +
@@ -175,7 +180,7 @@ private val ANKLE_GO: Assessment = run {
             ),
         ),
         scores = listOf(
-            higher(
+            higherBetter(
                 "gesamt", "Ankle-GO Gesamt", all,
                 bands = listOf(Band.upTo(7, "Ein Wert unter 8 Punkten identifiziert Betroffene mit einem signifikant höheren Verletzungsrisiko."), Band.upTo(25, null)),
             ),
@@ -241,8 +246,8 @@ private val CAIT: Assessment = run {
             "Reaktionszeit der Peroneen.",
         sections = listOf(Section("Links", items = left), Section("Rechts", items = right)),
         scores = listOf(
-            higher("links", "Gesamtscore links", left, bands = bands),
-            higher("rechts", "Gesamtscore rechts", right, bands = bands),
+            higherBetter("links", "Gesamtscore links", left, bands = bands),
+            higherBetter("rechts", "Gesamtscore rechts", right, bands = bands),
         ),
     )
 }
@@ -276,7 +281,7 @@ private val FAAM_G: Assessment = run {
         listOf("Normal", "Beinahe normal", "Abnormal", "Schwer abnormal").mapIndexed { i, label -> Option("$i", label) },
     )
     // In percent of what is answered with points, "nicht zutreffend" left out, with any number answered, as the HOS (08.11.2026).
-    fun percent(id: String, name: String, items: List<Item>) = higher(id, name, items, rule = ScoreRule.Percent, unit = "%", minAnswered = 1)
+    fun percent(id: String, name: String, items: List<Item>) = higherBetter(id, name, items, rule = ScoreRule.Percent, unit = "%", minAnswered = 1)
     Assessment(
         id = "faam-g",
         name = "Foot and Ankle Ability Measure",
@@ -289,7 +294,11 @@ private val FAAM_G: Assessment = run {
             "Lage sind, Ihre alltäglichen oder sportlichen Aktivitäten zu verrichten. Bitte beantworten Sie jede Frage mit einer " +
             "Antwort, die Ihren Zustand während der vergangenen Woche am besten beschreibt. Wenn die angegebene Aktivität durch " +
             "etwas anderes als durch ihr Sprunggelenk oder Fuß limitiert ist, kreuzen Sie „nicht zutreffend“ an.\n\n" +
-            "Hohe Werte entsprechen einer kleinen Funktionseinschränkung bzw. einer großen Funktionskapazität. Für eine " +
+            "Die Fragen werden von links nach rechts mit einem absteigenden Zahlenwert versehen: 4,3,2,1,0. Die letzte Kategorie " +
+            "(„nicht zutreffend“) wird nicht bewertet. Das Ergebnis jeder Frage wird aufsummiert. Dies ergibt einen maximalen " +
+            "Punktwert von 84 (Teilbereich alltägliche Aktivitäten) und 32 (Teilbereich sportliche Aktivitäten). Zur Berechnung " +
+            "des Scores wird das ermittelte Ergebnis durch das maximal mögliche Ergebnis dividiert und dann mit 100 " +
+            "multipliziert. Hohe Werte entsprechen einer kleinen Funktionseinschränkung bzw. einer großen Funktionskapazität. Für eine " +
             "klinisch relevante Verbesserung (MCID) sollte sich der Score um 8-9 Punkte verbessern (sowohl ADL als Sport, " +
             "Kivlian et al. 2011, Martin et al. 2005).",
         sections = listOf(
@@ -304,7 +313,7 @@ private val FAAM_G: Assessment = run {
     )
 }
 
-/** Foot and Ankle Disability Index, as in "Foot-and-Ankle-Disability-Score_FADI_11-2026.pdf". */
+/** Foot and Ankle Disability Score (the Index), as in "Foot-and-Ankle-Disability-Score_FADI_11-2026.pdf". */
 private val FADI: Assessment = run {
     val activity = scored(
         "keine Beschwerden" to 4, "leichte Beschwerden" to 3, "mäßige Beschwerden" to 2, "starke Beschwerden" to 1, "nicht durchführbar" to 0,
@@ -326,7 +335,7 @@ private val FADI: Assessment = run {
     ).mapIndexed { i, text -> ChoiceItem("sport${i + 1}", "${i + 1}. $text", activity) }
     Assessment(
         id = "fadi",
-        name = "Foot and Ankle Disability Index",
+        name = "Foot and Ankle Disability Score",
         abbreviation = "FADI",
         categories = listOf(AssessmentCategory.LowerExtremity),
         source = "FADI, Stand 11/2026",
@@ -343,7 +352,7 @@ private val FADI: Assessment = run {
             Section("FADI-Elemente im Sport", "Die Maximalpunktzahl beträgt 32 Punkte.", sport),
         ),
         // As points, all needed: "nicht anwendbar" leaves the sum without a result (08.11.2026).
-        scores = listOf(higher("alltag", "Gesamtpunktzahl Alltag", daily), higher("sport", "Gesamtpunktzahl Sport", sport)),
+        scores = listOf(higherBetter("alltag", "Gesamtpunktzahl Alltag", daily), higherBetter("sport", "Gesamtpunktzahl Sport", sport)),
     )
 }
 
@@ -387,8 +396,6 @@ private val FAOS: Assessment = run {
         ChoiceItem("q3", "Q3. Wie sehr leiden Sie unter einem Mangel an Vertrauen und Zuversicht hinsichtlich Ihres Fußes/Sprunggelenkes?", howMuch),
         ChoiceItem("q4", "Q4. Wie würden Sie insgesamt die Schwierigkeiten bewerten, die Sie durch Ihren Fuß/Ihr Sprunggelenk haben?", difficulty),
     )
-    // Each subscale from 0 to 100 of what is answered, once half of its questions are, as the HOOS with the same words (08.11.2026).
-    fun subscale(id: String, name: String, items: List<Item>) = higher(id, name, items, rule = ScoreRule.ZeroTo100, unit = "%", minAnswered = half(items.size))
     Assessment(
         id = "faos",
         name = "Foot and Ankle Outcome Score",
@@ -401,6 +408,9 @@ private val FAOS: Assessment = run {
             "Beantworten Sie bitte jede Frage durch Ankreuzen des zugehörigen Kästchens. Bitte nur ein Kästchen pro Frage " +
             "Ankreuzen. Wenn Sie sich unsicher sind, wie Sie die Frage beantworten sollen, wählen Sie die Antwort aus, die Ihnen " +
             "am zutreffendsten erscheint.\n\n" +
+            "Der FAOS ist ein Fragebogen, der bei annähernd allen Fuß-/Sprunggelenkspathologien unabhängig vom Leistungsniveau " +
+            "verwendet werden kann. Der Fragebogen kann vom Patient selbst ausgeführt werden. Die benötigte Zeit beträgt ca. 10 " +
+            "Minuten.\n\n" +
             "Sollte der Patient manche Aktivitäten nicht ausführen, weil die Probleme ihn daran hindern, sollte mit der " +
             "schlechtesten Punktzahl gewertet werden (0 Punkte). Ist der Patient nicht sportlich aktiv, so sollte die " +
             "entsprechende Subskala ausgelassen werden. Bei eher aktiven Patienten sollte die Subskala alltägliche Aktivitäten " +
@@ -438,11 +448,11 @@ private val FAOS: Assessment = run {
         ),
         scores = listOf(
             // The stiffness counts to the symptoms, as the original sums it under "Gesamtscore Subskala Symptome".
-            subscale("symptome", "Symptome", symptoms + stiffness),
-            subscale("schmerz", "Schmerz", listOf(painHowOften) + painWhen),
-            subscale("adl", "Aktivitäten des alltäglichen Lebens", adl),
-            subscale("sport", "Aktivitäten bei Sport und Freizeit", sport),
-            subscale("lebensqualitaet", "Lebensqualität", quality),
+            halfAnsweredSubscale("symptome", "Symptome", symptoms + stiffness),
+            halfAnsweredSubscale("schmerz", "Schmerz", listOf(painHowOften) + painWhen),
+            halfAnsweredSubscale("adl", "Aktivitäten des alltäglichen Lebens", adl),
+            halfAnsweredSubscale("sport", "Aktivitäten bei Sport und Freizeit", sport),
+            halfAnsweredSubscale("lebensqualitaet", "Lebensqualität", quality),
         ),
     )
 }
@@ -470,6 +480,9 @@ private val LEFS: Assessment = run {
         source = "LEFS, Stand 11/2026",
         hint = "Validierte deutsche Version.\n\nHaben oder hätten Sie heute mit einer der folgenden Aktivität Schwierigkeiten? Bitte " +
             "kreuzen Sie an!\n\n" +
+            "Mit der Lower Extremity Functional Scale (LEFS) haben Physiotherapeuten einen Fragebogen zur Hand, der " +
+            "Aktivitätseinschränkungen nach Verletzungen und Erkrankungen der unteren Extremität erfasst und den Therapieverlauf " +
+            "objektiv abbildet. Die Antwortmöglichkeiten sind ohne Punktzahlen genannt, um den Patienten nicht zu beeinflussen. " +
             "Um das allgemeine Aktivitätsniveau des Patienten einzuschätzen, zählt der Therapeut von allen angekreuzten Items " +
             "die Punkte zusammen. Hat der Patient alle Items beantwortet, kann er maximal 80 Punkte erreichen. Er darf " +
             "höchstens vier Fragen unbeantwortet lassen, sonst lässt sich das Ergebnis nicht valide interpretieren. Bei " +
@@ -477,7 +490,7 @@ private val LEFS: Assessment = run {
             "grundlegende Hilfsbedürftigkeit zeigt sich in einem Ergebnis von unter 20 Punkten.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            higher(
+            higherBetter(
                 "lefs", "LEFS-Wert", items,
                 bands = listOf(Band.upTo(19, "Grundlegende Hilfsbedürftigkeit"), Band.upTo(80, null)),
                 minAnswered = items.size - 4,
@@ -500,7 +513,7 @@ private val PGQ: Assessment = run {
     val pain = listOf("…am Morgen?", "…am Abend?")
         .mapIndexed { i, text -> ChoiceItem("${i + 21}", "${i + 21}. $text", scored("kein (0)" to 0, "gering (1)" to 1, "moderat (2)" to 2, "stark (3)" to 3)) }
     val extent = listOf("…Ihr Bein eingesackt/weggeknickt?", "…Ihre Aktivität verlangsamt?", "…Ihr Schlaf unterbrochen?")
-        .mapIndexed { i, text -> ChoiceItem("${i + 23}", "${i + 23}. $text", problem) }
+        .mapIndexed { i, text -> ChoiceItem("${i + 23}", "${i + 23}. $text", scored("Überhaupt nicht (0)" to 0, "gering (1)" to 1, "etwas (2)" to 2, "sehr (3)" to 3)) }
     val all = activities + pain + extent
     Assessment(
         id = "pgq",
@@ -588,7 +601,7 @@ private val RRS: Assessment = run {
             "Wall-sit: OR 25,9 (1,4-482).",
         sections = tests + Section("Gesamtergebnis", items = listOf(ready)),
         scores = listOf(
-            higher(
+            higherBetter(
                 "gesamt", "Gesamtscore", tests.flatMap(Section::items),
                 bands = listOf(
                     Band.upTo(3, "Geringe bzw. unzureichende Laufbereitschaft"),
@@ -637,25 +650,20 @@ private val SEFAS: Assessment = run {
             "Antwortmöglichkeiten, die von 0-4 entsprechend ihres Schweregrades eingeteilt sind. 4 = geringster Schweregrad, " +
             "0 = höchster Schweregrad. Bitte kreuzen Sie die Antwort an, die Ihren Zustand während der letzten 4 Wochen am " +
             "besten beschreibt.\n\n" +
+            "Der SEFAS (Self-reported foot and ankle score) ist ein Patientenfragebogen, welcher akzeptable Werte für " +
+            "Reliabilität, Validität und Änderungssensitivität zeigt (Cöster 2012, Dawson 2012). Er eignet sich um Schmerz, " +
+            "Einschränkungen, Disability und Lebensqualität zu beurteilen. Ursprünglich wurde er in Schweden für Patienten mit " +
+            "Sprunggelenksprothese entwickelt (Cöster 2012). In weiteren Untersuchungen wurde die Reliabilität und Validität für " +
+            "andere Operationen des Sprunggelenkes, des Vor- und Rückfußes nachgewiesen (Cöster 2014). " +
             "Grundsätzlich liegt der Score höher für Männer und jüngeren Patienten im Vergleich zu Frauen und Älteren. Die " +
             "Maximalpunktzahl beträgt 48. Frauen haben einen Median von 47, Männer von 48. In der 10. Perzentile beträgt der " +
             "Wert bei Frauen 31, bei Männern 40 (20-29 Jahre). In der höchsten getesteten Alterskategorie (80-89) liegt dieser " +
             "Wert bei Frauen bei 22, bei Männern bei 29 (Cöster 2018). Der minimale messbare Unterschied liegt bei 5 Punkten " +
             "(Cöster 2017).",
         sections = listOf(Section(items = items)),
-        scores = listOf(higher("gesamt", "Gesamtpunktzahl", items)),
+        scores = listOf(higherBetter("gesamt", "Gesamtpunktzahl", items)),
     )
 }
-
-/** Questions 8a, 8b and 8c of a VISA form, the one shown chosen by question 8. */
-private fun visaTraining(texts: List<String>, labels: List<String>, points: List<List<Int>>): List<ChoiceItem> =
-    listOf("a", "b", "c").mapIndexed { i, part ->
-        ChoiceItem(
-            "8$part", texts[i],
-            labels.zip(points[i]).mapIndexed { n, (label, p) -> Option("$n", label, p) },
-            showIf = Condition("8", setOf(part)),
-        )
-    }
 
 /** Victorian Institute of Sport Assessment – Achilles, German version (Lohrer et al. 2011), as in "…_VISA-A-Score_11-2026.pdf". */
 private val VISA_A: Assessment = run {
@@ -719,7 +727,7 @@ private val VISA_A: Assessment = run {
             "2007). Die minimal klinisch relevante Veränderung beträgt mindestens 12 Punkte (Sterkenburg 2012).",
         sections = listOf(Section(items = listOf(stiffness) + scales + hops + sport + which + training)),
         // Questions 1 to 7 and the one of 8a, 8b and 8c shown.
-        scores = listOf(higher("gesamt", "Gesamtscore", counted, minAnswered = counted.size - 2)),
+        scores = listOf(higherBetter("gesamt", "Gesamtscore", counted, minAnswered = counted.size - 2)),
     )
 }
 
@@ -776,7 +784,7 @@ private val VISA_G: Assessment = run {
         listOf(
             Option("a", "Abschnitt A: Meine Hüftschmerzen sind so stark, dass sie mich vom Gehen, Einkaufen, Joggen oder anderen Aktivitäten, bei denen ich auf den Füßen bin, abhalten."),
             Option("b", "Abschnitt B: Meine Hüftschmerzen sind bei körperlichen Aktivitäten vorhanden, aber sie halten mich nicht vom Gehen, Einkaufen, Joggen oder anderen Aktivitäten, bei denen ich auf den Füßen bin, ab."),
-            Option("c", "Abschnitt C: Wenn Sie keine Schmerzen beim Gehen, Einkaufen, Joggen oder anderen Aktivitäten, bei denen Sie auf den Füßen sind, haben"),
+            Option("c", "Abschnitt C: Wenn Sie keine Schmerzen beim Gehen, Einkaufen, Joggen oder anderen Aktivitäten, bei denen Sie auf den Füßen sind, haben, wieviel von diesen Aktivitäten machen Sie jeden Tag?"),
         ),
     )
     val ifSo = "Falls dies der Fall ist, wieviel von diesen Aktivitäten machen Sie jeden Tag?"
@@ -803,6 +811,6 @@ private val VISA_G: Assessment = run {
             "und ist somit als gut bis sehr gut zu betrachten. Der Retest sollte nach ca. 6 Wochen erfolgen (Fearon et al. 2015).",
         sections = listOf(Section(items = listOf(pain) + questions + which + training)),
         // Questions 1 to 7 and the one of 8a, 8b and 8c shown; the pain of question 1 counts the other way round, 0 as 10.
-        scores = listOf(higher("gesamt", "Total Score", counted, minAnswered = counted.size - 2)),
+        scores = listOf(higherBetter("gesamt", "Total Score", counted, minAnswered = counted.size - 2)),
     )
 }

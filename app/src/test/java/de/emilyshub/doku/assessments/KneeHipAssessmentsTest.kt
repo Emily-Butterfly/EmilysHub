@@ -5,39 +5,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import de.emilyshub.doku.assessments.Forms.all
+import de.emilyshub.doku.assessments.Forms.bandAt
+import de.emilyshub.doku.assessments.Forms.chosen
+import de.emilyshub.doku.assessments.Forms.form
+import de.emilyshub.doku.assessments.Forms.itemsOf
+import de.emilyshub.doku.assessments.Forms.scales
+import de.emilyshub.doku.assessments.Forms.value
+import de.emilyshub.doku.assessments.Forms.values
 
 /**
  * The forms of DIGOTOR's subcategory "Untere Extremität", knee and hip (#68), each scored as its PDF says: the least and
  * the most, a case worked out by hand, missing answers by its rule, and its bands at their bounds.
  */
 class KneeHipAssessmentsTest {
-
-    private fun form(id: String) = checkNotNull(BuiltInAssessments.byId(id)) { id }
-
-    /** The values of the results of [id] with [answers], in the order of its scores. */
-    private fun values(id: String, answers: Map<String, Answer>) = Scoring.results(form(id), answers).map(ScoreResult::value)
-
-    /** The value of result [score] of [id] with [answers]. */
-    private fun value(id: String, answers: Map<String, Answer>, score: String) =
-        Scoring.results(form(id), answers).single { it.score.id == score }.value
-
-    /** The items of [id] with options among [items] (all if none), answered in order by the option of these [points], those left out unanswered. */
-    private fun chosen(id: String, vararg points: Int?, items: List<String>? = null): Map<String, Answer> =
-        form(id).items.filterIsInstance<ChoiceItem>().filter { items == null || it.id in items }.zip(points.toList()).mapNotNull { (item, p) ->
-            p?.let { item.id to Answer.Chosen(item.options.single { o -> o.points == p && !o.notApplicable }.id) }
-        }.toMap()
-
-    /** Each item of [id] with options among [items] answered by the option of [points]. */
-    private fun all(id: String, points: Int, items: List<String>? = null): Map<String, Answer> {
-        val count = form(id).items.filterIsInstance<ChoiceItem>().count { items == null || it.id in items }
-        return chosen(id, *Array<Int?>(count) { points }, items = items)
-    }
-
-    /** The ids of the items of score [score] of [id]. */
-    private fun itemsOf(id: String, score: String) = form(id).scores.single { it.id == score }.items
-
-    /** The band of score [score] of [id] at [hundredths]. */
-    private fun bandAt(id: String, hundredths: Long, score: Int = 0) = ScoreResult(form(id).scores[score], hundredths).band
 
     @Test
     fun `every form of knee and hip stands under Untere Extremitaet only, each found by its abbreviation or name`() {

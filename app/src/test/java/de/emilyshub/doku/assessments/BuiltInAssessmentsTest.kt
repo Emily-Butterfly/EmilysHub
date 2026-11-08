@@ -90,4 +90,10 @@ class BuiltInAssessmentsTest {
         assertEquals(ids.toSet().size, ids.size)
         assertTrue(BuiltInAssessments.all.all { it.categories.isNotEmpty() && it.source.isNotBlank() })
     }
+
+    @Test
+    fun `the lower extremity holds the forms of knee and hip and those of foot and ankle, and no other`() {
+        val lower = BuiltInAssessments.byCategory(hidden = emptySet()).getValue(AssessmentCategory.LowerExtremity).map(Assessment::id)
+        assertEquals((KNEE_HIP + FOOT_ANKLE).map(Assessment::id).sorted(), lower.sorted())
+    }
 }
