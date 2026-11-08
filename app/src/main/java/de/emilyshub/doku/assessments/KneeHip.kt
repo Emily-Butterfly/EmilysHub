@@ -167,13 +167,23 @@ private val HARRIS: Assessment = run {
             "Aktivitäten, die durch Ihr Hüftgelenk verursacht werden. Bitte beantworten Sie alle Fragen gemäß Ihrem aktuellen " +
             "Zustand. Sollten Sie momentan keine Beschwerden haben, dann bewerten Sie die Fragen entsprechend Ihrem Zustand in " +
             "der vergangenen Woche.\n\n" +
+            "Der Harris Hip Score (HHS) ist ein Fragebogen, der bei annähernd allen Hüftpathologien unabhängig vom " +
+            "Leistungsniveau verwendet werden kann. Er evaluiert hauptsächlich Beschwerden im alltäglichen Leben (ca. 90%). " +
+            "Des Weiteren werden Symptome aus dem Bereich Körperfunktion (z.B. Gelenkmobilität und Deformität ca. 10%) " +
+            "abgefragt. Es ist allerdings zu bedenken, dass jüngere und insbesondere sportlich sehr ambitionierte Patienten " +
+            "nicht voll evaluiert werden können. Dies ist dadurch begründet, dass sehr basale Aktivitäten abgeprüft werden " +
+            "und dementsprechend ADL´s, welche größere Kraftleistungen beinhalten, weniger Beachtung finden. Hierfür müssten " +
+            "andere Assessmenttools hinzugefügt werden.\n\n" +
             "Der HHS kann nicht vom Patienten alleine ausgefüllt werden. Die Anteile Mobilität und Deformität werden vom " +
             "Behandler gemessen und hinzugefügt. Die Unterpunkte Schmerz, ADL und Gehfähigkeit dagegen können vom Patient " +
-            "selbst evaluiert werden. Es ist allerdings zu bedenken, dass jüngere und insbesondere sportlich sehr ambitionierte " +
-            "Patienten nicht voll evaluiert werden können.\n\n" +
+            "selbst evaluiert werden.\n\n" +
             "Wird der Fragebogen nach einer Endoprothesenversorgung eingesetzt, so wird eine postoperative Verbesserung von 20 " +
             "Punkten mit einem stabilen Implantat ohne weitere Eingriffe mit einem guten bis sehr guten Ergebnis gleichgesetzt. " +
-            "Die minimal klinisch relevante Veränderung wird zwischen 10%-20% angegeben.",
+            "Die minimal klinisch relevante Veränderung wird zwischen 10%-20% angegeben.\n\n" +
+            "Da dieser Fragebogen nicht selten auch telefonisch eingesetzt wird, kommt manchmal der modifizierte HHS zum " +
+            "Einsatz. Dabei werden die vom Therapeut erhobenen Daten (Beweglichkeit und Deformität) entfernt. Die maximale " +
+            "Punktzahl kann so auf 95 bzw. 91 sinken. Die Bewertung erfolgt dann ebenfalls in 10 Schritten ausgehend von einer " +
+            "geringeren Gesamtpunktzahl (siehe oben).",
         sections = listOf(
             Section("Schmerzen", items = listOf(pain)),
             Section("ADL", items = adl),
@@ -559,7 +569,8 @@ private const val KOOS_INSTRUCTIONS = "Der folgende Fragebogen dient der Erfassu
 private const val KOOS_SUBSCALES = "Sollte der Patient manche Aktivitäten nicht ausführen, weil die Probleme ihn daran " +
     "hindern, sollte mit der schlechtesten Punktzahl gewertet werden (0 Punkte). Sollte der Patient nicht sportlich aktiv " +
     "sein, so sollte die entsprechende Subskala ausgelassen werden. Bei eher aktiven Patienten sollte die Subskala " +
-    "alltägliche Aktivitäten ausgelassen werden. Es ist also nicht erwünscht, dass grundsätzlich immer alle Subskalen " +
+    "alltägliche Aktivitäten ausgelassen werden. Sie hat mit 17 Items einen zu großen Einfluss auf das Ergebnis einer " +
+    "Patientengruppe, die bei diesen Aktivitäten keine oder nur geringe Probleme hat. Es ist also nicht erwünscht, dass grundsätzlich immer alle Subskalen " +
     "benützt werden. Vielmehr sollte die Subskala ausgewählt werden, welche die höchste Wertigkeit für den Patienten besitzt."
 
 /**

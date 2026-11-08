@@ -62,4 +62,5 @@ Abgestimmt im Interview vom 08.11.2026.
 - ACL-RSI: „unter 51 %“ heißt bis 50,99 (der Mittelwert von zwölf Zehnern liegt dazwischen).
 - VISA-P-G: Frage 8 wählt, welche von 8a, 8b und 8c erscheint; gezählt werden die Fragen 1–7 und die gewählte.
 - Neue Bausteine: eine Antwort „Nicht zutreffend“, die wie keine Antwort zählt (HOS), und eine Skala in Schritten, z. B. 0, 10 … 100 (ACL-RSI).
-- Offensichtliche Tippfehler bei Antworten (KOOS: „einge“, einmal „Sehr große“; KOOS-Kind: „??“) sind wie die übrigen Antworten derselben Frageart geschrieben; die Fragen selbst stehen im Wortlaut.
+- Offensichtliche Tippfehler bei Antworten (KOOS: „einge“, einmal „Sehr große“) sind wie die übrigen Antworten derselben Frageart geschrieben; die Fragen stehen im Wortlaut, nur das doppelte „??“ von S4 und S5 im KOOS-Kind ist ein „?“ (nachgefragt am 08.11.2026).
+- KOOS-Kind: die Formel im PDF ist die des KOOS (SP1–SP5, Q1–Q4); SPN6 und SPN7 zählen zu Sport, QN5 und QN6 zur Lebensqualität, wie beim veröffentlichten KOOS-Child (nachgefragt am 08.11.2026).
