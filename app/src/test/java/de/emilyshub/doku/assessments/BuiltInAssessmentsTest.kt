@@ -79,7 +79,8 @@ class BuiltInAssessmentsTest {
         assertEquals(listOf("phq-9"), BuiltInAssessments.search("phq", hidden = emptySet()).map(Assessment::id))
         assertEquals(listOf("phq-9"), BuiltInAssessments.search("PATIENT health", hidden = emptySet()).map(Assessment::id))
         assertEquals(listOf("anamnese-v8"), BuiltInAssessments.search("anamnese", hidden = emptySet()).map(Assessment::id))
-        assertTrue(BuiltInAssessments.search("oswestry", hidden = emptySet()).isEmpty())
+        assertEquals(listOf("odi"), BuiltInAssessments.search("oswestry", hidden = emptySet()).map(Assessment::id))
+        assertTrue(BuiltInAssessments.search("gibt es nicht", hidden = emptySet()).isEmpty())
     }
 
     @Test

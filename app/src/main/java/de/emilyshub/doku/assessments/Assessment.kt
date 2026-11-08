@@ -123,14 +123,20 @@ data class ScaleItem(
     override val scorable: Boolean get() = true
 }
 
-/** Any of [options] to check, and if [otherLabel] is given, such as "Sonstiges", something else in words. */
+/**
+ * Any of [options] to check, and if [otherLabel] is given, such as "Sonstiges", something else in words. If [scored],
+ * it makes the points of the options checked, such as one for each statement that applies; nothing checked makes 0.
+ */
 data class ChecklistItem(
     override val id: String,
     override val text: String,
     val options: List<Option>,
     val otherLabel: String? = null,
+    val scored: Boolean = false,
     override val showIf: Condition? = null,
-) : Item
+) : Item {
+    override val scorable: Boolean get() = scored
+}
 
 /** A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. */
 data class NumberItem(
@@ -218,7 +224,7 @@ enum class ScoreRule {
     ZeroTo100,
 }
 
-/** Where a score lies, up to and including [upTo], in hundredths, named as the original names it. */
+/** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed if [label] is empty. */
 data class Band(val upTo: Long, val label: String) {
     companion object {
         /** Up to whole number [upTo]. */

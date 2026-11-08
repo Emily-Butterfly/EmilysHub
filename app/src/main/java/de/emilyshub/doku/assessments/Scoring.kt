@@ -3,7 +3,7 @@ package de.emilyshub.doku.assessments
 /** A [score] reckoned from the answers: its [value] in hundredths and the [band] it lies in, none while too little is answered. */
 data class ScoreResult(val score: Score, val value: Long?) {
     /** The name of the band [value] lies in, if the score has bands. */
-    val band: String? get() = value?.let { v -> score.bands.firstOrNull { v <= it.upTo }?.label }
+    val band: String? get() = value?.let { v -> score.bands.firstOrNull { v <= it.upTo }?.label?.ifEmpty { null } }
 }
 
 /** How a form reckons its results from its answers, as the original does (SPEC.md §14): pure logic, without Android. */
@@ -67,7 +67,9 @@ object Scoring {
     private fun value(form: Assessment, score: Score, answers: Map<String, Answer>): Long? {
         val answered = score.items.mapNotNull { id ->
             val item = checkNotNull(form.item(id))
-            answers[id]?.let { answer -> points(item, answer)?.let { it to checkNotNull(range(item)) } }
+            // Nothing checked of a scored checklist is an answer too: none applies.
+            val answer = answers[id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true }
+            answer?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
         }
         if (answered.size < score.minAnswered) return null
         val sum = answered.sumOf { it.first }
@@ -87,6 +89,9 @@ object Scoring {
             is ChoiceItem -> (answer as? Answer.Chosen)?.let { chosen -> item.options.find { it.id == chosen.optionId }?.points }
             is ScaleItem -> (answer as? Answer.OnScale)?.value?.takeIf { it in item.min..item.max }
             is YesNoItem -> (answer as? Answer.YesNo)?.let { if (it.yes) item.yesPoints else item.noPoints }
+            is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
+                item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
+            }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null
@@ -98,6 +103,7 @@ object Scoring {
         is ChoiceItem -> item.options.map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
+        is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
         else -> null
     }
 

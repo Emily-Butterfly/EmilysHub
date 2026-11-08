@@ -9,7 +9,7 @@ import de.emilyshub.data.InputText
 object BuiltInAssessments {
 
     /** Every built-in form, by name. */
-    val all: List<Assessment> = listOf(ANAMNESIS_V8, PHQ_9).sortedWith(compareBy(InputText.byName) { it.name })
+    val all: List<Assessment> = (listOf(ANAMNESIS_V8, PHQ_9) + SPINE).sortedWith(compareBy(InputText.byName) { it.name })
 
     private val byId = all.associateBy(Assessment::id)
 

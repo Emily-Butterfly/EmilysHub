@@ -267,4 +267,14 @@ class AssessmentsTest {
         assertEquals(1, runBlocking { patients.search("leiste") }.size)
         assertTrue(runBlocking { patients.search("ruhe") }.isEmpty())
     }
+
+    @Test
+    fun `a new form with nothing ticked but a result stays`() {
+        val at = appointment("2026-10-23")
+        val rmdq = checkNotNull(runBlocking { assessments.create(at, "rmdq") })
+
+        assessments.dropIfEmptyLater(rmdq)
+
+        assertEquals(listOf(0L), runBlocking { checkNotNull(assessments.at(at)) }.single().results.map { it.value })
+    }
 }

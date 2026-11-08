@@ -33,7 +33,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     }
 
     /**
-     * Deletes new form [id] again if nothing of it is answered, so that "+ Bogen" alone keeps nothing; on [background],
+     * Deletes new form [id] again if nothing of it is answered and it has no result, so that "+ Bogen" alone keeps nothing; on [background],
      * for the page as it closes, not once the Doku is locked.
      */
     fun dropIfEmptyLater(id: Long) {
@@ -134,10 +134,15 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         AssessmentHistory(form, patient.name, columns, rows)
     }
 
-    /** Deletes form [id] if it has no answer, and its patient is active. */
+    /**
+     * Deletes form [id] if it has no answer, nor a result without one, as a checklist with nothing ticked makes 0, and its
+     * patient is active.
+     */
     private suspend fun dropIfEmpty(database: DokuDatabase, id: Long) {
         val entry = database.assessments().get(id) ?: return
-        if (isChangeable(database, entry.appointmentId) && database.assessments().answers(id).isEmpty()) database.assessments().delete(id)
+        if (!isChangeable(database, entry.appointmentId) || database.assessments().answers(id).isNotEmpty()) return
+        val reached = BuiltInAssessments.byId(entry.assessmentId)?.let { form -> Scoring.results(form, emptyMap()).any { it.value != null } } == true
+        if (!reached) database.assessments().delete(id)
     }
 
     /**

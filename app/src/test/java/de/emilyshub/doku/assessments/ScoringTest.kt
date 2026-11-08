@@ -150,4 +150,23 @@ class ScoringTest {
         assertEquals(Answer.Checked(setOf("nacht")), Answer.Checked(setOf("nein")).toggled(item, "nacht"))
         assertEquals(Answer.Checked(emptySet(), "abends"), some.toggled(item, "ruhe"))
     }
+
+    @Test
+    fun `a band without a name leaves a range unnamed`() {
+        val bands = listOf(Band.upTo(2, ""), Band.upTo(9, "viel"))
+        val form = form(Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.LowerIsBetter, bands = bands))
+
+        assertEquals(null, Scoring.results(form, chosen("a" to "1", "b" to "1", "c" to "0")).single().band)
+        assertEquals("viel", Scoring.results(form, chosen("a" to "1", "b" to "1", "c" to "1")).single().band)
+    }
+
+    @Test
+    fun `a scored checklist counts the points of what is ticked, nothing ticked being 0`() {
+        val list = ChecklistItem("k", "Trifft zu:", listOf(Option("x", "x", 1), Option("y", "y", 1), Option("z", "z", 2)), scored = true)
+        val form = form(Score("sum", "Summe", listOf("k"), direction = Direction.LowerIsBetter), items = listOf(list))
+
+        assertEquals(0L, value(form, emptyMap()))
+        assertEquals(300L, value(form, mapOf("k" to Answer.Checked(setOf("x", "z")))))
+        assertEquals(0L..400L, Scoring.range(form, form.scores.single()))
+    }
 }

@@ -15,33 +15,38 @@ Die Bögen der Unterkategorie „Wirbelsäule“ von DIGOTOR kommen in die App, 
 
 ### Bögen
 
-- [ ] Cervical Spine Instability-Skala (CSIQ)
-- [ ] Headache Disability Index (HDI), deutsch
-- [ ] Lumbar Spine Instability Questionnaire (LSIQ)
-- [ ] Micheli Functional Scale (auch unter Schmerz und Psychosoziales)
-- [ ] Neck Disability Index (NDI)
-- [ ] Oswestry Disability Index (ODI), deutsche Version nach Mannion et al. 2006
-- [ ] Roland and Morris Disability Questionnaire (RMDQ)
-- [ ] Vestibular-Ocular-Motor Screening (VOMS)
+- [x] Cervical Spine Instability-Skala (CSIQ)
+- [x] Headache Disability Index (HDI), deutsch
+- [x] Lumbar Spine Instability Questionnaire (LSIQ)
+- [x] Micheli Functional Scale (auch unter Schmerz und Psychosoziales)
+- [x] Neck Disability Index (NDI)
+- [x] Oswestry Disability Index (ODI), deutsche Version nach Mannion et al. 2006
+- [x] Roland and Morris Disability Questionnaire (RMDQ)
+- [x] Vestibular-Ocular-Motor Screening (VOMS)
 
 ### Besonderheiten
 
-- [ ] ODI und NDI: Ergebnis in Prozent; ein unbeantworteter Abschnitt verringert die Höchstpunktzahl
-- [ ] VOMS ist eine Untersuchung mit Symptomwerten je Prüfung (und ggf. Abstand in cm) – mit Zahl- und Skala-Items abbilden
+- [x] ODI und NDI: Ergebnis in Prozent; ein unbeantworteter Abschnitt verringert die Höchstpunktzahl
+- [x] VOMS ist eine Untersuchung mit Symptomwerten je Prüfung (und ggf. Abstand in cm) – mit Zahl- und Skala-Items abbilden
 
 ### Für jeden Bogen
 
-- [ ] Je Bogen alle Items und Antworten **im Wortlaut** des PDFs aus der Kategorie „Scores“ (https://digotor.info/downloads/), mit Punkten, Auswertung, Regeln für fehlende Antworten, Einstufung und Richtung je Ergebnis; Quelle mit Stand aus dem Dateinamen
-- [ ] Jeder Bogen kommt in **alle** Unterkategorien, in denen er bei DIGOTOR steht (der Slice, der ihn überträgt, sortiert ihn überall ein), mit seiner Abkürzung für die Suche
-- [ ] Nur die Inhalte, nicht die PDFs oder ihr Layout
-- [ ] Lässt sich ein Bogen mit den Bausteinen aus #66 nicht abbilden, bringt dieser Slice den Baustein mit; ist die Auswertung im PDF unklar oder unvollständig, wird nachgefragt statt geraten
+- [x] Je Bogen alle Items und Antworten **im Wortlaut** des PDFs aus der Kategorie „Scores“ (https://digotor.info/downloads/), mit Punkten, Auswertung, Regeln für fehlende Antworten, Einstufung und Richtung je Ergebnis; Quelle mit Stand aus dem Dateinamen
+- [x] Jeder Bogen kommt in **alle** Unterkategorien, in denen er bei DIGOTOR steht (der Slice, der ihn überträgt, sortiert ihn überall ein), mit seiner Abkürzung für die Suche
+- [x] Nur die Inhalte, nicht die PDFs oder ihr Layout
+- [x] Lässt sich ein Bogen mit den Bausteinen aus #66 nicht abbilden, bringt dieser Slice den Baustein mit; ist die Auswertung im PDF unklar oder unvollständig, wird nachgefragt statt geraten
 
 ### Tests
 
-- [ ] Unit-Tests je Bogen: kleinstes und größtes Ergebnis, ein gemischter Fall von Hand aus dem PDF nachgerechnet, fehlende Antworten nach der Regel des Bogens, Einstufung an den Grenzen
+- [x] Unit-Tests je Bogen: kleinstes und größtes Ergebnis, ein gemischter Fall von Hand aus dem PDF nachgerechnet, fehlende Antworten nach der Regel des Bogens, Einstufung an den Grenzen
 
 ## Entscheidungen
 
 Abgestimmt im Interview vom 08.11.2026.
 
 - Alle Bögen der Kategorie „Scores“, in Slices nach Unterkategorie.
+- Nachgefragt am 08.11.2026, da die PDFs es offenlassen:
+  - ODI und NDI: höchstens ein Abschnitt darf fehlen; fehlen zwei, „Ergebnis: –“.
+  - Micheli Teil A: sechs Antworten von 0 bis 5, mit „Ich habe Schmerz, aber er hat keinen Einfluss.“ als 1; Teil C in ganzen Zentimetern 0–10.
+  - HDI: Gesamtpunktzahl und die Teilskalen Emotional (E) und Funktional (F); 70 Punkte zählen als „Schwere Beeinträchtigung“.
+- RMDQ: angekreuzte Sätze zählen je einen Punkt, nichts angekreuzt ist 0; dafür eine Ankreuzliste mit Punkten. Ein neuer Bogen ohne Antwort, aber mit Ergebnis, bleibt.
