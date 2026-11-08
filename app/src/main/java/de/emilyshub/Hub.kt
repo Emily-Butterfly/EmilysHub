@@ -3,6 +3,8 @@ package de.emilyshub
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
+import de.emilyshub.doku.Doku
+import de.emilyshub.doku.Fingerprint
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
@@ -42,6 +44,10 @@ interface Hub {
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute
+
+    /** The Doku (SPEC.md §14), with its own lock, and the fingerprint that may unlock it. */
+    val doku: Doku
+    val fingerprint: Fingerprint
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

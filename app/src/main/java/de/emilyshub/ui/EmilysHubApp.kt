@@ -66,6 +66,8 @@ import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
+import de.emilyshub.ui.doku.DokuArea
+import de.emilyshub.ui.doku.DokuMenu
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -230,8 +232,14 @@ private fun AppShell(
             current = current,
             onSelect = {
                 yesterday = false
-                // Sonstiges tapped again leads to its list, as the back arrow does.
-                if (it == TopLevelDestination.More && current == it) closeMore() else current = it
+                // Sonstiges tapped again leads to its list, as the back arrow does. Left for another tab, the Doku locks
+                // and Sonstiges shows its list again on return.
+                if (it == TopLevelDestination.More && current == it) {
+                    closeMore()
+                } else {
+                    if (tabs.more == MoreEntry.Doku) closeMore()
+                    current = it
+                }
             },
             onCloseMore = closeMore,
             yesterday = yesterday,
@@ -410,6 +418,8 @@ private fun TopLevelScaffold(
                         )
                     },
                     actions = {
+                        // The Doku's settings are in its own menu, there only while it is open (SPEC.md §14).
+                        if (moreOpen == MoreEntry.Doku) DokuMenu(hub.doku, hub.fingerprint)
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {
                             LedgerIconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) })
@@ -513,6 +523,7 @@ private fun TopLevelScaffold(
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
                 )
+                MoreEntry.Doku -> DokuArea(hub.doku, hub.fingerprint, contentPadding)
             }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,

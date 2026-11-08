@@ -7,6 +7,9 @@ import de.emilyshub.backup.FakeBackupFolder
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.doku.FakeFingerprint
+import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
@@ -22,7 +25,7 @@ import javax.crypto.KeyGenerator
 /**
  * The app as every Robolectric test sees it (set in robolectric.properties): settings in memory and
  * the database schema in memory, both read and written on the spot, a clock the test sets, work in the
- * background done on the spot too, a fake unlock prompt, a full-screen alarm that rings without a sound, the phone's
+ * background done on the spot too, a fake unlock prompt and fingerprint, a full-screen alarm that rings without a sound, the phone's
  * tones in memory, a WLAN the test connects to, a position the test sets, backups with a key derived quickly, and a
  * folder for the nightly ones in memory.
  */
@@ -41,6 +44,10 @@ class TestApplication : EmilysHubApplication() {
     val testDatabase: HubDatabase get() = database
 
     override val authenticator = FakeAuthenticator()
+    override val fingerprint = FakeFingerprint()
+
+    /** In a file, so that it outlives locking, but with Android's own SQLite, which takes no key. */
+    override val openDokuDatabase: (ByteArray) -> DokuDatabase = { testDokuDatabase(this) }
     override val ringer = FakeRinger()
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)

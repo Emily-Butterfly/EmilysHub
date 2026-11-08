@@ -13,6 +13,11 @@ import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.doku.Doku
+import de.emilyshub.doku.DokuClipboard
+import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.doku.Fingerprint
+import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
@@ -72,6 +77,12 @@ open class EmilysHubApplication : Application(), Hub {
         val key = DatabaseKeyFile(File(noBackupFilesDir, "database.key"), wrappingKey).readOrCreate()
         HubDatabase.open(this, key)
     }
+
+    /** Opens the Doku's database with its key in raw form, once the Doku password or the fingerprint set it free. */
+    protected open val openDokuDatabase: (rawKey: ByteArray) -> DokuDatabase = { rawKey -> DokuDatabase.open(this, rawKey) }
+
+    /** The fingerprint that may unlock the Doku. */
+    override val fingerprint: Fingerprint by lazy { SystemFingerprint(this) }
 
     /** Where the settings are kept: in the database, opened only once it is asked, off the main thread. */
     protected open val settingsStore: () -> SettingsDao = { database.settings() }
@@ -180,6 +191,19 @@ open class EmilysHubApplication : Application(), Hub {
     val reminders: Reminders by lazy {
         val sources = listOf(RoutineReminding(routines), TodoReminding(todos))
         Reminders(this, sources, clock, locator::whereabouts, settings::mayLookAround, sounds, settings = settingsStore)
+    }
+
+    /** Lives as long as the process: a new process starts with the Doku locked, as with the app. */
+    final override val doku: Doku by lazy {
+        Doku(
+            keyFile = File(noBackupFilesDir, "doku.key"),
+            fingerprint = fingerprint,
+            openDatabase = openDokuDatabase,
+            clipboard = DokuClipboard(this),
+            io = io,
+            background = background,
+            iterations = backupIterations,
+        )
     }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */

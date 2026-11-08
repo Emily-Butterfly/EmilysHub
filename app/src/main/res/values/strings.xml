@@ -8,6 +8,7 @@
     <string name="destination_wishlist">Ziele</string>
     <string name="destination_notes">Notizen</string>
     <string name="destination_more">Sonstiges</string>
+    <string name="destination_doku">Dokumentation</string>
 
     <string name="settings">Einstellungen</string>
     <string name="navigate_back">Zurück</string>
@@ -799,4 +800,38 @@
     <string name="month_budget_change">Budget in diesem Monat ändern</string>
     <string name="month_budget_reset">Wie sonst</string>
     <string name="booking_over_budget">%2$s liegt damit %1$s über Budget.</string>
+
+    <!-- Dokumentation (SPEC.md §14) -->
+    <string name="doku_password">Passwort</string>
+    <string name="doku_set_up_title">Doku-Passwort festlegen</string>
+    <string name="doku_set_up_explanation">Die Dokumentation hat ein eigenes Passwort. Die Geräte-PIN öffnet sie nicht.</string>
+    <string name="doku_password_new">Doku-Passwort</string>
+    <string name="doku_password_repeat">Doku-Passwort wiederholen</string>
+    <string name="doku_password_too_short">Mindestens %1$d Zeichen</string>
+    <string name="doku_password_not_repeated">Die beiden Passwörter sind nicht gleich</string>
+    <string name="doku_no_recovery">Das Passwort lässt sich nicht wiederherstellen. Ohne Passwort und Fingerabdruck sind die Daten verloren.</string>
+    <string name="doku_no_recovery_confirm">Verstanden</string>
+    <string name="doku_use_fingerprint">Mit Fingerabdruck entsperren</string>
+    <string name="doku_set_up">Passwort festlegen</string>
+    <string name="doku_locked_title">Die Dokumentation ist gesperrt</string>
+    <string name="doku_unlock">Entsperren</string>
+    <string name="doku_unlock_with_fingerprint">Mit Fingerabdruck</string>
+    <string name="doku_enter_password">Passwort eingeben</string>
+    <string name="doku_wrong_password">Falsches Passwort</string>
+    <string name="doku_fingerprint_lost">Am Handy wurde ein neuer Fingerabdruck eingerichtet. Gib dein Doku-Passwort ein; danach kannst du den Fingerabdruck wieder einschalten.</string>
+    <string name="doku_fingerprint_unlock_title">Dokumentation entsperren</string>
+    <string name="doku_fingerprint_enable_title">Fingerabdruck für die Dokumentation</string>
+    <string name="doku_fingerprint_again_title">Fingerabdruck wieder einschalten?</string>
+    <string name="doku_fingerprint_again_text">Mit dem neu eingerichteten Fingerabdruck lässt sich die Dokumentation wieder ohne Passwort entsperren.</string>
+    <string name="doku_fingerprint_again">Einschalten</string>
+    <string name="doku_fingerprint_not_now">Nicht jetzt</string>
+    <string name="doku_no_patients">Noch keine Patienten</string>
+    <string name="doku_menu">Menü der Dokumentation</string>
+    <string name="doku_menu_change_password">Doku-Passwort ändern</string>
+    <string name="doku_menu_fingerprint">Fingerabdruck</string>
+    <string name="doku_change_password_old">Bisheriges Passwort</string>
+    <string name="doku_change_password_new">Neues Passwort</string>
+    <string name="doku_change_password_repeat">Neues Passwort wiederholen</string>
+    <string name="doku_change_password_backups">Ältere Backups brauchen weiter das alte Passwort.</string>
+    <string name="doku_change_password">Ändern</string>
 </resources>

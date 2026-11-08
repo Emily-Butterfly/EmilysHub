@@ -1,0 +1,303 @@
+package de.emilyshub.doku
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.io.File
+
+@RunWith(AndroidJUnit4::class)
+class DokuTest {
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val keyFile = File(context.noBackupFilesDir, "doku-test.key")
+    private val fingerprint = FakeFingerprint()
+    private var clock = 1_000_000L
+    private val opened = mutableListOf<ByteArray>()
+    private val clipboard = context.getSystemService(ClipboardManager::class.java)
+
+    /** The Doku as a new process finds it. */
+    private fun newDoku() = Doku(
+        keyFile = keyFile,
+        fingerprint = fingerprint,
+        openDatabase = { rawKey -> opened += rawKey; testDokuDatabase(context) },
+        clipboard = DokuClipboard(context),
+        io = Dispatchers.Unconfined,
+        background = CoroutineScope(Dispatchers.Unconfined),
+        iterations = 1_000,
+        now = { clock },
+    ).also { runBlocking { it.load() } }
+
+    private val doku = newDoku()
+
+    @After
+    fun closeDatabase() {
+        doku.lock()
+        context.deleteDatabase(DokuDatabase.NAME)
+    }
+
+    private fun setUp(password: String = PASSWORD) = runBlocking { doku.setUp(password) }
+
+    private fun DokuDatabase.write(value: String) = runBlocking { settings().put(DokuSetting("probe", value)) }
+
+    private fun DokuDatabase.read() = runBlocking { settings().get("probe") }
+
+    @Test
+    fun `at first the Doku has no password, and setting it opens it`() {
+        assertEquals(DokuState.New, doku.state)
+
+        setUp()
+
+        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+    }
+
+    @Test
+    fun `the Doku password has at least eight characters, typed twice alike`() {
+        assertEquals(DokuPasswordProblem.TooShort, Doku.passwordProblem("1234567", "1234567"))
+        assertEquals(DokuPasswordProblem.NotRepeated, Doku.passwordProblem("12345678", "12345679"))
+        assertNull(Doku.passwordProblem("12345678", "12345678"))
+        assertThrows(IllegalArgumentException::class.java) { setUp("1234567") }
+    }
+
+    @Test
+    fun `the right password opens the Doku with its data`() {
+        setUp()
+        doku.database.write("Frau M.")
+        doku.lock()
+
+        assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
+
+        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals("Frau M.", doku.database.read())
+    }
+
+    @Test
+    fun `a wrong password leaves the Doku locked`() {
+        setUp()
+        doku.lock()
+
+        assertFalse(runBlocking { doku.unlockWithPassword("falsches Passwort") })
+
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertThrows(IllegalStateException::class.java) { doku.database }
+    }
+
+    @Test
+    fun `a new process finds the Doku locked`() {
+        setUp()
+
+        val afterRestart = newDoku()
+
+        assertEquals(DokuState.Locked(fingerprint = false), afterRestart.state)
+        assertTrue(runBlocking { afterRestart.unlockWithPassword(PASSWORD) })
+        afterRestart.lock()
+    }
+
+    @Test
+    fun `the database key is random and never stored in plain`() {
+        setUp()
+        val key = opened.single().copyOf()
+        doku.lock()
+
+        val stored = keyFile.readBytes()
+
+        val plain = String(key, 2, 64).hexToByteArray()
+        assertFalse(stored.toList().windowed(plain.size).any { it.toByteArray().contentEquals(plain) })
+    }
+
+    @Test
+    fun `locking closes the database and wipes the key from memory`() {
+        setUp()
+        val database = doku.database
+
+        doku.lock()
+
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertFalse(database.isOpen)
+        assertTrue(opened.single().all { it == 0.toByte() })
+        assertThrows(IllegalStateException::class.java) { doku.database }
+    }
+
+    @Test
+    fun `what an editor has typed is saved before the Doku locks`() {
+        setUp()
+        val saver = doku.addSaver { { database -> database.write("ungespeichert") } }
+
+        doku.lock()
+        saver.close()
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+
+        assertEquals("ungespeichert", doku.database.read())
+    }
+
+    @Test
+    fun `changing the password keeps the data and only the new one opens the Doku`() {
+        setUp()
+        doku.database.write("Herr K.")
+
+        assertTrue(runBlocking { doku.changePassword(PASSWORD, "neues Passwort") })
+        doku.lock()
+
+        assertFalse(runBlocking { doku.unlockWithPassword(PASSWORD) })
+        assertTrue(runBlocking { doku.unlockWithPassword("neues Passwort") })
+        assertEquals("Herr K.", doku.database.read())
+    }
+
+    @Test
+    fun `changing the password asks for the old one`() {
+        setUp()
+
+        assertFalse(runBlocking { doku.changePassword("falsches Passwort", "neues Passwort") })
+
+        doku.lock()
+        assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
+    }
+
+    @Test
+    fun `after five minutes without a touch the Doku locks`() {
+        setUp()
+
+        clock += Doku.IDLE_MILLIS - 1
+        doku.lockIfIdle()
+        assertTrue(doku.state is DokuState.Open)
+
+        clock += 1
+        doku.lockIfIdle()
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+    }
+
+    @Test
+    fun `a touch or a key starts the five minutes anew`() {
+        setUp()
+
+        clock += Doku.IDLE_MILLIS - 1
+        doku.touched()
+        clock += Doku.IDLE_MILLIS - 1
+        doku.lockIfIdle()
+
+        assertTrue(doku.state is DokuState.Open)
+        assertEquals(1L, doku.millisUntilIdle())
+    }
+
+    @Test
+    fun `the fingerprint, once on, opens the Doku`() {
+        fingerprint.enrolled = true
+        setUp()
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        doku.database.write("Frau M.")
+        doku.lock()
+
+        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+        val cipher = checkNotNull(runBlocking { doku.unlockingCipher() })
+        runBlocking { doku.unlockWithFingerprint(cipher) }
+
+        assertEquals(DokuState.Open(fingerprint = true), doku.state)
+        assertEquals("Frau M.", doku.database.read())
+    }
+
+    @Test
+    fun `a fingerprint whose key does not open the Doku leaves it locked for the password`() {
+        fingerprint.enrolled = true
+        setUp()
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        doku.lock()
+        val cipher = checkNotNull(runBlocking { doku.unlockingCipher() })
+        cipher.updateAAD(byteArrayOf(1)) // as if the key had changed under it
+
+        assertFalse(runBlocking { doku.unlockWithFingerprint(cipher) })
+        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+    }
+
+    @Test
+    fun `a fingerprint confirmed only once the Doku has locked again turns nothing on`() {
+        fingerprint.enrolled = true
+        setUp()
+        val cipher = doku.sealingCipher()
+        doku.lock()
+
+        runBlocking { doku.enableFingerprint(cipher) }
+
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+    }
+
+    @Test
+    fun `the fingerprint is kept off across a restart`() {
+        fingerprint.enrolled = true
+        setUp()
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        runBlocking { doku.disableFingerprint() }
+
+        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+        assertFalse(fingerprint.hasKey)
+    }
+
+    @Test
+    fun `a new fingerprint on the phone turns the fingerprint off and asks for the password`() {
+        fingerprint.enrolled = true
+        setUp()
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        doku.lock()
+
+        fingerprint.enrollNew()
+
+        assertNull(runBlocking { doku.unlockingCipher() })
+        assertEquals(DokuState.Locked(fingerprint = false, fingerprintLost = true), doku.state)
+        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+    }
+
+    @Test
+    fun `after a lost fingerprint the password opens the Doku and offers to turn it on again`() {
+        fingerprint.enrolled = true
+        setUp()
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        doku.lock()
+        fingerprint.enrollNew()
+        runBlocking { doku.unlockingCipher() }
+
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+
+        assertEquals(DokuState.Open(fingerprint = false, offerFingerprint = true), doku.state)
+        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        assertEquals(DokuState.Open(fingerprint = true), doku.state)
+    }
+
+    @Test
+    fun `text copied from the Doku is marked sensitive and cleared when it locks`() {
+        setUp()
+        val clip = doku.clipboard.markCopied(ClipData.newPlainText("", "Diagnose"))
+        clipboard.setPrimaryClip(clip)
+
+        doku.lock()
+
+        assertTrue(clip.description.extras.getBoolean("android.content.extra.IS_SENSITIVE"))
+        assertFalse(clipboard.hasPrimaryClip())
+    }
+
+    @Test
+    fun `something copied elsewhere since stays on the clipboard`() {
+        val copied = DokuClipboard(context)
+        clipboard.setPrimaryClip(copied.markCopied(ClipData.newPlainText("", "Diagnose")))
+        clipboard.setPrimaryClip(ClipData.newPlainText("", "Einkaufsliste"))
+
+        copied.clearIfFromDoku()
+
+        assertEquals("Einkaufsliste", clipboard.primaryClip?.getItemAt(0)?.text)
+    }
+
+    private companion object {
+        const val PASSWORD = "Doku-Passwort"
+    }
+}
