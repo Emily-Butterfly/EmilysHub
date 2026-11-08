@@ -1,31 +1,33 @@
 package de.emilyshub.doku
 
 import android.app.Activity
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import kotlin.coroutines.resume
 
 /**
  * Stands in for the Keystore key that needs a fingerprint and for its prompt: a software key, and a prompt that waits
- * for the test to [succeed] or tap its second button ([chooseOther]). Like a fresh emulator, no fingerprint is set up
- * until a test says so ([enrolled]); [enrollNew] sets up another, which makes the key invalid.
+ * for the test to [succeed], tap its second button ([chooseOther]) or [dismiss] it. Like a fresh emulator, no
+ * fingerprint is set up until a test says so ([enrolled]); [enrollNew] sets up another, which makes the key invalid.
  */
 class FakeFingerprint : Fingerprint {
     var enrolled = false
 
-    /** How often the app asked for the prompt, and whether the last one was to unlock. */
+    /** How often the app asked for the prompt, and what the last one was for. */
     var prompts = 0
         private set
-    var lastToUnlock: Boolean? = null
+    var lastPurpose: FingerprintPurpose? = null
         private set
 
     private var key: SecretKey? = null
     private var invalidated = false
-    private var pending: Pair<Cipher, (Cipher) -> Unit>? = null
-    private var other: (() -> Unit)? = null
+    private var pending: Pair<Cipher, CancellableContinuation<PromptResult>>? = null
 
-    val isPromptOpen: Boolean get() = pending != null
+    val isPromptOpen: Boolean get() = pending?.second?.isActive == true
     val hasKey: Boolean get() = key != null
 
     override fun isEnrolled() = enrolled
@@ -37,41 +39,44 @@ class FakeFingerprint : Fingerprint {
         return Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, new) }
     }
 
-    override fun openingCipher(iv: ByteArray): Cipher? {
+    override fun openingCipher(wrapped: ByteArray): Cipher? {
         val current = key?.takeUnless { invalidated } ?: return null
-        return Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, current, GCMParameterSpec(128, iv)) }
+        return Cipher.getInstance("AES/GCM/NoPadding").apply {
+            init(Cipher.DECRYPT_MODE, current, GCMParameterSpec(128, wrapped, 0, 12))
+        }
     }
 
     override fun deleteKey() {
         key = null
     }
 
-    override fun authenticate(activity: Activity, cipher: Cipher, toUnlock: Boolean, onSuccess: (Cipher) -> Unit, onOther: () -> Unit) {
+    override suspend fun prompt(activity: Activity, cipher: Cipher, purpose: FingerprintPurpose): PromptResult {
         prompts++
-        lastToUnlock = toUnlock
-        pending = cipher to onSuccess
-        other = onOther
+        lastPurpose = purpose
+        return suspendCancellableCoroutine { pending = cipher to it }
     }
 
     /** The user puts a finger on the sensor. */
-    fun succeed() {
-        val (cipher, onSuccess) = checkNotNull(pending) { "No prompt is open" }
-        pending = null
-        other = null
-        onSuccess(cipher)
-    }
+    fun succeed() = end { PromptResult.Recognised(it) }
+
+    /** As [succeed], with the cipher [changed] first, as though the key had changed under it. */
+    fun succeedWith(changed: (Cipher) -> Unit) = end { PromptResult.Recognised(it.also(changed)) }
 
     /** The user taps the prompt's second button, "Passwort" or "Abbrechen". */
-    fun chooseOther() {
-        val onOther = checkNotNull(other) { "No prompt is open" }
-        pending = null
-        other = null
-        onOther()
-    }
+    fun chooseOther() = end { PromptResult.Other }
+
+    /** The prompt goes otherwise, by back, say. */
+    fun dismiss() = end { PromptResult.Dismissed }
 
     /** Another fingerprint is set up on the phone: the key is no longer valid. */
     fun enrollNew() {
         enrolled = true
         invalidated = true
+    }
+
+    private fun end(result: (Cipher) -> PromptResult) {
+        val (cipher, continuation) = checkNotNull(pending?.takeIf { it.second.isActive }) { "No prompt is open" }
+        pending = null
+        continuation.resume(result(cipher))
     }
 }

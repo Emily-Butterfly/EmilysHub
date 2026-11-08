@@ -25,6 +25,7 @@ class DokuClipboard(context: Context) {
         return clip
     }
 
+    /** Takes the Doku's text off the clipboard, as the Doku locks, unless something else was copied since. */
     fun clearIfFromDoku() {
         val ours = copied ?: return
         copied = null

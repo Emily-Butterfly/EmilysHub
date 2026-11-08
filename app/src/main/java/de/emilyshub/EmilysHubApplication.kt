@@ -17,6 +17,7 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuClipboard
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.Fingerprint
+import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
@@ -79,10 +80,10 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     /** Opens the Doku's database with its key in raw form, once the Doku password or the fingerprint set it free. */
-    protected open val openDokuDatabase: (rawKey: ByteArray) -> DokuDatabase = { rawKey -> DokuDatabase.open(this, rawKey) }
+    protected open val openDokuDatabase: (RawKey) -> DokuDatabase = { rawKey -> DokuDatabase.open(this, rawKey) }
 
     /** The fingerprint that may unlock the Doku. */
-    override val fingerprint: Fingerprint by lazy { SystemFingerprint(this) }
+    open val fingerprint: Fingerprint by lazy { SystemFingerprint(this) }
 
     /** Where the settings are kept: in the database, opened only once it is asked, off the main thread. */
     protected open val settingsStore: () -> SettingsDao = { database.settings() }
@@ -118,7 +119,7 @@ open class EmilysHubApplication : Application(), Hub {
         BackupMigration(this) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) }
     }
 
-    /** How hard a backup's key is to guess from its password. */
+    /** How hard a backup's key, and the Doku's sealed by its password, are to guess from the password. */
     protected open val backupIterations: Int = BackupKey.ITERATIONS
 
     /** The folder for the nightly backups at [address]. */

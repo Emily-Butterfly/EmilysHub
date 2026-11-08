@@ -419,7 +419,7 @@ private fun TopLevelScaffold(
                     },
                     actions = {
                         // The Doku's settings are in its own menu, there only while it is open (SPEC.md §14).
-                        if (moreOpen == MoreEntry.Doku) DokuMenu(hub.doku, hub.fingerprint)
+                        if (moreOpen == MoreEntry.Doku) DokuMenu(hub.doku)
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {
                             LedgerIconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) })
@@ -523,7 +523,7 @@ private fun TopLevelScaffold(
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
                 )
-                MoreEntry.Doku -> DokuArea(hub.doku, hub.fingerprint, contentPadding)
+                MoreEntry.Doku -> DokuArea(hub.doku, contentPadding)
             }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,

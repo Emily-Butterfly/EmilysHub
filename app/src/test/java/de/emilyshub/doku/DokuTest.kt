@@ -1,5 +1,6 @@
 package de.emilyshub.doku
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -16,6 +18,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
@@ -32,7 +35,7 @@ class DokuTest {
     private fun newDoku() = Doku(
         keyFile = keyFile,
         fingerprint = fingerprint,
-        openDatabase = { rawKey -> opened += rawKey; testDokuDatabase(context) },
+        openDatabase = { rawKey -> opened += rawKey.bytes; testDokuDatabase(context) },
         clipboard = DokuClipboard(context),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
@@ -48,7 +51,16 @@ class DokuTest {
         context.deleteDatabase(DokuDatabase.NAME)
     }
 
+    private val activity = Robolectric.buildActivity(Activity::class.java).get()
+
     private fun setUp(password: String = PASSWORD) = runBlocking { doku.setUp(password) }
+
+    /** What [block] comes to once the fingerprint's prompt it shows is answered by [answer]. */
+    private fun <T> answering(block: suspend () -> T, answer: FakeFingerprint.() -> Unit): T {
+        val result = CoroutineScope(Dispatchers.Unconfined).async { block() }
+        fingerprint.answer()
+        return runBlocking { result.await() }
+    }
 
     private fun DokuDatabase.write(value: String) = runBlocking { settings().put(DokuSetting("probe", value)) }
 
@@ -195,28 +207,55 @@ class DokuTest {
     fun `the fingerprint, once on, opens the Doku`() {
         fingerprint.enrolled = true
         setUp()
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        assertTrue(answering({ doku.turnOnFingerprint(activity) }) { succeed() })
+        assertEquals(FingerprintPurpose.TurnOn, fingerprint.lastPurpose)
         doku.database.write("Frau M.")
         doku.lock()
 
         assertEquals(DokuState.Locked(fingerprint = true), doku.state)
-        val cipher = checkNotNull(runBlocking { doku.unlockingCipher() })
-        runBlocking { doku.unlockWithFingerprint(cipher) }
+        val result = answering({ doku.unlockWithFingerprint(activity) }) { succeed() }
 
+        assertEquals(FingerprintUnlock.Opened, result)
+        assertEquals(FingerprintPurpose.Unlock, fingerprint.lastPurpose)
         assertEquals(DokuState.Open(fingerprint = true), doku.state)
         assertEquals("Frau M.", doku.database.read())
     }
 
     @Test
-    fun `a fingerprint whose key does not open the Doku leaves it locked for the password`() {
+    fun `the prompt's "Passwort" asks for the password, and dismissing it leaves the Doku locked to ask again`() {
         fingerprint.enrolled = true
         setUp()
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
         doku.lock()
-        val cipher = checkNotNull(runBlocking { doku.unlockingCipher() })
-        cipher.updateAAD(byteArrayOf(1)) // as if the key had changed under it
 
-        assertFalse(runBlocking { doku.unlockWithFingerprint(cipher) })
+        assertEquals(FingerprintUnlock.Password, answering({ doku.unlockWithFingerprint(activity) }) { chooseOther() })
+        assertEquals(FingerprintUnlock.Dismissed, answering({ doku.unlockWithFingerprint(activity) }) { dismiss() })
+        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+    }
+
+    @Test
+    fun `turning the fingerprint on, cancelled, leaves it off`() {
+        fingerprint.enrolled = true
+        setUp()
+
+        assertFalse(answering({ doku.turnOnFingerprint(activity) }) { chooseOther() })
+
+        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+    }
+
+    @Test
+    fun `a fingerprint whose key does not open the Doku asks for the password`() {
+        fingerprint.enrolled = true
+        setUp()
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
+        doku.lock()
+
+        val result = answering({ doku.unlockWithFingerprint(activity) }) {
+            // As if the key had changed under the cipher.
+            succeedWith { it.updateAAD(byteArrayOf(1)) }
+        }
+
+        assertEquals(FingerprintUnlock.Password, result)
         assertEquals(DokuState.Locked(fingerprint = true), doku.state)
     }
 
@@ -224,13 +263,30 @@ class DokuTest {
     fun `a fingerprint confirmed only once the Doku has locked again turns nothing on`() {
         fingerprint.enrolled = true
         setUp()
-        val cipher = runBlocking { doku.sealingCipher() }
-        doku.lock()
 
-        runBlocking { doku.enableFingerprint(cipher) }
+        val turnedOn = answering({ doku.turnOnFingerprint(activity) }) {
+            doku.lock()
+            succeed()
+        }
 
+        assertFalse(turnedOn)
         assertEquals(DokuState.Locked(fingerprint = false), doku.state)
         assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+    }
+
+    @Test
+    fun `a fingerprint recognised only once the Doku was told to lock leaves it locked`() {
+        fingerprint.enrolled = true
+        setUp()
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
+        doku.lock()
+
+        answering({ doku.unlockWithFingerprint(activity) }) {
+            doku.lock()
+            succeed()
+        }
+
+        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
     }
 
     @Test
@@ -261,41 +317,64 @@ class DokuTest {
     fun `the fingerprint is kept off across a restart`() {
         fingerprint.enrolled = true
         setUp()
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
-        runBlocking { doku.disableFingerprint() }
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
+        runBlocking { doku.turnOffFingerprint() }
 
         assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
         assertFalse(fingerprint.hasKey)
     }
 
     @Test
-    fun `a new fingerprint on the phone turns the fingerprint off and asks for the password`() {
+    fun `a new fingerprint on the phone turns the fingerprint off and asks for the password, also after a restart`() {
         fingerprint.enrolled = true
         setUp()
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
         doku.lock()
 
         fingerprint.enrollNew()
 
-        assertNull(runBlocking { doku.unlockingCipher() })
-        assertEquals(DokuState.Locked(fingerprint = false, fingerprintLost = true), doku.state)
-        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+        assertEquals(FingerprintUnlock.Password, runBlocking { doku.unlockWithFingerprint(activity) })
+        assertEquals(1, fingerprint.prompts) // only to turn it on
+        val lost = DokuState.Locked(fingerprint = false, fingerprintLost = true)
+        assertEquals(lost, doku.state)
+        assertEquals(lost, newDoku().state)
+        assertFalse(fingerprint.hasKey)
     }
 
     @Test
     fun `after a lost fingerprint the password opens the Doku and offers to turn it on again`() {
         fingerprint.enrolled = true
         setUp()
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
         doku.lock()
         fingerprint.enrollNew()
-        runBlocking { doku.unlockingCipher() }
+        runBlocking { doku.unlockWithFingerprint(activity) }
 
         runBlocking { doku.unlockWithPassword(PASSWORD) }
 
         assertEquals(DokuState.Open(fingerprint = false, offerFingerprint = true), doku.state)
-        runBlocking { doku.enableFingerprint(doku.sealingCipher()) }
+        assertTrue(answering({ doku.turnOnFingerprint(activity) }) { succeed() })
         assertEquals(DokuState.Open(fingerprint = true), doku.state)
+        doku.lock()
+        assertEquals(DokuState.Locked(fingerprint = true), newDoku().state)
+    }
+
+    @Test
+    fun `the offer declined is not made again`() {
+        fingerprint.enrolled = true
+        setUp()
+        answering({ doku.turnOnFingerprint(activity) }) { succeed() }
+        doku.lock()
+        fingerprint.enrollNew()
+        runBlocking { doku.unlockWithFingerprint(activity) }
+        runBlocking { doku.unlockWithPassword(PASSWORD) }
+
+        runBlocking { doku.declineFingerprint() }
+        doku.lock()
+
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
+        assertEquals(DokuState.Open(fingerprint = false), doku.state)
     }
 
     @Test

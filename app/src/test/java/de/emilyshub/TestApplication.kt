@@ -9,6 +9,7 @@ import de.emilyshub.data.InMemorySettingsDao
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.FakeFingerprint
+import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
@@ -47,7 +48,7 @@ class TestApplication : EmilysHubApplication() {
     override val fingerprint = FakeFingerprint()
 
     /** In a file, so that it outlives locking, but with Android's own SQLite, which takes no key. */
-    override val openDokuDatabase: (ByteArray) -> DokuDatabase = { testDokuDatabase(this) }
+    override val openDokuDatabase: (RawKey) -> DokuDatabase = { testDokuDatabase(this) }
     override val ringer = FakeRinger()
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)

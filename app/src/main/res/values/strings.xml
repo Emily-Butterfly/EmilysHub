@@ -804,7 +804,6 @@
     <!-- Dokumentation (SPEC.md §14) -->
     <string name="doku_password">Passwort</string>
     <string name="doku_set_up_title">Doku-Passwort festlegen</string>
-    <string name="doku_set_up_explanation">Die Dokumentation hat ein eigenes Passwort. Die Geräte-PIN öffnet sie nicht.</string>
     <string name="doku_password_new">Doku-Passwort</string>
     <string name="doku_password_repeat">Doku-Passwort wiederholen</string>
     <string name="doku_password_too_short">Mindestens %1$d Zeichen</string>

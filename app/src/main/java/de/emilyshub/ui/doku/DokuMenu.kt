@@ -27,9 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuPasswordProblem
 import de.emilyshub.doku.DokuState
-import de.emilyshub.doku.Fingerprint
 import kotlinx.coroutines.launch
 
 /**
@@ -37,16 +35,17 @@ import kotlinx.coroutines.launch
  * now "Doku-Passwort ändern" and the fingerprint on or off; tests, the appointment template and the archive follow.
  */
 @Composable
-fun DokuMenu(doku: Doku, fingerprint: Fingerprint) {
+fun DokuMenu(doku: Doku) {
     val open = doku.state as? DokuState.Open ?: return
     var changingPassword by remember { mutableStateOf(false) }
     // The password fields of its dialog too ask the keyboard to learn nothing.
-    DokuInsel(doku) { Menu(doku, fingerprint, open, onChangePassword = { changingPassword = true }) }
+    DokuInsel(doku) { DokuMenuButton(doku, open, onChangePassword = { changingPassword = true }) }
     if (changingPassword) DokuInsel(doku) { ChangePassword(doku, onClose = { changingPassword = false }) }
 }
 
+/** The three dots, and what they open. */
 @Composable
-private fun Menu(doku: Doku, fingerprint: Fingerprint, open: DokuState.Open, onChangePassword: () -> Unit) {
+private fun DokuMenuButton(doku: Doku, open: DokuState.Open, onChangePassword: () -> Unit) {
     val activity = checkNotNull(LocalActivity.current)
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
@@ -54,7 +53,7 @@ private fun Menu(doku: Doku, fingerprint: Fingerprint, open: DokuState.Open, onC
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_menu_change_password)) },
                 onClick = {
@@ -63,23 +62,13 @@ private fun Menu(doku: Doku, fingerprint: Fingerprint, open: DokuState.Open, onC
                 },
             )
             // Off it can always be turned; on only with a fingerprint set up on the phone.
-            if (open.fingerprint || fingerprint.isEnrolled()) {
+            if (open.fingerprint || doku.canUseFingerprint) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.doku_menu_fingerprint)) },
                     trailingIcon = { Switch(checked = open.fingerprint, onCheckedChange = null) },
                     onClick = {
                         expanded = false
-                        if (open.fingerprint) {
-                            scope.launch { doku.disableFingerprint() }
-                        } else {
-                            scope.launch {
-                                fingerprint.authenticate(
-                                    activity, doku.sealingCipher(), toUnlock = false,
-                                    onSuccess = { scope.launch { doku.enableFingerprint(it) } },
-                                    onOther = {},
-                                )
-                            }
-                        }
+                        scope.launch { if (open.fingerprint) doku.turnOffFingerprint() else doku.turnOnFingerprint(activity) }
                     },
                 )
             }
@@ -98,7 +87,6 @@ private fun ChangePassword(doku: Doku, onClose: () -> Unit) {
     var wrong by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val problem = Doku.passwordProblem(new, repeated).takeIf { triedToChange }
     AlertDialog(
         onDismissRequest = { if (!busy) onClose() },
         title = { Text(stringResource(R.string.doku_menu_change_password)) },
@@ -113,18 +101,14 @@ private fun ChangePassword(doku: Doku, onClose: () -> Unit) {
                     label = stringResource(R.string.doku_change_password_old),
                     problem = stringResource(R.string.doku_wrong_password).takeIf { wrong },
                 )
-                PasswordField(
-                    value = new,
-                    onChange = { new = it },
+                NewPasswordFields(
+                    password = new,
+                    onPasswordChange = { new = it },
+                    repeated = repeated,
+                    onRepeatedChange = { repeated = it },
+                    problem = Doku.passwordProblem(new, repeated).takeIf { triedToChange },
                     label = stringResource(R.string.doku_change_password_new),
-                    problem = stringResource(R.string.doku_password_too_short, Doku.MIN_PASSWORD_LENGTH)
-                        .takeIf { problem == DokuPasswordProblem.TooShort },
-                )
-                PasswordField(
-                    value = repeated,
-                    onChange = { repeated = it },
-                    label = stringResource(R.string.doku_change_password_repeat),
-                    problem = stringResource(R.string.doku_password_not_repeated).takeIf { problem == DokuPasswordProblem.NotRepeated },
+                    repeatLabel = stringResource(R.string.doku_change_password_repeat),
                 )
                 Text(stringResource(R.string.doku_change_password_backups))
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -149,5 +133,6 @@ private fun ChangePassword(doku: Doku, onClose: () -> Unit) {
             }
         },
         dismissButton = { TextButton(onClick = onClose, enabled = !busy) { Text(stringResource(R.string.cancel)) } },
+        modifier = Modifier.touchesDoku(doku),
     )
 }

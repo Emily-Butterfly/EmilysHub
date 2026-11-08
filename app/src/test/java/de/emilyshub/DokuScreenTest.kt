@@ -1,6 +1,19 @@
 package de.emilyshub
 
+import android.content.ClipboardManager
 import android.text.InputType
+import androidx.activity.compose.setContent
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInputSelection
+import androidx.compose.ui.text.TextRange
+import de.emilyshub.ui.doku.DokuInsel
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.AbstractComposeView
@@ -24,7 +37,9 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.doku.DokuState
+import de.emilyshub.doku.FingerprintPurpose
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -153,7 +168,7 @@ class DokuScreenTest {
             compose.openDoku()
             compose.setUpDoku(withFingerprint = true)
             compose.waitForIdle()
-            assertEquals(false, fingerprint.lastToUnlock)
+            assertEquals(FingerprintPurpose.TurnOn, fingerprint.lastPurpose)
             fingerprint.succeed()
             compose.waitForIdle()
 
@@ -162,7 +177,7 @@ class DokuScreenTest {
             compose.waitForIdle()
 
             assertTrue(fingerprint.isPromptOpen)
-            assertEquals(true, fingerprint.lastToUnlock)
+            assertEquals(FingerprintPurpose.Unlock, fingerprint.lastPurpose)
             compose.onNodeWithText("Noch keine Patienten").assertDoesNotExist()
             fingerprint.succeed()
             compose.waitForIdle()
@@ -284,6 +299,85 @@ class DokuScreenTest {
         }
     }
 
+    @Test
+    fun `the fingerprint switch at setup is off until turned on`() {
+        fingerprint.enrolled = true
+        launchApp().use {
+            compose.openDoku()
+            compose.setUpDoku()
+
+            compose.onNodeWithText("Noch keine Patienten").assertIsDisplayed()
+            assertEquals(0, fingerprint.prompts)
+        }
+    }
+
+    @Test
+    fun `the fingerprint prompt, gone as the app leaves the screen, comes again on return`() {
+        fingerprint.enrolled = true
+        launchApp().use { scenario ->
+            compose.openDoku()
+            compose.setUpDoku(withFingerprint = true)
+            compose.waitForIdle()
+            fingerprint.succeed()
+            compose.onNode(isSelectable() and hasText("Heute")).performClick()
+            compose.openDoku()
+            compose.waitForIdle()
+            assertEquals(2, fingerprint.prompts)
+
+            scenario.leaveAndReturn {}
+            compose.waitForIdle()
+
+            assertEquals(3, fingerprint.prompts)
+            assertTrue(fingerprint.isPromptOpen)
+            compose.field("Passwort").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `a touch in a dialog of the Doku starts its five minutes anew`() {
+        launchApp().use {
+            compose.openDoku()
+            compose.setUpDoku()
+            compose.onNodeWithContentDescription("Menü der Dokumentation").performClick()
+            compose.onNodeWithText("Doku-Passwort ändern").performClick()
+
+            ShadowSystemClock.advanceBy(Duration.ofMinutes(4))
+            compose.field("Bisheriges Passwort").performClick()
+
+            assertTrue(app.doku.millisUntilIdle() > Duration.ofMinutes(4).toMillis())
+        }
+    }
+
+    @Test
+    fun `text copied from a text field of the Doku is marked sensitive, and gone from the clipboard once it locks`() {
+        launchApp().use { scenario ->
+            compose.openDoku()
+            compose.setUpDoku()
+            // A text field such as the patients' editors will have (#59), on the island the Doku is.
+            scenario.onActivity { activity ->
+                activity.setContent {
+                    DokuInsel(app.doku) {
+                        var text by remember { mutableStateOf("") }
+                        TextField(value = text, onValueChange = { text = it }, label = { Text("Diagnose") })
+                    }
+                }
+            }
+            compose.field("Diagnose").performTextInput("Schulter links")
+            compose.field("Diagnose").performTextInputSelection(TextRange(0, "Schulter links".length))
+            compose.field("Diagnose").performSemanticsAction(SemanticsActions.CopyText)
+            compose.waitForIdle()
+
+            val clipboard = app.getSystemService(ClipboardManager::class.java)
+            val clip = checkNotNull(clipboard.primaryClip)
+            assertEquals("Schulter links", clip.getItemAt(0).text.toString())
+            assertTrue(clip.description.extras.getBoolean("android.content.extra.IS_SENSITIVE"))
+
+            app.doku.lock()
+
+            assertFalse(clipboard.hasPrimaryClip())
+        }
+    }
+
     private fun ComposeTestRule.openDoku() {
         onNode(isSelectable() and hasText("Sonstiges")).performClick()
         onNode(hasText("Dokumentation") and hasClickAction()).performClick()
@@ -293,7 +387,7 @@ class DokuScreenTest {
         field("Doku-Passwort").performTextInput(PASSWORD)
         field("Doku-Passwort wiederholen").performTextInput(PASSWORD)
         onNodeWithText("Verstanden").performScrollTo().performClick()
-        if (!withFingerprint && fingerprint.enrolled) onNodeWithText("Mit Fingerabdruck entsperren").performScrollTo().performClick()
+        if (withFingerprint) onNodeWithText("Mit Fingerabdruck entsperren").performScrollTo().performClick()
         onNodeWithText("Passwort festlegen").performScrollTo().performClick()
     }
 

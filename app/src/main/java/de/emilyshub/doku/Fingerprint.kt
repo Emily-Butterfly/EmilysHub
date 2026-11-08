@@ -6,15 +6,34 @@ import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import android.hardware.biometrics.BiometricPrompt
 import android.os.CancellationSignal
-import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
-import android.security.keystore.KeyProperties
 import de.emilyshub.R
-import java.security.KeyStore
+import de.emilyshub.security.KeyWrap
+import de.emilyshub.security.KeystoreKeys
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
+import kotlin.coroutines.resume
+
+/** What the fingerprint's prompt is shown for: its title and second button differ. */
+enum class FingerprintPurpose {
+    /** To open the Doku; its second button says "Passwort". */
+    Unlock,
+
+    /** To turn the fingerprint on; its second button says "Abbrechen". */
+    TurnOn,
+}
+
+/** How the fingerprint's prompt ended. */
+sealed interface PromptResult {
+    /** A finger was recognised, and [cipher] is now free to use. */
+    class Recognised(val cipher: Cipher) : PromptResult
+
+    /** Its second button was tapped: "Passwort" or "Abbrechen". */
+    data object Other : PromptResult
+
+    /** Gone otherwise, by back, too many tries, or as the app left the screen. */
+    data object Dismissed : PromptResult
+}
 
 /**
  * The fingerprint as the Doku uses it (SPEC.md §14): a Keystore key that needs a strong fingerprint for every use, set
@@ -24,23 +43,20 @@ interface Fingerprint {
     /** Whether a strong fingerprint is set up on the phone. */
     fun isEnrolled(): Boolean
 
-    /** A cipher to seal with, under a new key in place of any old one, for [authenticate] to set free. */
+    /** A cipher to seal with, under a new key in place of any old one, for [prompt] to set free. */
     fun sealingCipher(): Cipher
 
     /**
-     * A cipher to open what was sealed with [iv], for [authenticate] to set free; null once the key is no longer valid,
-     * as when a new fingerprint was set up on the phone, or gone.
+     * A cipher to open [wrapped], sealed by one from [sealingCipher], for [prompt] to set free; null once the key is no
+     * longer valid, as when a new fingerprint was set up on the phone, or gone.
      */
-    fun openingCipher(iv: ByteArray): Cipher?
+    fun openingCipher(wrapped: ByteArray): Cipher?
 
+    /** Removes the key, as when the fingerprint is turned off. */
     fun deleteKey()
 
-    /**
-     * Shows the prompt over [activity]; [onSuccess] with [cipher] usable once a finger was recognised. Its second
-     * button says "Passwort" when [toUnlock], else "Abbrechen", and leads to [onOther]. Dismissed otherwise, by back or as
-     * the app leaves the screen, it leads nowhere: the lock screen asks again on return, or offers to.
-     */
-    fun authenticate(activity: Activity, cipher: Cipher, toUnlock: Boolean, onSuccess: (Cipher) -> Unit, onOther: () -> Unit)
+    /** Shows the prompt over [activity] to set [cipher] free for [purpose]; cancelled, it closes the prompt. */
+    suspend fun prompt(activity: Activity, cipher: Cipher, purpose: FingerprintPurpose): PromptResult
 }
 
 /** The platform's: from Android 11 (the app's minSdk) BiometricPrompt takes a cipher to set free, without the androidx library. */
@@ -49,55 +65,44 @@ class SystemFingerprint(private val context: Context) : Fingerprint {
     override fun isEnrolled() =
         context.getSystemService(BiometricManager::class.java).canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
 
-    override fun sealingCipher(): Cipher {
-        deleteKey()
-        val spec = KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-            .setKeySize(256)
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setUserAuthenticationRequired(true)
-            // A strong fingerprint for every single use; never the screen lock.
-            .setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
-            .setInvalidatedByBiometricEnrollment(true)
-            .build()
-        val key = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, PROVIDER).apply { init(spec) }.generateKey()
-        return Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.ENCRYPT_MODE, key) }
-    }
+    override fun sealingCipher(): Cipher = KeyWrap.sealingCipher(KeystoreKeys.createFingerprintKey(ALIAS))
 
-    override fun openingCipher(iv: ByteArray): Cipher? {
-        val key = keyStore().getKey(ALIAS, null) as SecretKey? ?: return null
+    override fun openingCipher(wrapped: ByteArray): Cipher? {
+        val key = KeystoreKeys.get(ALIAS) ?: return null
         return try {
-            Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv)) }
+            KeyWrap.openingCipher(wrapped, key)
         } catch (_: KeyPermanentlyInvalidatedException) {
             null
         }
     }
 
-    override fun deleteKey() {
-        keyStore().deleteEntry(ALIAS)
-    }
+    override fun deleteKey() = KeystoreKeys.delete(ALIAS)
 
-    override fun authenticate(activity: Activity, cipher: Cipher, toUnlock: Boolean, onSuccess: (Cipher) -> Unit, onOther: () -> Unit) {
-        val other = activity.getString(if (toUnlock) R.string.doku_password else R.string.cancel)
-        val prompt = BiometricPrompt.Builder(activity)
-            .setTitle(activity.getString(if (toUnlock) R.string.doku_fingerprint_unlock_title else R.string.doku_fingerprint_enable_title))
-            .setAllowedAuthenticators(BIOMETRIC_STRONG)
-            .setNegativeButton(other, activity.mainExecutor) { _, _ -> onOther() }
-            .build()
-        val callback = object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) =
-                onSuccess(checkNotNull(result.cryptoObject?.cipher))
+    override suspend fun prompt(activity: Activity, cipher: Cipher, purpose: FingerprintPurpose): PromptResult =
+        suspendCancellableCoroutine { continuation ->
+            val (title, other) = when (purpose) {
+                FingerprintPurpose.Unlock -> R.string.doku_fingerprint_unlock_title to R.string.doku_password
+                FingerprintPurpose.TurnOn -> R.string.doku_fingerprint_enable_title to R.string.cancel
+            }
+            // The first of the ways it ends counts; the others, as the error that follows a cancelled prompt, are ignored.
+            val end = { result: PromptResult -> if (continuation.isActive) continuation.resume(result) }
+            val prompt = BiometricPrompt.Builder(activity)
+                .setTitle(activity.getString(title))
+                .setAllowedAuthenticators(BIOMETRIC_STRONG)
+                .setNegativeButton(activity.getString(other), activity.mainExecutor) { _, _ -> end(PromptResult.Other) }
+                .build()
+            val callback = object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) =
+                    end(PromptResult.Recognised(checkNotNull(result.cryptoObject?.cipher)))
 
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) = end(PromptResult.Dismissed)
+            }
+            val cancellation = CancellationSignal()
+            continuation.invokeOnCancellation { activity.mainExecutor.execute(cancellation::cancel) }
+            prompt.authenticate(BiometricPrompt.CryptoObject(cipher), cancellation, activity.mainExecutor, callback)
         }
-        prompt.authenticate(BiometricPrompt.CryptoObject(cipher), CancellationSignal(), activity.mainExecutor, callback)
-    }
-
-    private fun keyStore() = KeyStore.getInstance(PROVIDER).apply { load(null) }
 
     private companion object {
-        const val PROVIDER = "AndroidKeyStore"
         const val ALIAS = "doku-fingerprint-key"
-        const val TRANSFORMATION = "AES/GCM/NoPadding"
-        const val TAG_BITS = 128
     }
 }

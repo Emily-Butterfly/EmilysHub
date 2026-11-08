@@ -13,17 +13,32 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
-/** A setting of the Doku, kept in its own database: nothing of the Doku goes into the app's. */
+/**
+ * A setting of the Doku, kept in its own database: nothing of the Doku goes into the app's. None yet: the table is
+ * here because Room needs one, and for the settings the start page and the appointment template bring (#59, #60).
+ */
 @Entity(tableName = "doku_setting")
 data class DokuSetting(@PrimaryKey val key: String, val value: String)
 
+/** The Doku's settings, by key. */
 @Dao
 interface DokuSettingsDao {
+    /** The value under [key], if any. */
     @Query("SELECT value FROM doku_setting WHERE `key` = :key")
     suspend fun get(key: String): String?
 
+    /** Sets [setting], in place of the value under its key. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(setting: DokuSetting)
+}
+
+/**
+ * The Doku's database key in SQLCipher's raw form, x'<64 hex digits>', used as is without a slow passphrase derivation.
+ * The bytes stay SQLCipher's while the database is open, so that wiping them once it is closed wipes SQLCipher's copy.
+ */
+@JvmInline
+value class RawKey(val bytes: ByteArray) {
+    fun wipe() = bytes.fill(0)
 }
 
 /**
@@ -43,20 +58,17 @@ abstract class DokuDatabase : RoomDatabase() {
 
         val MIGRATIONS: List<Migration> = emptyList()
 
-        /**
-         * Opens `doku.db` with its key in SQLCipher's raw form ([rawKey]); a wrong key fails on first access. The array
-         * stays SQLCipher's while the database is open, so that wiping it once closed wipes SQLCipher's copy too.
-         */
-        fun open(context: Context, rawKey: ByteArray, name: String = NAME): DokuDatabase {
+        /** Opens `doku.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
+        fun open(context: Context, rawKey: RawKey, name: String = NAME): DokuDatabase {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, DokuDatabase::class.java, name)
-                .openHelperFactory(SupportOpenHelperFactory(rawKey))
+                .openHelperFactory(SupportOpenHelperFactory(rawKey.bytes))
                 .addMigrations(*MIGRATIONS.toTypedArray())
                 .build()
         }
 
-        /** SQLCipher's raw-key form, x'<64 hex digits>', written straight into bytes, so that no string of it lingers. */
-        fun rawKey(key: ByteArray): ByteArray {
+        /** The [RawKey] of [key], written straight into bytes, so that no string of it lingers. */
+        fun rawKey(key: ByteArray): RawKey {
             require(key.size == DokuKeys.KEY_BYTES) { "The Doku key must be ${DokuKeys.KEY_BYTES} bytes" }
             val raw = ByteArray(3 + key.size * 2)
             raw[0] = 'x'.code.toByte()
@@ -66,7 +78,7 @@ abstract class DokuDatabase : RoomDatabase() {
                 raw[3 + 2 * i] = HEX[byte.toInt() and 0xF].code.toByte()
             }
             raw[raw.lastIndex] = '\''.code.toByte()
-            return raw
+            return RawKey(raw)
         }
 
         private const val HEX = "0123456789abcdef"

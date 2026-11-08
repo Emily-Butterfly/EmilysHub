@@ -24,9 +24,10 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuClipboard
 
 /**
- * Keeps what is typed and copied in [content] on the island the Doku is (SPEC.md §14): every text field asks the
- * keyboard to learn nothing and to suggest no corrections, what is copied is marked sensitive for [doku]'s clipboard to
- * take off again, and each touch, key or keystroke tells [doku] it is still in use ([Doku.touched]).
+ * Keeps what is typed and copied in [content] on the island the Doku is (SPEC.md §14, "Insel"): every text field asks
+ * the keyboard to learn nothing and to suggest no corrections, what is copied is marked sensitive for [doku]'s
+ * clipboard to take off again, and each touch, key or keystroke tells [doku] it is still in use ([Doku.touched]).
+ * Dialogs and menus have windows of their own: their touches reach [doku] by [touchesDoku] on them.
  */
 @Composable
 fun DokuInsel(doku: Doku, content: @Composable () -> Unit) {
@@ -35,26 +36,27 @@ fun DokuInsel(doku: Doku, content: @Composable () -> Unit) {
     val clipboard = remember(platform, doku) { SensitiveClipboard(platform, doku.clipboard) }
     InterceptPlatformTextInput(keyboard) {
         CompositionLocalProvider(LocalClipboard provides clipboard) {
-            Box(
-                Modifier
-                    .pointerInput(doku) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                awaitPointerEvent(PointerEventPass.Initial)
-                                doku.touched()
-                            }
-                        }
-                    }
-                    .onPreviewKeyEvent {
-                        doku.touched()
-                        false
-                    },
-            ) {
+            Box(Modifier.touchesDoku(doku)) {
                 content()
             }
         }
     }
 }
+
+/** Tells [doku] of each touch and key in what it modifies, before anything there handles them. */
+fun Modifier.touchesDoku(doku: Doku): Modifier = this
+    .pointerInput(doku) {
+        awaitPointerEventScope {
+            while (true) {
+                awaitPointerEvent(PointerEventPass.Initial)
+                doku.touched()
+            }
+        }
+    }
+    .onPreviewKeyEvent {
+        doku.touched()
+        false
+    }
 
 /** Asks the keyboard of every text field to learn nothing typed there and to suggest nothing, and tells [onInput] of each keystroke. */
 private class PrivateKeyboard(private val onInput: () -> Unit) : PlatformTextInputInterceptor {

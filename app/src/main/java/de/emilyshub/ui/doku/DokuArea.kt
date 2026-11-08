@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -23,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,19 +39,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.withResumed
 import de.emilyshub.R
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuPasswordProblem
 import de.emilyshub.doku.DokuState
-import de.emilyshub.doku.Fingerprint
+import de.emilyshub.doku.FingerprintUnlock
 import de.emilyshub.ui.PlaceholderScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -62,52 +55,43 @@ import kotlinx.coroutines.launch
 
 /**
  * The Doku in the tab of Sonstiges (SPEC.md §14): its password set on first opening, its lock screen, and only once
- * unlocked its start page. It locks as soon as it is left, for another tab, the list of Sonstiges or a screen over the
- * tabs, as soon as the app leaves the screen or the screen goes off, and after five minutes without a touch; but not
- * for a rotation. Each unlock starts on its start page.
+ * unlocked its start page. It locks as [DokuLocker] says, and after five minutes without a touch. Each unlock starts on
+ * its start page.
  */
 @Composable
-fun DokuArea(doku: Doku, fingerprint: Fingerprint, contentPadding: PaddingValues) {
+fun DokuArea(doku: Doku, contentPadding: PaddingValues) {
     val activity = checkNotNull(LocalActivity.current)
-    val locksNow by rememberUpdatedState { if (!activity.isChangingConfigurations) doku.lock() }
-    DisposableEffect(doku) { onDispose { locksNow() } }
-    // Also when the screen goes off: the activity stops then too.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { locksNow() }
-    LaunchedEffect(doku) { doku.load() }
-    // Here, so that what the prompts end in is done even once the screen that asked for them is gone.
-    val scope = rememberCoroutineScope()
-    val enableFingerprint = {
-        scope.launch {
-            val cipher = doku.sealingCipher()
-            fingerprint.authenticate(activity, cipher, toUnlock = false, onSuccess = { scope.launch { doku.enableFingerprint(it) } }, onOther = {})
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(doku, lifecycle) {
+        val locker = DokuLocker(doku) { activity.isChangingConfigurations }
+        lifecycle.addObserver(locker)
+        onDispose {
+            lifecycle.removeObserver(locker)
+            locker.left()
         }
-        Unit
     }
+    LaunchedEffect(doku) { doku.load() }
+    // Here, so that what the prompts end in is done even once the screen that asked for them is gone, as the setup's.
+    val scope = rememberCoroutineScope()
 
     DokuInsel(doku) {
         when (val state = doku.state) {
             null -> Unit
             DokuState.New -> SetUpScreen(
-                canUseFingerprint = fingerprint.isEnrolled(),
+                canUseFingerprint = doku.canUseFingerprint,
                 contentPadding = contentPadding,
                 onSetUp = { password, withFingerprint ->
-                    doku.setUp(password)
-                    if (withFingerprint) enableFingerprint()
+                    scope.launch {
+                        doku.setUp(password)
+                        if (withFingerprint) doku.turnOnFingerprint(activity)
+                    }
                 },
             )
-            is DokuState.Locked -> LockedScreen(doku, fingerprint, activity, state, scope, contentPadding)
+            is DokuState.Locked -> LockedScreen(doku, activity, state, scope, contentPadding)
             is DokuState.Open -> {
                 IdleLock(doku)
                 PlaceholderScreen(stringResource(R.string.doku_no_patients), contentPadding)
-                if (state.offerFingerprint) {
-                    FingerprintAgain(
-                        onEnable = {
-                            doku.declineFingerprint()
-                            enableFingerprint()
-                        },
-                        onDecline = doku::declineFingerprint,
-                    )
-                }
+                if (state.offerFingerprint) FingerprintAgain(doku, activity, scope)
             }
         }
     }
@@ -126,16 +110,14 @@ private fun IdleLock(doku: Doku) {
 
 /** The Doku password, typed twice, with the warning that it cannot be recovered to confirm, and the fingerprint if [canUseFingerprint]. */
 @Composable
-private fun SetUpScreen(canUseFingerprint: Boolean, contentPadding: PaddingValues, onSetUp: suspend (String, Boolean) -> Unit) {
+private fun SetUpScreen(canUseFingerprint: Boolean, contentPadding: PaddingValues, onSetUp: (String, Boolean) -> Unit) {
     // Not saveable: a password has no place in the saved state.
     var password by remember { mutableStateOf("") }
     var repeated by remember { mutableStateOf("") }
     var confirmed by remember { mutableStateOf(false) }
-    var withFingerprint by remember { mutableStateOf(canUseFingerprint) }
+    var withFingerprint by remember { mutableStateOf(false) }
     var triedToSet by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val problem = Doku.passwordProblem(password, repeated).takeIf { triedToSet }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -150,19 +132,14 @@ private fun SetUpScreen(canUseFingerprint: Boolean, contentPadding: PaddingValue
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.semantics { heading() },
         )
-        Text(stringResource(R.string.doku_set_up_explanation))
-        PasswordField(
-            value = password,
-            onChange = { password = it },
+        NewPasswordFields(
+            password = password,
+            onPasswordChange = { password = it },
+            repeated = repeated,
+            onRepeatedChange = { repeated = it },
+            problem = Doku.passwordProblem(password, repeated).takeIf { triedToSet },
             label = stringResource(R.string.doku_password_new),
-            problem = stringResource(R.string.doku_password_too_short, Doku.MIN_PASSWORD_LENGTH)
-                .takeIf { problem == DokuPasswordProblem.TooShort },
-        )
-        PasswordField(
-            value = repeated,
-            onChange = { repeated = it },
-            label = stringResource(R.string.doku_password_repeat),
-            problem = stringResource(R.string.doku_password_not_repeated).takeIf { problem == DokuPasswordProblem.NotRepeated },
+            repeatLabel = stringResource(R.string.doku_password_repeat),
         )
         Text(stringResource(R.string.doku_no_recovery), color = MaterialTheme.colorScheme.error)
         Row(
@@ -189,7 +166,7 @@ private fun SetUpScreen(canUseFingerprint: Boolean, contentPadding: PaddingValue
                 triedToSet = true
                 if (Doku.passwordProblem(password, repeated) == null) {
                     busy = true
-                    scope.launch { onSetUp(password, withFingerprint && canUseFingerprint) }
+                    onSetUp(password, withFingerprint && canUseFingerprint)
                 }
             },
             enabled = confirmed && !busy,
@@ -200,41 +177,22 @@ private fun SetUpScreen(canUseFingerprint: Boolean, contentPadding: PaddingValue
 }
 
 /**
- * The Doku locked: with the fingerprint on, its prompt at once, whose "Passwort" leads to the password field; without,
- * the password field right away. Nothing of the Doku shows.
+ * The Doku locked: with the fingerprint on, its prompt at once, each time the Doku comes to the front, whose "Passwort"
+ * leads to the password field; without, the password field right away. Nothing of the Doku shows.
  */
 @Composable
-private fun LockedScreen(
-    doku: Doku,
-    fingerprint: Fingerprint,
-    activity: Activity,
-    state: DokuState.Locked,
-    scope: CoroutineScope,
-    contentPadding: PaddingValues,
-) {
+private fun LockedScreen(doku: Doku, activity: Activity, state: DokuState.Locked, scope: CoroutineScope, contentPadding: PaddingValues) {
     var usePassword by remember { mutableStateOf(false) }
-    val promptFingerprint = {
-        scope.launch {
-            val cipher = doku.unlockingCipher()
-            if (cipher == null) {
-                usePassword = true
-            } else {
-                fingerprint.authenticate(
-                    activity, cipher, toUnlock = true,
-                    onSuccess = { scope.launch { if (!doku.unlockWithFingerprint(it)) usePassword = true } },
-                    onOther = { usePassword = true },
-                )
-            }
-        }
-        Unit
+    val askFingerprint: suspend () -> Unit = {
+        if (doku.unlockWithFingerprint(activity) == FingerprintUnlock.Password) usePassword = true
     }
-    // Asks right away, each time the locked Doku comes to the front, as long as the password was not chosen instead.
     val lifecycleOwner = LocalLifecycleOwner.current
-    val prompt by rememberUpdatedState(promptFingerprint)
     if (state.fingerprint && !usePassword) {
         LaunchedEffect(lifecycleOwner) {
+            // The prompt goes as the app leaves the screen, and comes again on its return.
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                lifecycleOwner.withResumed { prompt() }
+                lifecycleOwner.withResumed {}
+                askFingerprint()
             }
         }
     }
@@ -267,8 +225,11 @@ private fun LockedScreen(
             modifier = Modifier.semantics { heading() },
         )
         if (state.fingerprintLost) Text(stringResource(R.string.doku_fingerprint_lost))
+        val fingerprintButton = @Composable {
+            OutlinedButton(onClick = { scope.launch { askFingerprint() } }) { Text(stringResource(R.string.doku_unlock_with_fingerprint)) }
+        }
         if (state.fingerprint && !usePassword) {
-            Button(onClick = promptFingerprint) { Text(stringResource(R.string.doku_unlock_with_fingerprint)) }
+            fingerprintButton()
             OutlinedButton(onClick = { usePassword = true }) { Text(stringResource(R.string.doku_enter_password)) }
         } else {
             PasswordField(
@@ -282,36 +243,33 @@ private fun LockedScreen(
             )
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Button(onClick = unlock, enabled = password.isNotEmpty() && !busy) { Text(stringResource(R.string.doku_unlock)) }
-            if (state.fingerprint) {
-                OutlinedButton(onClick = promptFingerprint) { Text(stringResource(R.string.doku_unlock_with_fingerprint)) }
-            }
+            if (state.fingerprint) fingerprintButton()
         }
     }
 }
 
-/** After a new fingerprint on the phone and the password, whether to turn the fingerprint on again. */
+/** After a new fingerprint on the phone and the password, whether to turn the fingerprint on again; once, either way. */
 @Composable
-private fun FingerprintAgain(onEnable: () -> Unit, onDecline: () -> Unit) {
+private fun FingerprintAgain(doku: Doku, activity: Activity, scope: CoroutineScope) {
+    var asking by remember { mutableStateOf(false) }
+    if (asking) return
     AlertDialog(
-        onDismissRequest = onDecline,
+        onDismissRequest = { scope.launch { doku.declineFingerprint() } },
         title = { Text(stringResource(R.string.doku_fingerprint_again_title)) },
         text = { Text(stringResource(R.string.doku_fingerprint_again_text)) },
-        confirmButton = { TextButton(onClick = onEnable) { Text(stringResource(R.string.doku_fingerprint_again)) } },
-        dismissButton = { TextButton(onClick = onDecline) { Text(stringResource(R.string.doku_fingerprint_not_now)) } },
-    )
-}
-
-@Composable
-internal fun PasswordField(value: String, onChange: (String) -> Unit, label: String, problem: String?) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-        isError = problem != null,
-        supportingText = problem?.let { { Text(it) } },
-        modifier = Modifier.fillMaxWidth(),
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    asking = true
+                    scope.launch { if (!doku.turnOnFingerprint(activity)) doku.declineFingerprint() }
+                },
+            ) {
+                Text(stringResource(R.string.doku_fingerprint_again))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { scope.launch { doku.declineFingerprint() } }) { Text(stringResource(R.string.doku_fingerprint_not_now)) }
+        },
+        modifier = Modifier.touchesDoku(doku),
     )
 }
