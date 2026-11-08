@@ -7,7 +7,8 @@ import java.io.File
 
 /**
  * The area once called "Wunschliste" speaks of goals everywhere (SPEC.md §6): no text of the app says "Wunsch" any more,
- * neither in its resources nor in a string written into the code.
+ * neither in its resources nor in a string written into the code; but the built-in assessment forms, which keep the
+ * wording of their originals, such as "Einen gewünschten Sport" (SPEC.md §14).
  */
 class GoalsWordingTest {
 
@@ -23,7 +24,9 @@ class GoalsWordingTest {
     @Test
     fun `no string written into the code speaks of wishes`() {
         val strings = Regex(""""[^"\n]*"""")
-        val found = sources("src/main/java", "kt").flatMap { file ->
+        val forms = File("src/main/java/de/emilyshub/doku/assessments")
+        assertTrue("$forms is where the forms are", forms.isDirectory)
+        val found = sources("src/main/java", "kt").filterNot { it.startsWith(forms) }.flatMap { file ->
             file.readLines()
                 .filterNot { it.trimStart().let { line -> line.startsWith("*") || line.startsWith("/*") || line.startsWith("//") } }
                 .flatMap { line -> strings.findAll(line).map { it.value }.filter(wishes::containsMatchIn).toList() }

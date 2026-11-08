@@ -372,7 +372,7 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
             is ScaleItem -> {
                 val value = (answer as? Answer.OnScale)?.value
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    (item.min..item.max).forEach { n ->
+                    item.steps.forEach { n ->
                         Chip("$n", chosen = value == n, enabled = enabled, onClick = { answerWith(if (value == n) null else Answer.OnScale(n)) })
                     }
                 }

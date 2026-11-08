@@ -182,4 +182,42 @@ class ScoringTest {
         assertEquals(0L, value(form, mapOf("hurts" to Answer.YesNo(true))))
         assertEquals(false, Scoring.reachesResultUnanswered(form))
     }
+
+    @Test
+    fun `an option that does not apply counts as unanswered and lowers the most possible`() {
+        val options = zeroToThree + Option("na", "Nicht zutreffend", notApplicable = true)
+        val items = listOf("a", "b", "c").map { ChoiceItem(it, "Frage $it", options) }
+        val form = form(Score("pct", "Prozent", listOf("a", "b", "c"), rule = ScoreRule.Percent, unit = "%", direction = Direction.HigherIsBetter, minAnswered = 1), items = items)
+
+        // 2 + 3 of 6
+        assertEquals(8333L, value(form, chosen("a" to "2", "b" to "3", "c" to "na")))
+        assertEquals(null, value(form, chosen("a" to "na", "b" to "na", "c" to "na")))
+        assertEquals(0L..10000L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test
+    fun `a scale in steps takes only its steps`() {
+        val scale = ScaleItem("s", "Wie zuversichtlich?", min = 0, max = 100, step = 10)
+        val form = form(Score("sum", "Summe", listOf("s"), direction = Direction.HigherIsBetter), items = listOf(scale))
+
+        assertEquals(listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100), scale.steps)
+        assertEquals(7000L, value(form, mapOf("s" to Answer.OnScale(70))))
+        assertEquals(null, value(form, mapOf("s" to Answer.OnScale(75))))
+    }
+
+    @Test
+    fun `items shown in place of each other count once in a score's range`() {
+        val which = ChoiceItem("w", "Welche?", listOf(Option("x", "x"), Option("y", "y")))
+        val items = listOf(
+            choice("a"),
+            which,
+            ChoiceItem("x", "Frage x", zeroToThree, showIf = Condition("w", setOf("x"))),
+            ChoiceItem("y", "Frage y", listOf(Option("0", "0", 0), Option("5", "5", 5)), showIf = Condition("w", setOf("y"))),
+        )
+        val form = form(Score("sum", "Summe", listOf("a", "x", "y"), direction = Direction.HigherIsBetter, minAnswered = 2), items = items)
+
+        // a up to 3, and x up to 3 or y up to 5
+        assertEquals(0L..800L, Scoring.range(form, form.scores.single()))
+        assertEquals(700L, value(form, chosen("a" to "2", "w" to "y", "y" to "5")))
+    }
 }

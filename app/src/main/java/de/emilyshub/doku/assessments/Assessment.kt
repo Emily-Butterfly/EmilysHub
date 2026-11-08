@@ -64,8 +64,11 @@ enum class AssessmentCategory(val label: String) {
 /** A part of a form, with a [title] and a [hint] above its items, if it has them. */
 data class Section(val title: String? = null, val hint: String = "", val items: List<Item>)
 
-/** An answer to choose, with its [points]; [exclusive] such as "nein", which unchecks the others of a checklist. */
-data class Option(val id: String, val label: String, val points: Int = 0, val exclusive: Boolean = false)
+/**
+ * An answer to choose, with its [points]; [exclusive] such as "nein", which unchecks the others of a checklist;
+ * [notApplicable] such as "Nicht zutreffend", which answers an item but counts as left out, without points.
+ */
+data class Option(val id: String, val label: String, val points: Int = 0, val exclusive: Boolean = false, val notApplicable: Boolean = false)
 
 /** That an item shows only once item [itemId] is answered with one of [values]: option ids, or [YES] for a yes. */
 data class Condition(val itemId: String, val values: Set<String>) {
@@ -109,7 +112,10 @@ data class YesNoItem(
     override val scorable: Boolean get() = true
 }
 
-/** A whole number from [min] to [max], its ends named, such as "kein Schmerz" and "maximaler Schmerz"; [reversed] counts it the other way round. */
+/**
+ * A whole number from [min] to [max] in [step]s, such as 0, 10 … 100, its ends named, such as "kein Schmerz" and
+ * "maximaler Schmerz"; [reversed] counts it the other way round.
+ */
 data class ScaleItem(
     override val id: String,
     override val text: String,
@@ -118,9 +124,17 @@ data class ScaleItem(
     val minLabel: String = "",
     val maxLabel: String = "",
     val reversed: Boolean = false,
+    val step: Int = 1,
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = true
+
+    /** The numbers to choose, from [min] to [max]. */
+    val steps: List<Int> get() = (min..max step step).toList()
+
+    init {
+        require(step >= 1 && (max - min) % step == 0) { "$id: the steps must lead from min to max" }
+    }
 }
 
 /**

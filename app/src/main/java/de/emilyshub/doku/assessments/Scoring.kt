@@ -50,9 +50,18 @@ object Scoring {
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange {
-        val ranges = score.items.map { checkNotNull(range(checkNotNull(form.item(it)))) }
+        val items = score.items.map { checkNotNull(form.item(it)) }
+        val ranges = items.map { checkNotNull(range(it)) }
         return when (score.rule) {
-            ScoreRule.Sum -> ranges.sumOf { it.first } * HUNDRED..ranges.sumOf { it.second } * HUNDRED
+            ScoreRule.Sum -> {
+                // Items shown in place of each other, by different answers to the same item, count as one: the least and
+                // the most of them.
+                val alternatives = items.zip(ranges).groupBy { (item, _) -> item.showIf?.itemId to item.id.takeIf { item.showIf == null } }.values.map { group ->
+                    val exclusive = group.size > 1 && group.flatMap { (item, _) -> item.showIf!!.values }.let { it.size == it.toSet().size }
+                    if (exclusive) listOf(group.minOf { it.second.first } to group.maxOf { it.second.second }) else group.map { it.second }
+                }.flatten()
+                alternatives.sumOf { it.first } * HUNDRED..alternatives.sumOf { it.second } * HUNDRED
+            }
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
             ScoreRule.Percent, ScoreRule.ZeroTo100 -> 0L..HUNDRED * HUNDRED
         }
@@ -89,8 +98,8 @@ object Scoring {
     /** The points [answer] makes for [item], reversed ones counted the other way round; none for an answer that does not fit it. */
     internal fun points(item: Item, answer: Answer): Long? {
         val raw = when (item) {
-            is ChoiceItem -> (answer as? Answer.Chosen)?.let { chosen -> item.options.find { it.id == chosen.optionId }?.points }
-            is ScaleItem -> (answer as? Answer.OnScale)?.value?.takeIf { it in item.min..item.max }
+            is ChoiceItem -> (answer as? Answer.Chosen)?.let { chosen -> item.options.find { it.id == chosen.optionId && !it.notApplicable }?.points }
+            is ScaleItem -> (answer as? Answer.OnScale)?.value?.takeIf { it in item.steps }
             is YesNoItem -> (answer as? Answer.YesNo)?.let { if (it.yes) item.yesPoints else item.noPoints }
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
@@ -103,7 +112,7 @@ object Scoring {
 
     /** The fewest and the most points [item] makes, if it makes any. */
     private fun range(item: Item): Pair<Long, Long>? = when (item) {
-        is ChoiceItem -> item.options.map(Option::points).let { it.min().toLong() to it.max().toLong() }
+        is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
         is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
