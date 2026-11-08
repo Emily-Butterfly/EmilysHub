@@ -70,15 +70,8 @@ private fun DirectedBlock(block: Block) {
 
 /** Whether the first letter of [block] with a direction of its own, as Arabic or Hebrew letters have, goes right to left. */
 internal fun startsRightToLeft(block: Block): Boolean {
-    val text = when (block) {
-        is Block.Heading -> Markdown.plainText(block.text)
-        is Block.Paragraph -> Markdown.plainText(block.text)
-        is Block.Quote -> Markdown.plainText(block.text)
-        is Block.Bullets -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
-        is Block.Numbered -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
-        // Code reads left to right whatever it holds.
-        is Block.Code, Block.Rule -> ""
-    }
+    // Code reads left to right whatever it holds.
+    val text = if (block is Block.Code) "" else Markdown.plainText(block)
     return text.firstNotNullOfOrNull { char ->
         when (Character.getDirectionality(char)) {
             Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> true

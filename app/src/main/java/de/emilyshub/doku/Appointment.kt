@@ -60,25 +60,11 @@ data class AppointmentRow(val id: Long, val date: LocalDate, val time: LocalTime
  */
 fun previewOf(text: String): String? {
     var heading: String? = null
-    for (line in text.lineSequence()) {
-        if (line.isBlank()) continue
-        val block = Markdown.parse(line).firstOrNull() ?: continue
-        val plain = InputText.singleLine(plainLine(block))
-        if (!InputText.isVisible(plain)) continue
-        if (block !is Block.Heading) return plain
-        if (heading == null) heading = plain
+    for (block in Markdown.parse(text)) {
+        // Code as written: what looks like a heading or a list there is none.
+        val line = Markdown.plainText(block).lineSequence().map(InputText::singleLine).firstOrNull(InputText::isVisible) ?: continue
+        if (block !is Block.Heading) return line
+        if (heading == null) heading = line
     }
     return heading
-}
-
-/** What [block], read from one line, says, without its marks; nothing for a rule. */
-private fun plainLine(block: Block): String = when (block) {
-    is Block.Heading -> Markdown.plainText(block.text)
-    is Block.Paragraph -> Markdown.plainText(block.text)
-    is Block.Quote -> Markdown.plainText(block.text)
-    is Block.Bullets -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
-    is Block.Numbered -> block.items.joinToString(" ") { Markdown.plainText(it.text) }
-    // A fence alone, as "```kotlin", says nothing; its code is read line by line as text.
-    is Block.Code -> ""
-    Block.Rule -> ""
 }

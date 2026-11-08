@@ -89,6 +89,7 @@ internal fun PatientPage(
             .padding(contentPadding),
     ) {
         Header(
+            doku = doku,
             patient = patient,
             year = patients.today().year,
             onRename = { renaming = true },
@@ -160,7 +161,15 @@ internal fun PatientPage(
 
 /** The name, the year of birth and age, ✎ for an active patient, and the patient's menu. */
 @Composable
-private fun Header(patient: Patient, year: Int, onRename: () -> Unit, onClose: () -> Unit, onRestore: () -> Unit, onDelete: () -> Unit) {
+private fun Header(
+    doku: Doku,
+    patient: Patient,
+    year: Int,
+    onRename: () -> Unit,
+    onClose: () -> Unit,
+    onRestore: () -> Unit,
+    onDelete: () -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
         Column(Modifier.weight(1f)) {
@@ -178,7 +187,7 @@ private fun Header(patient: Patient, year: Int, onRename: () -> Unit, onClose: (
             IconButton(onClick = { menu = true }) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_patient_menu))
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.touchesDoku(doku)) {
                 val item = @Composable { label: Int, action: () -> Unit ->
                     DropdownMenuItem(
                         text = { Text(stringResource(label)) },

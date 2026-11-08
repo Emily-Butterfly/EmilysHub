@@ -89,7 +89,7 @@ internal fun AppointmentPage(
         actions = {
             if (opened.canChange) {
                 TextButton(onClick = onDone) { Text(stringResource(R.string.doku_field_done)) }
-                AppointmentMenu(onDelete = { deleting = true })
+                AppointmentMenu(doku, onDelete = { deleting = true })
             }
         },
         header = {
@@ -118,7 +118,7 @@ internal fun AppointmentPage(
     )
 
     if (pickingDate) {
-        // Dialogs have windows of their own, which the Doku's island does not reach.
+        // The time is typed: its fields too ask the keyboard to learn nothing.
         DokuInsel(doku) {
             DateDialog(
                 initial = current.date,
@@ -127,6 +127,7 @@ internal fun AppointmentPage(
                     scope.launch { appointments.setDate(page.id, date) }
                 },
                 onDismiss = { pickingDate = false },
+                modifier = Modifier.touchesDoku(doku),
             )
         }
     }
@@ -139,6 +140,7 @@ internal fun AppointmentPage(
                     scope.launch { appointments.setTime(page.id, time) }
                 },
                 onDismiss = { pickingTime = false },
+                modifier = Modifier.touchesDoku(doku),
             )
         }
     }
@@ -164,13 +166,13 @@ private data class Loaded(val text: String, val patientName: String, val canChan
 
 /** The three dots of an appointment, with "Löschen". */
 @Composable
-private fun AppointmentMenu(onDelete: () -> Unit) {
+private fun AppointmentMenu(doku: Doku, onDelete: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_appointment_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_appointment_delete)) },
                 onClick = {

@@ -46,6 +46,17 @@ object Markdown {
     /** The blocks of [text], one after the other; what is no markup stays as written. */
     fun parse(text: String): List<Block> = BlockReader(text.replace("\r\n", "\n").split('\n')).read()
 
+    /** [block] as it reads, without its marks: a list item to a line, code as written, nothing for a rule. */
+    fun plainText(block: Block): String = when (block) {
+        is Block.Heading -> plainText(block.text)
+        is Block.Paragraph -> plainText(block.text)
+        is Block.Quote -> plainText(block.text)
+        is Block.Bullets -> block.items.joinToString("\n") { plainText(it.text) }
+        is Block.Numbered -> block.items.joinToString("\n") { plainText(it.text) }
+        is Block.Code -> block.text
+        Block.Rule -> ""
+    }
+
     /** [parts] as they read, without their marks. */
     fun plainText(parts: List<Inline>): String = parts.joinToString("") { part ->
         when (part) {

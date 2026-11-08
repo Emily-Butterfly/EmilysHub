@@ -34,6 +34,7 @@ interface AppointmentDao {
     @Query("SELECT patient_id, MAX(date) AS last_seen FROM appointment WHERE date <= :today GROUP BY patient_id")
     suspend fun lastSeen(today: LocalDate): Map<@MapColumn("patient_id") Long, @MapColumn("last_seen") LocalDate>
 
+    /** Deletes appointment [id]. */
     @Query("DELETE FROM appointment WHERE id = :id")
     suspend fun delete(id: Long)
 }

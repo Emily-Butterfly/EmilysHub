@@ -78,15 +78,18 @@ class Appointments(private val doku: Doku, private val patients: Patients, priva
     /** What the editor has typed for the template, to be written as the Doku locks ([DokuSaver]). */
     fun pendingTemplate(text: String): suspend (DokuDatabase) -> Unit = { writeTemplate(it, text) }
 
+    /** Sets the text of appointment [id] to [text], cleaned; a closed patient's is only to read. */
     private suspend fun writeText(database: DokuDatabase, id: Long, text: String) {
         val appointment = changeable(database, id) ?: return
         database.appointments().update(appointment.copy(text = InputText.multiLine(text)))
     }
 
+    /** Sets the template to [text], cleaned. */
     private suspend fun writeTemplate(database: DokuDatabase, text: String) {
         database.settings().put(DokuSetting(TEMPLATE, InputText.multiLine(text)))
     }
 
+    /** Changes appointment [id] as [change] has it; a closed patient's is only to read. */
     private suspend fun change(id: Long, change: (Appointment) -> Appointment) {
         patients.changing { database -> changeable(database, id)?.let { database.appointments().update(change(it)) } }
     }

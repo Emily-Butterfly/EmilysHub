@@ -64,7 +64,7 @@ internal fun DateValue(label: String, date: LocalDate, onClick: () -> Unit) {
 /** Typing the time is quicker than a clock dial: four digits, always on the 24-hour clock. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDismiss: () -> Unit) {
+internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -76,6 +76,7 @@ internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDi
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
+        modifier = modifier,
     )
 }
 
@@ -84,6 +85,7 @@ internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDi
 @Composable
 internal fun DateDialog(
     initial: LocalDate,
+    modifier: Modifier = Modifier,
     earliest: LocalDate? = null,
     latest: LocalDate? = null,
     onConfirm: (LocalDate) -> Unit,
@@ -108,6 +110,7 @@ internal fun DateDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
+        modifier = modifier,
     ) {
         DatePicker(state)
     }

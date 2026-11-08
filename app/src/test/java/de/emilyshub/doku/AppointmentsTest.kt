@@ -123,6 +123,12 @@ class AppointmentsTest {
     }
 
     @Test
+    fun `the preview reads code as written, not as Markdown`() {
+        assertEquals("# kein Titel", previewOf("# Befund\n```\n\n# kein Titel\n- x\n```"))
+        assertEquals("- x", previewOf("```\n- x\n```"))
+    }
+
+    @Test
     fun `the preview of headings alone is the first, and of nothing none`() {
         assertEquals("Befund", previewOf("# Befund\n\n## Maßnahmen\n"))
         assertNull(previewOf(""))
