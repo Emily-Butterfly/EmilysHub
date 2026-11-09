@@ -418,18 +418,24 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
 private fun NumberAnswer(item: NumberItem, answer: Answer.Number?, enabled: Boolean, onAnswer: (Answer?) -> Unit) {
     // Not saveable, as all that is typed in the Doku.
     var typed by remember { mutableStateOf(answer?.hundredths?.let(TestNumber::typed).orEmpty()) }
-    val invalid = typed.isNotBlank() && TestNumber.parse(typed, item.decimals) == null
+    // Out of its range, such as more days than three months have, it is no answer.
+    fun parsed(text: String) = TestNumber.parse(text, item.decimals)?.takeIf(item::accepts)
+    val invalid = typed.isNotBlank() && parsed(typed) == null
     OutlinedTextField(
         value = typed,
         onValueChange = {
             typed = it
-            onAnswer(TestNumber.parse(it, item.decimals)?.let(Answer::Number))
+            onAnswer(parsed(it)?.let(Answer::Number))
         },
         label = { Text(if (item.unit.isEmpty()) item.text else "${item.text} (${item.unit})") },
         singleLine = true,
         enabled = enabled,
         isError = invalid,
-        supportingText = if (invalid) ({ Text(stringResource(R.string.doku_assessment_number_invalid)) }) else null,
+        supportingText = if (invalid) {
+            { Text(item.max?.let { stringResource(R.string.doku_assessment_number_out_of_range, it) } ?: stringResource(R.string.doku_assessment_number_invalid)) }
+        } else {
+            null
+        },
         keyboardOptions = KeyboardOptions(keyboardType = if (item.decimals) KeyboardType.Decimal else KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
     )

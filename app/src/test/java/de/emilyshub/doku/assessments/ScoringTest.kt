@@ -313,4 +313,61 @@ class ScoringTest {
     fun `a score of others is not divided`() {
         Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("ab"), direction = Direction.LowerIsBetter, divisor = 2)
     }
+
+    @Test
+    fun `a number with a most counts as its points, whole and within 0 and that most`() {
+        val days = NumberItem("t", "Tage", max = 90)
+        val form = form(Score("tage", "Tage", listOf("t"), direction = Direction.LowerIsBetter), items = listOf(days, NumberItem("x", "Sonst")))
+
+        assertEquals(1200L, value(form, mapOf("t" to Answer.Number(1200))))
+        assertEquals(null, value(form, mapOf("t" to Answer.Number(9100))))
+        assertEquals(null, value(form, mapOf("t" to Answer.Number(-100))))
+        assertEquals(null, value(form, mapOf("t" to Answer.Number(150))))
+        assertEquals(0L..9000L, Scoring.range(form, form.scores.single()))
+        assertEquals(true, days.accepts(9000) && !days.accepts(9100) && !days.accepts(-100))
+        assertEquals(true, NumberItem("x", "Sonst").accepts(-12345))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a number without a most counts in no score`() {
+        form(Score("x", "x", listOf("x"), direction = Direction.LowerIsBetter), items = listOf(NumberItem("x", "Sonst")))
+    }
+
+    private val sum = Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.LowerIsBetter)
+    private val ab = Score("ab", "a und b", listOf("a", "b"), direction = Direction.LowerIsBetter, divisor = 3)
+
+    @Test
+    fun `a grade is the first whose bounds on the scores before it hold`() {
+        val grade = Score(
+            "grad", "Grad", emptyList(), direction = Direction.LowerIsBetter,
+            grades = listOf(Grade(1, Bound("sum", below = 400)), Grade(2, Bound("ab", below = 150)), Grade(3)),
+        )
+        val form = form(sum, ab, grade)
+
+        assertEquals(100L, Scoring.results(form, chosen("a" to "1", "b" to "1", "c" to "1")).last().value)
+        // 1 + 2 + 3 = 6, not below 4; (1 + 2) / 3 = 1, below 1,5.
+        assertEquals(200L, Scoring.results(form, chosen("a" to "1", "b" to "2", "c" to "3")).last().value)
+        assertEquals(300L, Scoring.results(form, chosen("a" to "3", "b" to "3", "c" to "3")).last().value)
+        assertEquals(null, Scoring.results(form, chosen("a" to "1", "b" to "1")).last().value)
+        assertEquals(100L..300L, Scoring.range(form, grade))
+    }
+
+    @Test
+    fun `a grade compares the exact value, not the rounded one`() {
+        // (1 + 1) / 3 is 0,666…, below 0,67, though shown rounded as 0,67.
+        val grade = Score("grad", "Grad", emptyList(), direction = Direction.LowerIsBetter, grades = listOf(Grade(0, Bound("ab", below = 67)), Grade(1)))
+        val form = form(ab, grade)
+
+        assertEquals(listOf(67L, 0L), Scoring.results(form, chosen("a" to "1", "b" to "1")).map(ScoreResult::value))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a grade counts only scores before it`() {
+        form(Score("grad", "Grad", emptyList(), direction = Direction.LowerIsBetter, grades = listOf(Grade(1, Bound("sum", below = 1)))), sum)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a grade does not count items too`() {
+        Score("grad", "Grad", listOf("a"), direction = Direction.LowerIsBetter, grades = listOf(Grade(1)))
+    }
 }

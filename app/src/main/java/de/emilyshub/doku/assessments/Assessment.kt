@@ -47,6 +47,7 @@ data class Assessment(
             }
             val before = scores.takeWhile { it !== score }.map(Score::id)
             require(score.sumOf.all { it in before }) { "$id: score ${score.id} adds up scores that do not come before it" }
+            require(score.grades.flatMap(Grade::bounds).all { it.scoreId in before }) { "$id: score ${score.id} grades by scores that do not come before it" }
         }
         items.forEach { item ->
             val options = (item as? ChoiceItem)?.options ?: (item as? ChecklistItem)?.options.orEmpty()
@@ -162,14 +163,27 @@ data class ChecklistItem(
     override val scorable: Boolean get() = scored
 }
 
-/** A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. */
+/**
+ * A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. With a [max], such as the days of
+ * three months, a whole number from 0 up to it, which a score counts as its points.
+ */
 data class NumberItem(
     override val id: String,
     override val text: String,
     val unit: String = "",
     val decimals: Boolean = false,
+    val max: Int? = null,
     override val showIf: Condition? = null,
-) : Item
+) : Item {
+    override val scorable: Boolean get() = max != null
+
+    /** Whether [hundredths] may be answered: any number, or with a [max], a whole one from 0 up to it. */
+    fun accepts(hundredths: Long): Boolean = max == null || hundredths % 100 == 0L && hundredths in 0..max * 100L
+
+    init {
+        require(max == null || max >= 1 && !decimals) { "$id: a number counted as points is whole, up to a positive most" }
+    }
+}
 
 /** Something in words. */
 data class TextItem(
@@ -215,7 +229,8 @@ enum class BodyRegion(val id: String, val label: String) {
  * A result of a form, such as its sum or a subscale: by [rule] over the points of [items], divided by [divisor], in [unit],
  * better the [direction] way, its [bands] naming where it lies. Reckoned once [minAnswered] of its items are answered, all
  * of them unless the original allows fewer. Or, with no items, the sum of the scores before it that [sumOf] names, such as
- * a total of pain and function, once each of them has a value.
+ * a total of pain and function, once each of them has a value; or the value of the first of [grades] whose bounds on the
+ * scores before it hold, such as the GCPS's grade from its pain and its impairment, once each score it bounds has a value.
  */
 data class Score(
     val id: String,
@@ -231,13 +246,31 @@ data class Score(
     val divisor: Int = 1,
     /** The ids of the scores before it whose values it adds up, in place of items. */
     val sumOf: List<String> = emptyList(),
+    /** The grades it takes by the scores before it, in place of items: the first that holds, so the last mostly without bounds. */
+    val grades: List<Grade> = emptyList(),
 ) {
     init {
-        require(items.isEmpty() != sumOf.isEmpty()) { "$id: a score counts either items or other scores" }
-        require(sumOf.isNotEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
-        require(sumOf.isEmpty() || rule == ScoreRule.Sum && divisor == 1) { "$id: other scores are only added up, not divided" }
+        require(listOf(items, sumOf, grades).count(List<*>::isNotEmpty) == 1) { "$id: a score counts either items, other scores or grades" }
+        require(items.isEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
+        require(items.isNotEmpty() || rule == ScoreRule.Sum && divisor == 1) { "$id: other scores are only added up or graded, not divided" }
         require(divisor >= 1) { "$id: the divisor must be positive" }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
+    }
+}
+
+/** A grade of [value] that a score takes once all its [bounds] hold, such as the GCPS's grade II. */
+data class Grade(val value: Int, val bounds: List<Bound>) {
+    constructor(value: Int, vararg bounds: Bound) : this(value, bounds.toList())
+}
+
+/**
+ * That the exact value of score [scoreId] lies [from] and [below] the bounds given, in hundredths, such as the GCPS's
+ * "< 50 Schmerzintensität": from included, below not, without rounding first.
+ */
+data class Bound(val scoreId: String, val from: Long? = null, val below: Long? = null) {
+    init {
+        require(from != null || below != null) { "$scoreId: a bound bounds" }
+        require(from == null || below == null || from < below) { "$scoreId: a bound must leave room" }
     }
 }
 

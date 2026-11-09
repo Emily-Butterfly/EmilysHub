@@ -14,16 +14,28 @@ object Scoring {
         val shown = visible(form, answers).map(Item::id).toSet()
         val exact = mutableMapOf<String, Fraction?>()
         return form.scores.map { score ->
-            val fraction = if (score.sumOf.isNotEmpty()) {
-                val parts = score.sumOf.map { exact[it] }
-                if (null in parts) null else parts.filterNotNull().reduce(Fraction::plus)
-            } else {
-                value(form, score, answers.filterKeys { it in shown }, shown)
+            val fraction = when {
+                score.sumOf.isNotEmpty() -> {
+                    val parts = score.sumOf.map { exact[it] }
+                    if (null in parts) null else parts.filterNotNull().reduce(Fraction::plus)
+                }
+                score.grades.isNotEmpty() -> grade(score, exact)
+                else -> value(form, score, answers.filterKeys { it in shown }, shown)
             }?.let { Fraction(it.numerator, it.denominator * score.divisor) }
             exact[score.id] = fraction
             ScoreResult(score, fraction?.hundredths())
         }
     }
+
+    /** The value of the first grade of [score] whose bounds hold of the [exact] values before it; none while one it bounds has none. */
+    private fun grade(score: Score, exact: Map<String, Fraction?>): Fraction? {
+        if (score.grades.flatMap(Grade::bounds).any { exact[it.scoreId] == null }) return null
+        return score.grades.firstOrNull { grade -> grade.bounds.all { it.holds(checkNotNull(exact[it.scoreId])) } }?.let { Fraction(it.value.toLong(), 1) }
+    }
+
+    /** Whether [value] lies within this bound. */
+    private fun Bound.holds(value: Fraction): Boolean =
+        (from == null || value.compareTo(Fraction(from, HUNDRED)) >= 0) && (below == null || value.compareTo(Fraction(below, HUNDRED)) < 0)
 
     /** Whether [form] reaches a result with nothing answered, as one counting what is ticked, nothing being 0. */
     fun reachesResultUnanswered(form: Assessment): Boolean = results(form, emptyMap()).any { it.value != null }
@@ -60,6 +72,7 @@ object Scoring {
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange {
+        if (score.grades.isNotEmpty()) return score.grades.minOf(Grade::value) * HUNDRED..score.grades.maxOf(Grade::value) * HUNDRED
         if (score.sumOf.isNotEmpty()) {
             val parts = score.sumOf.map { id -> range(form, form.scores.single { it.id == id }) }
             return parts.sumOf { it.first }..parts.sumOf { it.last }
@@ -145,6 +158,7 @@ object Scoring {
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
             }
+            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.max != null && item.accepts(it) }?.let { (it / HUNDRED).toInt() }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null
@@ -156,6 +170,7 @@ object Scoring {
         is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
+        is NumberItem -> item.max?.let { 0L to it.toLong() }
         is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
         else -> null
     }
@@ -170,6 +185,9 @@ object Scoring {
     /** A value as it is, [numerator] over [denominator], to be rounded once at the end. */
     private data class Fraction(val numerator: Long, val denominator: Long) {
         operator fun plus(other: Fraction) = Fraction(numerator * other.denominator + other.numerator * denominator, denominator * other.denominator)
+
+        /** Below 0 if less than [other], 0 if as much, else above; denominators are positive. */
+        operator fun compareTo(other: Fraction): Int = (numerator * other.denominator).compareTo(other.numerator * denominator)
 
         /** In hundredths, rounded half away from zero. */
         fun hundredths(): Long {
