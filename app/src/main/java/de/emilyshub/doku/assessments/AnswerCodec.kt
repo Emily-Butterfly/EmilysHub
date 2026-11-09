@@ -22,6 +22,10 @@ object AnswerCodec {
         is Answer.Regions -> answer.text.trim().let { text ->
             if (answer.regions.isEmpty() && text.isEmpty()) null else StoredAnswer(REGIONS + answer.regions.sorted().joinToString(",") { it.id }, text)
         }
+        // A line of words each, in the order of the levels; a goal without words or level is none.
+        is Answer.Goals -> answer.goals.map { it.copy(text = it.text.replace('\n', ' ').trim()) }.filter { it.text.isNotEmpty() || it.level != null }
+            .takeIf(List<Goal>::isNotEmpty)
+            ?.let { goals -> StoredAnswer(GOALS + goals.joinToString(",") { it.level?.toString().orEmpty() }, goals.joinToString("\n", transform = Goal::text)) }
     }
 
     /** The answer [stored] holds; none for one of a kind this version does not know. */
@@ -41,6 +45,15 @@ object AnswerCodec {
             CHECKED -> Answer.Checked(ids(), stored.text)
             TEXT -> Answer.Text(stored.text)
             REGIONS -> Answer.Regions(ids().mapNotNull(BodyRegion::of).toSet(), stored.text)
+            GOALS -> {
+                val levels = rest.split(',')
+                val texts = stored.text.split('\n')
+                if (levels.size != texts.size || levels.any { it.isNotEmpty() && it.toIntOrNull() == null }) {
+                    null
+                } else {
+                    Answer.Goals(texts.zip(levels) { text, level -> Goal(text, level.toIntOrNull()) })
+                }
+            }
             else -> null
         }
     }
@@ -52,4 +65,5 @@ object AnswerCodec {
     private const val CHECKED = "k:"
     private const val TEXT = "t:"
     private const val REGIONS = "r:"
+    private const val GOALS = "g:"
 }

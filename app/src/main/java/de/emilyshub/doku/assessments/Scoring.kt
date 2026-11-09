@@ -54,7 +54,7 @@ object Scoring {
         // Conditions point back to items before, as in the original, so that one pass settles them.
         return form.items.filter { item ->
             val condition = item.showIf
-            val show = condition == null || (condition.itemId in shown && holds(condition, answers[condition.itemId]))
+            val show = condition == null || condition.alternatives.any { it.itemId in shown && holds(it, answers[it.itemId]) }
             if (show) shown += item.id
             show
         }
@@ -76,6 +76,7 @@ object Scoring {
         is NumberItem -> answer is Answer.Number
         is TextItem -> answer is Answer.Text
         is BodyRegionsItem -> answer is Answer.Regions
+        is GoalsItem -> answer is Answer.Goals
     }
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
@@ -90,16 +91,21 @@ object Scoring {
             fun hundredths(tenThousandths: Long) = Fraction(tenThousandths + score.constant * HUNDRED, HUNDRED * HUNDRED).hundredths()
             return hundredths(parts.sumOf { it.first })..hundredths(parts.sumOf { it.last })
         }
+        if (score.rule == ScoreRule.GoalT) return goalT(-GOAL_T_LIMIT)..goalT(GOAL_T_LIMIT)
         val items = score.items.map { checkNotNull(form.item(it)) }
         val ranges = items.map { checkNotNull(range(it)) }
         val range = when (score.rule) {
             ScoreRule.Sum -> {
-                val counted = alternativesOnce(form, items.zip(ranges))
+                // Of each pair the worse: the lesser least and the lesser most.
+                val paired = score.worseOf.flatten().toSet()
+                val pairs = score.worseOf.map { pair -> pair.map { checkNotNull(range(checkNotNull(form.item(it)))) }.let { (a, b) -> minOf(a.first, b.first) to minOf(a.second, b.second) } }
+                val counted = alternativesOnce(form, items.zip(ranges).filter { (item, _) -> item.id !in paired }) + pairs
                 counted.sumOf { it.first } * HUNDRED..counted.sumOf { it.second } * HUNDRED
             }
             ScoreRule.MeanFilled -> ranges.sumOf { it.first } * HUNDRED..ranges.sumOf { it.second } * HUNDRED
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
             ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll -> 0L..HUNDRED * HUNDRED
+            ScoreRule.GoalT -> error("reckoned before")
         }
         val by = HUNDRED * score.divisor
         return Fraction(range.first, by).hundredths()..Fraction(range.last, by).hundredths()
@@ -134,6 +140,8 @@ object Scoring {
             answer?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
+        if (score.rule == ScoreRule.GoalT) return goals(answers[score.items.single()])
+        if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers)
         val answered = answered(score.items)
         // With optional items, all the others are needed, which minAnswered then is not.
         val required = score.items - score.optional.toSet()
@@ -151,8 +159,32 @@ object Scoring {
                 Fraction((sum + (all.sumOf { it.first } - least)) * HUNDRED, all.sumOf { it.second })
             }
             ScoreRule.MeanFilled -> error("reckoned by section")
+            ScoreRule.GoalT -> error("reckoned by its goals")
         }.takeIf { it.denominator != 0L }
     }
+
+    /** The sum of [score] of [form], each of its pairs counted by the one with fewer points; none while any of its items is unanswered. */
+    private fun worseOf(form: Assessment, score: Score, answers: Map<String, Answer>): Fraction? {
+        val points = score.items.associateWith { id -> answers[id]?.let { points(checkNotNull(form.item(id)), it) } ?: return null }
+        val paired = score.worseOf.flatten().toSet()
+        return Fraction(points.filterKeys { it !in paired }.values.sum() + score.worseOf.sumOf { pair -> pair.minOf { points.getValue(it) } }, 1)
+    }
+
+    /**
+     * The T-score of the goals of [answer], each rated; none without a goal or while one is unrated. A goal without words
+     * or level is none, as it is stored ([AnswerCodec]).
+     */
+    private fun goals(answer: Answer?): Fraction? {
+        val levels = (answer as? Answer.Goals)?.goals?.filter { it.text.isNotBlank() || it.level != null }?.map { it.level ?: return null }?.takeIf(List<Int>::isNotEmpty) ?: return null
+        val n = levels.size.toDouble()
+        return Fraction(goalT(10.0 * levels.sum() / Math.sqrt(0.7 * n + 0.3 * n * n)), HUNDRED)
+    }
+
+    /** 50 plus [deviation], in hundredths, rounded half away from zero; a root is no fraction, so reckoned as a double. */
+    private fun goalT(deviation: Double): Long = Math.round(Math.abs(50 + deviation) * HUNDRED) * (if (50 + deviation < 0) -1 else 1)
+
+    /** How far a T-score may lie from 50: of ever more goals, all at ±2, 20 / √0,3. */
+    private val GOAL_T_LIMIT = 20 / Math.sqrt(0.3)
 
     /** [score] filled up by the mean of each section of [form]'s items: the sum of each section times its items over those answered. */
     private fun meanFilled(form: Assessment, score: Score, answered: (List<String>) -> List<Pair<Long, Pair<Long, Long>>>): Fraction? {

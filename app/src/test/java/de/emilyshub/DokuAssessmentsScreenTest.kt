@@ -147,6 +147,44 @@ class DokuAssessmentsScreenTest {
     }
 
     @Test
+    fun `the GAS takes goals named for the patient, each rated, and reckons their T-score`() {
+        launchApp().use {
+            val patient = compose.openWithPatient()
+            val at = appointment(patient, "2026-10-23")
+            compose.openTab("Termine")
+            compose.onNodeWithText("(leer)").performClick()
+
+            compose.addForm()
+            compose.field("Bogen suchen").performTextInput("gas")
+            compose.onNodeWithText("Goal Attainment Scale").performClick()
+
+            compose.field("Ziel 1").performScrollTo().performTextInput("Treppe steigen")
+            compose.onNode(hasText("0 Ziel erreicht") and hasClickAction()).performScrollTo().performClick()
+            compose.onNode(hasText("T-Wert: 50")).performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("+ Ziel").performScrollTo().performClick()
+            compose.onNode(hasText("T-Wert: 50")).performScrollTo().assertIsDisplayed()
+            compose.field("Ziel 2").performScrollTo().performTextInput("Allein einkaufen")
+            compose.onNode(hasText("Ergebnis: –")).performScrollTo().assertIsDisplayed()
+            compose.onAllNodes(hasText("+2 Ziel deutlich übertroffen") and hasClickAction())[1].performScrollTo().performClick()
+            // 50 + 10 * 2 / sqrt(0,7 * 2 + 0,3 * 4)
+            compose.onNode(hasText("T-Wert: 62,4")).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Fertig").performClick()
+
+            compose.waitForIdle()
+            val filled = runBlocking { checkNotNull(app.assessments.at(at)) }.single()
+            assertEquals(
+                mapOf("ziele" to Answer.Goals(listOf(de.emilyshub.doku.assessments.Goal("Treppe steigen", 0), de.emilyshub.doku.assessments.Goal("Allein einkaufen", 2)))),
+                filled.answers,
+            )
+            compose.onNodeWithText("Goal Attainment Scale").performScrollTo().performClick()
+            compose.field("Ziel 2").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription("Ziel 2 entfernen").performScrollTo().performClick()
+            compose.onNode(hasText("T-Wert: 50")).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `a form chosen and left empty goes again`() {
         launchApp().use {
             val patient = compose.openWithPatient()

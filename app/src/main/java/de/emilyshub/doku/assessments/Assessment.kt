@@ -40,6 +40,8 @@ data class Assessment(
             }
             score.items.forEach { itemId ->
                 require(item(itemId)?.scorable == true) { "$id: score ${score.id} counts $itemId, which has no points" }
+                // A T-score's goals and its rule come only together.
+                require((item(itemId) is GoalsItem) == (score.rule == ScoreRule.GoalT)) { "$id: score ${score.id}: goals are counted by a T-score alone" }
             }
             // Filled up by section, it needs half of each section, not a number of its own.
             require(score.rule != ScoreRule.MeanFilled || score.minAnswered == score.items.size) {
@@ -54,7 +56,7 @@ data class Assessment(
             require(options.map(Option::id).let { ids -> ids.size == ids.toSet().size && ids.none { ',' in it || it.isEmpty() } }) {
                 "$id: ${item.id} needs option ids of its own, without commas"
             }
-            item.showIf?.let { require(item(it.itemId) != null) { "$id: ${item.id} depends on unknown ${it.itemId}" } }
+            item.showIf?.alternatives?.forEach { require(item(it.itemId) != null) { "$id: ${item.id} depends on unknown ${it.itemId}" } }
         }
     }
 }
@@ -81,8 +83,17 @@ data class Section(val title: String? = null, val hint: String = "", val items: 
  */
 data class Option(val id: String, val label: String, val points: Int = 0, val exclusive: Boolean = false, val notApplicable: Boolean = false)
 
-/** That an item shows only once item [itemId] is answered with one of [values]: option ids, or [YES] for a yes. */
-data class Condition(val itemId: String, val values: Set<String>) {
+/**
+ * That an item shows only once item [itemId] is answered with one of [values]: option ids, or [YES] for a yes; or, if
+ * given, once [orElse] holds, such as "Falls eine oder beide Fragen mit „Ja“ beantwortet werden".
+ */
+data class Condition(val itemId: String, val values: Set<String>, val orElse: Condition? = null) {
+    /** This one and each it may hold in place of. */
+    val alternatives: List<Condition> get() = generateSequence(this, Condition::orElse).toList()
+
+    /** Holds once this or [other] holds. */
+    infix fun or(other: Condition): Condition = copy(orElse = orElse?.or(other) ?: other)
+
     companion object {
         const val YES = "ja"
 
@@ -196,6 +207,25 @@ data class TextItem(
 ) : Item
 
 /**
+ * Goals named freely, as many as set for the patient, each rated at one of [levels], such as the GAS's "-2 Schlechter" to
+ * "+2 Ziel deutlich übertroffen", their points the level; [goalLabel] names one, such as "Ziel". Only a [ScoreRule.GoalT]
+ * counts them.
+ */
+data class GoalsItem(
+    override val id: String,
+    override val text: String,
+    val goalLabel: String,
+    val levels: List<Option>,
+    override val showIf: Condition? = null,
+) : Item {
+    override val scorable: Boolean get() = true
+
+    init {
+        require(levels.isNotEmpty() && levels.map(Option::points).toSet().size == levels.size) { "$id: levels of points of their own" }
+    }
+}
+
+/**
  * Where it hurts, as [BodyRegion]s to check, and in words; in place of "bitte einzeichnen". The [regions] to offer, in
  * their order: those of the body unless the form asks of others, such as those of the jaw.
  */
@@ -291,6 +321,8 @@ data class Score(
     val optional: List<String> = emptyList(),
     /** The grades it takes by the scores before it, in place of items: the first that holds, the last without bounds. */
     val grades: List<Grade> = emptyList(),
+    /** Pairs of its items of which a sum counts only the one with fewer points, such as the Mini-BESTest's two sides. */
+    val worseOf: List<List<String>> = emptyList(),
 ) {
     init {
         require(listOf(items, sumOf, grades).count(List<*>::isNotEmpty) == 1) { "$id: a score counts either items, other scores or grades" }
@@ -305,6 +337,11 @@ data class Score(
             "$id: optional items are among its items, of a sum that needs all the others"
         }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
+        require(
+            worseOf.all { it.size == 2 && it.toSet().size == 2 && items.containsAll(it) } && worseOf.flatten().let { it.size == it.toSet().size } &&
+                (worseOf.isEmpty() || rule == ScoreRule.Sum && minAnswered == items.size && optional.isEmpty()),
+        ) { "$id: pairs of its own items, apart, of a sum that needs them all" }
+        require(rule != ScoreRule.GoalT || items.size == 1 && divisor == 1) { "$id: a T-score counts one item of goals" }
     }
 }
 
@@ -351,6 +388,12 @@ enum class ScoreRule {
      * section's items are answered: the PRTEE's "Mittelwert der entsprechenden Kategorie" (09.11.2026).
      */
     MeanFilled,
+
+    /**
+     * The T-score of the goals rated, each as much as the others: 50 + 10 · Σx / √(0,7 · n + 0,3 · n²), after Kiresuk and
+     * Sherman with ρ = 0,3 (09.11.2026), once at least one goal is set and each is rated.
+     */
+    GoalT,
 }
 
 /** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */

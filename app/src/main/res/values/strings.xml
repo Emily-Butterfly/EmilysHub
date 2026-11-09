@@ -994,6 +994,9 @@
     <string name="doku_assessment_no">nein</string>
     <string name="doku_assessment_other">%1$s (Freitext)</string>
     <string name="doku_assessment_regions_text">Wo noch? (Freitext)</string>
+    <string name="doku_assessment_goal">%1$s %2$d</string>
+    <string name="doku_assessment_goal_add">+ %1$s</string>
+    <string name="doku_assessment_goal_remove">%1$s entfernen</string>
     <string name="doku_assessment_number_invalid">Keine Zahl, oder zu viele Nachkommastellen</string>
     <string name="doku_assessment_number_out_of_range">Eine ganze Zahl von 0 bis %1$d</string>
     <string name="doku_assessment_orphans">Nicht mehr im Bogen</string>

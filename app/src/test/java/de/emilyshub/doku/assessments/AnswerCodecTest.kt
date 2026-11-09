@@ -17,6 +17,8 @@ class AnswerCodecTest {
         Answer.Number(-1250),
         Answer.Text("seit März, zeilen\nweise"),
         Answer.Regions(setOf(BodyRegion.KneeLeft, BodyRegion.LumbarSpine), "Leiste"),
+        Answer.Goals(listOf(Goal("Treppe mit Geländer", 1), Goal("Allein einkaufen", null), Goal("", -2))),
+        Answer.Goals(listOf(Goal("Nur eins", null))),
     )
 
     @Test
@@ -26,7 +28,7 @@ class AnswerCodecTest {
 
     @Test
     fun `nothing answered is stored as nothing`() {
-        listOf(Answer.Checked(emptySet()), Answer.Text(""), Answer.Text("   "), Answer.Regions(emptySet())).forEach {
+        listOf(Answer.Checked(emptySet()), Answer.Text(""), Answer.Text("   "), Answer.Regions(emptySet()), Answer.Goals(emptyList()), Answer.Goals(listOf(Goal("  ", null)))).forEach {
             assertNull(it.toString(), AnswerCodec.encode(it))
         }
     }
@@ -41,5 +43,14 @@ class AnswerCodecTest {
     fun `only words are what the search reads`() {
         assertEquals("beim Bücken", AnswerCodec.encode(Answer.Checked(setOf("ruhe"), "beim Bücken"))?.text)
         assertEquals("", AnswerCodec.encode(Answer.Chosen("2"))?.text)
+    }
+
+    @Test
+    fun `goals keep their order, their words on one line each, which the search reads, and drop those left empty`() {
+        val stored = checkNotNull(AnswerCodec.encode(Answer.Goals(listOf(Goal(" Gehen\nohne Stock ", 2), Goal("", null), Goal("Treppe", -1)))))
+
+        assertEquals("Gehen ohne Stock\nTreppe", stored.text)
+        assertEquals(Answer.Goals(listOf(Goal("Gehen ohne Stock", 2), Goal("Treppe", -1))), AnswerCodec.decode(stored))
+        assertNull(AnswerCodec.decode(StoredAnswer("g:1,2", "nur eins")))
     }
 }

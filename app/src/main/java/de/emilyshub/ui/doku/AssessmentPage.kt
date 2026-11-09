@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -71,6 +72,8 @@ import de.emilyshub.doku.assessments.BodyRegionsItem
 import de.emilyshub.doku.assessments.BuiltInAssessments
 import de.emilyshub.doku.assessments.ChecklistItem
 import de.emilyshub.doku.assessments.ChoiceItem
+import de.emilyshub.doku.assessments.Goal
+import de.emilyshub.doku.assessments.GoalsItem
 import de.emilyshub.doku.assessments.Item
 import de.emilyshub.doku.assessments.NumberItem
 import de.emilyshub.doku.assessments.ScaleItem
@@ -409,7 +412,52 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
                 }
                 WordsField(stringResource(R.string.doku_assessment_regions_text), regions.text, enabled, onChange = { answerWith(regions.copy(text = it).orNone()) })
             }
+            is GoalsItem -> GoalsAnswer(item, answer as? Answer.Goals, enabled, answerWith)
         }
+    }
+}
+
+/**
+ * Goals named and rated, one after the other, with "+ Ziel" for one more and a cross to take one away; kept as typed,
+ * empty ones too, while the answer holds only those with words or a level.
+ */
+@Composable
+private fun GoalsAnswer(item: GoalsItem, answer: Answer.Goals?, enabled: Boolean, onAnswer: (Answer?) -> Unit) {
+    // Not saveable, as all that is typed in the Doku.
+    var goals by remember { mutableStateOf(answer?.goals?.ifEmpty { null } ?: listOf(Goal(""))) }
+    fun change(changed: List<Goal>) {
+        goals = changed
+        onAnswer(Answer.Goals(changed).orNone())
+    }
+    goals.forEachIndexed { i, goal ->
+        val name = stringResource(R.string.doku_assessment_goal, item.goalLabel, i + 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = goal.text,
+                onValueChange = { text -> change(goals.toMutableList().also { it[i] = goal.copy(text = text.replace('\n', ' ')) }) },
+                label = { Text(name) },
+                enabled = enabled,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.weight(1f),
+            )
+            if (enabled && goals.size > 1) {
+                IconButton(onClick = { change(goals.toMutableList().also { it.removeAt(i) }) }) {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.doku_assessment_goal_remove, name))
+                }
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            item.levels.forEach { level ->
+                val chosen = goal.level == level.points
+                Chip(level.label, chosen = chosen, enabled = enabled, onClick = {
+                    change(goals.toMutableList().also { it[i] = goal.copy(level = if (chosen) null else level.points) })
+                })
+            }
+        }
+    }
+    if (enabled) {
+        TextButton(onClick = { change(goals + Goal("")) }) { Text(stringResource(R.string.doku_assessment_goal_add, item.goalLabel)) }
     }
 }
 
@@ -501,6 +549,7 @@ private fun answerText(answer: Answer): String = when (answer) {
     is Answer.Number -> TestNumber.format(answer.hundredths)
     is Answer.Text -> answer.text
     is Answer.Regions -> (answer.regions.map(BodyRegion::label) + listOfNotNull(answer.text.ifEmpty { null })).joinToString(", ")
+    is Answer.Goals -> answer.goals.joinToString("; ") { goal -> listOfNotNull(goal.text.ifEmpty { null }, goal.level?.let { "%+d".format(it) }).joinToString(" ") }
 }
 
 /** The three dots of a form, with "Löschen". */

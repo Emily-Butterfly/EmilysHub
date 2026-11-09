@@ -416,4 +416,63 @@ class ScoringTest {
         assertEquals(1200L, value(form, mapOf("n" to Answer.Number(400))))
         assertEquals(0L..3000L, Scoring.range(form, form.scores.single()))
     }
+
+    @Test
+    fun `an item may show once either of two conditions holds`() {
+        val items = listOf(YesNoItem("a", "A?"), YesNoItem("b", "B?"), TextItem("c", "Welche?", showIf = Condition.ifYes("a") or Condition.ifYes("b")))
+        val form = form(items = items)
+        fun shown(vararg yes: Pair<String, Boolean>) = Scoring.visible(form, yes.associate { (id, v) -> id to Answer.YesNo(v) }).map(Item::id)
+
+        assertEquals(listOf("a", "b"), shown())
+        assertEquals(listOf("a", "b"), shown("a" to false, "b" to false))
+        assertEquals(listOf("a", "b", "c"), shown("a" to true))
+        assertEquals(listOf("a", "b", "c"), shown("a" to false, "b" to true))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `either condition must name an item of the form`() {
+        form(items = listOf(YesNoItem("a", "A?"), TextItem("c", "Welche?", showIf = Condition.ifYes("a") or Condition.ifYes("x"))))
+    }
+
+    @Test
+    fun `a sum may count of each pair only the worse, such as the Mini-BESTest's sides`() {
+        val score = Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.HigherIsBetter, worseOf = listOf(listOf("b", "c")))
+        val form = form(score)
+
+        // 2 + the worse of 3 and 1.
+        assertEquals(300L, value(form, chosen("a" to "2", "b" to "3", "c" to "1")))
+        assertEquals(500L, value(form, chosen("a" to "2", "b" to "3", "c" to "3")))
+        assertEquals(null, value(form, chosen("a" to "2", "b" to "3")))
+        assertEquals(0L..600L, Scoring.range(form, score))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `the worse of a pair is of the score's own items`() {
+        Score("sum", "Summe", listOf("a", "b"), direction = Direction.HigherIsBetter, worseOf = listOf(listOf("b", "c")))
+    }
+
+    @Test
+    fun `goals rated -2 to +2 make a T-score of 50 plus 10 times their sum over the root of 0,7 n plus 0,3 n squared`() {
+        val goals = GoalsItem("ziele", "Ziele", "Ziel", numbered("-2", "-1", "0", "+1", "+2").map { it.copy(points = it.points - 2) })
+        val score = Score("t", "T-Wert", listOf("ziele"), rule = ScoreRule.GoalT, direction = Direction.HigherIsBetter)
+        val form = form(score, items = listOf(goals))
+        fun t(vararg levels: Int?) = value(form, mapOf("ziele" to Answer.Goals(levels.mapIndexed { i, level -> Goal("Ziel $i", level) })))
+
+        assertEquals(5000L, t(0))
+        assertEquals(7000L, t(2))
+        assertEquals(3000L, t(-2))
+        // 50 + 10 * 3 / sqrt(0,7 * 3 + 0,3 * 9) = 50 + 30 / sqrt(4,8) = 63,69…
+        assertEquals(6369L, t(2, 1, 0))
+        assertEquals(5000L, t(2, -2))
+        assertEquals(null, t(2, null))
+        assertEquals(7000L, value(form, mapOf("ziele" to Answer.Goals(listOf(Goal("Gehen", 2), Goal(" ", null))))))
+        assertEquals(null, t())
+        assertEquals(null, value(form, emptyMap()))
+        assertEquals(1349L..8651L, Scoring.range(form, score))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a T-score counts goals, nothing else`() {
+        form(Score("t", "T-Wert", listOf("a"), rule = ScoreRule.GoalT, direction = Direction.HigherIsBetter))
+    }
 }
