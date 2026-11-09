@@ -15,7 +15,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -32,16 +31,7 @@ class MeasurementsTest {
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     private val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
 
-    private val doku = Doku(
-        keyFile = File(context.noBackupFilesDir, "measurements-test.key"),
-        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
-        fingerprint = FakeFingerprint(),
-        openDatabase = { testDokuDatabase(context) },
-        clipboard = DokuClipboard(context),
-        io = Dispatchers.Unconfined,
-        background = CoroutineScope(Dispatchers.Unconfined),
-        iterations = 1_000,
-    ).also { runBlocking { it.load(); it.setUp("geheim-geheim") } }
+    private val doku = InMemoryDokuStore(context)
 
     private val patients = Patients(doku, clock, CoroutineScope(Dispatchers.Unconfined))
     private val appointments = Appointments(doku, clock, CoroutineScope(Dispatchers.Unconfined))
@@ -50,9 +40,7 @@ class MeasurementsTest {
 
     @After
     fun closeDatabase() {
-        doku.lock()
-        context.deleteDatabase(DokuDatabase.NAME)
-        File(context.noBackupFilesDir, "measurements-test.key").delete()
+        doku.close()
     }
 
     private val patient = runBlocking { checkNotNull(patients.create(PatientDraft("Frau M."))) }

@@ -56,7 +56,7 @@ class DokuDatabaseTest {
     private fun setUpWithData() = runBlocking {
         doku.load()
         doku.setUp(PASSWORD)
-        doku.database.settings().put(DokuSetting("probe", "Frau M., Schulter links"))
+        doku.withDatabase { it.settings().put(DokuSetting("probe", "Frau M., Schulter links")) }
         doku.lock()
     }
 
@@ -106,9 +106,9 @@ class DokuDatabaseTest {
         setUpWithData()
         runBlocking { doku.unlockWithPassword(PASSWORD) }
         // While open, the write-ahead log may still hold this.
-        runBlocking { doku.database.settings().put(DokuSetting("later", "Herr K., Knie")) }
+        runBlocking { doku.withDatabase { it.settings().put(DokuSetting("later", "Herr K., Knie")) } }
         val snapshot = runBlocking { checkNotNull(doku.snapshot()) }
-        runBlocking { doku.database.settings().put(DokuSetting("probe", "überschrieben")) }
+        runBlocking { doku.withDatabase { it.settings().put(DokuSetting("probe", "überschrieben")) } }
 
         assertFalse(snapshot.database.contains("Schulter links".toByteArray()))
         assertFalse(snapshot.wal?.contains("Knie".toByteArray()) ?: false)
@@ -116,7 +116,7 @@ class DokuDatabaseTest {
 
         assertEquals("Frau M., Schulter links", readWithPassword())
         runBlocking { doku.unlockWithPassword(PASSWORD) }
-        assertEquals("Herr K., Knie", runBlocking { doku.database.settings().get("later") })
+        assertEquals("Herr K., Knie", runBlocking { doku.withDatabase { it.settings().get("later") } })
     }
 
     @Test
@@ -137,7 +137,7 @@ class DokuDatabaseTest {
 
     private fun readWithPassword(): String? = runBlocking {
         doku.unlockWithPassword(PASSWORD)
-        doku.database.settings().get("probe").also { doku.lock() }
+        doku.withDatabase { it.settings().get("probe") }.also { doku.lock() }
     }
 
     private fun ByteArray.startsWith(prefix: ByteArray) = size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }

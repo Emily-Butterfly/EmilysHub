@@ -23,7 +23,7 @@ import java.time.LocalDate
  * The forms last used and those hidden are kept in the Doku's database. All of it is read and written only while
  * [doku] is open, and its changes count in [Doku.changes]; what a page saves as it closes is written on [background].
  */
-class Assessments(private val doku: Doku, private val background: CoroutineScope) {
+class Assessments(private val doku: DokuStore, private val background: CoroutineScope) {
 
     /**
      * Adds form [assessmentId] at appointment [appointmentId], nothing answered yet; it counts as used once answered. Its id, none for a closed patient's, a form this version does not know, or once locked.

@@ -33,7 +33,7 @@ enum class Leaving { Closed, Turning, Covered }
  * the page closes, also as the screen turns, as the page keeps it nowhere else.
  */
 internal class TextDraft(
-    private val doku: Doku,
+    private val doku: DokuStore,
     private val background: CoroutineScope,
     private val original: String,
     private val current: String,

@@ -14,7 +14,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -28,23 +27,13 @@ class PatientsTest {
     /** Friday, 23 October 2026, 07:00 in Berlin. */
     private val clock = TestClock(Instant.parse("2026-10-23T05:00:00Z"), ZoneId.of("Europe/Berlin"))
 
-    private val doku = Doku(
-        keyFile = File(context.noBackupFilesDir, "patients-test.key"),
-        databaseFile = context.getDatabasePath(DokuDatabase.NAME),
-        fingerprint = FakeFingerprint(),
-        openDatabase = { testDokuDatabase(context) },
-        clipboard = DokuClipboard(context),
-        io = Dispatchers.Unconfined,
-        background = CoroutineScope(Dispatchers.Unconfined),
-        iterations = 1_000,
-    ).also { runBlocking { it.load(); it.setUp("geheim-geheim") } }
+    private val doku = InMemoryDokuStore(context)
 
     private val patients = Patients(doku, clock, CoroutineScope(Dispatchers.Unconfined))
 
     @After
     fun closeDatabase() {
-        doku.lock()
-        context.deleteDatabase(DokuDatabase.NAME)
+        doku.close()
     }
 
     private fun add(name: String, birthYear: String = ""): Long = runBlocking { checkNotNull(patients.create(PatientDraft(name, birthYear))) }
@@ -195,15 +184,6 @@ class PatientsTest {
     }
 
     @Test
-    fun `the Doku's database overwrites what is deleted`() {
-        val secureDelete = runBlocking {
-            doku.withDatabase { database -> database.query("PRAGMA secure_delete", null).use { it.moveToFirst(); it.getInt(0) } }
-        }
-
-        assertEquals(1, secureDelete)
-    }
-
-    @Test
     fun `a patient counts as overdue for deleting from exactly twelve months after closing`() {
         val id = add("Frau M.")
         runBlocking { patients.close(id) }
@@ -293,7 +273,7 @@ class PatientsTest {
     @Test
     fun `once the Doku is locked, nothing is read or written`() {
         val id = add("Frau M.")
-        doku.lock()
+        doku.locked = true
 
         assertNull(runBlocking { patients.get(id) })
         assertNull(runBlocking { patients.active(PatientOrder.Name) })

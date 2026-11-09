@@ -82,7 +82,7 @@ class Doku internal constructor(
     private val background: CoroutineScope,
     private val iterations: Int,
     private val now: () -> Long,
-) : DokuVault {
+) : DokuVault, DokuStore {
     constructor(
         keyFile: File,
         databaseFile: File,
@@ -118,14 +118,11 @@ class Doku internal constructor(
     /** The closing of the database the last [lock] started. */
     private var lastClose: Job? = null
 
-    /** The open database; only while [state] is [DokuState.Open]. */
-    val database: DokuDatabase get() = requireOpen().database
-
     /**
      * What [block] makes of the open database, on [io]; null once the Doku is locked. Locking waits for it to finish
      * before the database is closed, so that nothing reads or writes a closed database.
      */
-    suspend fun <T> withDatabase(block: suspend (DokuDatabase) -> T): T? = openingAndClosing.withLock {
+    override suspend fun <T> withDatabase(block: suspend (DokuDatabase) -> T): T? = openingAndClosing.withLock {
         val database = opened?.database ?: return@withLock null
         withContext(io) { block(database) }
     }
@@ -135,7 +132,7 @@ class Doku internal constructor(
         private set
 
     /** What [block] makes of the open database, as [withDatabase], counted in [changes] if it was open. */
-    suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
+    override suspend fun <T> changing(block: suspend (DokuDatabase) -> T): T? =
         withDatabase(block).also { if (it != null) changes++ }
 
     /** Whether the fingerprint can be turned on: a strong one is set up on the phone. */

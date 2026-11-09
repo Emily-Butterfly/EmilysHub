@@ -10,7 +10,7 @@ import java.time.LocalDate
  * so that no history goes unnoticed. Archived, a test is no longer chosen for new measurements; deleted, it goes with
  * all its measurements. All of it is read and written only while [doku] is open, and its changes count in [Doku.changes].
  */
-class TestCatalog(private val doku: Doku, private val clock: Clock) {
+class TestCatalog(private val doku: DokuStore, private val clock: Clock) {
 
     /** The tests in use and those archived, each by name; none once locked. */
     suspend fun list(): TestList? = doku.withDatabase { database ->

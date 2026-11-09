@@ -106,7 +106,13 @@ each with today from its own clock rather than `Day`. A pure `ReminderFace` both
 
 ## 5 · The Doku's modules take a store
 
-**Status:** open.
+**Status:** done. `doku/DokuStore.kt`: `withDatabase` and `changing`, all `Patients`, `Appointments`, `Measurements`,
+`Assessments`, `TestCatalog` and the text drafts take; `Doku` is its production adapter, `InMemoryDokuStore` (tests) the
+other, Room in memory locked by a flag. `PatientsTest`, `MeasurementsTest` and `TestCatalogTest` no longer set up a
+vault; "once locked, nothing is read or written" is `locked = true`. `AppointmentsTest` and `AssessmentsTest` keep the
+vault, as they hold what a page saves before the Doku locks. `Doku.database`, public for tests and past the mutex, is
+gone: `DokuTest` and the device test `DokuDatabaseTest` read through `withDatabase`, and "the database overwrites what
+is deleted" moved to `DokuTest`, as it is the vault's. `changes` stays on `Doku`, as only the pages read it.
 
 `Patients`, `Appointments`, `Measurements`, `Assessments` and `TestCatalog` use three things of `Doku` (`withDatabase`,
 `changing`, `changes`) but take all of it, so every test of theirs sets up the vault's key and fingerprint. A narrow

@@ -8,7 +8,7 @@ import java.time.LocalDate
  * patient's are written here, a closed one's only read. The patient's tab Tests shows a card for each test measured,
  * and its history. All of it is read and written only while [doku] is open, and its changes count in [Doku.changes].
  */
-class Measurements(private val doku: Doku) {
+class Measurements(private val doku: DokuStore) {
 
     /** The measurements at appointment [appointmentId], in the order they were added; none once locked. */
     suspend fun at(appointmentId: Long): List<MeasurementView>? = doku.withDatabase { database ->

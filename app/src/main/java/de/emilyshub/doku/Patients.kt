@@ -15,7 +15,7 @@ import java.time.LocalDate
  * Its changes count in [Doku.changes]. What an editor saves as it closes is written on [background], so that it
  * outlives the editor.
  */
-class Patients(private val doku: Doku, private val clock: Clock, private val background: CoroutineScope) {
+class Patients(private val doku: DokuStore, private val clock: Clock, private val background: CoroutineScope) {
 
     /** The day it is. */
     fun today(): LocalDate = LocalDate.now(clock)

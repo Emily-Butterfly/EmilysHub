@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
  * fills in each new one. An active patient's appointments are written here; a closed one's are only to read. All of it
  * is read and written only while [doku] is open, and its changes count in [Doku.changes].
  */
-class Appointments(private val doku: Doku, private val clock: Clock, private val background: CoroutineScope) {
+class Appointments(private val doku: DokuStore, private val clock: Clock, private val background: CoroutineScope) {
 
     /** The new appointments as [create] made them, by id, in memory only: to tell whether one was left untouched. */
     private val made = ConcurrentHashMap<Long, Appointment>()

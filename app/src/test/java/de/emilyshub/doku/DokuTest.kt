@@ -67,6 +67,17 @@ class DokuTest {
 
     private fun DokuDatabase.read() = runBlocking { settings().get("probe") }
 
+    /** Writes [value] into the open Doku. */
+    private fun write(value: String) {
+        checkNotNull(runBlocking { doku.withDatabase { it.write(value) } })
+    }
+
+    /** What the open Doku holds; none while locked. */
+    private fun read(): String? = runBlocking { doku.withDatabase { it.read() } }
+
+    /** The open database; none while locked. */
+    private fun openDatabase(): DokuDatabase? = runBlocking { doku.withDatabase { it } }
+
     @Test
     fun `at first the Doku has no password, and setting it opens it`() {
         assertEquals(DokuState.New, doku.state)
@@ -87,13 +98,13 @@ class DokuTest {
     @Test
     fun `the right password opens the Doku with its data`() {
         setUp()
-        doku.database.write("Frau M.")
+        write("Frau M.")
         doku.lock()
 
         assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
 
         assertEquals(DokuState.Open(fingerprint = false), doku.state)
-        assertEquals("Frau M.", doku.database.read())
+        assertEquals("Frau M.", read())
     }
 
     @Test
@@ -104,7 +115,7 @@ class DokuTest {
         assertFalse(runBlocking { doku.unlockWithPassword("falsches Passwort") })
 
         assertEquals(DokuState.Locked(fingerprint = false), doku.state)
-        assertThrows(IllegalStateException::class.java) { doku.database }
+        assertNull(openDatabase())
     }
 
     @Test
@@ -131,16 +142,26 @@ class DokuTest {
     }
 
     @Test
+    fun `the Doku's database overwrites what is deleted`() {
+        setUp()
+        val secureDelete = runBlocking {
+            doku.withDatabase { database -> database.query("PRAGMA secure_delete", null).use { it.moveToFirst(); it.getInt(0) } }
+        }
+
+        assertEquals(1, secureDelete)
+    }
+
+    @Test
     fun `locking closes the database and wipes the key from memory`() {
         setUp()
-        val database = doku.database
+        val database = checkNotNull(openDatabase())
 
         doku.lock()
 
         assertEquals(DokuState.Locked(fingerprint = false), doku.state)
         assertFalse(database.isOpen)
         assertTrue(opened.single().all { it == 0.toByte() })
-        assertThrows(IllegalStateException::class.java) { doku.database }
+        assertNull(openDatabase())
     }
 
     @Test
@@ -152,20 +173,20 @@ class DokuTest {
         saver.close()
         runBlocking { doku.unlockWithPassword(PASSWORD) }
 
-        assertEquals("ungespeichert", doku.database.read())
+        assertEquals("ungespeichert", read())
     }
 
     @Test
     fun `changing the password keeps the data and only the new one opens the Doku`() {
         setUp()
-        doku.database.write("Herr K.")
+        write("Herr K.")
 
         assertTrue(runBlocking { doku.changePassword(PASSWORD, "neues Passwort") })
         doku.lock()
 
         assertFalse(runBlocking { doku.unlockWithPassword(PASSWORD) })
         assertTrue(runBlocking { doku.unlockWithPassword("neues Passwort") })
-        assertEquals("Herr K.", doku.database.read())
+        assertEquals("Herr K.", read())
     }
 
     @Test
@@ -210,7 +231,7 @@ class DokuTest {
         setUp()
         assertTrue(answering({ doku.turnOnFingerprint(activity) }) { succeed() })
         assertEquals(FingerprintPurpose.TurnOn, fingerprint.lastPurpose)
-        doku.database.write("Frau M.")
+        write("Frau M.")
         doku.lock()
 
         assertEquals(DokuState.Locked(fingerprint = true), doku.state)
@@ -219,7 +240,7 @@ class DokuTest {
         assertEquals(FingerprintUnlock.Opened, result)
         assertEquals(FingerprintPurpose.Unlock, fingerprint.lastPurpose)
         assertEquals(DokuState.Open(fingerprint = true), doku.state)
-        assertEquals("Frau M.", doku.database.read())
+        assertEquals("Frau M.", read())
     }
 
     @Test
@@ -310,7 +331,7 @@ class DokuTest {
         runBlocking { racing.unlockWithPassword(PASSWORD) }
 
         assertEquals(DokuState.Locked(fingerprint = false), racing.state)
-        assertThrows(IllegalStateException::class.java) { racing.database }
+        assertNull(runBlocking { racing.withDatabase { it } })
     }
 
     private lateinit var racingDoku: Doku
