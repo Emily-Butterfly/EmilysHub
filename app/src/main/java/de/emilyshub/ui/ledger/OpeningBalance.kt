@@ -148,9 +148,8 @@ internal fun OpeningDialog(current: Long?, onSave: (Long) -> Unit, onRemove: () 
             )
         },
         confirmButton = {
-            // Unchanged, one carried over stays carried over.
             TextButton(
-                onClick = { if (cents == current) onDismiss() else cents?.let(onSave) },
+                onClick = { cents?.let(onSave) },
                 enabled = cents != null,
             ) { Text(stringResource(R.string.save)) }
         },
@@ -193,7 +192,7 @@ internal fun CloseDialog(shown: LedgerMonth, onClose: (carryOver: Boolean) -> Un
     val end = Money.format(shown.endBalance)
     val nextName = next.month.monthAndYear()
     val carrying = when {
-        next.closed -> stringResource(R.string.ledger_close_next_closed, nextName)
+        !shown.offers.carryOnClosing -> stringResource(R.string.ledger_close_next_closed, nextName)
         next.opening != null ->
             stringResource(R.string.ledger_close_carry_replaces, end, nextName, Money.format(next.opening.cents))
         else -> stringResource(R.string.ledger_close_carry_text, end, nextName)
@@ -205,7 +204,7 @@ internal fun CloseDialog(shown: LedgerMonth, onClose: (carryOver: Boolean) -> Un
         // Three, one above the other: their names are too long to stand side by side.
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {
-                if (!next.closed) {
+                if (shown.offers.carryOnClosing) {
                     TextButton(onClick = { onClose(true) }) { Text(stringResource(R.string.ledger_close_carry)) }
                 }
                 TextButton(onClick = { onClose(false) }) { Text(stringResource(R.string.ledger_close_only)) }

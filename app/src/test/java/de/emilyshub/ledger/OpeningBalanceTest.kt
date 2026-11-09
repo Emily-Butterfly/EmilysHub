@@ -71,6 +71,52 @@ class OpeningBalanceTest {
         }
 
     @Test
+    fun `the same amount set by hand again leaves one carried over as carried over`() = runBlocking {
+        ledger.setOpening(september, 10_000)
+        ledger.carryOver(october)
+
+        ledger.setOpening(october, 10_000)
+        assertEquals(OpeningBalance(october, 10_000, carried = true), shown(october).opening)
+
+        ledger.setOpening(october, 10_001)
+        assertEquals(OpeningBalance(october, 10_001, carried = false), shown(october).opening)
+    }
+
+    @Test
+    fun `a month offers to carry over at once after a closed one, after asking after an open one, and not with one or closed`() =
+        runBlocking {
+            assertEquals(Carry.AskFirst, shown(october).offers.carry)
+            assertEquals(true, shown(october).offers.editOpening)
+
+            ledger.close(september)
+            assertEquals(Carry.AtOnce, shown(october).offers.carry)
+
+            ledger.carryOver(october)
+            assertNull(shown(october).offers.carry)
+            assertEquals(true, shown(october).offers.editOpening)
+
+            ledger.close(october)
+            val closed = shown(october).offers
+            assertNull(closed.carry)
+            assertEquals(false, closed.editOpening)
+            assertEquals(false, closed.budgets)
+            assertEquals(false, shown(september).offers.carryOnClosing)
+            assertEquals(true, closed.carryOnClosing)
+        }
+
+    @Test
+    fun `closing carries over the very end balance the month shows`() = runBlocking {
+        ledger.setOpening(october, 1_234)
+        income("120,50", "2026-10-05")
+        expense("33,10", "2026-10-07")
+        val shownEnd = shown(october).endBalance
+
+        ledger.close(october, carryOver = true)
+
+        assertEquals(shownEnd, shown(november).opening?.cents)
+    }
+
+    @Test
     fun `a month without bookings nor opening balance carries over nothing but zero`() = runBlocking {
         ledger.carryOver(november)
         assertEquals(OpeningBalance(november, 0, carried = true), shown(november).opening)

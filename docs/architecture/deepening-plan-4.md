@@ -56,7 +56,15 @@ closed patient's appointment) and `Assessments.sheet`. Gone: `Appointments.canCh
 
 ## 2 · The Haushaltsbuch month answers its whole page
 
-**Status:** open.
+**Status:** done in its core; the pure `LedgerMonth.of` not done. `MonthOffer` says all the page may do: besides `book`,
+`closing` and `enterSkipped`, `editOpening`, `carry` (`Carry.AtOnce` after a closed month, `Carry.AskFirst` after an
+open one, none with an opening balance or closed), `carryOnClosing` (not into a closed month) and `budgets`; its fields
+have no defaults, so a new one is not left out. `LedgerScreen` and the dialogs no longer ask `closed`. "The same amount
+again leaves one carried over as carried over" moved from `OpeningDialog` into `Ledger.setOpening`. The end balance has
+one formula, `LedgerMonth.endBalance(opening, balance)`, used by the month, the month before and `Ledger.close`; a test
+holds that closing carries over the very end balance the month shows. **Not done**: assembling the month in a pure
+`LedgerMonth.of`. The assembly leans on `Ledger`'s own rules for budgets and fixed bookings to come, and is already one
+read tested on in-memory Room; moving it would split those rules rather than concentrate them.
 
 `MonthOffer` answers three questions; the page still asks `closed` ten times and holds two rules no domain test sees:
 carrying over at once when the month before is closed, else asking first (LedgerScreen.kt), and an opening balance saved

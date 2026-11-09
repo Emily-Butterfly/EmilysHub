@@ -63,6 +63,7 @@ import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingWithCategory
 import de.emilyshub.ledger.BudgetLevel
 import de.emilyshub.ledger.CategoryTotal
+import de.emilyshub.ledger.Carry
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.MonthClosing
 import de.emilyshub.ledger.Money
@@ -186,18 +187,17 @@ fun LedgerScreen(
             val here = shown ?: return@LazyColumn
             val summary = here.summary
             val opening = here.opening
+            val carry = here.offers.carry
             when {
                 opening != null -> item(key = "opening") {
-                    OpeningRow(opening, onEdit = if (here.closed) null else ({ editingOpening = true }))
+                    OpeningRow(opening, onEdit = if (here.offers.editOpening) ({ editingOpening = true }) else null)
                 }
-                // Carried over or set by hand, only while open.
-                !here.closed -> item(key = "opening-offers") {
+                carry != null -> item(key = "opening-offers") {
                     OpeningOffers(
                         onCarry = {
-                            if (here.previous.closed) {
-                                scope.launchNow { ledger.carryOver(here.month) }
-                            } else {
-                                confirmingCarry = true
+                            when (carry) {
+                                Carry.AtOnce -> scope.launchNow { ledger.carryOver(here.month) }
+                                Carry.AskFirst -> confirmingCarry = true
                             }
                         },
                         onSet = { editingOpening = true },
@@ -212,12 +212,11 @@ fun LedgerScreen(
                     ExpensesByCategory(
                         summary.expensesByCategory,
                         summary.expenses,
-                        onBudget = if (here.budgets.isEmpty()) null else ({ budgeting = it }),
+                        onBudget = if (here.offers.budgets) ({ budgeting = it }) else null,
                     )
                 }
             }
-            // Only while open: a closed month keeps its budgets.
-            if (here.budgets.isNotEmpty()) {
+            if (here.offers.budgets) {
                 item(key = "month-budgets") {
                     TextButton(onClick = { pickingBudget = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
                         Text(stringResource(R.string.month_budgets, month.monthAndYear()))
@@ -239,9 +238,10 @@ fun LedgerScreen(
     }
 
     val known = shown ?: return
+    val can = known.offers
     when {
         // Reopening what is closed, closing what is open.
-        confirmingClose && known.closed -> AlertDialog(
+        confirmingClose && can.closing == MonthClosing.Reopen -> AlertDialog(
             onDismissRequest = { confirmingClose = false },
             title = { Text(stringResource(R.string.ledger_reopen_title, month.monthAndYear())) },
             text = { Text(stringResource(R.string.ledger_reopen_text)) },
@@ -257,7 +257,7 @@ fun LedgerScreen(
                 TextButton(onClick = { confirmingClose = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
-        confirmingClose -> CloseDialog(
+        confirmingClose && can.closing == MonthClosing.Close -> CloseDialog(
             known,
             onClose = { carryOver ->
                 confirmingClose = false
@@ -266,7 +266,7 @@ fun LedgerScreen(
             onDismiss = { confirmingClose = false },
         )
         // Not in a month closed meanwhile.
-        editingOpening && !known.closed -> OpeningDialog(
+        editingOpening && can.editOpening -> OpeningDialog(
             current = known.opening?.cents,
             onSave = { cents ->
                 editingOpening = false
@@ -278,7 +278,7 @@ fun LedgerScreen(
             },
             onDismiss = { editingOpening = false },
         )
-        pickingBudget && !known.closed -> MonthBudgetsDialog(
+        pickingBudget && can.budgets -> MonthBudgetsDialog(
             month,
             known.budgets,
             onPick = { id ->
@@ -287,7 +287,7 @@ fun LedgerScreen(
             },
             onDismiss = { pickingBudget = false },
         )
-        budgeting != null && !known.closed -> known.budgets.find { it.category.id == budgeting }?.let { budget ->
+        budgeting != null && can.budgets -> known.budgets.find { it.category.id == budgeting }?.let { budget ->
             MonthBudgetDialog(
                 month,
                 budget,
@@ -298,7 +298,7 @@ fun LedgerScreen(
                 onDismiss = { budgeting = null },
             )
         }
-        confirmingCarry && !known.closed -> CarryDialog(
+        confirmingCarry && can.carry == Carry.AskFirst -> CarryDialog(
             known,
             onCarry = {
                 confirmingCarry = false

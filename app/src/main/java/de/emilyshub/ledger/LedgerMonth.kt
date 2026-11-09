@@ -27,7 +27,7 @@ data class LedgerMonth(
     val budgets: List<CategoryBudget> = emptyList(),
 ) {
     /** What it ends with: its opening balance, none counting as zero, and what came in less what went out. */
-    val endBalance: Long get() = (opening?.cents ?: 0) + summary.balance
+    val endBalance: Long get() = endBalance(opening?.cents, summary.balance)
 
     /** Its end balance as the page shows it: only with an opening balance. */
     val closingBalance: Long? get() = opening?.let { endBalance }
@@ -38,7 +38,7 @@ data class LedgerMonth(
      */
     val foreseenEnd: Long? get() = upcoming?.let { endBalance + it }
 
-    /** What can be done with it now. */
+    /** What can be done with it now; all its page offers, so that the page need not ask whether it is [closed]. */
     val offers: MonthOffer
         get() = MonthOffer(
             book = !closed,
@@ -48,14 +48,43 @@ data class LedgerMonth(
                 else -> MonthClosing.None
             },
             enterSkipped = !closed && skipped > 0,
+            editOpening = !closed,
+            carry = when {
+                closed || opening != null -> null
+                previous.closed -> Carry.AtOnce
+                else -> Carry.AskFirst
+            },
+            carryOnClosing = !next.closed,
+            budgets = budgets.isNotEmpty(),
         )
+
+    companion object {
+        /** What a month ends with: its [opening] balance, none counting as zero, and its [balance]. The one formula. */
+        fun endBalance(opening: Long?, balance: Long): Long = (opening ?: 0) + balance
+    }
 }
 
 /**
- * What a month offers (SPEC.md §13): a booking made in it ([book]); closing it or opening it again ([closing]); and
- * entering the fixed bookings it skipped while closed ([enterSkipped]).
+ * What a month offers (SPEC.md §13): a booking made in it ([book]); closing it or opening it again ([closing]); entering
+ * the fixed bookings it skipped while closed ([enterSkipped]); setting, changing or removing its opening balance by hand
+ * ([editOpening]); carrying over the end balance of the month before, without one ([carry]); carrying its own into the
+ * next month as it is closed, unless that one is closed ([carryOnClosing]); and changing its budgets ([budgets]).
  */
-data class MonthOffer(val book: Boolean, val closing: MonthClosing, val enterSkipped: Boolean)
+data class MonthOffer(
+    val book: Boolean,
+    val closing: MonthClosing,
+    val enterSkipped: Boolean,
+    val editOpening: Boolean,
+    val carry: Carry?,
+    val carryOnClosing: Boolean,
+    val budgets: Boolean,
+)
+
+/**
+ * How the end balance of the month before is carried over: at once, as that month is closed and its end balance final;
+ * or after asking, as it is still open and may change (SPEC.md §13).
+ */
+enum class Carry { AtOnce, AskFirst }
 
 /** Whether a month is closed now, opened again, or neither: one not yet gone by. */
 enum class MonthClosing { Close, Reopen, None }

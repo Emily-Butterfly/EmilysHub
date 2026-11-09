@@ -153,19 +153,30 @@ class ClosedMonthsTest {
     @Test
     fun `what a month offers follows whether it is closed, may be closed, and skipped fixed bookings`() = runBlocking {
         val rent = ledger.categories().first().single { it.name == "Wohnen" }.id
+        // Open, with no opening balance, after an open month, before an open one, with budgets to change.
+        fun open(closing: MonthClosing, enterSkipped: Boolean = false) = MonthOffer(
+            book = true, closing = closing, enterSkipped = enterSkipped, editOpening = true, carry = Carry.AskFirst,
+            carryOnClosing = true, budgets = true,
+        )
         // Gone by and open: booked into, and closed.
-        assertEquals(MonthOffer(book = true, closing = MonthClosing.Close, enterSkipped = false), shown(september).offers)
+        assertEquals(open(MonthClosing.Close), shown(september).offers)
         // The current one before its last day: booked into, not yet closed.
-        assertEquals(MonthOffer(book = true, closing = MonthClosing.None, enterSkipped = false), shown(october).offers)
+        assertEquals(open(MonthClosing.None), shown(october).offers)
 
         ledger.close(september)
         ledger.createTemplate(RecurringDraft(BookingKind.Expense, "850", rent, "Miete", BookingInterval.Monthly, 1, september))
         // Closed: only opened again.
-        assertEquals(MonthOffer(book = false, closing = MonthClosing.Reopen, enterSkipped = false), shown(september).offers)
+        assertEquals(
+            MonthOffer(
+                book = false, closing = MonthClosing.Reopen, enterSkipped = false, editOpening = false, carry = null,
+                carryOnClosing = true, budgets = false,
+            ),
+            shown(september).offers,
+        )
 
         ledger.reopen(september)
         // Open again, with what it skipped meanwhile.
-        assertEquals(MonthOffer(book = true, closing = MonthClosing.Close, enterSkipped = true), shown(september).offers)
+        assertEquals(open(MonthClosing.Close, enterSkipped = true), shown(september).offers)
     }
 
     @Test

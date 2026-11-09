@@ -84,7 +84,7 @@ class Ledger(
                     summary = summary(bookings, budgets),
                     opening = openings.find { it.month == month },
                     previous = PreviousMonth(
-                        previous, previous in closed, (openings.find { it.month == previous }?.cents ?: 0) + balanceBefore,
+                        previous, previous in closed, LedgerMonth.endBalance(openings.find { it.month == previous }?.cents, balanceBefore),
                     ),
                     next = NextMonth(next, next in closed, openings.find { it.month == next }),
                     closed = isClosed,
@@ -336,12 +336,15 @@ class Ledger(
         }
     }
 
-    /** Sets the opening balance of the open [month] by hand to [cents], zero or below too, replacing one it has. */
+    /**
+     * Sets the opening balance of the open [month] by hand to [cents], zero or below too, replacing one it has; the same
+     * amount again changes nothing, so that one carried over stays carried over.
+     */
     suspend fun setOpening(month: YearMonth, cents: Long) = write {
         require(cents in -Money.MAX..Money.MAX) { "No amount: $cents" }
         database().withTransaction {
             requireOpen(month.atDay(1))
-            dao.setOpening(OpeningBalance(month, cents, carried = false))
+            if (dao.opening(month)?.cents != cents) dao.setOpening(OpeningBalance(month, cents, carried = false))
         }
     }
 
@@ -366,7 +369,7 @@ class Ledger(
 
     /** What [month] ends with: its opening balance, none counting as zero, and what came in less what went out. */
     private suspend fun endBalance(month: YearMonth): Long =
-        (dao.opening(month)?.cents ?: 0) + dao.balanceBetween(month.atDay(1), month.atEndOfMonth())
+        LedgerMonth.endBalance(dao.opening(month)?.cents, dao.balanceBetween(month.atDay(1), month.atEndOfMonth()))
 
     /** Opens the closed [month] again, with the budgets of now, its own among them; the screen asks first. */
     suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
