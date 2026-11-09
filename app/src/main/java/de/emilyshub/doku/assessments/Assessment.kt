@@ -43,7 +43,9 @@ data class Assessment(
                 // A T-score's goals and its rule come only together.
                 require((item(itemId) is GoalsItem) == (score.rule == ScoreRule.GoalT)) { "$id: score ${score.id}: goals are counted by a T-score alone" }
             }
-            require(score.rule != ScoreRule.ShareOfSpan || score.items.all { item(it) is TimeItem }) { "$id: score ${score.id} is a share of a span of times" }
+            require(score.rule != ScoreRule.ShareOfSpan || score.items.map { (item(it) as? TimeItem)?.duration } == listOf(true, false, false)) {
+                "$id: score ${score.id} is a share of a span: a duration, then two times of the day"
+            }
             // Filled up by section, it needs half of each section, not a number of its own.
             require(score.rule != ScoreRule.MeanFilled || score.minAnswered == score.items.size) {
                 "$id: score ${score.id} is filled by the mean, which needs half of each section answered, not minAnswered"
@@ -194,7 +196,12 @@ data class NumberItem(
     override val scorable: Boolean get() = max != null || steps != null
 
     /** Whether [hundredths] may be answered: any number, or with a [max], a whole one from 0 up to it. */
-    fun accepts(hundredths: Long): Boolean = max == null || hundredths % 100 == 0L && hundredths in 0..max * 100L
+    fun accepts(hundredths: Long): Boolean = when {
+        max != null -> hundredths % 100 == 0L && hundredths in 0..max * 100L
+        // Counted by steps, such as minutes until asleep, it is no less than 0.
+        steps != null -> hundredths >= 0
+        else -> true
+    }
 
     init {
         require(max == null || max >= 1 && !decimals) { "$id: a number counted as points is whole, up to a positive most" }
@@ -219,9 +226,12 @@ data class TimeItem(
         /** The minutes of a day: a time lies below. */
         const val DAY = 24 * 60
 
-        /** The minutes of [typed], such as "7:30", "07:30", "7.30", "7,30" or "7" for 7:00; none for what is no time of 0:00 to 23:59. */
+        /**
+         * The minutes of [typed], such as "7:30", "07:30" or "7" for 7:00; none for what is no time of 0:00 to 23:59. Only with
+         * a colon, as the PSQI asks: "7,30" may mean hours and a half.
+         */
         fun parse(typed: String): Int? {
-            val match = Regex("""(\d{1,2})(?:[:.,](\d{2}))?""").matchEntire(typed.trim()) ?: return null
+            val match = Regex("""(\d{1,2})(?::(\d{2}))?""").matchEntire(typed.trim()) ?: return null
             val hours = match.groupValues[1].toInt()
             val minutes = match.groupValues[2].ifEmpty { "0" }.toInt()
             return if (hours < 24 && minutes < 60) hours * 60 + minutes else null

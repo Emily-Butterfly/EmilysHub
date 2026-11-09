@@ -10,32 +10,32 @@ import de.emilyshub.doku.Direction
  */
 internal val SLEEP: List<Assessment> by lazy { listOf(ASBQ, ASSQ, ISI, PSQI, RIS) }
 
-/** A sum of [items], better the lower, all of them needed. */
-private fun lowerSum(id: String, name: String, items: List<String>, bands: List<Band> = emptyList(), steps: Steps? = null, optional: List<String> = emptyList()) =
+/** A sum of the items [items] names, better the lower, all of them needed but those [optional]; counted by [steps], if given. */
+private fun lowerOf(id: String, name: String, items: List<String>, bands: List<Band> = emptyList(), steps: Steps? = null, optional: List<String> = emptyList()) =
     Score(id, name, items, direction = Direction.LowerIsBetter, bands = bands, steps = steps, optional = optional)
 
 /** Athlete Sleep Behavior Questionnaire, as in "Athlete-Sleep-Behavior-Questionnaire_ASBQ_10-2026.pdf". */
 private val ASBQ: Assessment = run {
     val answers = scored("Niemals" to 1, "Selten" to 2, "Manchmal" to 3, "Häufig" to 4, "Immer" to 5)
     val items = listOf(
-        "…schlafe ich am Nachmittag für zwei oder mehr Stunden.",
-        "…verwende ich Stimulanzien, wenn ich trainiere/an Wettkämpfen teilnehme (z.B. Koffein).",
-        "…trainiere ich spät in der Nacht (nach 19 Uhr).",
-        "…konsumiere ich Alkohol, vor dem Schlafengehen (4h vor dem Schlaf).",
-        "…gehe ich abends zu verschiedenen Zeiten ins Bett (mehr als 1 Stunde Differenz).",
-        "…gehe ich durstig ins Bett.",
-        "…gehe ich mit Muskelkater ins Bett.",
-        "…benutze ich lichtabgebende Technologien in der letzten Stunde, vor dem Schlafengehen (z.B. Laptop, Telefon, Fernseher, Videospiele)",
-        "…denke ich nach über/mache ich mir Sorgen um meine sportliche Leistung, wenn ich im Bett bin.",
-        "…denke ich nach über/sorge ich mich um Probleme, die nichts mit meinem Sport zu tun haben, wenn ich im Bett bin.",
-        "…benutze ich Schlaftabletten, um mir beim Schlafen zu helfen.",
-        "…wache ich auf, um mehr als einmal pro Nacht ins Badezimmer zu gehen.",
-        "…wecke ich mich und/oder meinen Bettpartner durch mein Schnarchen auf.",
-        "…wecke ich mich und/oder meinen Bettpartner mit meinem Muskelzucken.",
-        "…stehe ich jeden Morgen zu verschiedenen Zeiten auf (mehr als 1 Stunde Differenz).",
-        "…schlafe ich Zuhause in einer weniger idealen Umgebung (z.B. zu hell, zu laut, unbequemes Bett/Kissen, zu heiß/kalt).",
-        "…schlafe ich in fremden Umgebungen (z.B. Hotelzimmer).",
-        "…behindern Reisen den Aufbau einer konstanten Schlaf-Wach-Routine.",
+        "...schlafe ich am Nachmittag für zwei oder mehr Stunden.",
+        "...verwende ich Stimulanzien, wenn ich trainiere/an Wettkämpfen teilnehme (z.B. Koffein).",
+        "...trainiere ich spät in der Nacht (nach 19 Uhr).",
+        "...konsumiere ich Alkohol, vor dem Schlafengehen (4h vor dem Schlaf).",
+        "...gehe ich abends zu verschiedenen Zeiten ins Bett (mehr als 1 Stunde Differenz).",
+        "...gehe ich durstig ins Bett.",
+        "...gehe ich mit Muskelkater ins Bett.",
+        "...benutze ich lichtabgebende Technologien in der letzten Stunde, vor dem Schlafengehen (z.B. Laptop, Telefon, Fernseher, Videospiele)",
+        "...denke ich nach über/mache ich mir Sorgen um meine sportliche Leistung, wenn ich im Bett bin.",
+        "...denke ich nach über/sorge ich mich um Probleme, die nichts mit meinem Sport zu tun haben, wenn ich im Bett bin.",
+        "...benutze ich Schlaftabletten, um mir beim Schlafen zu helfen.",
+        "...wache ich auf, um mehr als einmal pro Nacht ins Badezimmer zu gehen.",
+        "...wecke ich mich und/oder meinen Bettpartner durch mein Schnarchen auf.",
+        "...wecke ich mich und/oder meinen Bettpartner mit meinem Muskelzucken.",
+        "...stehe ich jeden Morgen zu verschiedenen Zeiten auf (mehr als 1 Stunde Differenz).",
+        "...schlafe ich Zuhause in einer weniger idealen Umgebung (z.B. zu hell, zu laut, unbequemes Bett/Kissen, zu heiß/kalt).",
+        "...schlafe ich in fremden Umgebungen (z.B. Hotelzimmer).",
+        "...behindern Reisen den Aufbau einer konstanten Schlaf-Wach-Routine.",
     ).mapIndexed { i, text -> ChoiceItem("${i + 1}", "${i + 1}. $text", answers) }
     Assessment(
         id = "asbq",
@@ -61,7 +61,7 @@ private val ASBQ: Assessment = run {
             "Sportlerpopulationen angepasst werden.",
         sections = listOf(Section(hint = "In der letzten Zeit (im letzten Monat)…", items = items)),
         scores = listOf(
-            lowerSum(
+            lowerOf(
                 "gesamt", "Gesamtpunktzahl", ids(items),
                 listOf(Band.upTo(36, "gutes Schlafverhalten"), Band.upTo(41, "mittelmäßiges Schlafverhalten"), Band.upTo(90, "schlechtes Schlafverhalten")),
             ),
@@ -147,13 +147,22 @@ private val ASSQ: Assessment = run {
             "Die Modifikatoren sind nicht Bestandteil des ASSQ-Schlafschwierigkeiten-Score, da sie seltener vorkommen und nicht für " +
             "alle Sportler relevant sind (z. B. Reisen). Dennoch sind sie wichtig, um, wenn erforderlich, spezifische " +
             "Interventionsempfehlungen zu geben.\n\n" +
+            "Atmung: Wenn der/die Sportler/in die Fragen 13 und/oder 14 mit “ja” beantwortet hat, dann sollte er/sie weiter " +
+            "untersucht werden. Interventionsempfehlung: D + E\n\n" +
+            "Reisen: Wenn der/die Sportler/in die Frage 11 mit “ja” beantwortet hat, dann ist eine Aufklärung über Reisemanagement " +
+            "und Jetlag erforderlich. Interventionsempfehlung: A (spezifisch für Reisen)\n" +
+            "Wenn der/die Sportler/in die Frage 12 mit “ja” beantwortet hat, dann ist die Schlafstörung schwerwiegender und " +
+            "zusätzliche Interventionen, über die Aufklärung hinaus, sind erforderlich. Interventionsempfehlung: A + B + C (wenn " +
+            "indiziert) + D (wenn indiziert)\n\n" +
+            "Chronotyp: Die Sportler/innen, die Abendtypen sind, haben ein erhöhtes Risiko für Schlafstörungen. Addiere die " +
+            "Punktzahlen aus den Fragen 7–10. Ist die Summe ≤ 4, dann deutet das darauf hin, dass der/die Sportler/in ein Abendtyp ist.\n\n" +
             "Die Fragen 2, 15 und 16 sind nicht Bestandteil des ASSQ-Schlafschwierigkeiten-Score und der Modifikatoren, dennoch sind sie " +
             "wichtig, um entsprechende Schlafoptimierungsstrategien zu empfehlen. Dazu zählen Nickerchen am Tag zu implementieren oder " +
             "deren Häufigkeit pro Woche zu erhöhen, Koffeineinnahme zu reduzieren und elektronische Geräte vor dem zu Bett gehen zu " +
             "vermeiden.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            lowerSum(
+            lowerOf(
                 "schwierigkeiten", "Schlafschwierigkeiten-Score", listOf("1", "3", "4", "5", "6"),
                 listOf(
                     Band.upTo(4, "keine Schlafschwierigkeiten: A"),
@@ -162,12 +171,12 @@ private val ASSQ: Assessment = run {
                     Band.upTo(17, "starke Schlafschwierigkeiten: A + B + C + D + E"),
                 ),
             ),
-            lowerSum("atmung", "Atmung", listOf("13", "14"), listOf(Band.upTo(0, null), Band.upTo(2, "weiter untersuchen: D + E"))),
-            lowerSum(
+            lowerOf("atmung", "Atmung", listOf("13", "14"), listOf(Band.upTo(0, null), Band.upTo(2, "weiter untersuchen: D + E"))),
+            lowerOf(
                 "reisen-schlaf", "Reisen: Schlafstörungen", listOf("11"),
                 listOf(Band.upTo(0, null), Band.upTo(1, "Aufklärung über Reisemanagement und Jetlag: A (spezifisch für Reisen)")),
             ),
-            lowerSum(
+            lowerOf(
                 "reisen-tag", "Reisen: tagsüber unwohl oder Leistungsminderung", listOf("12"),
                 listOf(Band.upTo(0, null), Band.upTo(1, "Schlafstörung schwerwiegender: A + B + C (wenn indiziert) + D (wenn indiziert)")),
             ),
@@ -213,7 +222,7 @@ private val ISI: Assessment = run {
             "Bei den ersten 3 Fragen geht es um eine Beurteilung Ihrer Schlafschwierigkeiten.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            lowerSum(
+            lowerOf(
                 "gesamt", "Gesamt", ids(items),
                 listOf(
                     Band.upTo(7, "keine Schlaflosigkeit"),
@@ -236,12 +245,12 @@ private val PSQI: Assessment = run {
     val frequency = listOf("Während der letzten vier Wochen gar nicht", "Weniger als einmal pro Woche", "Einmal oder zweimal pro Woche", "Dreimal oder häufiger pro Woche")
     val often = numbered(*frequency.toTypedArray())
     val times = listOf(
-        TimeItem("1", "1. Wann sind Sie während der letzten vier Wochen gewöhnlich abends zu Bett gegangen? Übliche Uhrzeit"),
+        TimeItem("1", "1. Wann sind Sie während der letzten vier Wochen gewöhnlich abends zu Bett gegangen? übliche Uhrzeit:"),
         NumberItem(
             "2", "2. Wie lange hat es während der letzten vier Wochen gewöhnlich gedauert, bis Sie nachts eingeschlafen sind?", unit = "in Minuten",
             steps = Steps(listOf(16 to 0, 31 to 1, 61 to 2), otherwise = 3),
         ),
-        TimeItem("3", "3. Wann sind Sie während der letzten vier Wochen gewöhnlich morgens aufgestanden? Übliche Uhrzeit"),
+        TimeItem("3", "3. Wann sind Sie während der letzten vier Wochen gewöhnlich morgens aufgestanden? übliche Uhrzeit:"),
         TimeItem(
             "4", "4. Wieviele Stunden haben Sie während der letzten vier Wochen pro Nacht tatsächlich geschlafen? (Das muss nicht mit der " +
                 "Anzahl der Stunden, die Sie im Bett verbracht haben, übereinstimmen.) Effektive Schlafzeit (Stunden) pro Nacht",
@@ -323,16 +332,16 @@ private val PSQI: Assessment = run {
             Section("Machen Sie bitte noch folgende Angaben zu Ihrer Person:", items = person),
         ),
         scores = listOf(
-            lowerSum("k1", "Subjektive Schlafqualität", listOf("6")),
-            lowerSum("k2", "Schlaflatenz", listOf("2", "5a"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
-            lowerSum("k3", "Schlafdauer", listOf("4"), steps = Steps(listOf(5 * 60 to 3, 6 * 60 to 2, 7 * 60 to 1), otherwise = 0)),
+            lowerOf("k1", "Subjektive Schlafqualität", listOf("6")),
+            lowerOf("k2", "Schlaflatenz", listOf("2", "5a"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
+            lowerOf("k3", "Schlafdauer", listOf("4"), steps = Steps(listOf(5 * 60 to 3, 6 * 60 to 2, 7 * 60 to 1), otherwise = 0)),
             Score(
                 "k4", "Schlafeffizienz", listOf("4", "1", "3"), rule = ScoreRule.ShareOfSpan, direction = Direction.LowerIsBetter,
                 steps = Steps(listOf(65 to 3, 75 to 2, 85 to 1), otherwise = 0),
             ),
-            lowerSum("k5", "Schlafstörungen", disturbances, steps = Steps(listOf(1 to 0, 10 to 1, 19 to 2), otherwise = 3), optional = listOf("5j")),
-            lowerSum("k6", "Schlafmittelkonsum", listOf("7")),
-            lowerSum("k7", "Tagesmüdigkeit", listOf("8", "9"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
+            lowerOf("k5", "Schlafstörungen", disturbances, steps = Steps(listOf(1 to 0, 10 to 1, 19 to 2), otherwise = 3), optional = listOf("5j")),
+            lowerOf("k6", "Schlafmittelkonsum", listOf("7")),
+            lowerOf("k7", "Tagesmüdigkeit", listOf("8", "9"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
             Score(
                 "gesamt", "Gesamtwert", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("k1", "k2", "k3", "k4", "k5", "k6", "k7"),
                 bands = listOf(Band.upTo(5, "gute Schläfer"), Band.upTo(10, "schlechte Schläfer"), Band.upTo(21, "chronische Schlafstörung")),
@@ -381,7 +390,7 @@ private val RIS: Assessment = run {
             Section(items = items),
         ),
         scores = listOf(
-            lowerSum("gesamt", "Gesamt", ids(items), listOf(Band.upTo(12, "Unauffällig"), Band.upTo(24, "Auffällig"), Band.upTo(40, "Ausgeprägt"))),
+            lowerOf("gesamt", "Gesamt", ids(items), listOf(Band.upTo(12, "Unauffällig"), Band.upTo(24, "Auffällig"), Band.upTo(40, "Ausgeprägt"))),
         ),
     )
 }

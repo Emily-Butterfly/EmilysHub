@@ -202,7 +202,7 @@ class DokuAssessmentsScreenTest {
             compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextInput("25:00")
             compose.onNodeWithText("Keine Uhrzeit von 00:00 bis 23:59 (hh:mm)").performScrollTo().assertIsDisplayed()
             compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextClearance()
-            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextInput("6,45")
+            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextInput("6:45")
             compose.onNodeWithText("Fertig").performClick()
 
             compose.waitForIdle()

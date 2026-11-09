@@ -26,7 +26,7 @@ object Scoring {
                 }
                 score.grades.isNotEmpty() -> grade(score, exact)
                 else -> value(form, score, answers.filterKeys { it in shown }, shown)
-            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }?.let { value -> score.steps?.let { Fraction(it.of(value), 1) } ?: value }
+            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }?.let { stepped(score, it) }
             exact[score.id] = fraction
             ScoreResult(score, fraction?.hundredths())
         }
@@ -142,7 +142,9 @@ object Scoring {
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
         if (score.rule == ScoreRule.GoalT) return goals(form.item(score.items.single()) as GoalsItem, answers[score.items.single()])
-        if (score.rule == ScoreRule.ShareOfSpan) return shareOfSpan(score.items.map { id -> (answers[id] as? Answer.Time)?.minutes ?: return null })
+        if (score.rule == ScoreRule.ShareOfSpan) {
+            return shareOfSpan(score.items.map { id -> answers[id]?.takeIf { fits(checkNotNull(form.item(id)), it) }.let { it as? Answer.Time }?.minutes ?: return null })
+        }
         if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers, shown)
         val answered = answered(score.items)
         // With optional items, all the others are needed, which minAnswered then is not.
@@ -203,6 +205,9 @@ object Scoring {
         val span = Math.floorMod(to - from, TimeItem.DAY)
         return if (span == 0) null else Fraction(part * HUNDRED, span.toLong())
     }
+
+    /** [value] of [score] as the points of its steps, if it has them. */
+    private fun stepped(score: Score, value: Fraction): Fraction = score.steps?.let { Fraction(it.of(value), 1) } ?: value
 
     /** The points [steps] gives [value]: the first bound it lies below, else the last. */
     private fun Steps.of(value: Fraction): Long =

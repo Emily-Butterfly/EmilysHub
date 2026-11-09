@@ -522,8 +522,9 @@ class ScoringTest {
         fun at(min: Int) = value(form, mapOf("min" to Answer.Number(min * 100L), "a" to Answer.Chosen("0")))
         assertEquals(listOf(0L, 0L, 100L, 100L, 200L, 200L, 300L), listOf(0, 15, 16, 30, 31, 60, 61).map(::at))
         assertEquals(0L..600L, Scoring.range(form, form.scores.single()))
-        // A part of a minute lies within the minute's step.
+        // A part of a minute lies within the minute's step; below 0 is no answer.
         assertEquals(0L, value(form, mapOf("min" to Answer.Number(1550), "a" to Answer.Chosen("0"))))
+        assertEquals(null, value(form, mapOf("min" to Answer.Number(-500), "a" to Answer.Chosen("0"))))
     }
 
     @Test
@@ -555,6 +556,8 @@ class ScoringTest {
         // No time in bed: no share.
         assertEquals(null, at(7 * 60, 7 * 60, 6 * 60))
         assertEquals(null, value(form, mapOf("bett" to Answer.Time(0), "auf" to Answer.Time(60))))
+        // A time stored that is none, as of a later version, counts nowhere.
+        assertEquals(null, at(23 * 60, 5000, 7 * 60))
     }
 
     @Test
@@ -577,10 +580,16 @@ class ScoringTest {
         form(Score("eff", "Effizienz", listOf("a", "b", "c"), rule = ScoreRule.ShareOfSpan, direction = Direction.HigherIsBetter))
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun `a share of a span counts a duration of two times of the day, in that order`() {
+        val items = listOf(TimeItem("bett", "Zu Bett"), TimeItem("auf", "Aufgestanden"), TimeItem("schlaf", "Geschlafen", duration = true))
+        form(Score("eff", "Effizienz", listOf("bett", "schlaf", "auf"), rule = ScoreRule.ShareOfSpan, direction = Direction.HigherIsBetter), items = items)
+    }
+
     @Test
     fun `a time is typed as hh mm, or in whole hours, from 0 00 to 23 59`() {
-        assertEquals(listOf(450, 450, 450, 450, 420, 0, 1439), listOf("7:30", "07:30", " 7.30 ", "7,30", "7", "0:00", "23:59").map(TimeItem::parse))
-        assertEquals(listOf(null, null, null, null, null), listOf("24:00", "7:60", "7:3", "abends", "").map(TimeItem::parse))
+        assertEquals(listOf(450, 450, 450, 420, 0, 1439), listOf("7:30", "07:30", " 7:30 ", "7", "0:00", "23:59").map(TimeItem::parse))
+        assertEquals(List(7) { null }, listOf("24:00", "7:60", "7:3", "abends", "", "7,30", "7.30").map(TimeItem::parse))
         assertEquals(listOf("07:30", "00:00", "23:59"), listOf(450, 0, 1439).map(TimeItem::format))
     }
 }

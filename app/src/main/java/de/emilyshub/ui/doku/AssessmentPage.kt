@@ -512,8 +512,8 @@ private fun TimeAnswer(item: TimeItem, answer: Answer.Time?, enabled: Boolean, o
         } else {
             null
         },
-        // With a separator, which the keypad of whole numbers lacks.
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        // With the colon, which the keypads of numbers lack.
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
         modifier = Modifier.fillMaxWidth(),
     )
 }
