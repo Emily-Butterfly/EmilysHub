@@ -80,6 +80,7 @@ import de.emilyshub.doku.assessments.ScaleItem
 import de.emilyshub.doku.assessments.ScoreResult
 import de.emilyshub.doku.assessments.Scoring
 import de.emilyshub.doku.assessments.TextItem
+import de.emilyshub.doku.assessments.TimeItem
 import de.emilyshub.doku.assessments.YesNoItem
 import de.emilyshub.doku.assessments.toggled
 import de.emilyshub.ui.numericDate
@@ -358,7 +359,7 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
     val enabled = onAnswer != null
     val answerWith = onAnswer ?: {}
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (item !is TextItem && item !is NumberItem) Text(item.text, style = MaterialTheme.typography.bodyLarge)
+        if (item !is TextItem && item !is NumberItem && item !is TimeItem) Text(item.text, style = MaterialTheme.typography.bodyLarge)
         when (item) {
             is ChoiceItem -> item.options.forEach { option ->
                 val chosen = (answer as? Answer.Chosen)?.optionId == option.id
@@ -399,6 +400,7 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
                 }
             }
             is NumberItem -> NumberAnswer(item, answer as? Answer.Number, enabled, answerWith)
+            is TimeItem -> TimeAnswer(item, answer as? Answer.Time, enabled, answerWith)
             is TextItem -> WordsField(item.text, (answer as? Answer.Text)?.text.orEmpty(), enabled, onChange = { answerWith(Answer.Text(it).takeIf { _ -> it.isNotEmpty() }) })
             is BodyRegionsItem -> {
                 val regions = answer as? Answer.Regions ?: Answer.Regions(emptySet())
@@ -489,6 +491,33 @@ private fun NumberAnswer(item: NumberItem, answer: Answer.Number?, enabled: Bool
     )
 }
 
+/** A time typed as hh:mm, kept as typed while it is none. */
+@Composable
+private fun TimeAnswer(item: TimeItem, answer: Answer.Time?, enabled: Boolean, onAnswer: (Answer?) -> Unit) {
+    // Not saveable, as all that is typed in the Doku.
+    var typed by remember { mutableStateOf(answer?.minutes?.let(TimeItem::format).orEmpty()) }
+    val invalid = typed.isNotBlank() && TimeItem.parse(typed) == null
+    OutlinedTextField(
+        value = typed,
+        onValueChange = {
+            typed = it
+            onAnswer(TimeItem.parse(it)?.let(Answer::Time))
+        },
+        label = { Text("${item.text} (hh:mm)") },
+        singleLine = true,
+        enabled = enabled,
+        isError = invalid,
+        supportingText = if (invalid) {
+            { Text(stringResource(if (item.duration) R.string.doku_assessment_duration_invalid else R.string.doku_assessment_time_invalid)) }
+        } else {
+            null
+        },
+        // With a separator, which the keypad of whole numbers lacks.
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 /** Words typed for [label]. */
 @Composable
 private fun WordsField(label: String, text: String, enabled: Boolean, onChange: (String) -> Unit) {
@@ -547,6 +576,7 @@ private fun answerText(answer: Answer): String = when (answer) {
     // Numbers as numbers: 1, 3, 13.
     is Answer.Checked -> (answer.optionIds.sortedWith(compareBy({ it.toIntOrNull() ?: Int.MAX_VALUE }, { it })) + listOfNotNull(answer.other.ifEmpty { null })).joinToString(", ")
     is Answer.Number -> TestNumber.format(answer.hundredths)
+    is Answer.Time -> TimeItem.format(answer.minutes)
     is Answer.Text -> answer.text
     is Answer.Regions -> (answer.regions.map(BodyRegion::label) + listOfNotNull(answer.text.ifEmpty { null })).joinToString(", ")
     is Answer.Goals -> answer.goals.joinToString("; ") { goal -> listOfNotNull(goal.text.ifEmpty { null }, goal.level?.let { "%+d".format(it) }).joinToString(" ") }

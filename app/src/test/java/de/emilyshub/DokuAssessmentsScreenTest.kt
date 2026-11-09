@@ -1,8 +1,10 @@
 package de.emilyshub
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -14,21 +16,21 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.assessments.Answer
+import java.time.LocalDate
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.LocalDate
 
 /**
  * The built-in forms (SPEC.md §14): chosen at an appointment by search and from those last used, filled in with the
@@ -181,6 +183,33 @@ class DokuAssessmentsScreenTest {
             compose.field("Ziel 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithContentDescription("Ziel 2 entfernen").performScrollTo().performClick()
             compose.onNode(hasText("T-Wert: 50")).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the RIS takes its bed times as hh mm, kept as typed while no time`() {
+        launchApp().use {
+            val patient = compose.openWithPatient()
+            val at = appointment(patient, "2026-10-23")
+            compose.openTab("Termine")
+            compose.onNodeWithText("(leer)").performClick()
+
+            compose.addForm()
+            compose.field("Bogen suchen").performTextInput("ris")
+            compose.onNodeWithText("Regensburger Insomnie Skala").performClick()
+
+            compose.field("von … Uhr nachts (hh:mm)").performScrollTo().performTextInput("23:30")
+            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextInput("25:00")
+            compose.onNodeWithText("Keine Uhrzeit von 00:00 bis 23:59 (hh:mm)").performScrollTo().assertIsDisplayed()
+            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextClearance()
+            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().performTextInput("6,45")
+            compose.onNodeWithText("Fertig").performClick()
+
+            compose.waitForIdle()
+            val filled = runBlocking { checkNotNull(app.assessments.at(at)) }.single()
+            assertEquals(mapOf("0-von" to Answer.Time(23 * 60 + 30), "0-bis" to Answer.Time(6 * 60 + 45)), filled.answers)
+            compose.onNodeWithText("Regensburger Insomnie Skala").performScrollTo().performClick()
+            compose.field("bis … Uhr am nächsten Tag (hh:mm)").performScrollTo().assertTextContains("06:45")
         }
     }
 

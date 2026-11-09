@@ -15,6 +15,7 @@ object AnswerCodec {
         is Answer.YesNo -> StoredAnswer("$YES_NO${if (answer.yes) 1 else 0}", "")
         is Answer.OnScale -> StoredAnswer("$SCALE${answer.value}", "")
         is Answer.Number -> StoredAnswer("$NUMBER${answer.hundredths}", "")
+        is Answer.Time -> StoredAnswer("$TIME${answer.minutes}", "")
         is Answer.Checked -> answer.other.trim().let { other ->
             if (answer.optionIds.isEmpty() && other.isEmpty()) null else StoredAnswer(CHECKED + answer.optionIds.sorted().joinToString(","), other)
         }
@@ -42,6 +43,7 @@ object AnswerCodec {
             }
             SCALE -> rest.toIntOrNull()?.let(Answer::OnScale)
             NUMBER -> rest.toLongOrNull()?.let(Answer::Number)
+            TIME -> rest.toIntOrNull()?.let(Answer::Time)
             CHECKED -> Answer.Checked(ids(), stored.text)
             TEXT -> Answer.Text(stored.text)
             REGIONS -> Answer.Regions(ids().mapNotNull(BodyRegion::of).toSet(), stored.text)
@@ -67,4 +69,5 @@ object AnswerCodec {
     private const val TEXT = "t:"
     private const val REGIONS = "r:"
     private const val GOALS = "g:"
+    private const val TIME = "h:"
 }

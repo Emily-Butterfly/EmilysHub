@@ -25,6 +25,9 @@ sealed interface Answer {
 
     /** The goals of a [GoalsItem], in their order. */
     data class Goals(val goals: List<Goal>) : Answer
+
+    /** A time of the day or a duration, for a [TimeItem], in [minutes]: since midnight, or as long. */
+    data class Time(val minutes: Int) : Answer
 }
 
 /** A goal in [text], rated at the [level] of its points, such as +1 "Ziel übertroffen"; none while unrated. */

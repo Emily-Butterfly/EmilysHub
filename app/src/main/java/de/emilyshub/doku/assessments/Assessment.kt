@@ -43,6 +43,7 @@ data class Assessment(
                 // A T-score's goals and its rule come only together.
                 require((item(itemId) is GoalsItem) == (score.rule == ScoreRule.GoalT)) { "$id: score ${score.id}: goals are counted by a T-score alone" }
             }
+            require(score.rule != ScoreRule.ShareOfSpan || score.items.all { item(it) is TimeItem }) { "$id: score ${score.id} is a share of a span of times" }
             // Filled up by section, it needs half of each section, not a number of its own.
             require(score.rule != ScoreRule.MeanFilled || score.minAnswered == score.items.size) {
                 "$id: score ${score.id} is filled by the mean, which needs half of each section answered, not minAnswered"
@@ -177,7 +178,8 @@ data class ChecklistItem(
 /**
  * A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. With a [max], such as the days of
  * three months, a whole number from 0 up to it, which a score counts as its points: [pointsEach] for each, such as 3 for
- * each problem "stark belastend".
+ * each problem "stark belastend". Or with [steps], any number, counted by the step it lies in, such as the PSQI's minutes
+ * until asleep.
  */
 data class NumberItem(
     override val id: String,
@@ -187,8 +189,9 @@ data class NumberItem(
     val max: Int? = null,
     val pointsEach: Int = 1,
     override val showIf: Condition? = null,
+    val steps: Steps? = null,
 ) : Item {
-    override val scorable: Boolean get() = max != null
+    override val scorable: Boolean get() = max != null || steps != null
 
     /** Whether [hundredths] may be answered: any number, or with a [max], a whole one from 0 up to it. */
     fun accepts(hundredths: Long): Boolean = max == null || hundredths % 100 == 0L && hundredths in 0..max * 100L
@@ -196,6 +199,50 @@ data class NumberItem(
     init {
         require(max == null || max >= 1 && !decimals) { "$id: a number counted as points is whole, up to a positive most" }
         require(pointsEach >= 1 && (pointsEach == 1 || max != null)) { "$id: only a number counted as points counts each as more" }
+        require(max == null || steps == null) { "$id: a number counts as points or by steps, not both" }
+    }
+}
+
+/**
+ * A time of the day, as hh:mm, or with [duration] a time as long, such as hours slept; from 0:00 to 23:59 either way. A
+ * score counts its minutes, such as the PSQI's hours slept, or the share of a span ([ScoreRule.ShareOfSpan]).
+ */
+data class TimeItem(
+    override val id: String,
+    override val text: String,
+    val duration: Boolean = false,
+    override val showIf: Condition? = null,
+) : Item {
+    override val scorable: Boolean get() = true
+
+    companion object {
+        /** The minutes of a day: a time lies below. */
+        const val DAY = 24 * 60
+
+        /** The minutes of [typed], such as "7:30", "07:30", "7.30", "7,30" or "7" for 7:00; none for what is no time of 0:00 to 23:59. */
+        fun parse(typed: String): Int? {
+            val match = Regex("""(\d{1,2})(?:[:.,](\d{2}))?""").matchEntire(typed.trim()) ?: return null
+            val hours = match.groupValues[1].toInt()
+            val minutes = match.groupValues[2].ifEmpty { "0" }.toInt()
+            return if (hours < 24 && minutes < 60) hours * 60 + minutes else null
+        }
+
+        /** [minutes] as hh:mm, such as "07:30". */
+        fun format(minutes: Int): String = "%02d:%02d".format(minutes / 60, minutes % 60)
+    }
+}
+
+/**
+ * Points by where a value lies: those of the first of [below] whose bound, a whole number, the value lies below; else
+ * [otherwise]. Such as the PSQI's "≤ 15 Minuten 0, 16–30 Minuten 1, 31–60 Minuten 2, > 60 Minuten 3" as 16 to 0, 31 to 1,
+ * 61 to 2, otherwise 3.
+ */
+data class Steps(val below: List<Pair<Int, Int>>, val otherwise: Int) {
+    /** The fewest and the most points. */
+    val range: IntRange get() = (below.map { it.second } + otherwise).let { it.min()..it.max() }
+
+    init {
+        require(below.isNotEmpty() && below.zipWithNext().all { (a, b) -> a.first < b.first }) { "steps must rise" }
     }
 }
 
@@ -323,6 +370,8 @@ data class Score(
     val grades: List<Grade> = emptyList(),
     /** Pairs of its items of which a sum counts only the one with fewer points, such as the Mini-BESTest's two sides. */
     val worseOf: List<List<String>> = emptyList(),
+    /** What its value counts in points by where it lies, such as a PSQI component from 0 to 3; the value itself if none. */
+    val steps: Steps? = null,
 ) {
     init {
         require(listOf(items, sumOf, grades).count(List<*>::isNotEmpty) == 1) { "$id: a score counts either items, other scores or grades" }
@@ -342,6 +391,10 @@ data class Score(
                 (worseOf.isEmpty() || rule == ScoreRule.Sum && minAnswered == items.size && optional.isEmpty()),
         ) { "$id: pairs of its own items, apart, of a sum that needs them all" }
         require(rule != ScoreRule.GoalT || items.size == 1 && divisor == 1) { "$id: a T-score counts one item of goals" }
+        require(rule != ScoreRule.ShareOfSpan || items.size == 3 && divisor == 1 && minAnswered == 3 && optional.isEmpty()) {
+            "$id: a share of a span counts its part and the span's ends, all three"
+        }
+        require(steps == null || items.isNotEmpty()) { "$id: only a score of items takes steps" }
     }
 }
 
@@ -394,6 +447,12 @@ enum class ScoreRule {
      * Sherman with ρ = 0,3 (09.11.2026), once at least one goal is set and each is rated.
      */
     GoalT,
+
+    /**
+     * Its first item, a duration, in percent of the time from its second to its third, times of the day, over midnight if
+     * the third is earlier: the PSQI's sleep efficiency, hours slept of those in bed (09.11.2026); none for no time in bed.
+     */
+    ShareOfSpan,
 }
 
 /** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */

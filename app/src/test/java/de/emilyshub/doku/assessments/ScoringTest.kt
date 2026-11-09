@@ -500,4 +500,87 @@ class ScoringTest {
     fun `a T-score counts goals, nothing else`() {
         form(Score("t", "T-Wert", listOf("a"), rule = ScoreRule.GoalT, direction = Direction.HigherIsBetter))
     }
+
+    @Test
+    fun `a time counts its minutes since midnight, or of a duration, and only a time of the day fits it`() {
+        val items = listOf(TimeItem("zeit", "Wann?"), TimeItem("dauer", "Wie lange?", duration = true))
+        val form = form(Score("sum", "Summe", listOf("dauer"), direction = Direction.HigherIsBetter), items = items)
+
+        assertEquals(45000L, value(form, mapOf("dauer" to Answer.Time(7 * 60 + 30))))
+        assertEquals(true, Scoring.fits(items[0], Answer.Time(23 * 60 + 59)))
+        assertEquals(false, Scoring.fits(items[0], Answer.Time(24 * 60)))
+        assertEquals(false, Scoring.fits(items[0], Answer.Time(-1)))
+        assertEquals(false, Scoring.fits(items[0], Answer.Number(100)))
+        assertEquals(0L..143900L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test
+    fun `steps turn a number into points, the first bound it lies below, else the last`() {
+        val minutes = NumberItem("min", "Minuten", unit = "min", steps = Steps(listOf(16 to 0, 31 to 1, 61 to 2), otherwise = 3))
+        val form = form(Score("sum", "Summe", listOf("min", "a"), direction = Direction.LowerIsBetter), items = listOf(minutes, choice("a")))
+
+        fun at(min: Int) = value(form, mapOf("min" to Answer.Number(min * 100L), "a" to Answer.Chosen("0")))
+        assertEquals(listOf(0L, 0L, 100L, 100L, 200L, 200L, 300L), listOf(0, 15, 16, 30, 31, 60, 61).map(::at))
+        assertEquals(0L..600L, Scoring.range(form, form.scores.single()))
+        // A part of a minute lies within the minute's step.
+        assertEquals(0L, value(form, mapOf("min" to Answer.Number(1550), "a" to Answer.Chosen("0"))))
+    }
+
+    @Test
+    fun `a score's steps turn its value into points, such as a PSQI component`() {
+        val score = Score("c", "Komponente", listOf("a", "b"), direction = Direction.LowerIsBetter, steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3))
+        val form = form(score)
+
+        assertEquals(listOf(0L, 100L, 100L, 200L, 200L, 300L), listOf(0 to 0, 1 to 0, 1 to 1, 2 to 1, 2 to 2, 3 to 3).map { (a, b) -> value(form, chosen("a" to "$a", "b" to "$b")) })
+        assertEquals(null, value(form, chosen("a" to "1")))
+        assertEquals(0L..300L, Scoring.range(form, score))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `steps must rise`() {
+        Steps(listOf(5 to 0, 5 to 1), otherwise = 2)
+    }
+
+    @Test
+    fun `a share of a span is the part in percent of the time from one clock time to the other, over midnight`() {
+        val items = listOf(TimeItem("bett", "Zu Bett"), TimeItem("auf", "Aufgestanden"), TimeItem("schlaf", "Geschlafen", duration = true))
+        val score = Score("eff", "Effizienz", listOf("schlaf", "bett", "auf"), rule = ScoreRule.ShareOfSpan, unit = "%", direction = Direction.HigherIsBetter)
+        val form = form(score, items = items)
+
+        fun at(bed: Int, up: Int, slept: Int) = value(form, mapOf("bett" to Answer.Time(bed), "auf" to Answer.Time(up), "schlaf" to Answer.Time(slept)))
+        // 7 h of 8 h, from 23:00 to 7:00.
+        assertEquals(8750L, at(23 * 60, 7 * 60, 7 * 60))
+        // 6 h of 7 h, from 0:30 to 7:30: 85,71…
+        assertEquals(8571L, at(30, 7 * 60 + 30, 6 * 60))
+        // No time in bed: no share.
+        assertEquals(null, at(7 * 60, 7 * 60, 6 * 60))
+        assertEquals(null, value(form, mapOf("bett" to Answer.Time(0), "auf" to Answer.Time(60))))
+    }
+
+    @Test
+    fun `a share of a span takes steps, as the PSQI's efficiency`() {
+        val items = listOf(TimeItem("bett", "Zu Bett"), TimeItem("auf", "Aufgestanden"), TimeItem("schlaf", "Geschlafen", duration = true))
+        val score = Score(
+            "eff", "Effizienz", listOf("schlaf", "bett", "auf"), rule = ScoreRule.ShareOfSpan, direction = Direction.LowerIsBetter,
+            steps = Steps(listOf(65 to 3, 75 to 2, 85 to 1), otherwise = 0),
+        )
+        val form = form(score, items = items)
+
+        fun at(slept: Int) = value(form, mapOf("bett" to Answer.Time(22 * 60), "auf" to Answer.Time(6 * 60), "schlaf" to Answer.Time(slept)))
+        // Of 480 minutes: 85 % is 408, 75 % 360, 65 % 312.
+        assertEquals(listOf(0L, 100L, 100L, 200L, 200L, 300L), listOf(408, 407, 360, 359, 312, 311).map(::at))
+        assertEquals(0L..300L, Scoring.range(form, score))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a share of a span counts three times, its part and the span's ends`() {
+        form(Score("eff", "Effizienz", listOf("a", "b", "c"), rule = ScoreRule.ShareOfSpan, direction = Direction.HigherIsBetter))
+    }
+
+    @Test
+    fun `a time is typed as hh mm, or in whole hours, from 0 00 to 23 59`() {
+        assertEquals(listOf(450, 450, 450, 450, 420, 0, 1439), listOf("7:30", "07:30", " 7.30 ", "7,30", "7", "0:00", "23:59").map(TimeItem::parse))
+        assertEquals(listOf(null, null, null, null, null), listOf("24:00", "7:60", "7:3", "abends", "").map(TimeItem::parse))
+        assertEquals(listOf("07:30", "00:00", "23:59"), listOf(450, 0, 1439).map(TimeItem::format))
+    }
 }

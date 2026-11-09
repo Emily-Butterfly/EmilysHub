@@ -26,7 +26,7 @@ object Scoring {
                 }
                 score.grades.isNotEmpty() -> grade(score, exact)
                 else -> value(form, score, answers.filterKeys { it in shown }, shown)
-            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }
+            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }?.let { value -> score.steps?.let { Fraction(it.of(value), 1) } ?: value }
             exact[score.id] = fraction
             ScoreResult(score, fraction?.hundredths())
         }
@@ -77,10 +77,12 @@ object Scoring {
         is TextItem -> answer is Answer.Text
         is BodyRegionsItem -> answer is Answer.Regions
         is GoalsItem -> answer is Answer.Goals
+        is TimeItem -> answer is Answer.Time && answer.minutes in 0 until TimeItem.DAY
     }
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange {
+        score.steps?.range?.let { return it.first * HUNDRED..it.last * HUNDRED }
         if (score.grades.isNotEmpty()) return score.grades.minOf(Grade::value) * HUNDRED..score.grades.maxOf(Grade::value) * HUNDRED
         if (score.sumOf.isNotEmpty()) {
             // Weighed, a part's least may make the most, if its weight is below 0.
@@ -104,7 +106,7 @@ object Scoring {
             }
             ScoreRule.MeanFilled -> ranges.sumOf { it.first } * HUNDRED..ranges.sumOf { it.second } * HUNDRED
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
-            ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll -> 0L..HUNDRED * HUNDRED
+            ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll, ScoreRule.ShareOfSpan -> 0L..HUNDRED * HUNDRED
             ScoreRule.GoalT -> error("reckoned before")
         }
         val by = HUNDRED * score.divisor
@@ -140,6 +142,7 @@ object Scoring {
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
         if (score.rule == ScoreRule.GoalT) return goals(form.item(score.items.single()) as GoalsItem, answers[score.items.single()])
+        if (score.rule == ScoreRule.ShareOfSpan) return shareOfSpan(score.items.map { id -> (answers[id] as? Answer.Time)?.minutes ?: return null })
         if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers, shown)
         val answered = answered(score.items)
         // With optional items, all the others are needed, which minAnswered then is not.
@@ -159,6 +162,7 @@ object Scoring {
             }
             ScoreRule.MeanFilled -> error("reckoned by section")
             ScoreRule.GoalT -> error("reckoned by its goals")
+            ScoreRule.ShareOfSpan -> error("reckoned by its times")
         }.takeIf { it.denominator != 0L }
     }
 
@@ -193,6 +197,17 @@ object Scoring {
     /** How far a T-score may lie from 50: of ever more goals, all at ±2, 20 / √0,3. */
     private val GOAL_T_LIMIT = 20 / Math.sqrt(0.3)
 
+    /** The first of [minutes] in percent of the span from the second to the third, over midnight; none for no span. */
+    private fun shareOfSpan(minutes: List<Int>): Fraction? {
+        val (part, from, to) = minutes
+        val span = Math.floorMod(to - from, TimeItem.DAY)
+        return if (span == 0) null else Fraction(part * HUNDRED, span.toLong())
+    }
+
+    /** The points [steps] gives [value]: the first bound it lies below, else the last. */
+    private fun Steps.of(value: Fraction): Long =
+        (below.firstOrNull { (bound, _) -> value < Fraction(bound.toLong(), 1) }?.second ?: otherwise).toLong()
+
     /** [score] filled up by the mean of each section of [form]'s items: the sum of each section times its items over those answered. */
     private fun meanFilled(form: Assessment, score: Score, answered: (List<String>) -> List<Pair<Long, Pair<Long, Long>>>): Fraction? {
         val sections = form.sections.map { section -> section.items.map(Item::id).filter { it in score.items } }.filter(List<String>::isNotEmpty)
@@ -212,7 +227,10 @@ object Scoring {
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
             }
-            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED * item.pointsEach).toInt() }
+            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { hundredths ->
+                item.steps?.of(Fraction(hundredths, HUNDRED))?.toInt() ?: (hundredths / HUNDRED * item.pointsEach).toInt()
+            }
+            is TimeItem -> (answer as? Answer.Time)?.minutes?.takeIf { fits(item, answer) }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null
@@ -224,7 +242,8 @@ object Scoring {
         is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
-        is NumberItem -> item.max?.let { 0L to it.toLong() * item.pointsEach }
+        is NumberItem -> item.steps?.range?.let { it.first.toLong() to it.last.toLong() } ?: item.max?.let { 0L to it.toLong() * item.pointsEach }
+        is TimeItem -> 0L to TimeItem.DAY - 1L
         is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
         else -> null
     }
@@ -238,10 +257,21 @@ object Scoring {
 
     /** A value as it is, [numerator] over [denominator], to be rounded once at the end. */
     private data class Fraction(val numerator: Long, val denominator: Long) {
-        operator fun plus(other: Fraction) = Fraction(numerator * other.denominator + other.numerator * denominator, denominator * other.denominator)
+        // Reduced, as a sum of many, such as the PSQI's seven components, would else overflow its denominators.
+        operator fun plus(other: Fraction) = reduced(numerator * other.denominator + other.numerator * denominator, denominator * other.denominator)
 
         /** Below 0 if less than [other], 0 if as much, else above; denominators are positive. */
         operator fun compareTo(other: Fraction): Int = (numerator * other.denominator).compareTo(other.numerator * denominator)
+
+        companion object {
+            /** [numerator] over [denominator], divided by what they share. */
+            fun reduced(numerator: Long, denominator: Long): Fraction {
+                val shared = gcd(Math.abs(numerator), Math.abs(denominator)).coerceAtLeast(1)
+                return Fraction(numerator / shared, denominator / shared)
+            }
+
+            private tailrec fun gcd(a: Long, b: Long): Long = if (b == 0L) a else gcd(b, a % b)
+        }
 
         /** In hundredths, rounded half away from zero. */
         fun hundredths(): Long {

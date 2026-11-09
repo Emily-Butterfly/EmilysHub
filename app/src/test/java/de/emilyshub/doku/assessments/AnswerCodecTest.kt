@@ -19,6 +19,8 @@ class AnswerCodecTest {
         Answer.Regions(setOf(BodyRegion.KneeLeft, BodyRegion.LumbarSpine), "Leiste"),
         Answer.Goals(listOf(Goal("Treppe mit Geländer", 1), Goal("Allein einkaufen", null), Goal("", -2))),
         Answer.Goals(listOf(Goal("Nur eins", null))),
+        Answer.Time(0),
+        Answer.Time(23 * 60 + 59),
     )
 
     @Test
@@ -37,6 +39,7 @@ class AnswerCodecTest {
     fun `a stored value it does not know reads as no answer`() {
         assertNull(AnswerCodec.decode(StoredAnswer("x:1", "")))
         assertNull(AnswerCodec.decode(StoredAnswer("s:viel", "")))
+        assertNull(AnswerCodec.decode(StoredAnswer("h:spät", "")))
     }
 
     @Test
