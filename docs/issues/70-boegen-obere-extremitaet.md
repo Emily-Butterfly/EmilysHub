@@ -57,7 +57,7 @@ Abgestimmt im Interview vom 08.11.2026.
   - PRWE-G: „trifft nicht zu“ wird einfach nicht mitgezählt (zählt 0 in der Summe), beantwortet aber die Frage; alle Fragen nötig.
   - WOSI: das PDF hat keine Auswertung; Gesamtsumme 0–210 und je Abschnitt A–D die Summe, niedriger besser, alle Fragen nötig.
   - SPADI: Schmerz, Körperliche Aktivität und Gesamt je in Prozent ihres Höchstwerts (50, 80, 130).
-- DASH: der Wert der Funktionsfähigkeit ab 27 von 30 Antworten (höchstens 3 fehlen, so im Bogen; das Auswertungsblatt sagt „3 oder mehr“ nicht); die Module Sport/Musik und Arbeit ohne fehlende Antwort.
+- DASH: der Wert der Funktionsfähigkeit ab 27 von 30 Antworten (höchstens 3 dürfen fehlen, so steht es im Bogen; das Auswertungsblatt erlaubt dagegen nur weniger als 3); die Module Sport/Musik und Arbeit ohne fehlende Antwort.
 - ISIS heißt wie im Titel des PDFs und bei DIGOTOR „Instability Severity Score“; „negativ“ bei der Schulter-Hyperlaxität hat im PDF keinen Wert und zählt 0 (bester Wert 0, schlechtester 10).
 - Karpaltunnel-Scoring heißt wie bei DIGOTOR und im Dateinamen; der Titel des PDFs lautet „Karpaltunnelsyndrom-Scoring“.
 - Karpaltunnel-Scoring und Walch-Duplay haben keine Abkürzung; die Suche findet sie über den Namen.
