@@ -165,7 +165,8 @@ data class ChecklistItem(
 
 /**
  * A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. With a [max], such as the days of
- * three months, a whole number from 0 up to it, which a score counts as its points.
+ * three months, a whole number from 0 up to it, which a score counts as its points, [each] of it as many, such as 3 for
+ * each problem "stark belastend".
  */
 data class NumberItem(
     override val id: String,
@@ -173,6 +174,7 @@ data class NumberItem(
     val unit: String = "",
     val decimals: Boolean = false,
     val max: Int? = null,
+    val each: Int = 1,
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = max != null
@@ -182,6 +184,7 @@ data class NumberItem(
 
     init {
         require(max == null || max >= 1 && !decimals) { "$id: a number counted as points is whole, up to a positive most" }
+        require(each >= 1 && (each == 1 || max != null)) { "$id: only a number counted as points counts each as more" }
     }
 }
 
@@ -228,8 +231,9 @@ enum class BodyRegion(val id: String, val label: String) {
 /**
  * A result of a form, such as its sum or a subscale: by [rule] over the points of [items], divided by [divisor], in [unit],
  * better the [direction] way, its [bands] naming where it lies. Reckoned once [minAnswered] of its items are answered, all
- * of them unless the original allows fewer. Or, with no items, the sum of the scores before it that [sumOf] names, such as
- * a total of pain and function, once each of them has a value; or the value of the first of [grades] whose bounds on the
+ * of them unless the original allows fewer, or all but those [optional]. Or, with no items, the sum of the scores before it
+ * that [sumOf] names, such as a total of pain and function, once each of them has a value, each by its weight and plus a
+ * [constant] if given, such as the IES-R's formula; or the value of the first of [grades] whose bounds on the
  * scores before it hold, such as the GCPS's grade from its pain and its impairment, once each score it bounds has a value.
  */
 data class Score(
@@ -246,6 +250,12 @@ data class Score(
     val divisor: Int = 1,
     /** The ids of the scores before it whose values it adds up, in place of items. */
     val sumOf: List<String> = emptyList(),
+    /** For each of [sumOf], in hundredths, what its value counts, such as -2 for "-0,02 x Intrusion"; each 100 if none. */
+    val weights: List<Int> = emptyList(),
+    /** In hundredths, added to the sum of [sumOf], such as -436 for "- 4,36". */
+    val constant: Int = 0,
+    /** Items that may stay unanswered, counting nothing, such as the PHQ-15's "(nur Frauen)": all the others needed. */
+    val optional: List<String> = emptyList(),
     /** The grades it takes by the scores before it, in place of items: the first that holds, the last without bounds. */
     val grades: List<Grade> = emptyList(),
 ) {
@@ -256,6 +266,11 @@ data class Score(
         // Else answers enough would reach no grade, the same as too few.
         require(grades.isEmpty() || grades.last().bounds.isEmpty()) { "$id: the last grade takes what the others leave" }
         require(divisor >= 1) { "$id: the divisor must be positive" }
+        require(weights.isEmpty() || weights.size == sumOf.size) { "$id: one weight for each score added up" }
+        require(constant == 0 || sumOf.isNotEmpty()) { "$id: only a score of others adds a constant" }
+        require(items.containsAll(optional) && (optional.isEmpty() || minAnswered == items.size && rule == ScoreRule.Sum)) {
+            "$id: optional items are among its items, of a sum that needs all the others"
+        }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
     }
 }

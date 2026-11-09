@@ -71,13 +71,15 @@ class BuiltInAssessmentsTest {
         val byCategory = BuiltInAssessments.byCategory(hidden = setOf("phq-9"))
 
         assertTrue(byCategory.values.flatten().none { it.id == "phq-9" })
-        assertTrue(BuiltInAssessments.search("phq", hidden = setOf("phq-9")).isEmpty())
+        assertTrue(BuiltInAssessments.search("phq-9", hidden = setOf("phq-9")).isEmpty())
+        assertEquals(listOf("phq-15", "phq-4"), BuiltInAssessments.search("phq", hidden = setOf("phq-9")).map(Assessment::id))
     }
 
     @Test
     fun `the search finds forms by name and abbreviation in any case`() {
-        assertEquals(listOf("phq-9"), BuiltInAssessments.search("phq", hidden = emptySet()).map(Assessment::id))
-        assertEquals(listOf("phq-9"), BuiltInAssessments.search("PATIENT health", hidden = emptySet()).map(Assessment::id))
+        assertEquals(listOf("phq-9"), BuiltInAssessments.search("phq-9", hidden = emptySet()).map(Assessment::id))
+        assertEquals(listOf("phq-15", "phq-4", "phq-9"), BuiltInAssessments.search("PATIENT health", hidden = emptySet()).map(Assessment::id))
+        assertEquals(listOf("phq-9"), BuiltInAssessments.search("patient HEALTH 9", hidden = emptySet()).map(Assessment::id))
         assertEquals(listOf("anamnese-v8"), BuiltInAssessments.search("anamnese", hidden = emptySet()).map(Assessment::id))
         assertEquals(listOf("odi"), BuiltInAssessments.search("oswestry", hidden = emptySet()).map(Assessment::id))
         assertTrue(BuiltInAssessments.search("gibt es nicht", hidden = emptySet()).isEmpty())

@@ -375,4 +375,45 @@ class ScoringTest {
     fun `a grade does not count items too`() {
         Score("grad", "Grad", listOf("a"), direction = Direction.LowerIsBetter, grades = listOf(Grade(1)))
     }
+
+    @Test
+    fun `an optional item may stay unanswered, counting nothing, while the others are all needed`() {
+        val form = form(Score("sum", "Summe", listOf("a", "b", "c"), direction = Direction.LowerIsBetter, optional = listOf("c")))
+
+        assertEquals(300L, value(form, chosen("a" to "1", "b" to "2")))
+        assertEquals(600L, value(form, chosen("a" to "1", "b" to "2", "c" to "3")))
+        assertEquals(null, value(form, chosen("a" to "1", "c" to "3")))
+        assertEquals(0L..900L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `an optional item is one of the score's`() {
+        Score("sum", "Summe", listOf("a", "b"), direction = Direction.LowerIsBetter, optional = listOf("c"))
+    }
+
+    @Test
+    fun `a score of others weighs each, adds a constant, and may fall below 0`() {
+        val a = Score("a", "a", listOf("a"), direction = Direction.LowerIsBetter)
+        val b = Score("b", "b", listOf("b"), direction = Direction.LowerIsBetter)
+        // -0,02 a + 0,15 b - 0,36.
+        val x = Score("x", "X", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("a", "b"), weights = listOf(-2, 15), constant = -36)
+        val form = form(a, b, x)
+
+        assertEquals(listOf(300L, 200L, -12L), Scoring.results(form, chosen("a" to "3", "b" to "2")).map(ScoreResult::value))
+        assertEquals(listOf(0L, 300L, 9L), Scoring.results(form, chosen("a" to "0", "b" to "3")).map(ScoreResult::value))
+        assertEquals(-42L..9L, Scoring.range(form, x))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `weights go one to each score added up`() {
+        Score("x", "X", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("a", "b"), weights = listOf(1))
+    }
+
+    @Test
+    fun `a number counts its points each times`() {
+        val form = form(Score("n", "n", listOf("n"), direction = Direction.LowerIsBetter), items = listOf(NumberItem("n", "Wie viele?", max = 10, each = 3)))
+
+        assertEquals(1200L, value(form, mapOf("n" to Answer.Number(400))))
+        assertEquals(0L..3000L, Scoring.range(form, form.scores.single()))
+    }
 }

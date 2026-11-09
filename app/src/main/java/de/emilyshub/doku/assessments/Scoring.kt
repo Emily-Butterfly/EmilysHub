@@ -17,7 +17,12 @@ object Scoring {
             val fraction = when {
                 score.sumOf.isNotEmpty() -> {
                     val parts = score.sumOf.map { exact[it] }
-                    if (null in parts) null else parts.filterNotNull().reduce(Fraction::plus)
+                    if (null in parts) {
+                        null
+                    } else {
+                        parts.filterNotNull().zip(weights(score)) { part, weight -> Fraction(part.numerator * weight, part.denominator * HUNDRED) }
+                            .fold(Fraction(score.constant.toLong(), HUNDRED), Fraction::plus)
+                    }
                 }
                 score.grades.isNotEmpty() -> grade(score, exact)
                 else -> value(form, score, answers.filterKeys { it in shown }, shown)
@@ -36,6 +41,9 @@ object Scoring {
     /** Whether [value] lies within this bound. */
     private fun Bound.holds(value: Fraction): Boolean =
         (from == null || value.compareTo(Fraction(from, HUNDRED)) >= 0) && (below == null || value.compareTo(Fraction(below, HUNDRED)) < 0)
+
+    /** What each score [score] adds up counts, in hundredths. */
+    private fun weights(score: Score): List<Long> = score.weights.map(Int::toLong).ifEmpty { score.sumOf.map { HUNDRED } }
 
     /** Whether [form] reaches a result with nothing answered, as one counting what is ticked, nothing being 0. */
     fun reachesResultUnanswered(form: Assessment): Boolean = results(form, emptyMap()).any { it.value != null }
@@ -74,8 +82,13 @@ object Scoring {
     fun range(form: Assessment, score: Score): LongRange {
         if (score.grades.isNotEmpty()) return score.grades.minOf(Grade::value) * HUNDRED..score.grades.maxOf(Grade::value) * HUNDRED
         if (score.sumOf.isNotEmpty()) {
-            val parts = score.sumOf.map { id -> range(form, form.scores.single { it.id == id }) }
-            return parts.sumOf { it.first }..parts.sumOf { it.last }
+            // Weighed, a part's least may make the most, if its weight is below 0.
+            val parts = score.sumOf.zip(weights(score)) { id, weight ->
+                range(form, form.scores.single { it.id == id }).let { listOf(it.first * weight, it.last * weight) }.let { it.min()..it.max() }
+            }
+            // Hundredths weighed in hundredths: ten-thousandths, back to hundredths.
+            fun hundredths(tenThousandths: Long) = Fraction(tenThousandths + score.constant * HUNDRED, HUNDRED * HUNDRED).hundredths()
+            return hundredths(parts.sumOf { it.first })..hundredths(parts.sumOf { it.last })
         }
         val items = score.items.map { checkNotNull(form.item(it)) }
         val ranges = items.map { checkNotNull(range(it)) }
@@ -122,7 +135,11 @@ object Scoring {
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
         val answered = answered(score.items)
-        if (answered.size < score.minAnswered) return null
+        if (score.optional.isNotEmpty()) {
+            if (answered(score.items - score.optional.toSet()).size < score.items.size - score.optional.size) return null
+        } else if (answered.size < score.minAnswered) {
+            return null
+        }
         val sum = answered.sumOf { it.first }
         val least = answered.sumOf { it.second.first }
         val most = answered.sumOf { it.second.second }
@@ -158,7 +175,7 @@ object Scoring {
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
             }
-            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED).toInt() }
+            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED * item.each).toInt() }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null
@@ -170,7 +187,7 @@ object Scoring {
         is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
-        is NumberItem -> item.max?.let { 0L to it.toLong() }
+        is NumberItem -> item.max?.let { 0L to it.toLong() * item.each }
         is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
         else -> null
     }

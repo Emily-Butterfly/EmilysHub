@@ -76,7 +76,7 @@ class DokuAssessmentsScreenTest {
             compose.onNodeWithText("(leer)").performClick()
 
             compose.addForm()
-            compose.field("Bogen suchen").performTextInput("phq")
+            compose.field("Bogen suchen").performTextInput("phq-9")
             compose.onNodeWithText("Patient Health Questionnaire 9").performClick()
 
             compose.onNodeWithText("23.10.2026").assertIsDisplayed()
@@ -155,7 +155,7 @@ class DokuAssessmentsScreenTest {
             compose.onNodeWithText("(leer)").performClick()
 
             compose.addForm()
-            compose.field("Bogen suchen").performTextInput("phq")
+            compose.field("Bogen suchen").performTextInput("phq-9")
             compose.onNodeWithText("Patient Health Questionnaire 9").performClick()
             compose.onNodeWithText("Fertig").performClick()
 
@@ -245,7 +245,7 @@ class DokuAssessmentsScreenTest {
             compose.addForm()
             compose.onNodeWithText("Anamnesebogen Version 8").assertIsDisplayed()
             compose.onAllNodes(hasText("Patient Health Questionnaire 9")).fetchSemanticsNodes().size.let { assertEquals(1, it) }
-            compose.field("Bogen suchen").performTextInput("phq")
+            compose.field("Bogen suchen").performTextInput("phq-9")
             compose.onNodeWithText("Kein Bogen gefunden").assertIsDisplayed()
         }
     }
