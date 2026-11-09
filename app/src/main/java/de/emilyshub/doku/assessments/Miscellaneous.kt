@@ -11,7 +11,10 @@ import de.emilyshub.doku.Direction
  */
 internal val MISCELLANEOUS: List<Assessment> by lazy { listOf(GAQ_PP, ICIQ_UI_SF, WELLS_LE, WELLS_TVT) }
 
-/** A criterion of a Wells-Score, its [tenths] of points named after it as the PDF prints them, such as "1,5". */
+/**
+ * A criterion of a Wells-Score, its [tenths] of points named after it as the PDF prints them, such as "1,5" or "3,0": with
+ * its decimal, which TestNumber.format leaves out of a whole number.
+ */
 private fun criterion(id: String, label: String, tenths: Int): Option {
     val points = "%s%d,%d".format(if (tenths < 0) "−" else "", Math.abs(tenths) / 10, Math.abs(tenths) % 10)
     return Option(id, "$label · $points Punkte", tenths)

@@ -366,7 +366,7 @@ data class Score(
     /** From the lowest up, each up to and including its bound. */
     val bands: List<Band> = emptyList(),
     val minAnswered: Int = items.size,
-    /** Such as 2, for "geteilt durch 2". */
+    /** Such as 2, for "geteilt durch 2"; or 10 for options whose points are tenths, such as the Wells-Score's 1,5. */
     val divisor: Int = 1,
     /** The ids of the scores before it whose values it adds up, in place of items. */
     val sumOf: List<String> = emptyList(),

@@ -2,6 +2,7 @@ package de.emilyshub.doku.assessments
 
 import de.emilyshub.doku.Direction
 import de.emilyshub.doku.assessments.Forms.all
+import de.emilyshub.doku.assessments.Forms.bandAt
 import de.emilyshub.doku.assessments.Forms.chosen
 import de.emilyshub.doku.assessments.Forms.form
 import de.emilyshub.doku.assessments.Forms.values
@@ -15,9 +16,6 @@ import org.junit.Test
  * the least and the most, a case worked out by hand, what is needed, and its bands at their bounds.
  */
 class MiscellaneousAssessmentsTest {
-
-    /** The band of the only score of [id] at [hundredths]. */
-    private fun band(id: String, hundredths: Long) = ScoreResult(form(id).scores.single(), hundredths).band
 
     /** The criteria of a Wells-Score [id] checked by their [labels]' starts. */
     private fun checked(id: String, vararg labels: String): Map<String, Answer> {
@@ -54,7 +52,7 @@ class MiscellaneousAssessmentsTest {
         assertEquals(0L..1050L, Scoring.range(form("wells-le"), form("wells-le").scores.single()))
         assertEquals(
             listOf("geringe Wahrscheinlichkeit", "geringe Wahrscheinlichkeit", "mäßige Wahrscheinlichkeit", "mäßige Wahrscheinlichkeit", "hohe Wahrscheinlichkeit", "hohe Wahrscheinlichkeit"),
-            listOf(0L, 150L, 200L, 600L, 650L, 1050L).map { band("wells-le", it) },
+            listOf(0L, 150L, 200L, 600L, 650L, 1050L).map { bandAt("wells-le", it) },
         )
         assertEquals(Direction.LowerIsBetter, form("wells-le").scores.single().direction)
     }
@@ -75,7 +73,7 @@ class MiscellaneousAssessmentsTest {
         val likely = "TVT wahrscheinlich (Ultraschall/Phlebografie notwendig)"
         assertEquals(
             listOf(unlikely, unlikely, middle, middle, likely, likely),
-            listOf(-200L, 0L, 100L, 200L, 300L, 900L).map { band("wells-tvt", it) },
+            listOf(-200L, 0L, 100L, 200L, 300L, 900L).map { bandAt("wells-tvt", it) },
         )
     }
 
@@ -91,7 +89,7 @@ class MiscellaneousAssessmentsTest {
         assertEquals(
             listOf("Keine Inkontinenz", "Leichte Inkontinenz", "Leichte Inkontinenz", "Mäßige Inkontinenz", "Mäßige Inkontinenz",
                 "Starke Inkontinenz", "Starke Inkontinenz", "Sehr starke Inkontinenz", "Sehr starke Inkontinenz"),
-            listOf(0, 1, 5, 6, 12, 13, 18, 19, 21).map { band("iciq-ui-sf", it * 100L) },
+            listOf(0, 1, 5, 6, 12, 13, 18, 19, 21).map { bandAt("iciq-ui-sf", it * 100L) },
         )
         val whenLost = form("iciq-ui-sf").item("4") as ChecklistItem
         assertFalse(whenLost.scored)
@@ -112,7 +110,7 @@ class MiscellaneousAssessmentsTest {
         // Yes to 1c and 3 alone.
         assertEquals(listOf(200L), values("gaq-pp", gaq(*BooleanArray(18) { it == 2 || it == 17 })))
         assertEquals(listOf(null), values("gaq-pp", gaq(*BooleanArray(17))))
-        assertEquals(listOf(recommended, speak, speak), listOf(0L, 100L, 1800L).map { band("gaq-pp", it) })
+        assertEquals(listOf(recommended, speak, speak), listOf(0L, 100L, 1800L).map { bandAt("gaq-pp", it) })
 
         val cleared = "abgesprochen"
         fun shown(answers: Map<String, Answer>) = Scoring.visible(form("gaq-pp"), answers).any { it.id == cleared }
