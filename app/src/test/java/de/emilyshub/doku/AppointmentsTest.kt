@@ -68,6 +68,12 @@ class AppointmentsTest {
 
     private fun rows(patientId: Long) = runBlocking { checkNotNull(appointments.of(patientId)) }
 
+    /** The page of appointment [id] as it closes, its text as it was opened, unless to [keep]. */
+    private fun close(id: Long, keep: Boolean = false, turning: Boolean = false) {
+        val text = get(id).text
+        appointments.draft(id, text, text, keep).close(turning)
+    }
+
     @Test
     fun `a new appointment is today, without a time and, without a template, empty`() {
         val id = appointment(patient())
@@ -193,8 +199,8 @@ class AppointmentsTest {
     fun `what is typed is saved as the Doku locks, also in a new appointment and the template`() {
         val id = appointment(patient())
         val savers = listOf(
-            doku.addSaver { appointments.pendingText(id, "Getippt  ") },
-            doku.addSaver { appointments.pendingTemplate("# Befund") },
+            doku.addSaver(appointments.draft(id, get(id).text, "Getippt  ", keep = false)),
+            doku.addSaver(appointments.templateDraft("", "# Befund")),
         )
 
         doku.lock()
@@ -209,11 +215,11 @@ class AppointmentsTest {
     fun `a new appointment left as it was made goes again, also as the Doku locks`() {
         val patient = patient()
         val left = appointment(patient)
-        appointments.dropIfUntouchedLater(left)
+        close(left)
         assertNull(runBlocking { appointments.get(left) })
 
         val locked = appointment(patient)
-        val saver = doku.addSaver { appointments.pendingDrop(locked) }
+        val saver = doku.addSaver(appointments.draft(locked, get(locked).text, get(locked).text, keep = false))
         doku.lock()
         saver.close()
         runBlocking { doku.unlockWithPassword(PASSWORD) }
@@ -226,17 +232,33 @@ class AppointmentsTest {
     fun `a new appointment kept, or asked about once, is no longer new`() {
         val patient = patient()
         val kept = appointment(patient)
-        appointments.keep(kept)
+        close(kept, keep = true)
         val asked = appointment(patient)
-        appointments.dropIfUntouchedLater(asked)
+        close(asked)
         val again = appointment(patient)
 
-        appointments.dropIfUntouchedLater(kept)
-        appointments.dropIfUntouchedLater(again)
-        appointments.dropIfUntouchedLater(again)
+        close(kept)
+        close(again)
+        // Gone already: asked again, it is no longer new.
+        appointments.draft(again, "", "", keep = false).close(turning = false)
 
         assertEquals(listOf(kept), rows(patient).map { it.id })
-        assertNull(appointments.pendingDrop(kept))
+        assertNull(appointments.draft(kept, get(kept).text, get(kept).text, keep = false).pending())
+    }
+
+    @Test
+    fun `a new appointment stays as the screen turns, and while typed in`() {
+        val patient = patient()
+        val turned = appointment(patient)
+        close(turned, turning = true)
+        assertEquals(listOf(turned), rows(patient).map { it.id })
+
+        val typed = appointment(patient)
+        appointments.draft(typed, get(typed).text, "Befund", keep = false).close(turning = false)
+
+        assertEquals("Befund", get(typed).text)
+        close(turned)
+        assertEquals(listOf(typed), rows(patient).map { it.id })
     }
 
     @Test
@@ -251,7 +273,7 @@ class AppointmentsTest {
         val kept = changes.map { change ->
             val id = appointment(patient)
             runBlocking { change(id) }
-            appointments.dropIfUntouchedLater(id)
+            close(id)
             id
         }
 

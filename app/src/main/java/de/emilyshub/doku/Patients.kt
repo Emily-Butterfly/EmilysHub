@@ -3,7 +3,6 @@ package de.emilyshub.doku
 import de.emilyshub.data.InputText
 import de.emilyshub.doku.assessments.BuiltInAssessments
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -73,13 +72,9 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         doku.changing { writeText(it, id, field, text) }
     }
 
-    /** As [setText], but on [background], for an editor that saves as it closes; not once the Doku is locked. */
-    fun setTextLater(id: Long, field: PatientField, text: String) {
-        background.launch { setText(id, field, text) }
-    }
-
-    /** What a text editor has typed for [field] of patient [id], to be written as the Doku locks ([DokuSaver]). */
-    fun pendingText(id: Long, field: PatientField, text: String): suspend (DokuDatabase) -> Unit = { writeText(it, id, field, text) }
+    /** What the page of [field] of patient [id], opened with [original], has not saved yet: [text], once changed. */
+    fun textDraft(id: Long, field: PatientField, original: String, text: String): DokuDraft =
+        TextDraft(doku, background, original, text) { database, written -> writeText(database, id, field, written) }
 
     /** Closes patient [id] today: off the start page, into the archive, only to read there. */
     suspend fun close(id: Long) = changeActive(id) { it.copy(closedOn = today()) }

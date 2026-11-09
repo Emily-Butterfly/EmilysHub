@@ -63,6 +63,12 @@ class AssessmentsTest {
     /** The PHQ-9 answered with [points], item by item. */
     private fun phq9(vararg points: Int): Map<String, Answer> = points.withIndex().associate { (i, p) -> "${i + 1}" to Answer.Chosen("$p") }
 
+    /** The page of new form [id] as it closes with nothing answered, by "Fertig" if [confirmed]. */
+    private fun closeEmpty(id: Long, confirmed: Boolean = false, turning: Boolean = false) {
+        val sheet = runBlocking { checkNotNull(assessments.sheet(id)) }
+        assessments.draft(sheet, new = true, confirmed = confirmed).close(turning)
+    }
+
     private fun fill(at: Long, form: String, answers: Map<String, Answer>, id: Long? = null): Long =
         runBlocking { checkNotNull(assessments.save(at, id, form, answers)) }
 
@@ -116,8 +122,8 @@ class AssessmentsTest {
         assertEquals(emptyList<String>(), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
         fill(at, "phq-9", phq9(2), id = answered)
 
-        assessments.dropIfEmptyLater(empty)
-        assessments.dropIfEmptyLater(answered)
+        closeEmpty(empty)
+        closeEmpty(answered)
 
         assertEquals(listOf(answered), runBlocking { checkNotNull(assessments.at(at)) }.map { it.id })
         assertEquals(listOf("phq-9"), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
@@ -148,7 +154,8 @@ class AssessmentsTest {
         val at = checkNotNull(runBlocking { appointments.create(patient) })
         fill(at, "phq-9", phq9(0))
 
-        appointments.dropIfUntouchedLater(at)
+        val text = runBlocking { checkNotNull(appointments.get(at)) }.text
+        appointments.draft(at, text, text, keep = false).close(turning = false)
 
         assertEquals(1, runBlocking { checkNotNull(appointments.of(patient)) }.size)
     }
@@ -275,13 +282,36 @@ class AssessmentsTest {
         val confirmed = checkNotNull(runBlocking { assessments.create(at, "rmdq") })
         val phq = checkNotNull(runBlocking { assessments.create(at, "phq-9") })
 
-        assessments.dropIfEmptyLater(left)
-        assessments.dropIfEmptyLater(confirmed, confirmed = true)
-        assessments.dropIfEmptyLater(phq, confirmed = true)
+        closeEmpty(left)
+        closeEmpty(confirmed, confirmed = true)
+        closeEmpty(phq, confirmed = true)
 
         val kept = runBlocking { checkNotNull(assessments.at(at)) }
         assertEquals(listOf(confirmed), kept.map { it.id })
         assertEquals(listOf(0L), kept.single().results.map { it.value })
         assertEquals(listOf("rmdq"), runBlocking { checkNotNull(assessments.recent()) }.map { it.id })
+    }
+
+    @Test
+    fun `a page saves its answers as it closes or the Doku locks, keeps a new form as the screen turns, and nothing of one only to read`() {
+        val at = appointment("2026-10-23")
+        val new = checkNotNull(runBlocking { assessments.create(at, "phq-9") })
+        closeEmpty(new, turning = true)
+        assertEquals(listOf(new), runBlocking { checkNotNull(assessments.at(at)) }.map { it.id })
+
+        val sheet = runBlocking { checkNotNull(assessments.sheet(new)) }.answering("1", Answer.Chosen("2"))
+        assessments.draft(sheet, new = true, confirmed = false).close(turning = false)
+        assertEquals(mapOf("1" to Answer.Chosen("2")), runBlocking { checkNotNull(assessments.get(new)) }.answers)
+
+        val locking = runBlocking { checkNotNull(assessments.sheet(new)) }.answering("2", Answer.Chosen("1"))
+        val saver = doku.addSaver(assessments.draft(locking, new = false, confirmed = false))
+        doku.lock()
+        saver.close()
+        runBlocking { doku.unlockWithPassword("geheim-geheim") }
+        assertEquals(setOf("1", "2"), runBlocking { checkNotNull(assessments.get(new)) }.answers.keys)
+
+        runBlocking { patients.close(patient) }
+        val closed = runBlocking { checkNotNull(assessments.sheet(new)) }
+        assertEquals(DokuDraft.None, assessments.draft(closed.answering("3", Answer.Chosen("1")), new = false, confirmed = false))
     }
 }

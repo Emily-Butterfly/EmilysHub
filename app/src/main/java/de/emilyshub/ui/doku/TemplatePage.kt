@@ -25,14 +25,7 @@ internal fun TemplatePage(doku: Doku, appointments: Appointments, contentPadding
     LaunchedEffect(appointments) { loaded = appointments.template() }
     val original = loaded ?: return
     var text by remember { mutableStateOf(original) }
-    SaveOnClose(
-        doku = doku,
-        key = DokuPage.Template,
-        original = original,
-        current = text,
-        pending = appointments::pendingTemplate,
-        saveLater = appointments::setTemplateLater,
-    )
+    KeepDraft(doku, DokuPage.Template) { appointments.templateDraft(original, text) }
     val title = stringResource(R.string.doku_menu_template)
     DokuTextEditor(
         title = title,

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.doku
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -35,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.doku.DokuDraft
 import de.emilyshub.doku.DokuSaver
 import de.emilyshub.doku.Patient
 import de.emilyshub.notes.Markdown
@@ -128,26 +129,20 @@ internal fun DokuTextEditor(
 }
 
 /**
- * Saves [current], once it is not [original] any more, as the editor showing it under [key] closes, by [saveLater], and
- * before the Doku locks, by [pending]; never into the saved state. Nothing while [skip] says so, as once deleted.
+ * Keeps what the page showing it under [key] has not saved yet, as its domain module judges it ([draft]): written before
+ * the Doku locks and as the page closes ([DokuDraft.close]), telling whether the screen only turns. Never into the saved
+ * state. [draft] is asked only then, so that it sees what was set in the same moment, such as "Fertig" pressed. The one
+ * place a page of the Doku saves as it goes.
  */
 @Composable
-internal fun SaveOnClose(
-    doku: Doku,
-    key: Any,
-    original: String,
-    current: String,
-    pending: (String) -> suspend (DokuDatabase) -> Unit,
-    saveLater: (String) -> Unit,
-    skip: () -> Boolean = { false },
-) {
-    val text by rememberUpdatedState(current)
+internal fun KeepDraft(doku: Doku, key: Any, draft: () -> DokuDraft) {
+    val activity = LocalActivity.current
+    val current by rememberUpdatedState(draft)
     DisposableEffect(key) {
-        val changed = { !skip() && text != original }
-        val saver = doku.addSaver(DokuSaver { if (changed()) pending(text) else null })
+        val saver = doku.addSaver(DokuSaver { current().pending() })
         onDispose {
             saver.close()
-            if (changed()) saveLater(text)
+            current().close(turning = activity?.isChangingConfigurations == true)
         }
     }
 }

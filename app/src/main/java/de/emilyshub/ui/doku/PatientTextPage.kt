@@ -29,14 +29,7 @@ internal fun PatientTextPage(doku: Doku, patients: Patients, page: DokuPage.Text
     }
     val original = loaded ?: return
     var text by remember { mutableStateOf(original) }
-    SaveOnClose(
-        doku = doku,
-        key = page,
-        original = original,
-        current = text,
-        pending = { patients.pendingText(page.id, page.field, it) },
-        saveLater = { patients.setTextLater(page.id, page.field, it) },
-    )
+    KeepDraft(doku, page) { patients.textDraft(page.id, page.field, original, text) }
     val label = stringResource(page.field.label)
     DokuTextEditor(
         title = label,

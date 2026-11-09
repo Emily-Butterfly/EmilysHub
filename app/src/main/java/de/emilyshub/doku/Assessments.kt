@@ -36,16 +36,31 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     }
 
     /**
-     * Deletes new form [id] again if nothing of it is answered, so that "+ Bogen" alone keeps nothing; on [background],
-     * for the page as it closes, not once the Doku is locked. One whose result stands without an answer, such as an RMDQ
-     * with nothing ticked, which is 0, stays if [confirmed] by "Fertig", and counts as used (08.11.2026).
+     * What the page of [sheet] has not saved yet: its answers, once [AssessmentSheet.changed]; nothing of one only to
+     * read. A [new] one with nothing answered goes again as the page closes, so that "+ Bogen" alone keeps nothing, but
+     * not as the screen turns; one whose result stands without an answer, such as an RMDQ with nothing ticked, which is
+     * 0, stays if [confirmed] by "Fertig", and counts as used (08.11.2026). As the Doku locks, it is not confirmed.
      */
-    fun dropIfEmptyLater(id: Long, confirmed: Boolean = false) {
-        background.launch { doku.changing { dropIfEmpty(it, id, confirmed) } }
-    }
+    fun draft(sheet: AssessmentSheet, new: Boolean, confirmed: Boolean): DokuDraft {
+        if (!sheet.canChange) return DokuDraft.None
+        val filled = sheet.filled
+        val empty = new && sheet.answers.isEmpty()
+        val write: suspend (DokuDatabase) -> Unit = { write(it, filled.appointmentId, filled.id, filled.assessmentId, sheet.answers) }
+        return object : DokuDraft {
+            override fun pending(): (suspend (DokuDatabase) -> Unit)? = when {
+                empty -> { database -> dropIfEmpty(database, filled.id, confirmed = false) }
+                sheet.changed -> write
+                else -> null
+            }
 
-    /** As [dropIfEmptyLater], to be done as the Doku locks ([DokuSaver]): not confirmed. */
-    fun pendingDrop(id: Long): suspend (DokuDatabase) -> Unit = { dropIfEmpty(it, id, confirmed = false) }
+            override fun close(turning: Boolean) {
+                when {
+                    empty -> if (!turning) background.launch { doku.changing { dropIfEmpty(it, filled.id, confirmed) } }
+                    sheet.changed -> background.launch { doku.changing(write) }
+                }
+            }
+        }
+    }
 
     /** Filled-in form [id]; none once deleted or locked. */
     suspend fun get(id: Long): FilledAssessment? = doku.withDatabase { read(it, id) }
@@ -73,15 +88,6 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
      */
     suspend fun save(appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>): Long? =
         doku.changing { write(it, appointmentId, id, assessmentId, answers) }
-
-    /** As [save], on [background], for a page that saves as it closes; not once the Doku is locked. */
-    fun saveLater(appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>) {
-        background.launch { save(appointmentId, id, assessmentId, answers) }
-    }
-
-    /** What a page has answered, to be written as the Doku locks ([DokuSaver]). */
-    fun pending(appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>): suspend (DokuDatabase) -> Unit =
-        { write(it, appointmentId, id, assessmentId, answers) }
 
     /** Deletes filled-in form [id]; one of a closed patient stays, as it is only to read. */
     suspend fun delete(id: Long) {

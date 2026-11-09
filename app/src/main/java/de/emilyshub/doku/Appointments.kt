@@ -54,30 +54,26 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
         doku.changing { writeText(it, id, text) }
     }
 
-    /** As [setText], but on [background], for an editor that saves as it closes; not once the Doku is locked. */
-    fun setTextLater(id: Long, text: String) {
-        background.launch { setText(id, text) }
-    }
-
-    /** What the editor has typed for appointment [id], to be written as the Doku locks ([DokuSaver]). */
-    fun pendingText(id: Long, text: String): suspend (DokuDatabase) -> Unit = { writeText(it, id, text) }
-
     /**
-     * Deletes new appointment [id] again if it is still as [create] made it: on the same day, at no time, with the
-     * template's text and no measurement or form at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md
-     * §14). On [background], for the page as it closes; not once the Doku is locked. Once asked, it is no longer new.
+     * What the page of appointment [id], opened with text [original], has not saved yet: [text] once changed; and, for a
+     * new one, that it goes again if left as [create] made it: on the same day, at no time, with the template's text and
+     * no measurement or form at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md §14). Not if
+     * it is to [keep], as while it is measured at, nor as the screen turns; once asked as it closes, it is no longer new.
      */
-    fun dropIfUntouchedLater(id: Long) {
-        val created = made.remove(id) ?: return
-        background.launch { doku.changing { dropIfUntouched(it, created) } }
-    }
+    fun draft(id: Long, original: String, text: String, keep: Boolean): DokuDraft {
+        val typed = TextDraft(doku, background, original, text) { database, written -> writeText(database, id, written) }
+        val kept = keep || text != original
+        return object : DokuDraft {
+            override fun pending(): (suspend (DokuDatabase) -> Unit)? =
+                typed.pending() ?: if (kept) null else made.remove(id)?.let { created -> { dropIfUntouched(it, created) } }
 
-    /** As [dropIfUntouchedLater], to be done as the Doku locks ([DokuSaver]); none for one not new. */
-    fun pendingDrop(id: Long): (suspend (DokuDatabase) -> Unit)? = made.remove(id)?.let { created -> { dropIfUntouched(it, created) } }
-
-    /** Keeps new appointment [id] whatever becomes of it: it is no longer new. */
-    fun keep(id: Long) {
-        made.remove(id)
+            override fun close(turning: Boolean) {
+                typed.close(turning)
+                if (turning) return
+                val created = made.remove(id)
+                if (created != null && !kept) background.launch { doku.changing { dropIfUntouched(it, created) } }
+            }
+        }
     }
 
     /** Deletes appointment [id] for good; one of a closed patient stays, as it is only to read. */
@@ -94,13 +90,8 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
         doku.changing { writeTemplate(it, text) }
     }
 
-    /** As [setTemplate], but on [background], for an editor that saves as it closes. */
-    fun setTemplateLater(text: String) {
-        background.launch { setTemplate(text) }
-    }
-
-    /** What the editor has typed for the template, to be written as the Doku locks ([DokuSaver]). */
-    fun pendingTemplate(text: String): suspend (DokuDatabase) -> Unit = { writeTemplate(it, text) }
+    /** What the template's page, opened with [original], has not saved yet: [text], once changed. */
+    fun templateDraft(original: String, text: String): DokuDraft = TextDraft(doku, background, original, text, ::writeTemplate)
 
     /** Sets the text of appointment [id] to [text], cleaned; a closed patient's is only to read. */
     private suspend fun writeText(database: DokuDatabase, id: Long, text: String) {

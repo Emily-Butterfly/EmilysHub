@@ -48,6 +48,16 @@ given (empty is none), the answers its form no longer has, its results (once), a
 
 ## 2 · A Doku draft session
 
+**Status:** done. `DokuDraft` (doku/DokuDraft.kt) is what an open page has not saved yet, as its domain module judges
+it: a `DokuSaver` for the lock, and `close(turning)` for the page closing. `Assessments.draft(sheet, new, confirmed)`,
+`Appointments.draft(id, original, text, keep)`, `Appointments.templateDraft` and `Patients.textDraft` build them; text
+drafts are one `TextDraft`. One Composable, `KeepDraft(doku, key) { draft }`, replaces `SaveAnswers`,
+`DropIfUntouched` and `SaveOnClose`; it asks for the draft only as the Doku locks or the page closes, so that it sees
+"Fertig" or "Messen" pressed in the same moment. Gone from the interfaces: `saveLater`, `pending`, `dropIfEmptyLater`,
+`pendingDrop`, `setTextLater`, `pendingText`, `dropIfUntouchedLater`, `keep`, `setTemplateLater`, `pendingTemplate`.
+Whether the page may change is the draft's to say (`DokuDraft.None` for a closed patient's form), and whether a new
+appointment is new is `Appointments`' own knowledge, not the page's.
+
 Saving on close, or dropping a form left empty, is written three times as a Composable (`SaveAnswers`,
 `DropIfUntouched`, `SaveOnClose`), two of them guarding against a change of configuration and one not; the repositories
 offer five entry points each (`saveLater`, `pending`, `dropIfEmptyLater`, `pendingDrop`, …). Plan 2's editing sessions

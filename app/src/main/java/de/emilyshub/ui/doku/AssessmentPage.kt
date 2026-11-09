@@ -1,6 +1,5 @@
 package de.emilyshub.ui.doku
 
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,14 +38,12 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +58,7 @@ import de.emilyshub.R
 import de.emilyshub.doku.AssessmentSheet
 import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuSaver
+import de.emilyshub.doku.DokuDraft
 import de.emilyshub.doku.FilledAssessment
 import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.assessments.Answer
@@ -215,8 +212,9 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
     // Closed by "Fertig": a new one with nothing answered but a result, such as an RMDQ, stays.
     var confirmed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    if (current.canChange) {
-        SaveAnswers(doku, assessments, page, current, skip = { deleted }, confirmed = { confirmed })
+    KeepDraft(doku, page) {
+        val answered = sheet
+        if (deleted || answered == null) DokuDraft.None else assessments.draft(answered, page.new, confirmed)
     }
     val form = current.form
 
@@ -301,48 +299,6 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
             },
             onDismiss = { deleting = false },
         )
-    }
-}
-
-/**
- * Saves [sheet] once it has [AssessmentSheet.changed], as the page closes and before the Doku locks; a new form left
- * empty goes again then, unless [confirmed] by "Fertig" with a result ([Assessments.dropIfEmptyLater]), but not as the
- * screen turns, after which the page goes on with it. Nothing once [skip] says so.
- */
-@Composable
-private fun SaveAnswers(
-    doku: Doku,
-    assessments: Assessments,
-    page: DokuPage.Assessment,
-    sheet: AssessmentSheet,
-    skip: () -> Boolean,
-    confirmed: () -> Boolean,
-) {
-    val activity = LocalActivity.current
-    val current by rememberUpdatedState(sheet)
-    val skipNow by rememberUpdatedState(skip)
-    val confirmedNow by rememberUpdatedState(confirmed)
-    DisposableEffect(page) {
-        val empty = { page.new && current.answers.isEmpty() }
-        val changed = { !skipNow() && current.changed }
-        val saver = doku.addSaver(
-            DokuSaver {
-                when {
-                    skipNow() -> null
-                    empty() -> assessments.pendingDrop(page.id)
-                    changed() -> assessments.pending(page.appointmentId, page.id, page.assessmentId, current.answers)
-                    else -> null
-                }
-            },
-        )
-        onDispose {
-            saver.close()
-            when {
-                skipNow() -> Unit
-                empty() -> if (activity?.isChangingConfigurations != true) assessments.dropIfEmptyLater(page.id, confirmedNow())
-                changed() -> assessments.saveLater(page.appointmentId, page.id, page.assessmentId, current.answers)
-            }
-        }
     }
 }
 
