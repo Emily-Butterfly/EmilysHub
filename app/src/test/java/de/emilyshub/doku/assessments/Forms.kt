@@ -31,6 +31,13 @@ internal object Forms {
     fun scales(id: String, vararg values: Int): Map<String, Answer> =
         form(id).items.filterIsInstance<ScaleItem>().zip(values.toList()).associate { (item, v) -> item.id to Answer.OnScale(v) }
 
+    /** Each scale of [id] among [items] (all if none) answered by [value]. */
+    fun allScales(id: String, value: Int, items: List<String>? = null): Map<String, Answer> =
+        form(id).items.filterIsInstance<ScaleItem>().filter { items == null || it.id in items }.associate { it.id to Answer.OnScale(value) }
+
+    /** The scales [ids] answered by [values], in order. */
+    fun on(ids: List<String>, vararg values: Int): Map<String, Answer> = ids.zip(values.toList()).associate { (id, v) -> id to Answer.OnScale(v) }
+
     /** The band of score [score] of [id] at [hundredths]. */
     fun bandAt(id: String, hundredths: Long, score: Int = 0) = ScoreResult(form(id).scores[score], hundredths).band
 }

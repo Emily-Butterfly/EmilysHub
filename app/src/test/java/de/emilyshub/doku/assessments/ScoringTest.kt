@@ -308,4 +308,9 @@ class ScoringTest {
     fun `a score of others counts only scores before it`() {
         form(Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("ab"), direction = Direction.LowerIsBetter), Score("ab", "a und b", listOf("a", "b"), direction = Direction.LowerIsBetter))
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a score of others is not divided`() {
+        Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("ab"), direction = Direction.LowerIsBetter, divisor = 2)
+    }
 }

@@ -361,7 +361,7 @@ private val HOS: Assessment = run {
     // The third question is not scored.
     val grade = ChoiceItem(
         "funktionsgrad", "3. Wie würden Sie den momentanen Funktionsgrad Ihrer Hüfte beurteilen?",
-        listOf("Normal", "Fast normal", "Unnormal", "Sehr unnormal").mapIndexed { i, label -> Option("$i", label) },
+        unscored("Normal", "Fast normal", "Unnormal", "Sehr unnormal"),
     )
     // The two starred are not scored, "wie von den Entwicklern hervorgehoben wurde".
     val scoredAdl = adl.filterNot { it.text.endsWith("*") }

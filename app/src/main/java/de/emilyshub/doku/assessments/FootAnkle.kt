@@ -278,7 +278,7 @@ private val FAAM_G: Assessment = run {
     )
     val overall = ChoiceItem(
         "funktionszustand", "Wie würden Sie den derzeitigen Funktionszustand Ihres Fußes insgesamt beurteilen?",
-        listOf("Normal", "Beinahe normal", "Abnormal", "Schwer abnormal").mapIndexed { i, label -> Option("$i", label) },
+        unscored("Normal", "Beinahe normal", "Abnormal", "Schwer abnormal"),
     )
     // In percent of what is answered with points, "nicht zutreffend" left out, with any number answered, as the HOS (08.11.2026).
     fun percent(id: String, name: String, items: List<Item>) = higherBetter(id, name, items, rule = ScoreRule.Percent, unit = "%", minAnswered = 1)

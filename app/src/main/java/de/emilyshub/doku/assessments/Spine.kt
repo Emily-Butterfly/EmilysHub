@@ -5,10 +5,6 @@ import de.emilyshub.doku.Direction
 /** The forms of DIGOTOR's subcategory "Wirbelsäule" (#67), each as in its PDF of the date in its source. */
 internal val SPINE: List<Assessment> by lazy { listOf(CSIQ, HDI, LSIQ, MICHELI, NDI, ODI, RMDQ, VOMS) }
 
-/** Statements answered yes or no, numbered from 1 as in the original. */
-private fun yesNoItems(vararg statements: String): List<Item> =
-    statements.mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
-
 /** Cervical Spine Instability-Skala, as in "Cervical-Spine-Instability-Skala_CSIQ_11-2026.pdf". */
 private val CSIQ: Assessment = run {
     val items = yesNoItems(

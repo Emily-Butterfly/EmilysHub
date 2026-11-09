@@ -6,10 +6,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import de.emilyshub.doku.assessments.Forms.all
+import de.emilyshub.doku.assessments.Forms.allScales
 import de.emilyshub.doku.assessments.Forms.bandAt
 import de.emilyshub.doku.assessments.Forms.chosen
 import de.emilyshub.doku.assessments.Forms.form
 import de.emilyshub.doku.assessments.Forms.itemsOf
+import de.emilyshub.doku.assessments.Forms.on
 import de.emilyshub.doku.assessments.Forms.scales
 import de.emilyshub.doku.assessments.Forms.values
 
@@ -18,13 +20,6 @@ import de.emilyshub.doku.assessments.Forms.values
  * worked out by hand, missing answers by its rule, and its bands at their bounds.
  */
 class UpperExtremityAssessmentsTest {
-
-    /** Each item of [id] among [items] (all if none) on a scale answered by [value]. */
-    private fun allScales(id: String, value: Int, items: List<String>? = null): Map<String, Answer> =
-        form(id).items.filterIsInstance<ScaleItem>().filter { items == null || it.id in items }.associate { it.id to Answer.OnScale(value) }
-
-    /** Items [ids] answered on their scales by [values], in order. */
-    private fun on(ids: List<String>, vararg values: Int): Map<String, Answer> = ids.zip(values.toList()).associate { (id, v) -> id to Answer.OnScale(v) }
 
     @Test
     fun `every form of the upper extremity stands under Obere Extremitaet only, each found by its abbreviation or name`() {

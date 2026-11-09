@@ -12,6 +12,13 @@ internal fun fourToZero(vararg labels: String): List<Option> = labels.mapIndexed
 internal fun scored(vararg options: Pair<String, Int>): List<Option> =
     options.mapIndexed { i, (label, points) -> Option("$i", label, points) }
 
+/** Options without points, their ids numbered from 0, for a choice no score counts, such as the side affected. */
+internal fun unscored(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label) }
+
+/** Statements answered yes or no, numbered from 1 as in the original. */
+internal fun yesNoItems(vararg statements: String): List<Item> =
+    statements.mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
+
 /** Each of [items]' ids. */
 internal fun ids(items: List<Item>): List<String> = items.map(Item::id)
 

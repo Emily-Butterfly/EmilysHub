@@ -15,7 +15,8 @@ object Scoring {
         val exact = mutableMapOf<String, Fraction?>()
         return form.scores.map { score ->
             val fraction = if (score.sumOf.isNotEmpty()) {
-                score.sumOf.map { exact[it] }.takeIf { parts -> parts.all { it != null } }?.map { checkNotNull(it) }?.reduce(Fraction::plus)
+                val parts = score.sumOf.map { exact[it] }
+                if (null in parts) null else parts.filterNotNull().reduce(Fraction::plus)
             } else {
                 value(form, score, answers.filterKeys { it in shown }, shown)
             }?.let { Fraction(it.numerator, it.denominator * score.divisor) }
@@ -134,6 +135,7 @@ object Scoring {
             Fraction(points.sumOf { it.first } * ids.size, points.size.toLong())
         }.reduce(Fraction::plus)
     }
+
     /** The points [answer] makes for [item], reversed ones counted the other way round; none for an answer that does not fit it. */
     internal fun points(item: Item, answer: Answer): Long? {
         val raw = when (item) {

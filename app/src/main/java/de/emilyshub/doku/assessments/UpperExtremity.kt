@@ -14,7 +14,7 @@ private fun lowerBetterTotal(id: String, name: String, vararg parts: String) =
     Score(id, name, emptyList(), direction = Direction.LowerIsBetter, sumOf = parts.toList())
 
 /** A choice of [labels] that no score counts, such as the side affected. */
-private fun choose(id: String, text: String, vararg labels: String) = ChoiceItem(id, text, labels.mapIndexed { i, label -> Option("$i", label) })
+private fun choose(id: String, text: String, vararg labels: String) = ChoiceItem(id, text, unscored(*labels))
 
 /** Scales of 0 to 10 lettered a), b) … as the PRTEE letters them, their ids [prefix]-a, [prefix]-b …, their ends [least] and [most]. */
 private fun lettered(prefix: String, least: String, most: String, vararg texts: String): List<Item> =
@@ -350,7 +350,7 @@ private val SPADI: Assessment = run {
 
 /** Simple Shoulder Test, not validated German version, as in "Simple-Shoulder-Test_SST_10-2026.pdf". */
 private val SST: Assessment = run {
-    val items = listOf(
+    val items = yesNoItems(
         "Ist der betroffene Arm in Ruhe schmerzfrei?",
         "Können Sie von Seiten der Schulter her problemlos schlafen?",
         "Können Sie mit dem betroffenen Arm Ihr Hemd auf dem Rücken in die Hose stecken?",
@@ -363,7 +363,7 @@ private val SST: Assessment = run {
         "Glauben Sie, dass Sie einen Tennisball mit dem betroffenen Arm über Kopf 20m weit werfen können?",
         "Können Sie mit dem betroffenen Arm die Rückseite der Gegenschulter waschen?",
         "Sind Sie von Seiten der Schulter her im erlernten Beruf voll arbeitsfähig?",
-    ).mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
+    )
     Assessment(
         id = "sst",
         name = "Simple Shoulder Test",

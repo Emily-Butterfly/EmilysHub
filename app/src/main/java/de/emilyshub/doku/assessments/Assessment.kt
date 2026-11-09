@@ -235,7 +235,7 @@ data class Score(
     init {
         require(items.isEmpty() != sumOf.isEmpty()) { "$id: a score counts either items or other scores" }
         require(sumOf.isNotEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
-        require(sumOf.isEmpty() || rule == ScoreRule.Sum) { "$id: other scores are only added up" }
+        require(sumOf.isEmpty() || rule == ScoreRule.Sum && divisor == 1) { "$id: other scores are only added up, not divided" }
         require(divisor >= 1) { "$id: the divisor must be positive" }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
     }
