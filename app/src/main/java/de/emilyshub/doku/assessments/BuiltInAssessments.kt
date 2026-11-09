@@ -4,12 +4,12 @@ import de.emilyshub.data.InputText
 
 /**
  * The forms built into the app (SPEC.md §14), from the "Scores" of DIGOTOR's downloads; their content, not the PDFs.
- * The rest follow by subcategory (#67–#76).
+ * Each subcategory came with its own slice (#66–#76).
  */
 object BuiltInAssessments {
 
     /** Every built-in form, by name. */
-    val all: List<Assessment> = (listOf(ANAMNESIS_V8, PHQ_9) + SPINE + KNEE_HIP + FOOT_ANKLE + UPPER_EXTREMITY + PAIN + PSYCHOSOCIAL + JAW_CMD + NEUROLOGY + SLEEP).sortedWith(compareBy(InputText.byName) { it.name })
+    val all: List<Assessment> = (listOf(ANAMNESIS_V8, PHQ_9) + SPINE + KNEE_HIP + FOOT_ANKLE + UPPER_EXTREMITY + PAIN + PSYCHOSOCIAL + JAW_CMD + NEUROLOGY + SLEEP + MISCELLANEOUS).sortedWith(compareBy(InputText.byName) { it.name })
 
     private val byId = all.associateBy(Assessment::id)
 
