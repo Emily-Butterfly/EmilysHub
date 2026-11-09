@@ -400,7 +400,7 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
             is BodyRegionsItem -> {
                 val regions = answer as? Answer.Regions ?: Answer.Regions(emptySet())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    BodyRegion.entries.forEach { region ->
+                    item.regions.forEach { region ->
                         val on = region in regions.regions
                         Chip(region.label, chosen = on, enabled = enabled, onClick = {
                             answerWith(regions.copy(regions = if (on) regions.regions - region else regions.regions + region).orNone())

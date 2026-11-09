@@ -195,14 +195,25 @@ data class TextItem(
     override val showIf: Condition? = null,
 ) : Item
 
-/** Where it hurts, as [BodyRegion]s to check, and in words; in place of "bitte einzeichnen". */
+/**
+ * Where it hurts, as [BodyRegion]s to check, and in words; in place of "bitte einzeichnen". The [regions] to offer, in
+ * their order: those of the body unless the form asks of others, such as those of the jaw.
+ */
 data class BodyRegionsItem(
     override val id: String,
     override val text: String,
     override val showIf: Condition? = null,
-) : Item
+    val regions: List<BodyRegion> = BodyRegion.body,
+) : Item {
+    init {
+        require(regions.isNotEmpty() && regions.size == regions.toSet().size) { "$id: regions to offer, each once" }
+    }
+}
 
-/** The regions of the body to check, the limbs each left and right; [id] is what is stored. */
+/**
+ * The regions to check, the limbs each left and right: those of the [body], and those of the [jaw] and the face, such as
+ * the DC/TMD names them (#73), each side apart. [id] is what is stored; new ones come at the end, as answers sort by order.
+ */
 enum class BodyRegion(val id: String, val label: String) {
     Head("kopf", "Kopf"),
     CervicalSpine("hws", "HWS"),
@@ -221,10 +232,32 @@ enum class BodyRegion(val id: String, val label: String) {
     KneeRight("knie-r", "Knie rechts"),
     FootLeft("fuss-l", "Fuß links"),
     FootRight("fuss-r", "Fuß rechts"),
+    TemporalisRight("temporalis-r", "M. temporalis rechts"),
+    TemporalisLeft("temporalis-l", "M. temporalis links"),
+    MasseterRight("masseter-r", "M. masseter rechts"),
+    MasseterLeft("masseter-l", "M. masseter links"),
+    JawJointRight("kiefergelenk-r", "Kiefergelenk rechts"),
+    JawJointLeft("kiefergelenk-l", "Kiefergelenk links"),
+    OtherMasticatoryRight("kaumuskeln-r", "Andere Kaumuskeln rechts"),
+    OtherMasticatoryLeft("kaumuskeln-l", "Andere Kaumuskeln links"),
+    NonMasticatoryRight("nicht-mastik-r", "Nicht-mastikatorische Muskeln rechts"),
+    NonMasticatoryLeft("nicht-mastik-l", "Nicht-mastikatorische Muskeln links"),
+    FaceRight("gesicht-r", "Gesicht rechts"),
+    FaceLeft("gesicht-l", "Gesicht links"),
+    MouthAndTeeth("mund", "Mund und Zähne"),
     ;
 
     companion object {
         fun of(id: String): BodyRegion? = entries.find { it.id == id }
+
+        /** Those of the body, from the head down: what a form asks of where it hurts, unless it asks of others. */
+        val body: List<BodyRegion> = entries.takeWhile { it != TemporalisRight }
+
+        /** Those of the jaw and the face: the mouth, each half of the face, the joints and the muscles, right before left. */
+        val jaw: List<BodyRegion> = listOf(
+            MouthAndTeeth, FaceRight, FaceLeft, JawJointRight, JawJointLeft, TemporalisRight, TemporalisLeft, MasseterRight, MasseterLeft,
+            OtherMasticatoryRight, OtherMasticatoryLeft, NonMasticatoryRight, NonMasticatoryLeft,
+        )
     }
 }
 
