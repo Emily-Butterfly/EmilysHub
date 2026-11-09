@@ -17,14 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
-import de.emilyshub.R
-import de.emilyshub.data.InputText
 import de.emilyshub.security.OutsideAppLock
-import de.emilyshub.ui.clockTime
-import de.emilyshub.ui.reminders.AlarmChoice
 import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
-import de.emilyshub.ui.reminders.LockScreenShown
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import kotlinx.coroutines.Job
@@ -217,29 +212,8 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         due?.let { Showing(alarmed, screenOf(it)) { app.reminders.putOffChoices(it) } }
     }
 
-    /** How [due] fills the screen: a routine's with its time, those of a joint one to choose from; a to-do's as it reminds. */
-    private fun screenOf(due: DueReminder): AlarmShown = when (due) {
-        is DueReminder.OfOccurrence -> {
-            val reminder = due.reminder
-            val dueAt = getString(R.string.reminder_due_at, reminder.dueAt.clockTime())
-            val onLockScreen = LockScreenShown(reminder.title, dueAt).takeIf { reminder.titleOnLockScreen }
-            val each = if (reminder.together.isEmpty()) {
-                emptyList()
-            } else {
-                reminder.occurrences.sortedWith(compareBy(InputText.byName) { joint -> joint.name }).map { joint ->
-                    AlarmChoice(joint.occurrenceId, joint.name)
-                }
-            }
-            AlarmShown(due.about.key, reminder.title, dueAt, skippable = true, onLockScreen, each)
-        }
-        is DueReminder.OfTodo -> {
-            val reminder = due.reminder
-            val today = app.todos.today()
-            val onLockScreen = LockScreenShown(reminder.title, resources.lockScreenText(reminder, today))
-                .takeIf { reminder.style.nameOnLockScreen }
-            AlarmShown(due.about.key, reminder.title, resources.reminderText(reminder, today), skippable = false, onLockScreen)
-        }
-    }
+    /** How [due] fills the screen, as its notification shows it ([ReminderFace]). */
+    private fun screenOf(due: DueReminder): AlarmShown = AlarmShown(due.about.key, ReminderFace.of(due, app.day.today(), ResourceWords(resources)))
 
     /** Takes it out of the [queue], however often it is answered or gone, and shows what is first then. */
     private fun drop(alarmed: Alarmed) {

@@ -92,7 +92,13 @@ a page is covered by one over it comes from the stack. `DokuPagesTest` beside `B
 
 ## 4 · One reminder face
 
-**Status:** open.
+**Status:** done. `reminders/ReminderFace.kt`: `ReminderFace.of(due, today, words)` gives the title, the text, what the
+lock screen shows (`OnLockScreen`, or none), the joint routines by name (`Choice`) and whether it can be skipped; the
+notification and the alarm render it, `AlarmShown` is the face with its key, and `LockScreenShown`, `AlarmChoice`,
+`Resources.reminderText` and `Resources.lockScreenText` are gone. Its words come through `ReminderWords`, a seam with
+two adapters: `ResourceWords` (the app's strings) and plain ones in `ReminderFaceTest`, which holds the face on the JVM
+without Robolectric. The alarm takes today from `Day`. Not done: the alarm's queue and ringing as a pure `AlarmQueue`,
+for the next time the alarm changes.
 
 What a due reminder shows and offers (the time it is due, the version for the lock screen, the joint routines by name,
 whether it can be skipped, the choices to put it off) is decided twice, by `ReminderNotifications` and `AlarmActivity`,

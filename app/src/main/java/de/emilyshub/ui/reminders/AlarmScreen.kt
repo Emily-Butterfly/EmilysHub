@@ -27,28 +27,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.reminders.putOffLabel
+import de.emilyshub.reminders.ReminderFace
 import java.time.Duration
 
-/**
- * What the full-screen alarm shows of what it rings for, a routine or a to-do: its [title] and [text], and whether it can
- * be skipped, as a routine can and a to-do cannot. [key] tells them apart. While the phone is locked, what it allows
- * there, [onLockScreen]; with nothing, only that one is due.
- */
-data class AlarmShown(
-    val key: String,
-    val title: String,
-    val text: String?,
-    val skippable: Boolean,
-    val onLockScreen: LockScreenShown? = null,
-    /** For a joint reminder of coupled routines (SPEC.md §3), each of them, with a "done" of its own. */
-    val each: List<AlarmChoice> = emptyList(),
-)
-
-/** One of the routines a joint alarm rings for: its occurrence, by its [id], and its routine's [name]. */
-data class AlarmChoice(val id: Long, val name: String)
-
-/** What the locked alarm shows of one that allows its name there (SPEC.md §3): the name as [title], and its time, [text]. */
-data class LockScreenShown(val title: String, val text: String?)
+/** What the full-screen alarm shows of what it rings for, a routine or a to-do, as its notification does ([face]); [key] tells them apart. */
+data class AlarmShown(val key: String, val face: ReminderFace)
 
 /**
  * The full-screen alarm (SPEC.md §3, §5, §9). While [locked], it only says "Erinnerung fällig", or the name and time
@@ -83,7 +66,7 @@ fun AlarmScreen(
         ) {
             when {
                 locked -> {
-                    val onLockScreen = shown?.onLockScreen
+                    val onLockScreen = shown?.face?.onLockScreen
                     if (onLockScreen != null) {
                         Title(onLockScreen.title)
                         onLockScreen.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
@@ -96,7 +79,7 @@ fun AlarmScreen(
                 // Only for a moment, until the reminder is read.
                 shown == null -> Unit
                 choosingPutOff -> {
-                    Title(shown.title)
+                    Title(shown.face.title)
                     Text(stringResource(R.string.reminder_put_off_when), style = MaterialTheme.typography.bodyLarge)
                     val context = LocalContext.current
                     putOffChoices.forEach { choice ->
@@ -105,19 +88,19 @@ fun AlarmScreen(
                     TextButton(onClick = { choosingPutOff = false }) { Text(stringResource(R.string.cancel)) }
                 }
                 else -> {
-                    Title(shown.title)
-                    shown.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
-                    if (shown.each.isEmpty()) {
+                    Title(shown.face.title)
+                    shown.face.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
+                    if (shown.face.each.isEmpty()) {
                         WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
                     } else {
-                        shown.each.forEach { choice ->
+                        shown.face.each.forEach { choice ->
                             WideButton(stringResource(R.string.alarm_done_of, choice.name), { onDoneOf(choice.id) }, primary = true)
                         }
                     }
                     if (putOffChoices.isNotEmpty()) {
                         WideButton(stringResource(R.string.reminder_put_off), onClick = { choosingPutOff = true })
                     }
-                    if (shown.skippable) {
+                    if (shown.face.skippable) {
                         TextButton(onClick = onSkip) { Text(stringResource(R.string.reminder_skip)) }
                         TextButton(onClick = onDrop) { Text(stringResource(R.string.reminder_drop)) }
                     }
