@@ -38,7 +38,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     /**
      * What the page of [sheet] has not saved yet: its answers, once [AssessmentSheet.changed]; nothing of one only to
      * read. A [new] one with nothing answered goes again as the page closes, so that "+ Bogen" alone keeps nothing, but
-     * not as the screen turns; one whose result stands without an answer, such as an RMDQ with nothing ticked, which is
+     * not as the screen turns ([Leaving]); one whose result stands without an answer, such as an RMDQ with nothing ticked, which is
      * 0, stays if [confirmed] by "Fertig", and counts as used (08.11.2026). As the Doku locks, it is not confirmed.
      */
     fun draft(sheet: AssessmentSheet, new: Boolean, confirmed: Boolean): DokuDraft {
@@ -53,9 +53,9 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
                 else -> null
             }
 
-            override fun close(turning: Boolean) {
+            override fun close(leaving: Leaving) {
                 when {
-                    empty -> if (!turning) background.launch { doku.changing { dropIfEmpty(it, filled.id, confirmed) } }
+                    empty -> if (leaving == Leaving.Closed) background.launch { doku.changing { dropIfEmpty(it, filled.id, confirmed) } }
                     sheet.changed -> background.launch { doku.changing(write) }
                 }
             }

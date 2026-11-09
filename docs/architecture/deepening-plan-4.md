@@ -75,7 +75,14 @@ month is built by a pure `LedgerMonth.of` with one end-balance formula.
 
 ## 3 · DokuPages owns its moves
 
-**Status:** open.
+**Status:** done. `DokuPages` has the moves by name: `openFoundAppointment`, `openFoundAssessment`, `measureAt`,
+`fillAt` and `gone`, and says whether a page lies `covers`ed under the one shown. `DokuArea` calls them. A draft is told
+how its page goes, `Leaving.Closed`, `Turning` or `Covered`, in place of `turning`; `KeepDraft` reads it from the pages
+as they are once the page has gone (`LocalDokuPages`), so that `Appointments.draft` keeps a new appointment under a
+measurement or form without being told. Gone: the `measuring` flag, set by hand in four places (opening a form to read
+among them), the `keep` parameter, and `DokuPage.Appointment.new` with the `replaceTop(copy(new = false))` around it.
+`DokuPagesTest` holds the moves without Compose; a screen test holds that a new appointment stays under a measurement
+opened over it, and fails without the covered check.
 
 The pages' moves are built inline in `DokuArea` (a search hit opens two or three pages; measuring replaces the top and
 opens; a patient gone drops its pages or goes back). `AppointmentPage` tells its draft to keep a new appointment with a

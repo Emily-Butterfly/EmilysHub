@@ -26,12 +26,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +100,9 @@ internal fun DokuArea(doku: Doku, modules: DokuModules, pages: DokuPages, onPage
             }
             is DokuState.Open -> {
                 IdleLock(doku)
-                OpenPage(doku, modules, pages, onPagesChange, contentPadding)
+                CompositionLocalProvider(LocalDokuPages provides rememberUpdatedState(pages)) {
+                    OpenPage(doku, modules, pages, onPagesChange, contentPadding)
+                }
                 if (state.offerFingerprint) FingerprintAgain(doku, activity, scope)
             }
         }
@@ -127,16 +131,9 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
             contentPadding = contentPadding,
             onOpen = { open(DokuPage.Patient(it)) },
             // Over the patient's appointments, for back to lead there.
-            onOpenAppointment = { patientId, id ->
-                onPagesChange(pages.open(DokuPage.Patient(patientId, PatientTab.Appointments)).open(DokuPage.Appointment(patientId, id)))
-            },
-            // Over its appointment, for back to lead there.
+            onOpenAppointment = { patientId, id -> onPagesChange(pages.openFoundAppointment(patientId, id)) },
             onOpenAssessment = { patientId, hit ->
-                onPagesChange(
-                    pages.open(DokuPage.Patient(patientId, PatientTab.Assessments))
-                        .open(DokuPage.Appointment(patientId, hit.appointmentId))
-                        .open(DokuPage.Assessment(patientId, hit.appointmentId, hit.assessmentId, hit.id)),
-                )
+                onPagesChange(pages.openFoundAssessment(patientId, hit.appointmentId, hit.assessmentId, hit.id))
             },
             onOpenArchive = { open(DokuPage.Archive) },
         )
@@ -149,11 +146,11 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
             onTab = { onPagesChange(pages.replaceTop(page.copy(tab = it))) },
             onEditText = { open(DokuPage.Text(page.id, it)) },
             onOpenAppointment = { open(DokuPage.Appointment(page.id, it)) },
-            onAddedAppointment = { open(DokuPage.Appointment(page.id, it, new = true)) },
+            onAddedAppointment = { open(DokuPage.Appointment(page.id, it)) },
             onOpenHistory = { open(DokuPage.History(page.id, it)) },
             onOpenAssessmentHistory = { open(DokuPage.AssessmentHistory(page.id, it)) },
             onOpenAssessment = { appointmentId, assessmentId, id -> open(DokuPage.Assessment(page.id, appointmentId, assessmentId, id)) },
-            onGone = { deleted -> onPagesChange(if (deleted) pages.without(page.id) else pages.back()) },
+            onGone = { deleted -> onPagesChange(pages.gone(page.id, deleted)) },
         )
         is DokuPage.Text -> PatientTextPage(doku, patients, page, contentPadding, onDone = back)
         is DokuPage.Appointment -> AppointmentPage(
@@ -161,12 +158,8 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
             modules = modules,
             page = page,
             contentPadding = contentPadding,
-            // Measured at, a new appointment is no longer left untouched.
-            onMeasure = { testId, id -> onPagesChange(pages.replaceTop(page.copy(new = false)).open(DokuPage.Measurement(page.patientId, page.id, testId, id))) },
-            // Filled in at, a new appointment is no longer left untouched either.
-            onFill = { assessmentId, id, new ->
-                onPagesChange(pages.replaceTop(page.copy(new = false)).open(DokuPage.Assessment(page.patientId, page.id, assessmentId, id, new)))
-            },
+            onMeasure = { testId, id -> onPagesChange(pages.measureAt(page, testId, id)) },
+            onFill = { assessmentId, id, new -> onPagesChange(pages.fillAt(page, assessmentId, id, new)) },
             onDone = back,
         )
         DokuPage.Template -> TemplatePage(doku, appointments, contentPadding, onDone = back)

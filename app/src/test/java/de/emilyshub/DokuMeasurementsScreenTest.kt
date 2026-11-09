@@ -72,6 +72,25 @@ class DokuMeasurementsScreenTest {
     }
 
     @Test
+    fun `a new appointment stays under the measurement opened over it, and after, though otherwise left as it was made`() {
+        launchApp().use {
+            val (_, patient) = compose.openWith()
+            compose.openTab("Termine")
+            compose.onNodeWithText("+ Termin").performClick()
+
+            compose.onNodeWithText("+ Test").performScrollTo().performClick()
+            compose.onNodeWithText("Barthel-Index").performClick()
+            compose.onNodeWithText("Speichern").assertIsDisplayed()
+            assertEquals(1, runBlocking { app.appointments.of(patient) }?.size)
+
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("+ Test").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            assertEquals(1, runBlocking { app.appointments.of(patient) }?.size)
+        }
+    }
+
+    @Test
     fun `a measurement is taken in an appointment, the sum counting along, and changed`() {
         launchApp().use {
             val (_, patient) = compose.openWith()

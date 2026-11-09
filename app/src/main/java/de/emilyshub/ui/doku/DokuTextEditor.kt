@@ -38,6 +38,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuDraft
 import de.emilyshub.doku.DokuSaver
+import de.emilyshub.doku.Leaving
 import de.emilyshub.doku.Patient
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.fields.LengthHint
@@ -130,19 +131,26 @@ internal fun DokuTextEditor(
 
 /**
  * Keeps what the page showing it under [key] has not saved yet, as its domain module judges it ([draft]): written before
- * the Doku locks and as the page closes ([DokuDraft.close]), telling whether the screen only turns. Never into the saved
- * state. [draft] is asked only then, so that it sees what was set in the same moment, such as "Fertig" pressed. The one
- * place a page of the Doku saves as it goes.
+ * the Doku locks and as the page goes away ([DokuDraft.close]), telling how ([Leaving]): as the screen turns, under a
+ * page opened over it ([DokuPages.covers]), or closed. Never into the saved state. [draft] is asked only then, so that it
+ * sees what was set in the same moment, such as "Fertig" pressed. The one place a page of the Doku saves as it goes.
  */
 @Composable
 internal fun KeepDraft(doku: Doku, key: Any, draft: () -> DokuDraft) {
     val activity = LocalActivity.current
     val current by rememberUpdatedState(draft)
+    // The pages as they are once this one has gone, not as they were when it was shown.
+    val pages = LocalDokuPages.current
     DisposableEffect(key) {
         val saver = doku.addSaver(DokuSaver { current().pending() })
         onDispose {
             saver.close()
-            current().close(turning = activity?.isChangingConfigurations == true)
+            val leaving = when {
+                activity?.isChangingConfigurations == true -> Leaving.Turning
+                pages?.value?.covers(key) == true -> Leaving.Covered
+                else -> Leaving.Closed
+            }
+            current().close(leaving)
         }
     }
 }

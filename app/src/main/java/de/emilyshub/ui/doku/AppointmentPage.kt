@@ -42,8 +42,8 @@ import java.time.LocalTime
 /**
  * An appointment (SPEC.md §14): its day, in the past or to come, and its time if any, each changed at once; and its
  * documentation in Markdown, saved as the page closes, by "Fertig" ([onDone]), back or a rotation, and before the Doku
- * locks, never into the saved state. A new one ([DokuPage.Appointment.new]) left untouched goes again as the page
- * closes or the Doku locks ([Appointments.draft]), so that "+ Termin" alone keeps nothing. Below it the
+ * locks, never into the saved state. A new one left untouched goes again as the page closes or the Doku locks, though
+ * not under a page opened over it ([Appointments.draft]), so that "+ Termin" alone keeps nothing. Below it the
  * tests measured at it, each opening to change it, and "+ Test" to measure one ([onMeasure], with the measurement's id,
  * or none for a new one); below them the forms filled in at it, and "+ Bogen" to fill one in ([onFill], new). "Löschen" in
  * its menu asks first, naming how many measurements and forms go with it. A closed patient's is only to read. Once deleted, or gone, the page closes
@@ -70,9 +70,8 @@ internal fun AppointmentPage(
     val appointment = rememberDokuLoad(doku, page.id) { appointments.page(page.id)?.appointment }
     var text by remember { mutableStateOf(opened.appointment.text) }
     var deleted by remember { mutableStateOf(false) }
-    var measuring by remember { mutableStateOf(false) }
     if (opened.canChange) {
-        KeepDraft(doku, page) { if (deleted) DokuDraft.None else appointments.draft(page.id, opened.appointment.text, text, keep = measuring) }
+        KeepDraft(doku, page) { if (deleted) DokuDraft.None else appointments.draft(page.id, opened.appointment.text, text) }
     }
     val current = appointment ?: return
     val scope = rememberCoroutineScope()
@@ -123,16 +122,13 @@ internal fun AppointmentPage(
         footer = {
             MeasurementList(
                 measured = measured.orEmpty(),
-                onOpen = if (opened.canChange) ({ view: MeasurementView -> measuring = true; onMeasure(view.test.id, view.id) }) else null,
+                onOpen = if (opened.canChange) ({ view: MeasurementView -> onMeasure(view.test.id, view.id) }) else null,
                 onAdd = if (opened.canChange) ({ choosing = true }) else null,
             )
             // Only to read, they open all the same.
             AssessmentList(
                 filled = filled.orEmpty(),
-                onOpen = { form ->
-                    measuring = true
-                    onFill(form.assessmentId, form.id, false)
-                },
+                onOpen = { form -> onFill(form.assessmentId, form.id, false) },
                 onAdd = if (opened.canChange) ({ choosingForm = true }) else null,
             )
         },
@@ -141,7 +137,6 @@ internal fun AppointmentPage(
     if (choosing) {
         ChooseTest(doku, tests, onChoose = { testId ->
             choosing = false
-            measuring = true
             onMeasure(testId, null)
         }, onDismiss = { choosing = false })
     }
@@ -150,11 +145,7 @@ internal fun AppointmentPage(
         ChooseAssessment(doku, assessments, onChoose = { assessmentId ->
             choosingForm = false
             scope.launch {
-                assessments.create(page.id, assessmentId)?.let {
-                    // Filled in at, the appointment is no longer untouched; not before the form is there.
-                    measuring = true
-                    onFill(assessmentId, it, true)
-                }
+                assessments.create(page.id, assessmentId)?.let { onFill(assessmentId, it, true) }
             }
         }, onDismiss = { choosingForm = false })
     }

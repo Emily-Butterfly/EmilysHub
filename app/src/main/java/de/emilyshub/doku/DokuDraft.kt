@@ -11,19 +11,22 @@ import kotlinx.coroutines.launch
  */
 interface DokuDraft : DokuSaver {
     /**
-     * Writes on the background, as the page closes, what is to be written; [turning] if the screen only turns, after
-     * which the page goes on with what it has. Nothing once the Doku is locked.
+     * Writes on the background, as the page goes away, what is to be written; how it goes is [leaving]. Nothing once the
+     * Doku is locked.
      */
-    fun close(turning: Boolean)
+    fun close(leaving: Leaving)
 
     companion object {
         /** Nothing to write. */
         val None: DokuDraft = object : DokuDraft {
             override fun pending(): (suspend (DokuDatabase) -> Unit)? = null
-            override fun close(turning: Boolean) = Unit
+            override fun close(leaving: Leaving) = Unit
         }
     }
 }
+
+/** How a page of the Doku goes away: for good; only as the screen turns, to go on with what it has; or under one opened over it. */
+enum class Leaving { Closed, Turning, Covered }
 
 /**
  * The [current] text of an editor opened with [original]: once changed, written by [write] before the Doku locks and as
@@ -40,7 +43,7 @@ internal class TextDraft(
 
     override fun pending(): (suspend (DokuDatabase) -> Unit)? = if (changed) ({ write(it, current) }) else null
 
-    override fun close(turning: Boolean) {
+    override fun close(leaving: Leaving) {
         if (changed) background.launch { doku.changing { write(it, current) } }
     }
 }

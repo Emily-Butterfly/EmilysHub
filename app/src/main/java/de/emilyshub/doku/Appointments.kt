@@ -64,21 +64,24 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
     /**
      * What the page of appointment [id], opened with text [original], has not saved yet: [text] once changed; and, for a
      * new one, that it goes again if left as [create] made it: on the same day, at no time, with the template's text and
-     * no measurement or form at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md §14). Not if
-     * it is to [keep], as while it is measured at, nor as the screen turns; once asked as it closes, it is no longer new.
+     * no measurement or form at it, so that "+ Termin" alone keeps nothing, as in the note editor (SPEC.md §14). Not as
+     * the screen turns, nor under a page opened over it, as one to measure at; once asked as it goes either way, it is
+     * no longer new.
      */
-    fun draft(id: Long, original: String, text: String, keep: Boolean): DokuDraft {
+    fun draft(id: Long, original: String, text: String): DokuDraft {
         val typed = TextDraft(doku, background, original, text) { database, written -> writeText(database, id, written) }
-        val kept = keep || text != original
+        val changed = text != original
         return object : DokuDraft {
             override fun pending(): (suspend (DokuDatabase) -> Unit)? =
-                typed.pending() ?: if (kept) null else made.remove(id)?.let { created -> { dropIfUntouched(it, created) } }
+                typed.pending() ?: if (changed) null else made.remove(id)?.let { created -> { dropIfUntouched(it, created) } }
 
-            override fun close(turning: Boolean) {
-                typed.close(turning)
-                if (turning) return
+            override fun close(leaving: Leaving) {
+                typed.close(leaving)
+                if (leaving == Leaving.Turning) return
                 val created = made.remove(id)
-                if (created != null && !kept) background.launch { doku.changing { dropIfUntouched(it, created) } }
+                if (created != null && !changed && leaving == Leaving.Closed) {
+                    background.launch { doku.changing { dropIfUntouched(it, created) } }
+                }
             }
         }
     }

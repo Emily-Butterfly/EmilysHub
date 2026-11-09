@@ -66,7 +66,7 @@ class AssessmentsTest {
     /** The page of new form [id] as it closes with nothing answered, by "Fertig" if [confirmed]. */
     private fun closeEmpty(id: Long, confirmed: Boolean = false, turning: Boolean = false) {
         val sheet = runBlocking { checkNotNull(assessments.sheet(id)) }
-        assessments.draft(sheet, new = true, confirmed = confirmed).close(turning)
+        assessments.draft(sheet, new = true, confirmed = confirmed).close(if (turning) Leaving.Turning else Leaving.Closed)
     }
 
     private fun fill(at: Long, form: String, answers: Map<String, Answer>, id: Long? = null): Long =
@@ -155,7 +155,7 @@ class AssessmentsTest {
         fill(at, "phq-9", phq9(0))
 
         val text = runBlocking { checkNotNull(appointments.get(at)) }.text
-        appointments.draft(at, text, text, keep = false).close(turning = false)
+        appointments.draft(at, text, text).close(Leaving.Closed)
 
         assertEquals(1, runBlocking { checkNotNull(appointments.of(patient)) }.size)
     }
@@ -300,7 +300,7 @@ class AssessmentsTest {
         assertEquals(listOf(new), runBlocking { checkNotNull(assessments.at(at)) }.map { it.id })
 
         val sheet = runBlocking { checkNotNull(assessments.sheet(new)) }.answering("1", Answer.Chosen("2"))
-        assessments.draft(sheet, new = true, confirmed = false).close(turning = false)
+        assessments.draft(sheet, new = true, confirmed = false).close(Leaving.Closed)
         assertEquals(mapOf("1" to Answer.Chosen("2")), runBlocking { checkNotNull(assessments.get(new)) }.answers)
 
         val locking = runBlocking { checkNotNull(assessments.sheet(new)) }.answering("2", Answer.Chosen("1"))

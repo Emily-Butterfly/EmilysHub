@@ -107,7 +107,7 @@ class MeasurementsTest {
         val created = checkNotNull(runBlocking { appointments.get(id) })
         measure(id, pain, "VAS" to "3")
 
-        appointments.draft(id, created.text, created.text, keep = false).close(turning = false)
+        appointments.draft(id, created.text, created.text).close(Leaving.Closed)
 
         assertEquals(created, runBlocking { appointments.get(id) })
     }

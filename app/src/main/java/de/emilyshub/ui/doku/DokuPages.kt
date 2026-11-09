@@ -1,5 +1,7 @@
 package de.emilyshub.ui.doku
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.staticCompositionLocalOf
 import de.emilyshub.doku.PatientField
 import java.io.Serializable
 
@@ -24,11 +26,8 @@ sealed interface DokuPage : Serializable {
         override val patientId: Long get() = id
     }
 
-    /**
-     * Appointment [id] of patient [patientId], to document; [new] when just added by "+ Termin", to go again if left
-     * untouched.
-     */
-    data class Appointment(override val patientId: Long, val id: Long, val new: Boolean = false) : DokuPage
+    /** Appointment [id] of patient [patientId], to document. */
+    data class Appointment(override val patientId: Long, val id: Long) : DokuPage
 
     /** The appointment template, to write. */
     data object Template : DokuPage
@@ -89,4 +88,37 @@ data class DokuPages(private val pages: List<DokuPage> = listOf(DokuPage.Home)) 
 
     /** Without the pages of patient [id], as once they are deleted. */
     fun without(id: Long) = DokuPages(pages.filterNot { it.patientId == id })
+
+    /** Whether [page] lies under the one shown, covered by a page opened over it, rather than closed. */
+    fun covers(page: Any): Boolean = page != top && page in pages
+
+    /** Appointment [id] of patient [patientId], as the search found it: over the patient's appointments, for back to lead there. */
+    fun openFoundAppointment(patientId: Long, id: Long) =
+        open(DokuPage.Patient(patientId, PatientTab.Appointments)).open(DokuPage.Appointment(patientId, id))
+
+    /**
+     * Filled-in form [id] of [assessmentId] at appointment [appointmentId] of patient [patientId], as the search found it:
+     * over its appointment, over the patient's forms, for back to lead there.
+     */
+    fun openFoundAssessment(patientId: Long, appointmentId: Long, assessmentId: String, id: Long) =
+        open(DokuPage.Patient(patientId, PatientTab.Assessments))
+            .open(DokuPage.Appointment(patientId, appointmentId))
+            .open(DokuPage.Assessment(patientId, appointmentId, assessmentId, id))
+
+    /** Test [testId] measured at [appointment], measurement [id] or a new one: over the appointment, which stays. */
+    fun measureAt(appointment: DokuPage.Appointment, testId: Long, id: Long?) =
+        open(DokuPage.Measurement(appointment.patientId, appointment.id, testId, id))
+
+    /** Form [assessmentId] filled in at [appointment], as filled-in form [id], [new] if just added: over the appointment. */
+    fun fillAt(appointment: DokuPage.Appointment, assessmentId: String, id: Long, new: Boolean) =
+        open(DokuPage.Assessment(appointment.patientId, appointment.id, assessmentId, id, new))
+
+    /** Once patient [patientId] is gone from the page shown: all their pages if [deleted], else back, as when closed. */
+    fun gone(patientId: Long, deleted: Boolean) = if (deleted) without(patientId) else back()
 }
+
+/**
+ * The Doku's [DokuPages] as they are now, for a page that goes away to tell whether it was covered or closed
+ * ([KeepDraft]); null outside the Doku.
+ */
+internal val LocalDokuPages = staticCompositionLocalOf<State<DokuPages>?> { null }
