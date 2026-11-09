@@ -7,11 +7,11 @@ internal val UPPER_EXTREMITY: List<Assessment> by lazy { listOf(DASH, ISIS, KTS,
 
 /** A score of [items], better the lower, all of them needed. */
 private fun lowerBetter(id: String, name: String, items: List<Item>, rule: ScoreRule = ScoreRule.Sum, unit: String = "Punkte", bands: List<Band> = emptyList(), divisor: Int = 1) =
-    Score(id, name, ids(items), rule = rule, unit = unit, direction = Direction.LowerIsBetter, bands = bands, divisor = divisor)
+    ItemScore(id, name, ids(items), rule = rule, unit = unit, direction = Direction.LowerIsBetter, bands = bands, divisor = divisor)
 
 /** The sum of the scores [parts] before it, better the lower. */
 private fun lowerBetterTotal(id: String, name: String, vararg parts: String) =
-    Score(id, name, emptyList(), direction = Direction.LowerIsBetter, sumOf = parts.toList())
+    WeightedScore(id, name, direction = Direction.LowerIsBetter, parts = parts.toList())
 
 /** A choice of [labels] that no score counts, such as the side affected. */
 private fun choose(id: String, text: String, vararg labels: String) = ChoiceItem(id, text, unscored(*labels))
@@ -391,7 +391,7 @@ private val SST: Assessment = run {
         sections = listOf(Section(items = listOf(choose("schulter", "Betroffene Schulter", "rechts", "links")) + items)),
         // Always of all twelve, one left out counting as a no, from one answer on (09.11.2026).
         scores = listOf(
-            Score("ergebnis", "Ergebnis", ids(items), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.HigherIsBetter, minAnswered = 1),
+            ItemScore("ergebnis", "Ergebnis", ids(items), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.HigherIsBetter, minAnswered = 1),
         ),
     )
 }
@@ -465,7 +465,7 @@ private val WALCH_DUPLAY: Assessment = run {
             Section(items = parts),
         ),
         scores = listOf(
-            Score(
+            ItemScore(
                 "gesamt", "Gesamt", ids(parts), direction = Direction.HigherIsBetter,
                 bands = listOf(Band.upTo(50, "Schlecht"), Band.upTo(75, "Mittel"), Band.upTo(90, "Gut"), Band.upTo(100, "Exzellent")),
             ),
@@ -685,7 +685,7 @@ private val DASH: Assessment = run {
         ),
         scores = listOf(
             // [(sum / n) - 1] x 25 is the sum from its least, n, to its most, 5n, as 0 to 100; at most three left out.
-            Score(
+            ItemScore(
                 "dash", "DASH Wert für Behinderung/Symptome", ids(disability), rule = ScoreRule.ZeroTo100,
                 direction = Direction.LowerIsBetter, minAnswered = disability.size - 3,
             ),

@@ -12,7 +12,7 @@ internal val SLEEP: List<Assessment> by lazy { listOf(ASBQ, ASSQ, ISI, PSQI, RIS
 
 /** A sum of the items [items] names, better the lower, all of them needed but those [optional]; counted by [steps], if given. */
 private fun lowerOf(id: String, name: String, items: List<String>, bands: List<Band> = emptyList(), steps: Steps? = null, optional: List<String> = emptyList()) =
-    Score(id, name, items, direction = Direction.LowerIsBetter, bands = bands, steps = steps, optional = optional)
+    ItemScore(id, name, items, direction = Direction.LowerIsBetter, bands = bands, steps = steps, optional = optional)
 
 /** Athlete Sleep Behavior Questionnaire, as in "Athlete-Sleep-Behavior-Questionnaire_ASBQ_10-2026.pdf". */
 private val ASBQ: Assessment = run {
@@ -180,7 +180,7 @@ private val ASSQ: Assessment = run {
                 "reisen-tag", "Reisen: tagsüber unwohl oder Leistungsminderung", listOf("12"),
                 listOf(Band.upTo(0, null), Band.upTo(1, "Schlafstörung schwerwiegender: A + B + C (wenn indiziert) + D (wenn indiziert)")),
             ),
-            Score(
+            ItemScore(
                 "chronotyp", "Chronotyp", listOf("7", "8", "9", "10"), direction = Direction.HigherIsBetter,
                 bands = listOf(Band.upTo(4, "Abendtyp"), Band.upTo(14, null)),
             ),
@@ -335,15 +335,15 @@ private val PSQI: Assessment = run {
             lowerOf("k1", "Subjektive Schlafqualität", listOf("6")),
             lowerOf("k2", "Schlaflatenz", listOf("2", "5a"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
             lowerOf("k3", "Schlafdauer", listOf("4"), steps = Steps(listOf(5 * 60 to 3, 6 * 60 to 2, 7 * 60 to 1), otherwise = 0)),
-            Score(
+            ItemScore(
                 "k4", "Schlafeffizienz", listOf("4", "1", "3"), rule = ScoreRule.ShareOfSpan, direction = Direction.LowerIsBetter,
                 steps = Steps(listOf(65 to 3, 75 to 2, 85 to 1), otherwise = 0),
             ),
             lowerOf("k5", "Schlafstörungen", disturbances, steps = Steps(listOf(1 to 0, 10 to 1, 19 to 2), otherwise = 3), optional = listOf("5j")),
             lowerOf("k6", "Schlafmittelkonsum", listOf("7")),
             lowerOf("k7", "Tagesmüdigkeit", listOf("8", "9"), steps = Steps(listOf(1 to 0, 3 to 1, 5 to 2), otherwise = 3)),
-            Score(
-                "gesamt", "Gesamtwert", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("k1", "k2", "k3", "k4", "k5", "k6", "k7"),
+            WeightedScore(
+                "gesamt", "Gesamtwert", direction = Direction.LowerIsBetter, parts = listOf("k1", "k2", "k3", "k4", "k5", "k6", "k7"),
                 bands = listOf(Band.upTo(5, "gute Schläfer"), Band.upTo(10, "schlechte Schläfer"), Band.upTo(21, "chronische Schlafstörung")),
             ),
         ),

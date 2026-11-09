@@ -39,7 +39,7 @@ private val CSIQ: Assessment = run {
             "Fragebogen wird kritisch diskutiert und dient nicht der Diagnose von einzelnen Krankheitsbildern. Er kann aber " +
             "für die Auswahl von Interventionen (aktive Stabilisation) verwendet werden.",
         sections = listOf(Section(items = items)),
-        scores = listOf(Score("gesamt", "Gesamt", items.map(Item::id), direction = Direction.LowerIsBetter)),
+        scores = listOf(ItemScore("gesamt", "Gesamt", items.map(Item::id), direction = Direction.LowerIsBetter)),
     )
 }
 
@@ -89,7 +89,7 @@ private val HDI: Assessment = run {
             "zufällige Schwankung.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "gesamt",
                 name = "Gesamtpunktzahl",
                 items = items.map(Item::id),
@@ -104,8 +104,8 @@ private val HDI: Assessment = run {
                 ),
             ),
             // The original marks them but scores only the total; asked for as subscales on 08.11.2026.
-            Score("emotional", "Emotional (E)", of('E'), direction = Direction.LowerIsBetter),
-            Score("funktional", "Funktional (F)", of('F'), direction = Direction.LowerIsBetter),
+            ItemScore("emotional", "Emotional (E)", of('E'), direction = Direction.LowerIsBetter),
+            ItemScore("funktional", "Funktional (F)", of('F'), direction = Direction.LowerIsBetter),
         ),
     )
 }
@@ -144,7 +144,7 @@ private val LSIQ: Assessment = run {
             "er für die Auswahl von Interventionen (aktive Stabilisation) verwendet werden (Saragiotto et al. 2018).",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "gesamt",
                 name = "Gesamt",
                 items = items.map(Item::id),
@@ -222,7 +222,7 @@ private val MICHELI: Assessment = run {
             Section("Teil C: Schmerzskala", items = listOf(c1)),
         ),
         // Of 25 points, times 4: the percent of the most possible.
-        scores = listOf(Score("gesamt", "Gesamtscore", listOf("a1", "b1", "b2", "b3", "c1"), rule = ScoreRule.Percent, unit = "%", direction = Direction.LowerIsBetter)),
+        scores = listOf(ItemScore("gesamt", "Gesamtscore", listOf("a1", "b1", "b2", "b3", "c1"), rule = ScoreRule.Percent, unit = "%", direction = Direction.LowerIsBetter)),
     )
 }
 
@@ -330,7 +330,7 @@ private val NDI: Assessment = run {
             "klinisch relevantes Ergebnis betragen.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "score",
                 name = "Score im NDI",
                 items = items.map(Item::id),
@@ -447,7 +447,7 @@ private val ODI: Assessment = run {
             "MCID: 5-17 Punkte, 30-50 % Reduktion (Schwind 2013); 12,8 Punkte (Park 2016, Johnsen 2013).",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "gesamt",
                 name = "Gesamtwert",
                 items = items.map(Item::id),
@@ -522,7 +522,7 @@ private val RMDQ: Assessment = run {
             "Fragebogen ist entweder nicht aussagekräftig bzw. die minimal klinisch relevante Veränderung übersteigt den " +
             "Ausgangswert.",
         sections = listOf(Section(items = listOf(list))),
-        scores = listOf(Score("score", "Score", listOf(list.id), direction = Direction.LowerIsBetter)),
+        scores = listOf(ItemScore("score", "Score", listOf(list.id), direction = Direction.LowerIsBetter)),
     )
 }
 

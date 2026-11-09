@@ -29,7 +29,7 @@ private fun eachJoint(prefix: String, rows: List<Row>): List<Item> =
 
 /** A sum of [items], better the lower, all of them needed. */
 private fun lower(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
-    Score(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
+    ItemScore(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
 
 /** "falls negativ", checked for a measure below 0, in the [words] of its place on the form. */
 private fun ifNegative(id: String, text: String, words: String = "falls negativ") = ChecklistItem(id, text, listOf(Option("negativ", words)))
@@ -354,7 +354,7 @@ private val DHI: Assessment = run {
             total("p", "Total P: Physisch", "P"),
             total("e", "Total E: Emotional", "E"),
             total("f", "Total F: Funktionell", "F"),
-            Score("total", "Total", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("p", "e", "f")),
+            WeightedScore("total", "Total", direction = Direction.LowerIsBetter, parts = listOf("p", "e", "f")),
         ),
     )
 }

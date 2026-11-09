@@ -36,7 +36,7 @@ internal val PHQ_9: Assessment = run {
             "seiner Familienangehörigen bzw. Informationen aus anderen Quellen heranzuziehen.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "summe",
                 name = "Summenwert",
                 items = items.map(Item::id),

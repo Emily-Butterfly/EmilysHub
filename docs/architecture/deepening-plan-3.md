@@ -66,6 +66,14 @@ write, the rule to drop and the guard.
 
 ## 3 · Score as a sealed type
 
+**Status:** done. `Score` is a sealed interface of `ItemScore` (items, rule, minAnswered, divisor, optional, worseOf,
+steps), `WeightedScore` (parts, weights, constant) and `GradedScore` (grades); the `require`s that kept three shapes
+apart in one class are gone with their two tests. In `Scoring`, `Counted` is the one collector of a score's items,
+their ranges, the points answered and whether enough is; each `ScoreRule` has one `Reckoner` holding its value and its
+range together, chosen by an exhaustive `when`, so `results` and `range` no longer dispatch in parallel and no
+`error("reckoned …")` branch is left. `ScoreRule` stays an enum: its data (`minAnswered`, `optional`, `worseOf`) belongs
+to `ItemScore`, as most rules share it. The forms' tests read a score's items through a test-only extension.
+
 One data class stands for three shapes (a score of items, a weighted sum of scores, a grade by scores), held together
 by `require`s; `Scoring.value` and `Scoring.range` dispatch on the rule in parallel, with `error("reckoned …")` branches.
 Four review fixes re-collected "the points of the answered items" in one special path or another. A sealed `Score` whose

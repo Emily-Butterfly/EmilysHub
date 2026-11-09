@@ -34,25 +34,12 @@ data class Assessment(
         require(ids.size == ids.toSet().size) { "$id: item ids must be unique" }
         require(scores.map(Score::id).toSet().size == scores.size) { "$id: score ids must be unique" }
         scores.forEach { score ->
-            // Of all items, an item hidden would still count its most.
-            require(score.rule != ScoreRule.PercentOfAll || score.items.all { item(it)?.showIf == null }) {
-                "$id: score ${score.id} is a percent of all, which counts no item shown only under a condition"
-            }
-            score.items.forEach { itemId ->
-                require(item(itemId)?.scorable == true) { "$id: score ${score.id} counts $itemId, which has no points" }
-                // A T-score's goals and its rule come only together.
-                require((item(itemId) is GoalsItem) == (score.rule == ScoreRule.GoalT)) { "$id: score ${score.id}: goals are counted by a T-score alone" }
-            }
-            require(score.rule != ScoreRule.ShareOfSpan || score.items.map { (item(it) as? TimeItem)?.duration } == listOf(true, false, false)) {
-                "$id: score ${score.id} is a share of a span: a duration, then two times of the day"
-            }
-            // Filled up by section, it needs half of each section, not a number of its own.
-            require(score.rule != ScoreRule.MeanFilled || score.minAnswered == score.items.size) {
-                "$id: score ${score.id} is filled by the mean, which needs half of each section answered, not minAnswered"
-            }
             val before = scores.takeWhile { it !== score }.map(Score::id)
-            require(score.sumOf.all { it in before }) { "$id: score ${score.id} adds up scores that do not come before it" }
-            require(score.grades.flatMap(Grade::bounds).all { it.scoreId in before }) { "$id: score ${score.id} grades by scores that do not come before it" }
+            when (score) {
+                is ItemScore -> requireCounts(score)
+                is WeightedScore -> require(score.parts.all { it in before }) { "$id: score ${score.id} adds up scores that do not come before it" }
+                is GradedScore -> require(score.grades.flatMap(Grade::bounds).all { it.scoreId in before }) { "$id: score ${score.id} grades by scores that do not come before it" }
+            }
         }
         items.forEach { item ->
             val options = (item as? ChoiceItem)?.options ?: (item as? ChecklistItem)?.options.orEmpty()
@@ -60,6 +47,22 @@ data class Assessment(
                 "$id: ${item.id} needs option ids of its own, without commas"
             }
             item.showIf?.alternatives?.forEach { require(item(it.itemId) != null) { "$id: ${item.id} depends on unknown ${it.itemId}" } }
+        }
+    }
+
+    /** That [score] counts items of this form fit for its rule. */
+    private fun requireCounts(score: ItemScore) {
+        // Of all items, an item hidden would still count its most.
+        require(score.rule != ScoreRule.PercentOfAll || score.items.all { item(it)?.showIf == null }) {
+            "$id: score ${score.id} is a percent of all, which counts no item shown only under a condition"
+        }
+        score.items.forEach { itemId ->
+            require(item(itemId)?.scorable == true) { "$id: score ${score.id} counts $itemId, which has no points" }
+            // A T-score's goals and its rule come only together.
+            require((item(itemId) is GoalsItem) == (score.rule == ScoreRule.GoalT)) { "$id: score ${score.id}: goals are counted by a T-score alone" }
+        }
+        require(score.rule != ScoreRule.ShareOfSpan || score.items.map { (item(it) as? TimeItem)?.duration } == listOf(true, false, false)) {
+            "$id: score ${score.id} is a share of a span: a duration, then two times of the day"
         }
     }
 }
@@ -349,64 +352,108 @@ enum class BodyRegion(val id: String, val label: String) {
 }
 
 /**
- * A result of a form, such as its sum or a subscale: by [rule] over the points of [items], divided by [divisor], in [unit],
- * better the [direction] way, its [bands] naming where it lies. Reckoned once [minAnswered] of its items are answered, all
- * of them unless the original allows fewer, or all but those [optional]. Or, with no items, the sum of the scores before it
- * that [sumOf] names, such as a total of pain and function, once each of them has a value, each by its weight and plus a
- * [constant] if given, such as the IES-R's formula; or the value of the first of [grades] whose bounds on the
- * scores before it hold, such as the GCPS's grade from its pain and its impairment, once each score it bounds has a value.
+ * A result of a form, named as the original names it, in [unit], better the [direction] way, its [bands] naming where it
+ * lies. One of three: of the points of items ([ItemScore]), a weighted sum of the scores before it ([WeightedScore]), or a
+ * grade by the scores before it ([GradedScore]).
  */
-data class Score(
-    val id: String,
-    val name: String,
+sealed interface Score {
+    val id: String
+    val name: String
+    val unit: String
+    val direction: Direction
+
+    /** From the lowest up, each up to and including its bound. */
+    val bands: List<Band>
+}
+
+/**
+ * A result of the points of [items], such as a form's sum or a subscale: by [rule], divided by [divisor], counted by
+ * [steps] if given. Reckoned once [minAnswered] of its items are answered, all of them unless the original allows fewer,
+ * or all but those [optional].
+ */
+data class ItemScore(
+    override val id: String,
+    override val name: String,
     val items: List<String>,
     val rule: ScoreRule = ScoreRule.Sum,
-    val unit: String = "Punkte",
-    val direction: Direction,
-    /** From the lowest up, each up to and including its bound. */
-    val bands: List<Band> = emptyList(),
+    override val unit: String = "Punkte",
+    override val direction: Direction,
+    override val bands: List<Band> = emptyList(),
     val minAnswered: Int = items.size,
     /** Such as 2, for "geteilt durch 2"; or 10 for options whose points are tenths, such as the Wells-Score's 1,5. */
     val divisor: Int = 1,
-    /** The ids of the scores before it whose values it adds up, in place of items. */
-    val sumOf: List<String> = emptyList(),
-    /** For each of [sumOf], in hundredths, what its value counts, such as -2 for "-0,02 x Intrusion"; each 100 if none. */
-    val weights: List<Int> = emptyList(),
-    /** In hundredths, added to the sum of [sumOf], such as -436 for "- 4,36". */
-    val constant: Int = 0,
     /** Items that may stay unanswered, counting nothing, such as the PHQ-15's "(nur Frauen)": all the others needed. */
     val optional: List<String> = emptyList(),
-    /** The grades it takes by the scores before it, in place of items: the first that holds, the last without bounds. */
-    val grades: List<Grade> = emptyList(),
     /** Pairs of its items of which a sum counts only the one with fewer points, such as the Mini-BESTest's two sides. */
     val worseOf: List<List<String>> = emptyList(),
     /** What its value counts in points by where it lies, such as a PSQI component from 0 to 3; the value itself if none. */
     val steps: Steps? = null,
-) {
+) : Score {
     init {
-        require(listOf(items, sumOf, grades).count(List<*>::isNotEmpty) == 1) { "$id: a score counts either items, other scores or grades" }
-        require(items.isEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
-        require(items.isNotEmpty() || rule == ScoreRule.Sum && divisor == 1) { "$id: other scores are only added up or graded, not divided" }
-        // Else answers enough would reach no grade, the same as too few.
-        require(grades.isEmpty() || grades.last().bounds.isEmpty()) { "$id: the last grade takes what the others leave" }
+        require(items.isNotEmpty()) { "$id: a score of items counts at least one" }
+        require(minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
         require(divisor >= 1) { "$id: the divisor must be positive" }
-        require(weights.isEmpty() || weights.size == sumOf.size) { "$id: one weight for each score added up" }
-        require(constant == 0 || sumOf.isNotEmpty()) { "$id: only a score of others adds a constant" }
         require(items.containsAll(optional) && optional.size == optional.toSet().size && (optional.isEmpty() || minAnswered == items.size && rule == ScoreRule.Sum)) {
             "$id: optional items are among its items, of a sum that needs all the others"
         }
-        require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
+        requireRising(id, bands)
         require(
             worseOf.all { it.size == 2 && it.toSet().size == 2 && items.containsAll(it) } && worseOf.flatten().let { it.size == it.toSet().size } &&
                 (worseOf.isEmpty() || rule == ScoreRule.Sum && minAnswered == items.size && optional.isEmpty()),
         ) { "$id: pairs of its own items, apart, of a sum that needs them all" }
         require(rule != ScoreRule.GoalT || items.size == 1 && divisor == 1) { "$id: a T-score counts one item of goals" }
-        require(rule != ScoreRule.ShareOfSpan || items.size == 3 && divisor == 1 && minAnswered == 3 && optional.isEmpty()) {
+        require(rule != ScoreRule.ShareOfSpan || items.size == 3 && divisor == 1 && minAnswered == 3) {
             "$id: a share of a span counts its part and the span's ends, all three"
         }
-        require(steps == null || items.isNotEmpty()) { "$id: only a score of items takes steps" }
+        // Filled up by section, it needs half of each section, not a number of its own.
+        require(rule != ScoreRule.MeanFilled || minAnswered == items.size) { "$id: filled by the mean, it needs half of each section answered, not minAnswered" }
     }
 }
+
+/**
+ * The sum of the scores before it that [parts] names, such as a total of pain and function, once each of them has a
+ * value: each by its weight and plus a [constant] if given, such as the IES-R's formula.
+ */
+data class WeightedScore(
+    override val id: String,
+    override val name: String,
+    val parts: List<String>,
+    /** For each of [parts], in hundredths, what its value counts, such as -2 for "-0,02 x Intrusion"; each 100 if none. */
+    val weights: List<Int> = emptyList(),
+    /** In hundredths, added to the sum, such as -436 for "- 4,36". */
+    val constant: Int = 0,
+    override val unit: String = "Punkte",
+    override val direction: Direction,
+    override val bands: List<Band> = emptyList(),
+) : Score {
+    init {
+        require(parts.isNotEmpty()) { "$id: a weighted sum adds up at least one score" }
+        require(weights.isEmpty() || weights.size == parts.size) { "$id: one weight for each score added up" }
+        requireRising(id, bands)
+    }
+}
+
+/**
+ * The value of the first of [grades] whose bounds on the scores before it hold, such as the GCPS's grade from its pain and
+ * its impairment, once each score it bounds has a value.
+ */
+data class GradedScore(
+    override val id: String,
+    override val name: String,
+    /** The first that holds, the last without bounds. */
+    val grades: List<Grade>,
+    override val unit: String = "",
+    override val direction: Direction,
+    override val bands: List<Band> = emptyList(),
+) : Score {
+    init {
+        // Else answers enough would reach no grade, the same as too few.
+        require(grades.isNotEmpty() && grades.last().bounds.isEmpty()) { "$id: the last grade takes what the others leave" }
+        requireRising(id, bands)
+    }
+}
+
+private fun requireRising(id: String, bands: List<Band>) = require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
 
 /** A grade of [value] that a score takes once all its [bounds] hold, such as the GCPS's grade II. */
 data class Grade(val value: Int, val bounds: List<Bound>) {

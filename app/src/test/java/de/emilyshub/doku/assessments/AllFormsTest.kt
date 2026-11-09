@@ -51,8 +51,8 @@ class AllFormsTest {
     fun `a plain sum of items always shown reaches both ends of its range`() {
         var checked = 0
         BuiltInAssessments.all.forEach { form ->
-            form.scores.filter { score ->
-                score.items.isNotEmpty() && score.rule == ScoreRule.Sum && score.worseOf.isEmpty() && score.steps == null &&
+            form.scores.filterIsInstance<ItemScore>().filter { score ->
+                score.rule == ScoreRule.Sum && score.worseOf.isEmpty() && score.steps == null &&
                     score.items.all { form.item(it)?.showIf == null }
             }.forEach { score ->
                 val range = Scoring.range(form, score)

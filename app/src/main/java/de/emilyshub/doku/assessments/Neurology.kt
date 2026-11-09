@@ -12,11 +12,11 @@ internal val NEUROLOGY: List<Assessment> by lazy { listOf(EMS, FOG, FUGL_MEYER, 
 
 /** A sum of [items], better the higher, all of them needed. */
 private fun higher(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
-    Score(id, name, ids(items), direction = Direction.HigherIsBetter, bands = bands)
+    ItemScore(id, name, ids(items), direction = Direction.HigherIsBetter, bands = bands)
 
 /** A sum of [items], better the lower, all of them needed. */
 private fun lowerSum(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
-    Score(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
+    ItemScore(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
 
 /** European Myelopathy Score, as in "European-Myelopathy-Score_EMS_10-2026.pdf". */
 private val EMS: Assessment = run {
@@ -280,7 +280,7 @@ private val FUGL_MEYER: Assessment = run {
             higher("b", "B. Handgelenk", wrist),
             higher("c", "Hand", hand),
             higher("d", "Koordination/Geschwindigkeit", coordination),
-            Score("a-d", "Total A-D (motorische Funktion)", emptyList(), direction = Direction.HigherIsBetter, sumOf = listOf("a", "b", "c", "d")),
+            WeightedScore("a-d", "Total A-D (motorische Funktion)", direction = Direction.HigherIsBetter, parts = listOf("a", "b", "c", "d")),
             higher("h", "H. Empfindung", touch + position),
             higher("j-bewegung", "J. Passive Gelenkbewegung", motion),
             higher("j-schmerz", "Gelenkschmerz", pain),
@@ -314,7 +314,7 @@ private val FAC: Assessment = run {
             "(Quelle: Wade DT (1995): Measurement in neurological rehabilitation. Oxford medical publications)",
         sections = listOf(Section(items = listOf(item))),
         scores = listOf(
-            Score(
+            ItemScore(
                 "nummer", "Nummer", listOf(item.id), unit = "", direction = Direction.HigherIsBetter,
                 bands = categories.mapIndexed { i, (name, _) -> Band.upTo(i, name) },
             ),
@@ -341,7 +341,7 @@ private val GAS: Assessment = run {
             "T-Wert nach Kiresuk & Sherman (1968), jedes Ziel gleich gewichtet: T = 50 + 10 · Σx / √(0,7 · n + 0,3 · n²), mit x " +
             "der Stufe je Ziel und n der Zahl der Ziele.",
         sections = listOf(Section(items = listOf(goals))),
-        scores = listOf(Score("t", "T-Wert", listOf(goals.id), rule = ScoreRule.GoalT, unit = "", direction = Direction.HigherIsBetter)),
+        scores = listOf(ItemScore("t", "T-Wert", listOf(goals.id), rule = ScoreRule.GoalT, unit = "", direction = Direction.HigherIsBetter)),
     )
 }
 
@@ -504,11 +504,11 @@ private val MINI_BEST: Assessment = run {
             Section(hint = "Wenn die Testperson ein Hilfsmittel bei der Durchführung der Aufgaben braucht, wird das notiert.", items = listOf(TextItem("hilfsmittel", "Hilfsmittel"))),
         ),
         scores = listOf(
-            Score("antizipation", "Antizipation", ids(anticipation), direction = Direction.HigherIsBetter, worseOf = pairOf(oneLeg)),
-            Score("reaktiv", "Reaktive Gleichgewichtskontrolle", ids(reactive), direction = Direction.HigherIsBetter, worseOf = pairOf(sideways)),
+            ItemScore("antizipation", "Antizipation", ids(anticipation), direction = Direction.HigherIsBetter, worseOf = pairOf(oneLeg)),
+            ItemScore("reaktiv", "Reaktive Gleichgewichtskontrolle", ids(reactive), direction = Direction.HigherIsBetter, worseOf = pairOf(sideways)),
             higher("sensorisch", "Sensorische Orientierung", sensory),
             higher("gang", "Dynamische Testung Gang", gait),
-            Score("total", "Total Score", emptyList(), direction = Direction.HigherIsBetter, sumOf = listOf("antizipation", "reaktiv", "sensorisch", "gang")),
+            WeightedScore("total", "Total Score", direction = Direction.HigherIsBetter, parts = listOf("antizipation", "reaktiv", "sensorisch", "gang")),
         ),
     )
 }
@@ -567,7 +567,7 @@ private val MFIS: Assessment = run {
             lowerSum("koerperlich", "Körperlich", of(4, 6, 7, 10, 13, 14, 17, 20, 21)),
             lowerSum("kognitiv", "Kognitiv", of(1, 2, 3, 5, 11, 12, 15, 16, 18, 19)),
             lowerSum("psychosozial", "Psychosozial", of(8, 9)),
-            Score("gesamt", "Gesamt", emptyList(), direction = Direction.LowerIsBetter, sumOf = listOf("koerperlich", "kognitiv", "psychosozial")),
+            WeightedScore("gesamt", "Gesamt", direction = Direction.LowerIsBetter, parts = listOf("koerperlich", "kognitiv", "psychosozial")),
             lowerSum("mfis-5", "MFIS-5", of(1, 9, 10, 17, 19)),
         ),
     )
@@ -663,8 +663,8 @@ private val MS_DEPRESSION: Assessment = run {
             lowerSum("screening", "Screening", screening, listOf(Band.upTo(0, "negativ"), Band.upTo(2, "positiv"))),
             lowerSum("symptome", "Symptome", listOf(core, further)),
             lowerSum("kern", "Symptome 1 und 2", listOf(core)),
-            Score(
-                "dsm-iv", "Major Depression nach DSM-IV", emptyList(), unit = "", direction = Direction.LowerIsBetter,
+            GradedScore(
+                "dsm-iv", "Major Depression nach DSM-IV", unit = "", direction = Direction.LowerIsBetter,
                 bands = listOf(Band.upTo(0, "Kriterien nicht erfüllt"), Band.upTo(1, "Kriterien erfüllt")),
                 grades = listOf(Grade(1, Bound("symptome", from = 500), Bound("kern", from = 100)), Grade(0)),
             ),

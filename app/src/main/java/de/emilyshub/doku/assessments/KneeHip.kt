@@ -53,7 +53,7 @@ private val ACL_RSI: Assessment = run {
             "Trainingsprogramm haben nach dem Training eine bessere Kniefunktion (White et al. 2014).",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "wert",
                 name = "Wert",
                 items = ids(items),
@@ -176,7 +176,7 @@ private val HARRIS: Assessment = run {
             Section("Mobilität (in allen Ebenen)", items = listOf(mobility)),
         ),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "gesamt",
                 name = "Gesamtergebnis",
                 items = ids(all),
@@ -189,11 +189,11 @@ private val HARRIS: Assessment = run {
                 ),
             ),
             // Each part as the original reckons it, so that the patient's parts read without the examiner's (08.11.2026).
-            Score("schmerzen", "Schmerzen", listOf(pain.id), direction = Direction.HigherIsBetter),
-            Score("adl", "ADL", ids(adl), direction = Direction.HigherIsBetter),
-            Score("gehfaehigkeit", "Gehfähigkeit", ids(gait), direction = Direction.HigherIsBetter),
-            Score("deformitaeten", "Deformitäten", ids(deformities), direction = Direction.HigherIsBetter),
-            Score("mobilitaet", "Mobilität", listOf(mobility.id), direction = Direction.HigherIsBetter),
+            ItemScore("schmerzen", "Schmerzen", listOf(pain.id), direction = Direction.HigherIsBetter),
+            ItemScore("adl", "ADL", ids(adl), direction = Direction.HigherIsBetter),
+            ItemScore("gehfaehigkeit", "Gehfähigkeit", ids(gait), direction = Direction.HigherIsBetter),
+            ItemScore("deformitaeten", "Deformitäten", ids(deformities), direction = Direction.HigherIsBetter),
+            ItemScore("mobilitaet", "Mobilität", listOf(mobility.id), direction = Direction.HigherIsBetter),
         ),
     )
 }
@@ -368,7 +368,7 @@ private val HOS: Assessment = run {
     val question = "Wie groß sind Ihre Schwierigkeiten wegen Ihrer Hüfte bei folgenden Aktivitäten?"
     // In percent of the items answered with points, "Nicht zutreffend" left out; with any number answered (08.11.2026).
     fun percent(id: String, name: String, items: List<Item>) =
-        Score(id, name, ids(items), rule = ScoreRule.Percent, unit = "%", direction = Direction.HigherIsBetter, minAnswered = 1)
+        ItemScore(id, name, ids(items), rule = ScoreRule.Percent, unit = "%", direction = Direction.HigherIsBetter, minAnswered = 1)
     Assessment(
         id = "hos",
         name = "Hüft Outcome Score",
@@ -558,7 +558,7 @@ private const val KOOS_SUBSCALES = "Sollte der Patient manche Aktivitäten nicht
  * A subscale of the KOOS or KOOS-Kind: 100 − mean × 100 / 4 of its items, scored 0 for few symptoms to 4; as 0 to 100 of
  * the points the other way round, so that 100 is the best. At most two of its items may be left out (08.11.2026).
  */
-private fun koosSubscale(id: String, name: String, items: List<Item>) = Score(
+private fun koosSubscale(id: String, name: String, items: List<Item>) = ItemScore(
     id, name, ids(items),
     rule = ScoreRule.ZeroTo100, unit = "%", direction = Direction.HigherIsBetter, minAnswered = maxOf(1, items.size - 2),
 )
@@ -694,7 +694,7 @@ private val KOS_ADL: Assessment = run {
             Section("Funktionelle Einschränkung bei Aktivitäten des täglichen Lebens", "Wie beeinträchtigt Ihr Knie Ihre Fähigkeit…", function),
         ),
         scores = listOf(
-            Score("score", "Score", ids(symptoms + function), rule = ScoreRule.Percent, unit = "%", direction = Direction.HigherIsBetter),
+            ItemScore("score", "Score", ids(symptoms + function), rule = ScoreRule.Percent, unit = "%", direction = Direction.HigherIsBetter),
         ),
     )
 }
@@ -763,7 +763,7 @@ private val KUJALA: Assessment = run {
             "Der Gesamtscore beträgt 100 Punkte für ein maximal gutes Ergebnis. Der schlechteste Wert und damit eine starke " +
             "Einschränkung liegt bei 0 Punkten.",
         sections = listOf(Section(items = items)),
-        scores = listOf(Score("gesamt", "Gesamtscore", ids(items), direction = Direction.HigherIsBetter)),
+        scores = listOf(ItemScore("gesamt", "Gesamtscore", ids(items), direction = Direction.HigherIsBetter)),
     )
 }
 
@@ -810,7 +810,7 @@ private val LESS: Assessment = run {
             Section(items = listOf(TextItem("empfehlung", "Trainingsempfehlung (Ebene, Dynamik, begleitende Maßnahmen)"))),
         ),
         scores = listOf(
-            Score(
+            ItemScore(
                 id = "gesamt",
                 name = "Gesamtscore LESS",
                 items = ids(sagittal + frontal),
@@ -823,8 +823,8 @@ private val LESS: Assessment = run {
                     Band.upTo(10, "Exzellent"),
                 ),
             ),
-            Score("sagittal", "Gesamtpunktzahl – sagittale Ebene", ids(sagittal), direction = Direction.HigherIsBetter),
-            Score("frontal", "Gesamtpunktzahl frontale Ebene", ids(frontal), direction = Direction.HigherIsBetter),
+            ItemScore("sagittal", "Gesamtpunktzahl – sagittale Ebene", ids(sagittal), direction = Direction.HigherIsBetter),
+            ItemScore("frontal", "Gesamtpunktzahl frontale Ebene", ids(frontal), direction = Direction.HigherIsBetter),
         ),
     )
 }
@@ -868,7 +868,7 @@ private val LYSHOLM: Assessment = run {
         source = "Lysholm Score, Stand 11/2026",
         hint = "Modifizierter Score nach Lysholm und Gillquist.",
         sections = listOf(Section(items = items)),
-        scores = listOf(Score("gesamt", "Gesamtpunktezahl", ids(items), direction = Direction.HigherIsBetter)),
+        scores = listOf(ItemScore("gesamt", "Gesamtpunktezahl", ids(items), direction = Direction.HigherIsBetter)),
     )
 }
 
@@ -907,7 +907,7 @@ private val TEGNER: Assessment = run {
             "insbesondere um den prä- und postoperativen Status oder die Wirksamkeit von anderen Behandlungsmöglichkeiten zu " +
             "vergleichen. Die minimal klinisch relevante Veränderung beträgt 1,4 Punkte (Wirth et al. 2013).",
         sections = listOf(Section(items = listOf(level))),
-        scores = listOf(Score("wertung", "Wertung", listOf(level.id), unit = "", direction = Direction.HigherIsBetter)),
+        scores = listOf(ItemScore("wertung", "Wertung", listOf(level.id), unit = "", direction = Direction.HigherIsBetter)),
     )
 }
 
@@ -973,7 +973,7 @@ private val VISA_P_G: Assessment = run {
         sections = listOf(Section(items = listOf(sitting) + scales + sport + which + training)),
         scores = listOf(
             // Questions 1 to 7 and the one of 8a, 8b and 8c shown.
-            Score("score", "Score", ids(counted), direction = Direction.HigherIsBetter, minAnswered = counted.size - 2),
+            ItemScore("score", "Score", ids(counted), direction = Direction.HigherIsBetter, minAnswered = counted.size - 2),
         ),
     )
 }

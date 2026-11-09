@@ -12,7 +12,7 @@ internal val FOOT_ANKLE: List<Assessment> by lazy {
 
 /** A score of [items], better the higher, all of them needed unless [minAnswered] says less. */
 private fun higherBetter(id: String, name: String, items: List<Item>, rule: ScoreRule = ScoreRule.Sum, unit: String = "Punkte", bands: List<Band> = emptyList(), minAnswered: Int = items.size) =
-    Score(id, name, ids(items), rule = rule, unit = unit, direction = Direction.HigherIsBetter, bands = bands, minAnswered = minAnswered)
+    ItemScore(id, name, ids(items), rule = rule, unit = unit, direction = Direction.HigherIsBetter, bands = bands, minAnswered = minAnswered)
 
 /** Achilles Tendon Total Rupture Score, German version (Arbab 2024), as in "…_ATRS_10-2026.pdf". */
 private val ATRS: Assessment = run {
@@ -536,7 +536,7 @@ private val PGQ: Assessment = run {
         ),
         scores = listOf(
             // Always of 75, a question left out counting 0, with any number left out (08.11.2026).
-            Score("disability", "Disability", ids(all), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter, minAnswered = 1),
+            ItemScore("disability", "Disability", ids(all), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter, minAnswered = 1),
         ),
     )
 }

@@ -11,7 +11,7 @@ internal val PSYCHOSOCIAL: List<Assessment> by lazy { listOf(FABQ, TSK, IES_R, I
 
 /** A sum of [items], better the lower, all of them needed. */
 private fun lower(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
-    Score(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
+    ItemScore(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
 
 /** Fear Avoidance Belief Questionnaire, German version, as in "Fear-Avoidance-Belief-Questionnaire_FABQ_09-2026.pdf". */
 private val FABQ: Assessment = run {
@@ -161,9 +161,9 @@ private val IES_R: Assessment = run {
         scores = listOf(
             intrusion, avoidance, arousal,
             // Exact in hundredths, as each weight is: X > 0 is from 0,01 on.
-            Score(
-                "x", "X (Verdachtsdiagnose auf PTB)", emptyList(), unit = "", direction = Direction.LowerIsBetter,
-                sumOf = listOf(intrusion.id, avoidance.id, arousal.id), weights = listOf(-2, 7, 15), constant = -436,
+            WeightedScore(
+                "x", "X (Verdachtsdiagnose auf PTB)", unit = "", direction = Direction.LowerIsBetter,
+                parts = listOf(intrusion.id, avoidance.id, arousal.id), weights = listOf(-2, 7, 15), constant = -436,
                 // X lies between -5,06 and 3,69.
                 bands = listOf(Band.upTo(0, null), Band.upTo(4, "Verdachtsdiagnose auf PTB")),
             ),
@@ -202,7 +202,7 @@ private val I_PRRS: Assessment = run {
             "Athlet psychisch noch nicht für seine Sportart bereit ist.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 "gesamt", "Gesamtwert (Summe/10)", ids(items), direction = Direction.HigherIsBetter, divisor = 10,
                 bands = listOf(Band.upTo(49, "Psychisch noch nicht für seine Sportart bereit (unter 50)"), Band.upTo(60, null)),
             ),
@@ -260,7 +260,7 @@ private val PHQ_15: Assessment = run {
             ),
         ),
         scores = listOf(
-            Score(
+            ItemScore(
                 "gesamt", "Punktzahl", ids(items), direction = Direction.LowerIsBetter,
                 // Question d, for women only, may stay unanswered (09.11.2026).
                 optional = listOf("d"),
@@ -321,7 +321,7 @@ private val SCREENING: Assessment = run {
         question(8, "Haben Sie im letzten Monat unter Interessenlosigkeit oder Antriebslosigkeit gelitten?", "nie", "die ganze Zeit"),
     )
     /** A result of questions [numbers], summed (09.11.2026), positive from [cutoff] on. */
-    fun screen(id: String, name: String, cutoff: Int, positive: String, negative: String, vararg numbers: Int) = Score(
+    fun screen(id: String, name: String, cutoff: Int, positive: String, negative: String, vararg numbers: Int) = ItemScore(
         id, name, numbers.map { "$it" }, direction = Direction.LowerIsBetter,
         bands = listOf(
             Band.upTo(cutoff - 1, "Negativ: Wahrscheinlichkeit einer Problematik bei negativem Test ($negative)"),
@@ -580,7 +580,7 @@ private val STRESS_TENSION: Assessment = run {
                     ),
                 ),
             ),
-            Score(
+            ItemScore(
                 "spannung", "Spannungsfragebogen", ids((tension + conflict + problems).filter(Item::scorable)),
                 direction = Direction.LowerIsBetter,
                 bands = listOf(

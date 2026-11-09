@@ -1,5 +1,8 @@
 package de.emilyshub.doku.assessments
 
+/** The items of a score of items, for the forms' tests, which know which of their scores count items. */
+internal val Score.items: List<String> get() = (this as ItemScore).items
+
 /** Answers and results of the built-in forms, by id, for their tests. */
 internal object Forms {
 

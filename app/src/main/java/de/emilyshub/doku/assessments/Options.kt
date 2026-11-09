@@ -32,7 +32,7 @@ internal fun notApplicable(label: String) = Option("na", label, notApplicable = 
  * A subscale from 0 to 100 of what is answered of [items], better the higher, once half of them are answered: the HOOS's
  * rule, which the FAOS states in the same words (08.11.2026).
  */
-internal fun halfAnsweredSubscale(id: String, name: String, items: List<Item>) = Score(
+internal fun halfAnsweredSubscale(id: String, name: String, items: List<Item>) = ItemScore(
     id, name, ids(items), rule = ScoreRule.ZeroTo100, unit = "%", direction = Direction.HigherIsBetter, minAnswered = half(items.size),
 )
 

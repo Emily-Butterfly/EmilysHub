@@ -10,7 +10,7 @@ internal val PAIN: List<Assessment> by lazy { listOf(CSI_GE, CSI_9, DN4, LANSS, 
 
 /** A sum of [items], better the [direction] way, all of them needed. */
 private fun sum(id: String, name: String, items: List<Item>, direction: Direction = Direction.LowerIsBetter, bands: List<Band> = emptyList()) =
-    Score(id, name, ids(items), direction = direction, bands = bands)
+    ItemScore(id, name, ids(items), direction = direction, bands = bands)
 
 /** The answers of the CSI-GE, "nie" 0 to "immer" 4. */
 private val CSI_GE_OPTIONS = numbered("nie", "selten", "gelegentlich", "oft", "immer")
@@ -255,8 +255,8 @@ private val GCPS: Assessment = run {
         impairment("7", "Inwieweit haben Ihre Schmerzen in den letzten 6 Monaten Ihre Fähigkeit beeinträchtigt, Ihre Arbeit/Hausarbeit zu verrichten?"),
     )
     /** Beeinträchtigungspunkte 0 to 3 by score [of], the next from each of whole [bounds] on. */
-    fun points(id: String, name: String, of: String, vararg bounds: Int) = Score(
-        id, name, emptyList(), unit = "BP", direction = Direction.LowerIsBetter,
+    fun points(id: String, name: String, of: String, vararg bounds: Int) = GradedScore(
+        id, name, unit = "BP", direction = Direction.LowerIsBetter,
         grades = bounds.mapIndexed { i, below -> Grade(i, Bound.below(of, below)) } + Grade(bounds.size),
     )
     Assessment(
@@ -295,15 +295,15 @@ private val GCPS: Assessment = run {
             ),
         ),
         scores = listOf(
-            Score("tage", "Anzahl der Tage", listOf(days.id), unit = "Tage", direction = Direction.LowerIsBetter),
+            ItemScore("tage", "Anzahl der Tage", listOf(days.id), unit = "Tage", direction = Direction.LowerIsBetter),
             points("bp-tage", "Beeinträchtigungspunkte Tage (a)", "tage", 7, 15, 31),
             // Of 30 in percent: the mean times 10.
-            Score("beeintraechtigung", "Subjektive Beeinträchtigung", ids(disability), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
+            ItemScore("beeintraechtigung", "Subjektive Beeinträchtigung", ids(disability), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
             points("bp-beeintraechtigung", "Beeinträchtigungspunkte subjektiv (b)", "beeintraechtigung", 30, 50, 70),
-            Score("bp", "Gesamtbeeinträchtigung", emptyList(), unit = "BP", direction = Direction.LowerIsBetter, sumOf = listOf("bp-tage", "bp-beeintraechtigung")),
-            Score("intensitaet", "Charakteristische Schmerzintensität", ids(intensity), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
-            Score(
-                "grad", "Grad", emptyList(), unit = "", direction = Direction.LowerIsBetter,
+            WeightedScore("bp", "Gesamtbeeinträchtigung", unit = "BP", direction = Direction.LowerIsBetter, parts = listOf("bp-tage", "bp-beeintraechtigung")),
+            ItemScore("intensitaet", "Charakteristische Schmerzintensität", ids(intensity), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
+            GradedScore(
+                "grad", "Grad", unit = "", direction = Direction.LowerIsBetter,
                 grades = listOf(
                     Grade(1, Bound.below("bp", 3), Bound.below("intensitaet", 50)),
                     Grade(2, Bound.below("bp", 3)),
@@ -487,8 +487,8 @@ private val START_BACK: Assessment = run {
         scores = listOf(
             sum("gesamt", "Gesamtpunktzahl", items),
             sum("teil", "Teilsumme (Fragen 5-9)", psychosocial),
-            Score(
-                "risiko", "Chronifizierungsrisiko", emptyList(), unit = "", direction = Direction.LowerIsBetter,
+            GradedScore(
+                "risiko", "Chronifizierungsrisiko", unit = "", direction = Direction.LowerIsBetter,
                 grades = listOf(Grade(1, Bound.below("gesamt", 4)), Grade(2, Bound.below("teil", 4)), Grade(3)),
                 bands = listOf(
                     Band.upTo(1, "Geringes Chronifizierungsrisiko"),

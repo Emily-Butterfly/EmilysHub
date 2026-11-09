@@ -12,28 +12,30 @@ object Scoring {
     /** Each score of [form] from [answers] by item id; items not shown ([visible]) count for nothing. */
     fun results(form: Assessment, answers: Map<String, Answer>): List<ScoreResult> {
         val shown = visible(form, answers).map(Item::id).toSet()
+        val counted = answers.filterKeys { it in shown }
         val exact = mutableMapOf<String, Fraction?>()
         return form.scores.map { score ->
-            val fraction = when {
-                score.sumOf.isNotEmpty() -> {
-                    val parts = score.sumOf.map { exact[it] }
-                    if (null in parts) {
-                        null
-                    } else {
-                        parts.filterNotNull().zip(weights(score)) { part, weight -> Fraction(part.numerator * weight, part.denominator * HUNDRED) }
-                            .fold(Fraction(score.constant.toLong(), HUNDRED), Fraction::plus)
-                    }
-                }
-                score.grades.isNotEmpty() -> grade(score, exact)
-                else -> value(form, score, answers.filterKeys { it in shown }, shown)
-            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }?.let { stepped(score, it) }
+            val fraction = when (score) {
+                is ItemScore -> reckoner(score.rule).value(Counted(form, score, counted, shown))
+                    ?.let { Fraction(it.numerator, it.denominator * score.divisor) }
+                    ?.let { stepped(score, it) }
+                is WeightedScore -> weighted(score, exact)
+                is GradedScore -> grade(score, exact)
+            }
             exact[score.id] = fraction
             ScoreResult(score, fraction?.hundredths())
         }
     }
 
+    /** The weighted sum of [score]'s parts, of their [exact] values; none while one of them has none. */
+    private fun weighted(score: WeightedScore, exact: Map<String, Fraction?>): Fraction? {
+        val parts = score.parts.map { exact[it] ?: return null }
+        return parts.zip(weights(score)) { part, weight -> Fraction(part.numerator * weight, part.denominator * HUNDRED) }
+            .fold(Fraction(score.constant.toLong(), HUNDRED), Fraction::plus)
+    }
+
     /** The value of the first grade of [score] whose bounds hold of the [exact] values before it; none while one it bounds has none. */
-    private fun grade(score: Score, exact: Map<String, Fraction?>): Fraction? {
+    private fun grade(score: GradedScore, exact: Map<String, Fraction?>): Fraction? {
         if (score.grades.flatMap(Grade::bounds).any { exact[it.scoreId] == null }) return null
         return score.grades.firstOrNull { grade -> grade.bounds.all { it.holds(checkNotNull(exact[it.scoreId])) } }?.let { Fraction(it.value.toLong(), 1) }
     }
@@ -42,8 +44,8 @@ object Scoring {
     private fun Bound.holds(value: Fraction): Boolean =
         (from == null || value.compareTo(Fraction(from, HUNDRED)) >= 0) && (below == null || value.compareTo(Fraction(below, HUNDRED)) < 0)
 
-    /** What each score [score] adds up counts, in hundredths. */
-    private fun weights(score: Score): List<Long> = score.weights.map(Int::toLong).ifEmpty { score.sumOf.map { HUNDRED } }
+    /** What each part [score] adds up counts, in hundredths. */
+    private fun weights(score: WeightedScore): List<Long> = score.weights.map(Int::toLong).ifEmpty { score.parts.map { HUNDRED } }
 
     /** Whether [form] reaches a result with nothing answered, as one counting what is ticked, nothing being 0. */
     fun reachesResultUnanswered(form: Assessment): Boolean = results(form, emptyMap()).any { it.value != null }
@@ -81,36 +83,22 @@ object Scoring {
     }
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
-    fun range(form: Assessment, score: Score): LongRange {
-        score.steps?.range?.let { return it.first * HUNDRED..it.last * HUNDRED }
-        if (score.grades.isNotEmpty()) return score.grades.minOf(Grade::value) * HUNDRED..score.grades.maxOf(Grade::value) * HUNDRED
-        if (score.sumOf.isNotEmpty()) {
+    fun range(form: Assessment, score: Score): LongRange = when (score) {
+        is GradedScore -> score.grades.minOf(Grade::value) * HUNDRED..score.grades.maxOf(Grade::value) * HUNDRED
+        is WeightedScore -> {
             // Weighed, a part's least may make the most, if its weight is below 0.
-            val parts = score.sumOf.zip(weights(score)) { id, weight ->
+            val parts = score.parts.zip(weights(score)) { id, weight ->
                 range(form, form.scores.single { it.id == id }).let { listOf(it.first * weight, it.last * weight) }.let { it.min()..it.max() }
             }
             // Hundredths weighed in hundredths: ten-thousandths, back to hundredths.
             fun hundredths(tenThousandths: Long) = Fraction(tenThousandths + score.constant * HUNDRED, HUNDRED * HUNDRED).hundredths()
-            return hundredths(parts.sumOf { it.first })..hundredths(parts.sumOf { it.last })
+            hundredths(parts.sumOf { it.first })..hundredths(parts.sumOf { it.last })
         }
-        if (score.rule == ScoreRule.GoalT) return goalT(-GOAL_T_LIMIT)..goalT(GOAL_T_LIMIT)
-        val items = score.items.map { checkNotNull(form.item(it)) }
-        val ranges = items.map { checkNotNull(range(it)) }
-        val range = when (score.rule) {
-            ScoreRule.Sum -> {
-                // Of each pair the worse: the lesser least and the lesser most.
-                val paired = score.worseOf.flatten().toSet()
-                val pairs = score.worseOf.map { pair -> pair.map { checkNotNull(range(checkNotNull(form.item(it)))) }.let { (a, b) -> minOf(a.first, b.first) to minOf(a.second, b.second) } }
-                val counted = alternativesOnce(form, items.zip(ranges).filter { (item, _) -> item.id !in paired }) + pairs
-                counted.sumOf { it.first } * HUNDRED..counted.sumOf { it.second } * HUNDRED
-            }
-            ScoreRule.MeanFilled -> ranges.sumOf { it.first } * HUNDRED..ranges.sumOf { it.second } * HUNDRED
-            ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
-            ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll, ScoreRule.ShareOfSpan -> 0L..HUNDRED * HUNDRED
-            ScoreRule.GoalT -> error("reckoned before")
+        is ItemScore -> score.steps?.range?.let { it.first * HUNDRED..it.last * HUNDRED } ?: run {
+            val range = reckoner(score.rule).range(Counted(form, score))
+            val by = HUNDRED * score.divisor
+            Fraction(range.first, by).hundredths()..Fraction(range.last, by).hundredths()
         }
-        val by = HUNDRED * score.divisor
-        return Fraction(range.first, by).hundredths()..Fraction(range.last, by).hundredths()
     }
 
     /**
@@ -134,53 +122,9 @@ object Scoring {
         else -> false
     }
 
-    /** [score] of [form] from [answers] to the items [shown], exact; none while fewer than its [Score.minAnswered] are answered. */
-    private fun value(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Fraction? {
-        fun answered(ids: List<String>) = ids.mapNotNull { id ->
-            val item = checkNotNull(form.item(id))
-            answer(item, answers, shown)?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
-        }
-        if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
-        if (score.rule == ScoreRule.GoalT) return goals(form.item(score.items.single()) as GoalsItem, answers[score.items.single()])
-        if (score.rule == ScoreRule.ShareOfSpan) {
-            return shareOfSpan(score.items.map { id -> answers[id]?.takeIf { fits(checkNotNull(form.item(id)), it) }.let { it as? Answer.Time }?.minutes ?: return null })
-        }
-        if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers, shown)
-        val answered = answered(score.items)
-        // With optional items, all the others are needed, which minAnswered then is not.
-        val required = score.items - score.optional.toSet()
-        if (if (score.optional.isEmpty()) answered.size < score.minAnswered else answered(required).size < required.size) return null
-        val sum = answered.sumOf { it.first }
-        val least = answered.sumOf { it.second.first }
-        val most = answered.sumOf { it.second.second }
-        return when (score.rule) {
-            ScoreRule.Sum -> Fraction(sum, 1)
-            ScoreRule.Mean -> Fraction(sum, answered.size.toLong())
-            ScoreRule.Percent -> Fraction(sum * HUNDRED, most)
-            ScoreRule.ZeroTo100 -> Fraction((sum - least) * HUNDRED, most - least)
-            ScoreRule.PercentOfAll -> {
-                val all = score.items.mapNotNull { range(checkNotNull(form.item(it))) }
-                Fraction((sum + (all.sumOf { it.first } - least)) * HUNDRED, all.sumOf { it.second })
-            }
-            ScoreRule.MeanFilled -> error("reckoned by section")
-            ScoreRule.GoalT -> error("reckoned by its goals")
-            ScoreRule.ShareOfSpan -> error("reckoned by its times")
-        }.takeIf { it.denominator != 0L }
-    }
-
     /** What [answers] hold for [item]: nothing checked of a scored checklist [shown] is an answer too, none applying. */
     private fun answer(item: Item, answers: Map<String, Answer>, shown: Set<String>): Answer? =
         answers[item.id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true && item.id in shown }
-
-    /** The sum of [score] of [form], each of its pairs counted by the one with fewer points; none while any of its items is unanswered. */
-    private fun worseOf(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Fraction? {
-        val points = score.items.associateWith { id ->
-            val item = checkNotNull(form.item(id))
-            answer(item, answers, shown)?.let { points(item, it) } ?: return null
-        }
-        val paired = score.worseOf.flatten().toSet()
-        return Fraction(points.filterKeys { it !in paired }.values.sum() + score.worseOf.sumOf { pair -> pair.minOf { points.getValue(it) } }, 1)
-    }
 
     /**
      * The T-score of the goals of [answer] to [item], each rated at one of its levels; none without a goal or while one is
@@ -207,20 +151,124 @@ object Scoring {
     }
 
     /** [value] of [score] as the points of its steps, if it has them. */
-    private fun stepped(score: Score, value: Fraction): Fraction = score.steps?.let { Fraction(it.of(value), 1) } ?: value
+    private fun stepped(score: ItemScore, value: Fraction): Fraction = score.steps?.let { Fraction(it.of(value), 1) } ?: value
 
     /** The points [steps] gives [value]: the first bound it lies below, else the last. */
     private fun Steps.of(value: Fraction): Long =
         (below.firstOrNull { (bound, _) -> value < Fraction(bound.toLong(), 1) }?.second ?: otherwise).toLong()
 
-    /** [score] filled up by the mean of each section of [form]'s items: the sum of each section times its items over those answered. */
-    private fun meanFilled(form: Assessment, score: Score, answered: (List<String>) -> List<Pair<Long, Pair<Long, Long>>>): Fraction? {
-        val sections = form.sections.map { section -> section.items.map(Item::id).filter { it in score.items } }.filter(List<String>::isNotEmpty)
-        return sections.map { ids ->
-            val points = answered(ids)
-            if (points.size < half(ids.size)) return null
-            Fraction(points.sumOf { it.first } * ids.size, points.size.toLong())
-        }.reduce(Fraction::plus)
+    /**
+     * The items of [score] of [form] with what is answered to them, of [answers] to the items [shown]: the one collector
+     * each rule reckons from. Without answers, it serves a rule's range.
+     */
+    private class Counted(val form: Assessment, val score: ItemScore, answers: Map<String, Answer> = emptyMap(), shown: Set<String> = emptySet()) {
+        val items: List<Item> = score.items.map { checkNotNull(form.item(it)) }
+
+        /** The fewest and the most points of each item that makes points; not of goals, which a T-score rates. */
+        val ranges: Map<String, Pair<Long, Long>> = items.mapNotNull { item -> range(item)?.let { item.id to it } }.toMap()
+
+        /** The points of each item answered, by id, in the order of its items; nothing ticked of a scored checklist shown is 0. */
+        val points: Map<String, Long> = items.mapNotNull { item -> answer(item, answers, shown)?.let { points(item, it) }?.let { item.id to it } }.toMap()
+
+        /** The answers as they are, to those of its items they fit: for rules that read more than points. */
+        val raw: Map<String, Answer> = items.mapNotNull { item -> answers[item.id]?.takeIf { fits(item, it) }?.let { item.id to it } }.toMap()
+
+        /** Whether enough is answered: [ItemScore.minAnswered] of its items, or with optional ones all the others. */
+        val enough: Boolean = if (score.optional.isEmpty()) points.size >= score.minAnswered else (score.items - score.optional.toSet()).all { it in points }
+
+        val sum: Long get() = points.values.sum()
+
+        /** The fewest and the most points of the items answered, each added up. */
+        val least: Long get() = points.keys.sumOf { ranges.getValue(it).first }
+        val most: Long get() = points.keys.sumOf { ranges.getValue(it).second }
+    }
+
+    /** How a rule reckons: its value and its range, together. */
+    private interface Reckoner {
+        /** The exact value of what [counted] holds; none while too little is answered. */
+        fun value(counted: Counted): Fraction?
+
+        /** The least and the most it can be, in hundredths, before its divisor. */
+        fun range(counted: Counted): LongRange
+    }
+
+    /** The reckoner of [rule]. */
+    private fun reckoner(rule: ScoreRule): Reckoner = when (rule) {
+        ScoreRule.Sum -> SUM
+        ScoreRule.Mean -> MEAN
+        ScoreRule.Percent -> PERCENT
+        ScoreRule.ZeroTo100 -> ZERO_TO_100
+        ScoreRule.PercentOfAll -> PERCENT_OF_ALL
+        ScoreRule.MeanFilled -> MEAN_FILLED
+        ScoreRule.GoalT -> GOAL_T
+        ScoreRule.ShareOfSpan -> SHARE_OF_SPAN
+    }
+
+    /** A reckoner from 0 to 100 %, of [value]. */
+    private fun percent(value: (Counted) -> Fraction?) = object : Reckoner {
+        override fun value(counted: Counted) = if (counted.enough) value(counted)?.takeIf { it.denominator != 0L } else null
+        override fun range(counted: Counted) = 0L..HUNDRED * HUNDRED
+    }
+
+    /** The sum; of each pair of [ItemScore.worseOf], the one with fewer points, all needed then. */
+    private val SUM = object : Reckoner {
+        override fun value(counted: Counted): Fraction? {
+            val score = counted.score
+            if (score.worseOf.isEmpty()) return if (counted.enough) Fraction(counted.sum, 1) else null
+            if (counted.points.size < score.items.size) return null
+            val paired = score.worseOf.flatten().toSet()
+            val points = counted.points
+            return Fraction(points.filterKeys { it !in paired }.values.sum() + score.worseOf.sumOf { pair -> pair.minOf { points.getValue(it) } }, 1)
+        }
+
+        override fun range(counted: Counted): LongRange {
+            val score = counted.score
+            // Of each pair the worse: the lesser least and the lesser most.
+            val paired = score.worseOf.flatten().toSet()
+            val pairs = score.worseOf.map { pair -> pair.map { counted.ranges.getValue(it) }.let { (a, b) -> minOf(a.first, b.first) to minOf(a.second, b.second) } }
+            val ranged = alternativesOnce(counted.form, counted.items.filter { it.id !in paired }.map { it to counted.ranges.getValue(it.id) }) + pairs
+            return ranged.sumOf { it.first } * HUNDRED..ranged.sumOf { it.second } * HUNDRED
+        }
+    }
+
+    private val MEAN = object : Reckoner {
+        override fun value(counted: Counted) = if (counted.enough) Fraction(counted.sum, counted.points.size.toLong()) else null
+        override fun range(counted: Counted) = counted.ranges.values.minOf { it.first } * HUNDRED..counted.ranges.values.maxOf { it.second } * HUNDRED
+    }
+
+    /** Of the most the items answered could reach: the maximum shrinks with each left out. */
+    private val PERCENT = percent { Fraction(it.sum * HUNDRED, it.most) }
+
+    private val ZERO_TO_100 = percent { Fraction((it.sum - it.least) * HUNDRED, it.most - it.least) }
+
+    /** Of the most all items could reach: one left out counts its least. */
+    private val PERCENT_OF_ALL = percent { counted ->
+        val all = counted.ranges.values
+        Fraction((counted.sum + (all.sumOf { it.first } - counted.least)) * HUNDRED, all.sumOf { it.second })
+    }
+
+    /** The sum, each section's items left out counted as the mean of those answered there, once half of each is. */
+    private val MEAN_FILLED = object : Reckoner {
+        override fun value(counted: Counted): Fraction? {
+            val sections = counted.form.sections.map { section -> section.items.map(Item::id).filter { it in counted.score.items } }.filter(List<String>::isNotEmpty)
+            return sections.map { ids ->
+                val points = ids.mapNotNull { counted.points[it] }
+                if (points.size < half(ids.size)) return null
+                Fraction(points.sum() * ids.size, points.size.toLong())
+            }.reduce(Fraction::plus)
+        }
+
+        override fun range(counted: Counted) = counted.ranges.values.sumOf { it.first } * HUNDRED..counted.ranges.values.sumOf { it.second } * HUNDRED
+    }
+
+    private val GOAL_T = object : Reckoner {
+        override fun value(counted: Counted) = goals(counted.items.single() as GoalsItem, counted.raw[counted.items.single().id])
+        override fun range(counted: Counted) = goalT(-GOAL_T_LIMIT)..goalT(GOAL_T_LIMIT)
+    }
+
+    private val SHARE_OF_SPAN = object : Reckoner {
+        override fun value(counted: Counted) = shareOfSpan(counted.items.map { (counted.raw[it.id] as? Answer.Time)?.minutes ?: return null })
+        override fun range(counted: Counted) = 0L..HUNDRED * HUNDRED
     }
 
     /** The points [answer] makes for [item], reversed ones counted the other way round; none for an answer that does not fit it. */

@@ -31,7 +31,7 @@ private fun wells(id: String, name: String, source: String, hint: String, criter
         hint = hint,
         sections = listOf(Section(items = listOf(list))),
         // Points in tenths, such as 1,5, as an option's points are whole.
-        scores = listOf(Score("gesamt", "Gesamtpunktzahl", listOf(list.id), direction = Direction.LowerIsBetter, bands = bands, divisor = 10)),
+        scores = listOf(ItemScore("gesamt", "Gesamtpunktzahl", listOf(list.id), direction = Direction.LowerIsBetter, bands = bands, divisor = 10)),
     )
 }
 
@@ -138,7 +138,7 @@ private val ICIQ_UI_SF: Assessment = run {
             "Nach Nyström beträgt die minimale klinische Veränderung 2,52 Punkte.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
+            ItemScore(
                 "gesamt", "Summe der Fragen 1. + 2. + 3.", listOf("1", "2", "3"), direction = Direction.LowerIsBetter,
                 bands = listOf(
                     Band.upTo(0, "Keine Inkontinenz"),
@@ -273,7 +273,7 @@ private val GAQ_PP: Assessment = run {
             ),
         ),
         scores = listOf(
-            Score(
+            ItemScore(
                 "empfehlung", "Empfehlung", ids(questions), unit = "× Ja", direction = Direction.LowerIsBetter,
                 bands = listOf(
                     Band.upTo(0, "Körperliche Aktivität wird empfohlen."),
