@@ -56,7 +56,6 @@ import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -185,15 +184,10 @@ private fun OpenPage(doku: Doku, modules: DokuModules, pages: DokuPages, onPages
     }
 }
 
-/** Locks [doku] once it has been idle for five minutes. */
+/** Locks [doku] once it has been idle for five minutes, while it shows open. */
 @Composable
 private fun IdleLock(doku: Doku) {
-    LaunchedEffect(doku) {
-        while (true) {
-            delay(doku.millisUntilIdle().coerceAtLeast(1))
-            doku.lockIfIdle()
-        }
-    }
+    LaunchedEffect(doku) { doku.lockWhenIdle() }
 }
 
 /** The Doku password, typed twice, with the warning that it cannot be recovered to confirm, and the fingerprint if [canUseFingerprint]. */

@@ -120,7 +120,14 @@ is deleted" moved to `DokuTest`, as it is the vault's. `changes` stays on `Doku`
 
 ## 6 · The Doku lock in one module
 
-**Status:** open.
+**Status:** done for the idle lock; the dialog wrappers decided against. `Doku.lockWhenIdle()` waits while the Doku is
+open and locks it after five minutes without a touch, returning once it is locked, this way or another; `DokuArea` only
+runs it while the Doku shows open. `lockIfIdle` is gone and `millisUntilIdle` is internal (a screen test reads it);
+`DokuTest` holds the five minutes on virtual time rather than calling a check by hand. **Not done**: `DokuDialog` and
+`DokuDropdown` wrappers to apply `touchesDoku` themselves. They would pass through all of `AlertDialog`'s and
+`DropdownMenu`'s parameters to save a one-line modifier at 17 sites, a shallow module. Whether the dialogs nested in a
+page need `DokuInsel` again (`DateDialog` and `TimeDialog` have it, `PatientDialog` does not) is open: it depends on how
+Android hands a dialog's window its keyboard, which only a device shows.
 
 When the Doku locks is spread over seven files; `millisUntilIdle` and `lockIfIdle` exist only for a loop in `DokuArea`
 that polls, and `Modifier.touchesDoku` is written by hand 17 times. `Doku` keeps its own idle timer; the pages report

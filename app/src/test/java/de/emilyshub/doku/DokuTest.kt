@@ -9,7 +9,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -199,30 +204,50 @@ class DokuTest {
         assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
     }
 
-    @Test
-    fun `after five minutes without a touch the Doku locks`() {
-        setUp()
+    /** [millis] go by, on the Doku's clock and the test's virtual time alike. */
+    private fun TestScope.wait(millis: Long) {
+        clock += millis
+        advanceTimeBy(millis)
+        runCurrent()
+    }
 
-        clock += Doku.IDLE_MILLIS - 1
-        doku.lockIfIdle()
+    @Test
+    fun `after five minutes without a touch the Doku locks`() = runTest {
+        setUp()
+        val idle = backgroundScope.launch { doku.lockWhenIdle() }
+
+        wait(Doku.IDLE_MILLIS - 1)
         assertTrue(doku.state is DokuState.Open)
 
-        clock += 1
-        doku.lockIfIdle()
+        wait(1)
+        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertTrue("it returns once locked", idle.isCompleted)
+    }
+
+    @Test
+    fun `a touch or a key starts the five minutes anew`() = runTest {
+        setUp()
+        backgroundScope.launch { doku.lockWhenIdle() }
+
+        wait(Doku.IDLE_MILLIS - 1)
+        doku.touched()
+        wait(Doku.IDLE_MILLIS - 1)
+        assertTrue(doku.state is DokuState.Open)
+
+        wait(1)
         assertEquals(DokuState.Locked(fingerprint = false), doku.state)
     }
 
     @Test
-    fun `a touch or a key starts the five minutes anew`() {
+    fun `locked another way, it stops waiting`() = runTest {
         setUp()
+        val idle = backgroundScope.launch { doku.lockWhenIdle() }
+        runCurrent()
 
-        clock += Doku.IDLE_MILLIS - 1
-        doku.touched()
-        clock += Doku.IDLE_MILLIS - 1
-        doku.lockIfIdle()
+        doku.lock()
+        wait(Doku.IDLE_MILLIS)
 
-        assertTrue(doku.state is DokuState.Open)
-        assertEquals(1L, doku.millisUntilIdle())
+        assertTrue(idle.isCompleted)
     }
 
     @Test

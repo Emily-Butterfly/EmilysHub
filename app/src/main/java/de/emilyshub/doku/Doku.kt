@@ -16,6 +16,7 @@ import de.emilyshub.logged
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -258,11 +259,17 @@ class Doku internal constructor(
     }
 
     /** How long until the Doku has been idle for [IDLE_MILLIS]. */
-    fun millisUntilIdle(): Long = (lastTouch + IDLE_MILLIS - now()).coerceAtLeast(0)
+    internal fun millisUntilIdle(): Long = (lastTouch + IDLE_MILLIS - now()).coerceAtLeast(0)
 
-    /** Locks the Doku once it has been idle for [IDLE_MILLIS]. */
-    fun lockIfIdle() {
-        if (opened != null && millisUntilIdle() == 0L) lock()
+    /**
+     * Locks the Doku once it has been idle for [IDLE_MILLIS], waiting while it is open, and returns once it is locked,
+     * this way or another. Run by the screen showing it, for as long as it shows it open.
+     */
+    suspend fun lockWhenIdle() {
+        while (opened != null) {
+            delay(millisUntilIdle().coerceAtLeast(1))
+            if (opened != null && millisUntilIdle() == 0L) lock()
+        }
     }
 
     /** [saver] is asked for what it has not saved yet each time the Doku locks, until the returned handle is closed. */
