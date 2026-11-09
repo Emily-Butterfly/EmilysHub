@@ -31,7 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +52,7 @@ import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.TestValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
-import kotlinx.coroutines.launch
+import de.emilyshub.ui.rememberClosing
 
 /**
  * The tests measured at an appointment, in the order they were added, each with what it found and the sum; tapped,
@@ -131,7 +130,8 @@ internal fun MeasurementPage(doku: Doku, measurements: Measurements, page: DokuP
     var draft by remember { mutableStateOf(form.initial) }
     var tried by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    // Saves or deletes once, to its end, though the page is gone meanwhile.
+    val closing = rememberClosing(onDone)
     val problems = form.problems(draft)
 
     Column(
@@ -152,10 +152,7 @@ internal fun MeasurementPage(doku: Doku, measurements: Measurements, page: DokuP
                 onClick = {
                     tried = true
                     if (problems.isEmpty) {
-                        scope.launch {
-                            measurements.save(page.appointmentId, page.id, form, draft)
-                            onDone()
-                        }
+                        closing { measurements.save(page.appointmentId, page.id, form, draft) }
                     }
                 },
             ) {
@@ -204,10 +201,7 @@ internal fun MeasurementPage(doku: Doku, measurements: Measurements, page: DokuP
             text = stringResource(R.string.doku_measurement_delete_text),
             onDelete = {
                 deleting = false
-                scope.launch {
-                    measurements.delete(page.id)
-                    onDone()
-                }
+                closing { measurements.delete(page.id) }
             },
             onDismiss = { deleting = false },
         )

@@ -43,7 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,7 +78,7 @@ import de.emilyshub.doku.assessments.TimeItem
 import de.emilyshub.doku.assessments.YesNoItem
 import de.emilyshub.doku.assessments.toggled
 import de.emilyshub.ui.numericDate
-import kotlinx.coroutines.launch
+import de.emilyshub.ui.rememberClosing
 
 /**
  * The forms filled in at an appointment, in the order they were added, each with its results; tapped, one opens
@@ -211,7 +210,8 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
     var deleting by remember { mutableStateOf(false) }
     // Closed by "Fertig": a new one with nothing answered but a result, such as an RMDQ, stays.
     var confirmed by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    // Saves or deletes once, to its end, though the page is gone meanwhile.
+    val closing = rememberClosing(onDone)
     KeepDraft(doku, page) {
         val answered = sheet
         if (deleted || answered == null) DokuDraft.None else assessments.draft(answered, page.new, confirmed)
@@ -292,10 +292,7 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
             onDelete = {
                 deleting = false
                 deleted = true
-                scope.launch {
-                    assessments.delete(page.id)
-                    onDone()
-                }
+                closing { assessments.delete(page.id) }
             },
             onDismiss = { deleting = false },
         )

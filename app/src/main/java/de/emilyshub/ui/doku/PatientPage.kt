@@ -43,8 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.doku.Appointments
-import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Doku
+import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patient
 import de.emilyshub.doku.PatientField
 import de.emilyshub.doku.toDraft
@@ -52,6 +52,7 @@ import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.rememberClosing
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -83,6 +84,8 @@ internal fun PatientPage(
     val (patients, appointments, _, measurements, assessments) = modules
     val patient = rememberDokuLoad(doku, page.id) { patients.get(page.id) } ?: return
     val scope = rememberCoroutineScope()
+    // Closes or deletes once, to its end, though the page is gone meanwhile; leaving as each says.
+    val leaving = rememberClosing {}
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     val addAppointment = {
@@ -100,7 +103,7 @@ internal fun PatientPage(
             year = patients.today().year,
             onRename = { renaming = true },
             onClose = {
-                scope.launch {
+                leaving.leaveThrough {
                     patients.close(patient.id)
                     onGone(false)
                 }
@@ -156,7 +159,7 @@ internal fun PatientPage(
             text = stringResource(R.string.doku_patient_delete_text),
             onDelete = {
                 deleting = false
-                scope.launch {
+                leaving.leaveThrough {
                     patients.delete(patient.id)
                     onGone(true)
                 }

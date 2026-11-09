@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -36,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +60,7 @@ import de.emilyshub.doku.ValueProblem
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.numericDate
-import kotlinx.coroutines.launch
+import de.emilyshub.ui.rememberClosing
 
 /**
  * A test to add or change (SPEC.md §14): its name, its values in their order, each with a unit, a range, whether it
@@ -85,14 +84,11 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
     var tried by remember { mutableStateOf(false) }
     var confirmingSave by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    // Saves or deletes once, to its end, though the page is gone meanwhile.
+    val closing = rememberClosing(onDone)
     val problems = draft.problems(opened.taken)
     val save = {
-        scope.launch {
-            tests.save(page.id, draft)
-            onDone()
-        }
-        Unit
+        closing { tests.save(page.id, draft) }
     }
 
     Column(
@@ -126,16 +122,10 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                     doku = doku,
                     archived = details.test.isArchived,
                     onArchive = {
-                        scope.launch {
-                            tests.archive(details.test.id)
-                            onDone()
-                        }
+                        closing { tests.archive(details.test.id) }
                     },
                     onRestore = {
-                        scope.launch {
-                            tests.restore(details.test.id)
-                            onDone()
-                        }
+                        closing { tests.restore(details.test.id) }
                     },
                     onDelete = { deleting = true },
                 )
@@ -251,10 +241,7 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
             text = if (details.affected.measurements > 0) affectedText(details.affected, R.string.doku_test_deletes) else null,
             onDelete = {
                 deleting = false
-                scope.launch {
-                    tests.delete(details.test.id)
-                    onDone()
-                }
+                closing { tests.delete(details.test.id) }
             },
             onDismiss = { deleting = false },
         )

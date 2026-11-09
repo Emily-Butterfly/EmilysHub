@@ -24,8 +24,8 @@ Looked at and left alone: coupling in `Routines.kt` (quiet since plan 2); the no
 `NightlyBackups` behind their ports; the Doku vault's core and the `DokuVault` seam (two adapters); `BackStack`; the
 forms (plan 3); tags and checklists (ADR 0001); bands (ADR 0002).
 
-Found on the way, not deepenings: ten Doku pages save and leave without `Closing` (a double tap may save a new
-measurement twice); budget and amount input checked in four places; measurement order written three times; cascading
+Found on the way, not deepenings: ten Doku pages saved and left without `Closing` (fixed after step 8: they
+save and delete through it now, once and to the end; the double tap did not reproduce in Robolectric); budget and amount input checked in four places; measurement order written three times; cascading
 deletes both as foreign keys and by hand in three DAOs; the names of backups made by hand and at night in two modules;
 `LineChart`'s scaling untested.
 

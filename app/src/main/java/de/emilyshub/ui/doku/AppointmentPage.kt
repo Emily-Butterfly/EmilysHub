@@ -36,6 +36,7 @@ import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.rememberClosing
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -75,6 +76,8 @@ internal fun AppointmentPage(
     }
     val current = appointment ?: return
     val scope = rememberCoroutineScope()
+    // Saves or deletes once, to its end, though the page is gone meanwhile.
+    val closing = rememberClosing(onDone)
     var pickingDate by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -186,10 +189,7 @@ internal fun AppointmentPage(
             onDelete = {
                 deleting = false
                 deleted = true
-                scope.launch {
-                    appointments.delete(page.id)
-                    onDone()
-                }
+                closing { appointments.delete(page.id) }
             },
             onDismiss = { deleting = false },
         )
