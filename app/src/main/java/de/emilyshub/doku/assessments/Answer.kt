@@ -30,6 +30,19 @@ sealed interface Answer {
     data class Time(val minutes: Int) : Answer
 }
 
+/**
+ * Whether it says nothing: nothing checked and no words, no words, no goal. Such is no answer at all: neither kept nor
+ * stored ([AnswerCodec]).
+ */
+val Answer.isNothing: Boolean
+    get() = when (this) {
+        is Answer.Checked -> optionIds.isEmpty() && other.isBlank()
+        is Answer.Text -> text.isBlank()
+        is Answer.Regions -> regions.isEmpty() && text.isBlank()
+        is Answer.Goals -> goals.all(Goal::isEmpty)
+        is Answer.Chosen, is Answer.YesNo, is Answer.OnScale, is Answer.Number, is Answer.Time -> false
+    }
+
 /** A goal in [text], rated at the [level] of its points, such as +1 "Ziel übertroffen"; none while unrated. */
 data class Goal(val text: String, val level: Int? = null) {
     /** Without words and level: no goal at all, neither stored nor counted. */

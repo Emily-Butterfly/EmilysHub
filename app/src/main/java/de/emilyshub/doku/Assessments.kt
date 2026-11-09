@@ -5,10 +5,13 @@ import de.emilyshub.doku.assessments.Answer
 import de.emilyshub.doku.assessments.AnswerCodec
 import de.emilyshub.doku.assessments.Assessment
 import de.emilyshub.doku.assessments.BuiltInAssessments
+import de.emilyshub.doku.assessments.Item
 import de.emilyshub.doku.assessments.Score
 import de.emilyshub.doku.assessments.ScoreResult
 import de.emilyshub.doku.assessments.Scoring
+import de.emilyshub.doku.assessments.Section
 import de.emilyshub.doku.assessments.StoredAnswer
+import de.emilyshub.doku.assessments.isNothing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -163,8 +166,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         if (id != null && database.assessments().get(id)?.let { it.appointmentId == appointmentId && it.assessmentId == assessmentId } != true) return null
         val form = BuiltInAssessments.byId(assessmentId)
         if (form == null && id == null) return null
-        val kept = form?.let { f -> Scoring.visible(f, answers).map { it.id }.toSet() + Scoring.orphans(f, answers).keys }
-        val stored = answers.filterKeys { kept == null || it in kept }.mapNotNull { (itemId, answer) ->
+        val stored = AssessmentSheet.kept(form, answers).mapNotNull { (itemId, answer) ->
             AnswerCodec.encode(answer)?.let { AssessmentAnswer(0, itemId, it.value, InputText.multiLine(it.text)) }
         }
         val answeredBefore = id != null && database.assessments().answers(id).isNotEmpty()
@@ -244,12 +246,59 @@ data class FilledAssessment(
     val form: Assessment?,
     val answers: Map<String, Answer>,
 ) {
-    /** Its results, reckoned from the answers. */
-    val results: List<ScoreResult> get() = form?.let { Scoring.results(it, answers) }.orEmpty()
+    /** Its results, reckoned from the answers once. */
+    val results: List<ScoreResult> by lazy { form?.let { Scoring.results(it, answers) }.orEmpty() }
 }
 
-/** A filled-in form to fill in, or only to read unless [canChange]. */
-data class AssessmentSheet(val filled: FilledAssessment, val canChange: Boolean)
+/**
+ * Filled-in form [filled] to fill in, or only to read unless [canChange], with its [answers] as given so far: what its
+ * page shows and the Doku keeps of it. Items under a condition show once it holds; an answer that says nothing is none;
+ * answers its form no longer has, or of another kind, are orphans, shown apart and kept; answers to items not shown stay
+ * here, so that they come back with their condition, but neither count nor are kept. Pure, without the database.
+ */
+data class AssessmentSheet(val filled: FilledAssessment, val canChange: Boolean, val answers: Map<String, Answer> = filled.answers) {
+    /** Its form as this version of the app has it; none if it no longer does. */
+    val form: Assessment? get() = filled.form
+
+    /** Its form's sections in order, each with the items shown and their answers; none without its form. */
+    val sections: List<ShownSection> by lazy {
+        val form = form ?: return@lazy emptyList()
+        val shown = Scoring.visible(form, answers).map(Item::id).toSet()
+        form.sections.map { section ->
+            ShownSection(section, section.items.filter { it.id in shown }.map { item -> ShownItem(item, answers[item.id]?.takeIf { Scoring.fits(item, it) }) })
+        }
+    }
+
+    /** The answers its form no longer has, or that no longer fit their item; all of them without its form. */
+    val orphans: Map<String, Answer> by lazy { form?.let { Scoring.orphans(it, answers) } ?: answers }
+
+    /** Its results, reckoned from the answers to the items shown; none without its form. */
+    val results: List<ScoreResult> by lazy { form?.let { Scoring.results(it, answers) }.orEmpty() }
+
+    /** What is kept of it: the answers to the items shown, and the orphans. */
+    val stored: Map<String, Answer> by lazy { kept(form, answers) }
+
+    /** Whether its answers differ from those it was read with. */
+    val changed: Boolean get() = answers != filled.answers
+
+    /** With [answer] to item [itemId], or none; one that says nothing is none. */
+    fun answering(itemId: String, answer: Answer?): AssessmentSheet =
+        copy(answers = if (answer == null || answer.isNothing) answers - itemId else answers + (itemId to answer))
+
+    companion object {
+        /** What is kept of [answers] to [form]: those to the items shown and the orphans; all of them without a form. */
+        internal fun kept(form: Assessment?, answers: Map<String, Answer>): Map<String, Answer> {
+            val kept = form?.let { f -> Scoring.visible(f, answers).map(Item::id).toSet() + Scoring.orphans(f, answers).keys }
+            return answers.filter { (id, answer) -> (kept == null || id in kept) && !answer.isNothing }
+        }
+    }
+}
+
+/** A [section] of a form with the [items] shown of it. */
+data class ShownSection(val section: Section, val items: List<ShownItem>)
+
+/** An [item] shown, with its [answer], none if unanswered or answered with another kind. */
+data class ShownItem(val item: Item, val answer: Answer?)
 
 /** A patient's forms: a card for each with a result, and those without one, the latest first. */
 data class AssessmentCards(val scored: List<AssessmentCard>, val unscored: List<FilledAssessment>)

@@ -9,24 +9,20 @@ data class StoredAnswer(val value: String, val text: String)
 /** How an [Answer] is stored and read back. */
 object AnswerCodec {
 
-    /** [answer] as stored; none for nothing answered: nothing checked, no words. */
-    fun encode(answer: Answer): StoredAnswer? = when (answer) {
+    /** [answer] as stored; none for one that says nothing ([isNothing]). */
+    fun encode(answer: Answer): StoredAnswer? = if (answer.isNothing) null else when (answer) {
         is Answer.Chosen -> StoredAnswer("$CHOSEN${answer.optionId}", "")
         is Answer.YesNo -> StoredAnswer("$YES_NO${if (answer.yes) 1 else 0}", "")
         is Answer.OnScale -> StoredAnswer("$SCALE${answer.value}", "")
         is Answer.Number -> StoredAnswer("$NUMBER${answer.hundredths}", "")
         is Answer.Time -> StoredAnswer("$TIME${answer.minutes}", "")
-        is Answer.Checked -> answer.other.trim().let { other ->
-            if (answer.optionIds.isEmpty() && other.isEmpty()) null else StoredAnswer(CHECKED + answer.optionIds.sorted().joinToString(","), other)
-        }
-        is Answer.Text -> answer.text.trim().takeIf(String::isNotEmpty)?.let { StoredAnswer(TEXT, it) }
-        is Answer.Regions -> answer.text.trim().let { text ->
-            if (answer.regions.isEmpty() && text.isEmpty()) null else StoredAnswer(REGIONS + answer.regions.sorted().joinToString(",") { it.id }, text)
-        }
+        is Answer.Checked -> StoredAnswer(CHECKED + answer.optionIds.sorted().joinToString(","), answer.other.trim())
+        is Answer.Text -> StoredAnswer(TEXT, answer.text.trim())
+        is Answer.Regions -> StoredAnswer(REGIONS + answer.regions.sorted().joinToString(",") { it.id }, answer.text.trim())
         // A line of words each, in the order of the levels; a goal without words or level is none.
-        is Answer.Goals -> answer.goals.map { it.copy(text = it.text.replace('\n', ' ').trim()) }.filterNot(Goal::isEmpty)
-            .takeIf(List<Goal>::isNotEmpty)
-            ?.let { goals -> StoredAnswer(GOALS + goals.joinToString(",") { it.level?.toString().orEmpty() }, goals.joinToString("\n", transform = Goal::text)) }
+        is Answer.Goals -> answer.goals.map { it.copy(text = it.text.replace('\n', ' ').trim()) }.filterNot(Goal::isEmpty).let { goals ->
+            StoredAnswer(GOALS + goals.joinToString(",") { it.level?.toString().orEmpty() }, goals.joinToString("\n", transform = Goal::text))
+        }
     }
 
     /** The answer [stored] holds; none for one of a kind this version does not know. */

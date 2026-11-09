@@ -29,6 +29,13 @@ Tags and checklists stay per kind (ADR 0001).
 
 ## 1 · Deepen AssessmentSheet
 
+**Status:** done. `AssessmentSheet` is a pure value of the filled form and its answers: `sections` (each with the
+items shown and their answers), `answering(item, answer)`, `orphans`, `results` (once), `stored` and `changed`;
+`AssessmentSheetTest` holds it without Compose. `AssessmentPage` renders it; `Assessments.write` keeps what
+`AssessmentSheet.kept` says. "Says nothing" is `Answer.isNothing`, which `AnswerCodec` uses too, so the page no longer
+asks the codec. `FilledAssessment.results` is reckoned once. **Behaviour changed, slightly**: words of spaces alone in a
+text field are no answer while typing, as they were never stored.
+
 The rule "answers to items not shown neither count nor are kept" lives in two call sites: `AssessmentPage` combines
 `Scoring.visible`, `fits`, `orphans` and `results` itself, and `Assessments.write` derives again what is kept. The page
 decides whether an answer is empty by asking the storage codec (`AnswerCodec.encode(it) != null`), and

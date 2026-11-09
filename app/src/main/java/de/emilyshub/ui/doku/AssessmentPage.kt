@@ -65,7 +65,6 @@ import de.emilyshub.doku.DokuSaver
 import de.emilyshub.doku.FilledAssessment
 import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.assessments.Answer
-import de.emilyshub.doku.assessments.AnswerCodec
 import de.emilyshub.doku.assessments.Assessment
 import de.emilyshub.doku.assessments.BodyRegion
 import de.emilyshub.doku.assessments.BodyRegionsItem
@@ -78,7 +77,6 @@ import de.emilyshub.doku.assessments.Item
 import de.emilyshub.doku.assessments.NumberItem
 import de.emilyshub.doku.assessments.ScaleItem
 import de.emilyshub.doku.assessments.ScoreResult
-import de.emilyshub.doku.assessments.Scoring
 import de.emilyshub.doku.assessments.TextItem
 import de.emilyshub.doku.assessments.TimeItem
 import de.emilyshub.doku.assessments.YesNoItem
@@ -209,18 +207,18 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
         val sheet = assessments.sheet(page.id)
         if (sheet == null) onDone() else loaded = sheet
     }
-    val sheet = loaded ?: return
-    val filled = sheet.filled
-    var answers by remember { mutableStateOf(filled.answers) }
+    var sheet by remember(loaded) { mutableStateOf(loaded) }
+    val current = sheet ?: return
+    val filled = current.filled
     var deleted by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     // Closed by "Fertig": a new one with nothing answered but a result, such as an RMDQ, stays.
     var confirmed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    if (sheet.canChange) {
-        SaveAnswers(doku, assessments, page, original = filled.answers, current = answers, skip = { deleted }, confirmed = { confirmed })
+    if (current.canChange) {
+        SaveAnswers(doku, assessments, page, current, skip = { deleted }, confirmed = { confirmed })
     }
-    val form = filled.form
+    val form = current.form
 
     Column(
         Modifier
@@ -236,7 +234,7 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
                     .weight(1f)
                     .semantics { heading() },
             )
-            if (sheet.canChange) {
+            if (current.canChange) {
                 TextButton(
                     onClick = {
                         confirmed = true
@@ -259,34 +257,30 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
             if (form != null) {
                 Text(stringResource(R.string.doku_assessment_source, form.source), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (form.hint.isNotEmpty()) Text(form.hint, style = MaterialTheme.typography.bodyMedium)
-                val shown = Scoring.visible(form, answers).map(Item::id).toSet()
-                form.sections.forEach { section ->
+                current.sections.forEach { (section, items) ->
                     section.title?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
                     if (section.hint.isNotEmpty()) Text(section.hint, style = MaterialTheme.typography.bodyMedium)
-                    section.items.filter { it.id in shown }.forEach { item ->
+                    items.forEach { (item, answer) ->
                         // By its id, so that what a field keeps stays with its item as conditional ones come and go.
                         key(item.id) {
                             ItemField(
                                 item = item,
-                                // One of another kind is shown apart, with those the form no longer has.
-                                answer = answers[item.id]?.takeIf { Scoring.fits(item, it) },
-                                onAnswer = if (sheet.canChange) ({ answer: Answer? -> answers = if (answer == null) answers - item.id else answers + (item.id to answer) }) else null,
+                                answer = answer,
+                                onAnswer = if (current.canChange) ({ given: Answer? -> sheet = current.answering(item.id, given) }) else null,
                             )
                         }
                     }
                 }
             }
-            val orphans = form?.let { Scoring.orphans(it, answers) } ?: answers
-            if (orphans.isNotEmpty()) {
+            if (current.orphans.isNotEmpty()) {
                 Text(stringResource(R.string.doku_assessment_orphans), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                orphans.forEach { (itemId, answer) ->
+                current.orphans.forEach { (itemId, answer) ->
                     Text("$itemId: ${answerText(answer)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (form != null && form.scores.isNotEmpty()) {
                 HorizontalDivider()
-                val results = Scoring.results(form, answers)
-                results.forEach { Text(resultText(it, results.size), style = MaterialTheme.typography.titleMedium) }
+                current.results.forEach { Text(resultText(it, current.results.size), style = MaterialTheme.typography.titleMedium) }
             }
             Box(Modifier.padding(bottom = 16.dp))
         }
@@ -311,7 +305,7 @@ internal fun AssessmentPage(doku: Doku, assessments: Assessments, page: DokuPage
 }
 
 /**
- * Saves [current], once it is not [original] any more, as the page closes and before the Doku locks; a new form left
+ * Saves [sheet] once it has [AssessmentSheet.changed], as the page closes and before the Doku locks; a new form left
  * empty goes again then, unless [confirmed] by "Fertig" with a result ([Assessments.dropIfEmptyLater]), but not as the
  * screen turns, after which the page goes on with it. Nothing once [skip] says so.
  */
@@ -320,24 +314,23 @@ private fun SaveAnswers(
     doku: Doku,
     assessments: Assessments,
     page: DokuPage.Assessment,
-    original: Map<String, Answer>,
-    current: Map<String, Answer>,
+    sheet: AssessmentSheet,
     skip: () -> Boolean,
     confirmed: () -> Boolean,
 ) {
     val activity = LocalActivity.current
-    val answers by rememberUpdatedState(current)
+    val current by rememberUpdatedState(sheet)
     val skipNow by rememberUpdatedState(skip)
     val confirmedNow by rememberUpdatedState(confirmed)
     DisposableEffect(page) {
-        val empty = { page.new && answers.isEmpty() }
-        val changed = { !skipNow() && answers != original }
+        val empty = { page.new && current.answers.isEmpty() }
+        val changed = { !skipNow() && current.changed }
         val saver = doku.addSaver(
             DokuSaver {
                 when {
                     skipNow() -> null
                     empty() -> assessments.pendingDrop(page.id)
-                    changed() -> assessments.pending(page.appointmentId, page.id, page.assessmentId, answers)
+                    changed() -> assessments.pending(page.appointmentId, page.id, page.assessmentId, current.answers)
                     else -> null
                 }
             },
@@ -347,7 +340,7 @@ private fun SaveAnswers(
             when {
                 skipNow() -> Unit
                 empty() -> if (activity?.isChangingConfigurations != true) assessments.dropIfEmptyLater(page.id, confirmedNow())
-                changed() -> assessments.saveLater(page.appointmentId, page.id, page.assessmentId, answers)
+                changed() -> assessments.saveLater(page.appointmentId, page.id, page.assessmentId, current.answers)
             }
         }
     }
@@ -391,28 +384,28 @@ private fun ItemField(item: Item, answer: Answer?, onAnswer: ((Answer?) -> Unit)
                 val checked = answer as? Answer.Checked ?: Answer.Checked(emptySet())
                 item.options.forEach { option ->
                     val on = option.id in checked.optionIds
-                    OptionRow(option.label, on, enabled, Role.Checkbox, onClick = { answerWith(checked.toggled(item, option.id).orNone()) }) {
+                    OptionRow(option.label, on, enabled, Role.Checkbox, onClick = { answerWith(checked.toggled(item, option.id)) }) {
                         Checkbox(checked = on, onCheckedChange = null, enabled = enabled)
                     }
                 }
                 item.otherLabel?.let { label ->
-                    WordsField(stringResource(R.string.doku_assessment_other, label), checked.other, enabled, onChange = { answerWith(checked.copy(other = it).orNone()) })
+                    WordsField(stringResource(R.string.doku_assessment_other, label), checked.other, enabled, onChange = { answerWith(checked.copy(other = it)) })
                 }
             }
             is NumberItem -> NumberAnswer(item, answer as? Answer.Number, enabled, answerWith)
             is TimeItem -> TimeAnswer(item, answer as? Answer.Time, enabled, answerWith)
-            is TextItem -> WordsField(item.text, (answer as? Answer.Text)?.text.orEmpty(), enabled, onChange = { answerWith(Answer.Text(it).takeIf { _ -> it.isNotEmpty() }) })
+            is TextItem -> WordsField(item.text, (answer as? Answer.Text)?.text.orEmpty(), enabled, onChange = { answerWith(Answer.Text(it)) })
             is BodyRegionsItem -> {
                 val regions = answer as? Answer.Regions ?: Answer.Regions(emptySet())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     item.regions.forEach { region ->
                         val on = region in regions.regions
                         Chip(region.label, chosen = on, enabled = enabled, onClick = {
-                            answerWith(regions.copy(regions = if (on) regions.regions - region else regions.regions + region).orNone())
+                            answerWith(regions.copy(regions = if (on) regions.regions - region else regions.regions + region))
                         })
                     }
                 }
-                WordsField(stringResource(R.string.doku_assessment_regions_text), regions.text, enabled, onChange = { answerWith(regions.copy(text = it).orNone()) })
+                WordsField(stringResource(R.string.doku_assessment_regions_text), regions.text, enabled, onChange = { answerWith(regions.copy(text = it)) })
             }
             is GoalsItem -> GoalsAnswer(item, answer as? Answer.Goals, enabled, answerWith)
         }
@@ -429,7 +422,7 @@ private fun GoalsAnswer(item: GoalsItem, answer: Answer.Goals?, enabled: Boolean
     var goals by remember { mutableStateOf(answer?.goals?.ifEmpty { null } ?: listOf(Goal(""))) }
     fun change(changed: List<Goal>) {
         goals = changed
-        onAnswer(Answer.Goals(changed).orNone())
+        onAnswer(Answer.Goals(changed))
     }
     goals.forEachIndexed { i, goal ->
         val name = stringResource(R.string.doku_assessment_goal, item.goalLabel, i + 1)
@@ -563,9 +556,6 @@ private fun Chip(label: String, chosen: Boolean, enabled: Boolean, onClick: () -
         leadingIcon = if (chosen) ({ Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }) else null,
     )
 }
-
-/** Nothing checked and no words is no answer, as it is stored ([AnswerCodec]). */
-private fun Answer.orNone(): Answer? = takeIf { AnswerCodec.encode(it) != null }
 
 /** [answer] in words, for an item the form no longer has. */
 @Composable
