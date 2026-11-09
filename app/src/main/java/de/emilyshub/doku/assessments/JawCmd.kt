@@ -10,34 +10,45 @@ import de.emilyshub.doku.Direction
  */
 internal val JAW_CMD: List<Assessment> by lazy { listOf(DC_TMD_EXAM, DC_TMD_SQ, PAIN_DRAWING, DHI, OBC, GAD_7) }
 
-/** The kinds of pain of a row of the DC/TMD's grid, by their words, each to check if J. */
-private fun kinds(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label) }
+/** A side of the jaw, as the DC/TMD's grid names it, right before left. */
+private enum class Side(val key: String, val words: String, val joint: String) {
+    Right("r", "rechte Seite", "Rechtes Kiefergelenk"),
+    Left("l", "linke Seite", "Linkes Kiefergelenk"),
+}
 
-/** A row of the DC/TMD's grid: [what] on [side], "r" or "l", with the [kinds] to check; unchecked is N (09.11.2026). */
-private fun row(prefix: String, key: String, what: String, side: String, kinds: List<Option>) =
-    ChecklistItem("$prefix-$key-$side", "$what, ${if (side == "r") "rechte Seite" else "linke Seite"}", kinds)
+/** A row of the DC/TMD's grid, by [key], its words [what], and the [kinds] of pain or findings to check, each if J. */
+private data class Row(val key: String, val what: String, val kinds: List<Option>)
 
-/** Both sides of each of [rows], by key, words and kinds, one row after the other, right before left as on the form. */
-private fun bothSides(prefix: String, rows: List<Triple<String, String, List<Option>>>): List<Item> =
-    rows.flatMap { (key, what, kinds) -> listOf("r", "l").map { side -> row(prefix, key, what, side, kinds) } }
+/** Each of [rows] on both sides, one row after the other, right before left as on the form; unchecked is N (09.11.2026). */
+private fun bothSides(prefix: String, rows: List<Row>): List<Item> =
+    rows.flatMap { row -> Side.entries.map { side -> ChecklistItem("$prefix-${row.key}-${side.key}", "${row.what}, ${side.words}", row.kinds) } }
+
+/** For each joint, right before left, [rows] by key, the joint's words before theirs, as sections 6 to 8 ask. */
+private fun eachJoint(prefix: String, rows: List<Row>): List<Item> =
+    Side.entries.flatMap { side -> rows.map { row -> ChecklistItem("$prefix-${row.key}-${side.key}", row.what.format(side.joint), row.kinds) } }
+
+/** A sum of [items], better the lower, all of them needed. */
+private fun lower(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
+    Score(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
 
 /** "falls negativ", checked for a measure below 0. */
 private fun ifNegative(id: String, text: String) = ChecklistItem(id, text, listOf(Option("negativ", "falls negativ")))
 
 /** DC/TMD Untersuchungsbogen, German version, as in "CMD_DC-TMD-Untersuchungsbogen_09-2026.pdf"; no result. */
 private val DC_TMD_EXAM: Assessment = run {
-    val painKinds = kinds("Schmerz", "Bekannter Schmerz")
-    val headacheKinds = kinds("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz")
+    val pain = unscored("Schmerz", "Bekannter Schmerz")
     // Sections 4 and 5: the temporalis alone asks of a known headache.
-    val muscles = listOf(
-        Triple("temporalis", "Temporalis", headacheKinds),
-        Triple("masseter", "Masseter", painKinds),
-        Triple("gelenk", "Gelenk", painKinds),
-        Triple("andere", "Andere Kaum.", painKinds),
-        Triple("nicht", "Nicht-Kaum.", painKinds),
+    val locations = listOf(
+        Row("temporalis", "Temporalis", unscored("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz")),
+        Row("masseter", "Masseter", pain),
+        Row("gelenk", "Gelenk", pain),
+        Row("andere", "Andere Kaum.", pain),
+        Row("nicht", "Nicht-Kaum.", pain),
     )
-    fun movement(prefix: String, text: String) = listOf(NumberItem(prefix, text, unit = "mm")) + bothSides(prefix, muscles)
-    val palpation = kinds("Schmerz", "Bekannter Schmerz", "Übertragener Schmerz")
+    /** The opening in mm of [prefix], "falls negativ" after it if [negative], then its rows. */
+    fun movement(prefix: String, text: String, negative: Boolean = false) =
+        listOf(NumberItem(prefix, text, unit = "mm")) + listOfNotNull(ifNegative("$prefix-negativ", text).takeIf { negative }) + bothSides(prefix, locations)
+    val palpation = unscored("Schmerz", "Bekannter Schmerz", "Übertragener Schmerz")
     Assessment(
         id = "dc-tmd-untersuchung",
         name = "CMD – DC/TMD-Untersuchungsbogen",
@@ -98,32 +109,32 @@ private val DC_TMD_EXAM: Assessment = run {
                 title = "5. Laterotrusion und Protrusion",
                 items = movement("5a", "A. Laterotrusion nach rechts") +
                     movement("5b", "B. Laterotrusion nach links") +
-                    movement("5c", "C. Protrusion").let { listOf(it.first(), ifNegative("5c-negativ", "C. Protrusion")) + it.drop(1) },
+                    movement("5c", "C. Protrusion", negative = true),
             ),
             Section(
                 title = "6. Kiefergeräusche während Öffnungs- und Schließbewegungen",
-                items = listOf("r" to "Rechtes Kiefergelenk", "l" to "Linkes Kiefergelenk").flatMap { (side, joint) ->
+                items = eachJoint(
+                    "6",
                     listOf(
-                        ChecklistItem("6-knacken-$side", "Knacken, $joint", kinds("Untersucher: Öffnen", "Untersucher: Schließen", "Patient", "Schmerzh. Knacken", "Bekannter Schmerz")),
-                        ChecklistItem("6-reiben-$side", "Reiben, $joint", kinds("Untersucher: Öffnen", "Untersucher: Schließen", "Patient")),
-                    )
-                },
+                        Row("knacken", "Knacken, %s", unscored("Untersucher: Öffnen", "Untersucher: Schließen", "Patient", "Schmerzh. Knacken", "Bekannter Schmerz")),
+                        Row("reiben", "Reiben, %s", unscored("Untersucher: Öffnen", "Untersucher: Schließen", "Patient")),
+                    ),
+                ),
             ),
             Section(
                 title = "7. Kiefergelenkgeräusche bei Laterotrusion und Protrusion",
-                items = listOf("r" to "Rechtes Kiefergelenk", "l" to "Linkes Kiefergelenk").flatMap { (side, joint) ->
+                items = eachJoint(
+                    "7",
                     listOf(
-                        ChecklistItem("7-knacken-$side", "Knacken, $joint", kinds("Untersucher", "Patient", "Schmerzh. Knacken", "Bekannter Schmerz")),
-                        ChecklistItem("7-reiben-$side", "Reiben, $joint", kinds("Untersucher", "Patient")),
-                    )
-                },
+                        Row("knacken", "Knacken, %s", unscored("Untersucher", "Patient", "Schmerzh. Knacken", "Bekannter Schmerz")),
+                        Row("reiben", "Reiben, %s", unscored("Untersucher", "Patient")),
+                    ),
+                ),
             ),
             Section(
                 title = "8. Gelenkblockade",
-                items = listOf("r" to "Rechtes Kiefergelenk", "l" to "Linkes Kiefergelenk").flatMap { (side, joint) ->
-                    listOf("oeffnung" to "während der Öffnung", "weit" to "bei weiter Mundöffnung").map { (key, wann) ->
-                        ChecklistItem("8-$key-$side", "$joint, $wann", kinds("Blockade", "lösbar durch Patient", "lösbar durch Untersucher"))
-                    }
+                items = unscored("Blockade", "lösbar durch Patient", "lösbar durch Untersucher").let { kinds ->
+                    eachJoint("8", listOf(Row("oeffnung", "%s, während der Öffnung", kinds), Row("weit", "%s, bei weiter Mundöffnung", kinds)))
                 },
             ),
             Section(
@@ -131,10 +142,10 @@ private val DC_TMD_EXAM: Assessment = run {
                 items = bothSides(
                     "9",
                     listOf(
-                        Triple("temporalis", "Muskulatur (1 kg): Temporalis", kinds("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz", "Ausbreitender Schmerz", "Übertragener Schmerz")),
-                        Triple("masseter", "Muskulatur (1 kg): Masseter", kinds("Schmerz", "Bekannter Schmerz", "Ausbreitender Schmerz", "Übertragener Schmerz")),
-                        Triple("lateraler-pol", "Kiefergelenk: Lateraler Pol (0,5 kg)", palpation),
-                        Triple("um-den-pol", "Kiefergelenk: Um den lateralen Pol (1 kg)", palpation),
+                        Row("temporalis", "Muskulatur (1 kg): Temporalis", unscored("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz", "Ausbreitender Schmerz", "Übertragener Schmerz")),
+                        Row("masseter", "Muskulatur (1 kg): Masseter", unscored("Schmerz", "Bekannter Schmerz", "Ausbreitender Schmerz", "Übertragener Schmerz")),
+                        Row("lateraler-pol", "Kiefergelenk: Lateraler Pol (0,5 kg)", palpation),
+                        Row("um-den-pol", "Kiefergelenk: Um den lateralen Pol (1 kg)", palpation),
                     ),
                 ),
             ),
@@ -143,10 +154,10 @@ private val DC_TMD_EXAM: Assessment = run {
                 items = bothSides(
                     "9e",
                     listOf(
-                        Triple("retromandibularis", "(0,5 kg) Regio retromandibularis", palpation),
-                        Triple("submandibularis", "(0,5 kg) Regio submandibularis", palpation),
-                        Triple("pteryg", "(0,5 kg) Bereich des M. pteryg. lat.", palpation),
-                        Triple("temporalissehne", "(0,5 kg) Temporalissehne", palpation),
+                        Row("retromandibularis", "(0,5 kg) Regio retromandibularis", palpation),
+                        Row("submandibularis", "(0,5 kg) Regio submandibularis", palpation),
+                        Row("pteryg", "(0,5 kg) Bereich des M. pteryg. lat.", palpation),
+                        Row("temporalissehne", "(0,5 kg) Temporalissehne", palpation),
                     ),
                 ),
             ),
@@ -314,8 +325,7 @@ private val DHI: Assessment = run {
         "P" to "Verstärken sich Ihre Probleme, wenn Sie sich nach vorne beugen?",
     )
     val items = questions.mapIndexed { i, (scale, text) -> ChoiceItem("${i + 1}", "$scale${i + 1} $text", answers) }
-    fun of(scale: String) = items.filterIndexed { i, _ -> questions[i].first == scale }.map(Item::id)
-    fun total(id: String, name: String, scale: String) = Score(id, name, of(scale), direction = Direction.LowerIsBetter)
+    fun total(id: String, name: String, scale: String) = lower(id, name, items.filterIndexed { i, _ -> questions[i].first == scale })
     Assessment(
         id = "dhi",
         name = "Dizziness Handicap Inventory",
@@ -393,10 +403,7 @@ private val OBC: Assessment = run {
             Section(title = "Aktivitäten während der Wachzeit", items = day),
         ),
         scores = listOf(
-            Score(
-                "summe", "Punktzahl", ids(sleep + day), direction = Direction.LowerIsBetter,
-                bands = listOf(Band.upTo(0, "keine"), Band.upTo(24, "gering"), Band.upTo(84, "ausgeprägt")),
-            ),
+            lower("summe", "Punktzahl", sleep + day, listOf(Band.upTo(0, "keine"), Band.upTo(24, "gering"), Band.upTo(84, "ausgeprägt"))),
         ),
     )
 }
@@ -431,9 +438,9 @@ private val GAD_7: Assessment = run {
             "Universitätsklinikum Hamburg-Eppendorf",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            Score(
-                "gesamt", "Gesamtwert", ids(items), direction = Direction.LowerIsBetter,
-                bands = listOf(Band.upTo(4, "minimale Ängste"), Band.upTo(9, "leichte Ängste"), Band.upTo(14, "mäßige Ängste"), Band.upTo(21, "schwere Ängste")),
+            lower(
+                "gesamt", "Gesamtwert", items,
+                listOf(Band.upTo(4, "minimale Ängste"), Band.upTo(9, "leichte Ängste"), Band.upTo(14, "mäßige Ängste"), Band.upTo(21, "schwere Ängste")),
             ),
         ),
     )

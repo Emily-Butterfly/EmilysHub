@@ -250,14 +250,14 @@ enum class BodyRegion(val id: String, val label: String) {
     companion object {
         fun of(id: String): BodyRegion? = entries.find { it.id == id }
 
-        /** Those of the body, from the head down: what a form asks of where it hurts, unless it asks of others. */
-        val body: List<BodyRegion> = entries.takeWhile { it != TemporalisRight }
-
         /** Those of the jaw and the face: the mouth, each half of the face, the joints and the muscles, right before left. */
         val jaw: List<BodyRegion> = listOf(
             MouthAndTeeth, FaceRight, FaceLeft, JawJointRight, JawJointLeft, TemporalisRight, TemporalisLeft, MasseterRight, MasseterLeft,
             OtherMasticatoryRight, OtherMasticatoryLeft, NonMasticatoryRight, NonMasticatoryLeft,
         )
+
+        /** Those of the body, from the head down: what a form asks of where it hurts, unless it asks of others. */
+        val body: List<BodyRegion> = entries.filter { it !in jaw }
     }
 }
 
