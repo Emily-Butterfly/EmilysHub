@@ -164,6 +164,10 @@ class NeurologyAssessmentsTest {
         assertEquals(listOf(2000L, 500L, 700L, 300L, 3500L, 600L, 1200L, 1200L), values("fugl-meyer", mixed))
         assertEquals(listOf(null, 500L, 700L, 300L, null, 600L, 1200L, 1200L), values("fugl-meyer", mixed - "a5"))
         assertEquals(listOf(0, 1, 2), (form("fugl-meyer").item("a2-retraktion") as ChoiceItem).options.map(Option::points))
+        assertEquals(
+            listOf("kann nicht durchgeführt werden oder Hand vor SIAS" to 0, "Hand hinter SIAS (ohne Kompensation)" to 1, "Hand an Lendenwirbelsäule (ohne Kompensation)" to 2),
+            (form("fugl-meyer").item("a3-lws") as ChoiceItem).options.map { it.label to it.points },
+        )
         assertEquals(6, itemsOf("fugl-meyer", "h").size)
         assertTrue(form("fugl-meyer").scores.all { it.direction == Direction.HigherIsBetter })
     }

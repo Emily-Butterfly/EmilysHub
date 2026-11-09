@@ -126,7 +126,8 @@ private val FUGL_MEYER: Assessment = run {
     val mixed = listOf(
         described(
             "a3-lws", "Hand zu unterer LWS",
-            "kann nicht durchgeführt werden", "Hand vor SIAS Hand hinter SIAS (ohne Kompensation)", "Hand an Lendenwirbelsäule (ohne Kompensation)",
+            // As the original scores it (09.11.2026): in front of the SIAS 0, behind it 1; the PDF gives both 1.
+            "kann nicht durchgeführt werden oder Hand vor SIAS", "Hand hinter SIAS (ohne Kompensation)", "Hand an Lendenwirbelsäule (ohne Kompensation)",
         ),
         described(
             "a3-flexion", "Schulterflexion 0-90°, Ellenbogen bei 0°/Pro- Supination 0°",
@@ -240,7 +241,7 @@ private val FUGL_MEYER: Assessment = run {
         source = "Fugl-Meyer Assessment Score, Stand 10/2026",
         hint = "Nicht validierte deutsche Version.\n\n" +
             "Die vier Fragen zum Lagesinn unter H fehlen im Bogen; sie sind ergänzt nach dem Original (FMA-UE, Universität " +
-            "Göteborg), mit den Antworten des Bogens.",
+            "Göteborg), mit den Antworten des Bogens. „Hand zu unterer LWS“ zählt wie im Original: Hand vor SIAS 0, hinter SIAS 1.",
         sections = listOf(
             Section("A. Obere Extremität (sitzende Position)", "1) Reflexaktivität", reflexes),
             Section(
