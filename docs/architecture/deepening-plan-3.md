@@ -23,7 +23,7 @@ answers of the fewest and the most points stay within it, and a plain sum of ite
 Looked at and left alone: `Fraction` (private, deep), `Condition`, `AnswerCodec` (a storage adapter, round-trip tested),
 `Options.kt` (the forms' authoring helpers), `BuiltInAssessments`, `DokuPages`, `DokuNumbers`/`LineChart`/`Change`
 (already shared by measurements and assessments), and the form files with their tests (big data, good locality).
-Tags and checklists stay per kind (ADR 0001).
+Tags and checklists stay per kind (ADR 0001); bands name the shown value and points stay whole (ADR 0002).
 
 ---
 
@@ -101,7 +101,7 @@ hundredths by hand (`Band(5099)`, `Band(199)`, `Band(1050)`, each with a comment
 `Band.rest(…)` say "unter 51" and "> 6" as the originals do. **Not done**: decimal option points in place of the
 Wells-Scores' `divisor = 10`. An option's points stay whole, as every form's helpers (`scored`, `numbered`, …) and the
 range of every item are; one family of forms with tenths does not pay for turning them all over, and the divisor says
-so on `ItemScore`.
+so on `ItemScore`. Recorded as [ADR 0002](../adr/0002-bands-name-the-shown-value-points-stay-whole.md).
 
 Bands compare the rounded value, inclusive; a grade's bounds compare the exact value, "below" exclusive. Form authors
 reason about rounding by hand (`Band(5099)`, `Band(199)`), and the Wells-Scores' tenths ride on `divisor = 10`. Bands
