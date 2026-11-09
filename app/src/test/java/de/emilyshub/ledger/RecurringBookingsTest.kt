@@ -86,10 +86,10 @@ class RecurringBookingsTest {
         ledger.enterDue()
         val entry = ledger.month(YearMonth.of(2026, 10)).first().summary.bookings.single().booking
 
-        ledger.update(entry.id, checkNotNull(ledger.draftOf(entry.id)).copy(amount = "12,99"))
+        ledger.change(entry.id) { it.copy(amount = "12,99") }
         assertEquals("9,99", ledger.templates().first().single().draft.amount)
 
-        ledger.delete(entry.id)
+        ledger.deleteBooking(entry.id)
         ledger.enterDue()
         assertEquals(emptyList<String>(), entered())
     }

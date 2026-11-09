@@ -191,7 +191,7 @@ class Ledger(
     }
 
     /** The booking as the editor starts out with it, or null once it is deleted. */
-    suspend fun draftOf(id: Long): BookingDraft? = withContext(io) {
+    private suspend fun draftOf(id: Long): BookingDraft? = withContext(io) {
         val booking = dao.get(id) ?: return@withContext null
         booking.toDraft(checkNotNull(dao.category(booking.categoryId)).kind)
     }
@@ -199,37 +199,12 @@ class Ledger(
     /** How many bookings and fixed bookings the category has, which deleting it moves. */
     suspend fun usesOf(categoryId: Long): Int = withContext(io) { dao.countIn(categoryId) + dao.countTemplatesIn(categoryId) }
 
-    /**
-     * Saves a new booking; refuses a draft with problems, which the editor shows before, and one dated in a month
-     * closed, which it tells.
-     */
-    suspend fun create(draft: BookingDraft): Long = write {
-        database().withTransaction {
-            requireOpen(draft.date)
-            dao.insert(checked(draft))
-        }
-    }
-
-    /** Saves the booking anew, as [create] does a new one. */
-    suspend fun update(id: Long, draft: BookingDraft) = write {
-        database().withTransaction { updateBooking(id, draft) }
-    }
-
     private suspend fun updateBooking(id: Long, draft: BookingDraft) {
         // One entered from a fixed booking stays marked so; the template stays as it is.
         val before = dao.get(id) ?: return
         // Neither changed in a month closed, nor moved out of one or into one.
         requireOpen(before.date, draft.date)
         dao.update(checked(draft).copy(id = id, recurringId = before.recurringId))
-    }
-
-    /** Deletes the booking; the editor asks first. One in a month closed stays. */
-    suspend fun delete(id: Long) = write {
-        database().withTransaction {
-            val booking = dao.get(id) ?: return@withTransaction
-            requireOpen(booking.date)
-            dao.delete(id)
-        }
     }
 
     /**

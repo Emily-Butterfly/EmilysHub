@@ -127,7 +127,7 @@ class BudgetTest {
     fun `a booking changed tells only when it raises what goes over`() = runBlocking {
         ledger.setBudget(expense("Lebensmittel"), 30_000)
         val id = book("Lebensmittel", "350", "2026-10-12")
-        val saved = checkNotNull(ledger.draftOf(id))
+        val saved = ledger.savedDraft(id)
 
         // Over already, but changed in its description or made smaller: nothing new to tell.
         assertNull(ledger.overrunOf(saved.copy(description = "Wocheneinkauf"), replacing = id))
@@ -136,7 +136,7 @@ class BudgetTest {
         assertEquals(10_000L, ledger.overrunOf(saved.copy(amount = "400"), replacing = id))
         // Moved into the month from another one, it counts in full.
         val other = book("Lebensmittel", "100", "2026-09-12")
-        assertEquals(15_000L, ledger.overrunOf(checkNotNull(ledger.draftOf(other)).copy(date = LocalDate.parse("2026-10-20")), other))
+        assertEquals(15_000L, ledger.overrunOf(ledger.savedDraft(other).copy(date = LocalDate.parse("2026-10-20")), other))
     }
 
     @Test
@@ -266,5 +266,5 @@ class BudgetTest {
     private suspend fun draft(category: String, amount: String, date: String) =
         BookingDraft(BookingKind.Expense, amount, LocalDate.parse(date), expense(category))
 
-    private suspend fun book(category: String, amount: String, date: String): Long = ledger.create(draft(category, amount, date))
+    private suspend fun book(category: String, amount: String, date: String): Long = ledger.saveNew(draft(category, amount, date))
 }

@@ -33,6 +33,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.saveNew
 import de.emilyshub.todos.RecurrenceEnd
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -653,7 +654,7 @@ class LedgerScreenTest {
 
     private fun book(category: String, kind: BookingKind, amount: String, date: String, description: String = "") = runBlocking {
         val id = app.ledger.categories().first().single { it.kind == kind && it.name == category }.id
-        app.ledger.create(BookingDraft(kind, amount, LocalDate.parse(date), id, description))
+        app.ledger.saveNew(BookingDraft(kind, amount, LocalDate.parse(date), id, description))
     }
 
     private fun ledgerList() = compose.onNode(hasScrollAction())

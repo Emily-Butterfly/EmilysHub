@@ -44,7 +44,7 @@ class RecurringEndTest {
         assertEquals(listOf("2026-07-01 Rate", "2026-08-01 Rate", "2026-09-01 Rate"), entered())
 
         val august = ledger.month(YearMonth.of(2026, 8)).first().summary.bookings.single().booking.id
-        ledger.delete(august)
+        ledger.deleteBooking(august)
         at("2026-12-02T08:00")
         assertEquals(listOf("2026-07-01 Rate", "2026-09-01 Rate", "2026-10-30 Miete", "2026-11-30 Miete"), entered())
 

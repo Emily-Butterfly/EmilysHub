@@ -135,7 +135,14 @@ touches; Doku dialogs apply the island and the touches themselves.
 
 ## 7 · Tests write through `save`
 
-**Status:** open.
+**Status:** done for the bookings; the rest decided against, as its premise was wrong. `Routines.save` and
+`Ledger.saveTemplate` are made of `create` and `update`, which keep the same rules as `require`s: tests through them
+cross the same rules as the editors, getting an exception where the editor gets `Saving.Refused`. Moving their 255 test
+call sites onto `save` would only move `create` into a test helper. The one write path the editors did not use was the
+bookings' `Ledger.create`, `update` and `delete(id)`, beside `save` and `delete(editing)`: gone, with `draftOf` private.
+Their tests write through `saveNew`, `change`, `deleteBooking` and `savedDraft` (`ledger/LedgerSeeding.kt`, tests), which
+go through `save` as the editor does, so that "a closed month is locked" now holds `Saving.Refused(MonthClosed)` and
+`delete` returning false, as the editor meets them.
 
 `Routines` and `Ledger` keep a second way of writing (`create`, `update`, `createTemplate`) that only tests use, about 255
 call sites, so those tests never meet the refusals production relies on. Tests seed through `save`; the writers, and the

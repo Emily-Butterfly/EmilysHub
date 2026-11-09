@@ -14,6 +14,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.saveNew
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteLink
@@ -504,7 +505,7 @@ class BackupsTest {
             app.notes.update(verbs, NoteDraft("Verben", "## Präsens", inGrammar, setOf(NoteLink.Goal(northernLights)), setOf(sport)))
             app.notes.pinNote(verbs, pinned = true)
             val food = app.ledger.categories().first().first { it.name == "Lebensmittel" }
-            app.ledger.create(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-21"), food.id, "Wocheneinkauf"))
+            app.ledger.saveNew(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-21"), food.id, "Wocheneinkauf"))
             val rent = app.ledger.categories().first().first { it.name == "Wohnen" }
             app.ledger.createTemplate(
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),

@@ -2,6 +2,7 @@ package de.emilyshub.ledger
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -13,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.Instant
@@ -89,11 +91,10 @@ class LedgerTest {
     fun `a booking is changed and deleted`() = runBlocking {
         val id = book(BookingKind.Expense, "Freizeit", "10", "2026-10-05", "Kino")
 
-        val draft = checkNotNull(ledger.draftOf(id))
-        ledger.update(id, draft.copy(amount = "12,50", description = "Kino mit Popcorn"))
+        ledger.change(id) { it.copy(amount = "12,50", description = "Kino mit Popcorn") }
         assertEquals(1_250L to "Kino mit Popcorn", ledger.get(id)?.let { it.amountCents to it.description })
 
-        ledger.delete(id)
+        assertTrue(ledger.deleteBooking(id))
         assertNull(ledger.get(id))
     }
 
@@ -109,9 +110,9 @@ class LedgerTest {
         assertEquals(setOf(BookingProblem.AmountNotAboveZero), draft.copy(amount = "0,00").problems)
         assertEquals(setOf(BookingProblem.CategoryMissing), draft.copy(categoryId = null).problems)
         assertEquals(setOf(BookingProblem.DescriptionTooLong), draft.copy(description = "x".repeat(201)).problems)
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.create(draft.copy(amount = "0")) } }
+        assertEquals(Saving.Refused(setOf(BookingProblem.AmountNotAboveZero)), ledger.save(BookingEditing.New, draft.copy(amount = "0")))
         // Income in a category of expenses is refused.
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.create(draft.copy(categoryId = salary)) } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.save(BookingEditing.New, draft.copy(categoryId = salary)) } }
         Unit
     }
 
@@ -120,7 +121,7 @@ class LedgerTest {
         val draft = ledger.newDraft(BookingKind.Expense)
         assertEquals(LocalDate.parse("2026-10-23"), draft.date)
 
-        val id = ledger.create(draft.copy(amount = "3", categoryId = category(BookingKind.Expense, "Freizeit"), description = "  Eis\n "))
+        val id = ledger.saveNew(draft.copy(amount = "3", categoryId = category(BookingKind.Expense, "Freizeit"), description = "  Eis\n "))
         assertEquals("Eis", ledger.get(id)?.description)
     }
 
@@ -174,7 +175,7 @@ class LedgerTest {
         val clothes = category(BookingKind.Expense, "Kleidung")
         ledger.deleteCategory(clothes)
 
-        val id = ledger.create(BookingDraft(BookingKind.Expense, "20", LocalDate.parse("2026-10-23"), clothes))
+        val id = ledger.saveNew(BookingDraft(BookingKind.Expense, "20", LocalDate.parse("2026-10-23"), clothes))
 
         assertEquals(category(BookingKind.Expense, "Sonstiges"), ledger.get(id)?.categoryId)
     }
@@ -196,5 +197,5 @@ class LedgerTest {
         ledger.categories().first().single { it.kind == kind && it.name == name }.id
 
     private suspend fun book(kind: BookingKind, category: String, amount: String, date: String, description: String = ""): Long =
-        ledger.create(BookingDraft(kind, amount, LocalDate.parse(date), category(kind, category), description))
+        ledger.saveNew(BookingDraft(kind, amount, LocalDate.parse(date), category(kind, category), description))
 }

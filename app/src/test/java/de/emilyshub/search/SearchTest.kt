@@ -6,6 +6,7 @@ import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.saveNew
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.Notes
 import de.emilyshub.routines.Repetition
@@ -76,8 +77,8 @@ class SearchTest {
         val categories = ledger.categories().first()
         val food = categories.single { it.name == "Lebensmittel" }.id
         val leisure = categories.single { it.name == "Freizeit" }.id
-        ledger.create(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-03"), food, "Wocheneinkauf Bäckerei"))
-        ledger.create(BookingDraft(BookingKind.Expense, "8", LocalDate.parse("2026-10-04"), leisure))
+        ledger.saveNew(BookingDraft(BookingKind.Expense, "45,30", LocalDate.parse("2026-10-03"), food, "Wocheneinkauf Bäckerei"))
+        ledger.saveNew(BookingDraft(BookingKind.Expense, "8", LocalDate.parse("2026-10-04"), leisure))
 
         assertEquals(listOf("Wocheneinkauf Bäckerei"), titles(search.find("bäckerei"), SearchArea.Bookings))
         assertEquals(listOf("Wocheneinkauf Bäckerei"), titles(search.find("lebensmittel"), SearchArea.Bookings))

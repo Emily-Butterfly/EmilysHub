@@ -2,6 +2,7 @@ package de.emilyshub.ledger
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -57,21 +58,17 @@ class ClosedMonthsTest {
         val id = book("Freizeit", "8", "2026-09-12")
         ledger.close(september)
 
-        val draft = checkNotNull(ledger.draftOf(id))
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.update(id, draft.copy(amount = "9")) } }
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { ledger.delete(id) } }
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { book("Freizeit", "5", "2026-09-30") } }
+        val closed = Saving.Refused(setOf(BookingProblem.MonthClosed))
+        assertEquals(closed, ledger.change(id) { it.copy(amount = "9") })
+        assertFalse(ledger.deleteBooking(id))
+        assertEquals(closed, ledger.save(BookingEditing.New, ledger.savedDraft(id).copy(date = LocalDate.parse("2026-09-30"))))
         // Nor moved out of it, nor into it.
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { ledger.update(id, draft.copy(date = LocalDate.parse("2026-10-01"))) }
-        }
+        assertEquals(closed, ledger.change(id) { it.copy(date = LocalDate.parse("2026-10-01")) })
         val october = book("Freizeit", "5", "2026-10-01")
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { ledger.update(october, checkNotNull(ledger.draftOf(october)).copy(date = LocalDate.parse("2026-09-01"))) }
-        }
+        assertEquals(closed, ledger.change(october) { it.copy(date = LocalDate.parse("2026-09-01")) })
 
         ledger.reopen(september)
-        ledger.update(id, draft.copy(amount = "9"))
+        assertEquals(Saving.Saved(id), ledger.change(id) { it.copy(amount = "9") })
         assertEquals(900L, ledger.get(id)?.amountCents)
     }
 
@@ -220,7 +217,7 @@ class ClosedMonthsTest {
 
     private suspend fun book(category: String, amount: String, date: String): Long {
         val id = ledger.categories().first().single { it.kind == BookingKind.Expense && it.name == category }.id
-        return ledger.create(BookingDraft(BookingKind.Expense, amount, LocalDate.parse(date), id))
+        return ledger.saveNew(BookingDraft(BookingKind.Expense, amount, LocalDate.parse(date), id))
     }
 
     private fun at(localDateTime: String) {

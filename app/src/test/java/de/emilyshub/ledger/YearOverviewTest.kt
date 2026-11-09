@@ -125,5 +125,5 @@ class YearOverviewTest {
         ledger.categories().first().single { it.kind == kind && it.name == name }.id
 
     private suspend fun book(kind: BookingKind, category: String, amount: String, date: String, description: String = ""): Long =
-        ledger.create(BookingDraft(kind, amount, LocalDate.parse(date), category(kind, category), description))
+        ledger.saveNew(BookingDraft(kind, amount, LocalDate.parse(date), category(kind, category), description))
 }

@@ -261,7 +261,7 @@ class OpeningBalanceTest {
         runBlocking {
             fixed(BookingKind.Expense, "Wohnen", "850", day = 1)
             val entered = shown(november).summary.bookings.single().booking.id
-            ledger.delete(entered)
+            ledger.deleteBooking(entered)
 
             assertNull(shown(november).foreseenEnd)
         }
@@ -274,7 +274,7 @@ class OpeningBalanceTest {
 
     private suspend fun book(kind: BookingKind, category: String, amount: String, date: String): Long {
         val id = ledger.categories().first().single { it.kind == kind && it.name == category }.id
-        return ledger.create(BookingDraft(kind, amount, LocalDate.parse(date), id))
+        return ledger.saveNew(BookingDraft(kind, amount, LocalDate.parse(date), id))
     }
 
     private suspend fun fixed(

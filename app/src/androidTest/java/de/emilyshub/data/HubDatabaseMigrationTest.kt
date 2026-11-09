@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.ledger.BookingDraft
+import de.emilyshub.ledger.BookingEditing
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
@@ -653,7 +654,8 @@ class HubDatabaseMigrationTest {
         withMigratedDatabase { database ->
             val ledger = Ledger({ database }, java.time.Clock.systemDefaultZone())
             val food = ledger.categories().first().first { it.name == "Lebensmittel" }
-            val id = ledger.create(BookingDraft(BookingKind.Expense, "12,50", LocalDate.parse("2026-10-23"), food.id))
+            val saved = ledger.save(BookingEditing.New, BookingDraft(BookingKind.Expense, "12,50", LocalDate.parse("2026-10-23"), food.id))
+            val id = (saved as Saving.Saved).id
             assertEquals(1_250L, ledger.get(id)?.amountCents)
         }
     }
