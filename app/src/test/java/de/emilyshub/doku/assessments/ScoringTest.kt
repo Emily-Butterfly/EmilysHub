@@ -363,7 +363,12 @@ class ScoringTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun `a grade counts only scores before it`() {
-        form(Score("grad", "Grad", emptyList(), direction = Direction.LowerIsBetter, grades = listOf(Grade(1, Bound("sum", below = 1)))), sum)
+        form(Score("grad", "Grad", emptyList(), direction = Direction.LowerIsBetter, grades = listOf(Grade(1, Bound("sum", below = 1)), Grade(2))), sum)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a grade's last takes what the others leave, without bounds`() {
+        Score("grad", "Grad", emptyList(), direction = Direction.LowerIsBetter, grades = listOf(Grade(1, Bound.below("sum", 4))))
     }
 
     @Test(expected = IllegalArgumentException::class)

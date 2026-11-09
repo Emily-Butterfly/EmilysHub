@@ -115,6 +115,8 @@ class PainAssessmentsTest {
         assertEquals(listOf(null, null, 2667L, 0L, null, 6000L, null), gcps(null, 5, 6, 7, 3, 3, 2))
         assertEquals(null, gcps(10, 5, 6, 7, 3, 3).last())
         assertEquals(listOf(null, null), gcps(185, 0, 0, 0, 0, 0, 0).take(2))
+        assertEquals(null, values("gcps", mapOf("1" to Answer.Number(1050)) + allScales("gcps", 0)).first())
+        assertTrue(form("gcps").item("hauptschmerzen") is TextItem)
     }
 
     @Test
@@ -127,6 +129,8 @@ class PainAssessmentsTest {
         // Intensity 46,67 grade I, 50 grade II; 3 BP grade III, 5 BP grade IV.
         assertEquals(100L, gcps(14, 4, 5, 5, 0, 0, 0).last())
         assertEquals(200L, gcps(14, 5, 5, 5, 0, 0, 0).last())
+        // 2 BP is still less than 3: grade II from 50 on.
+        assertEquals(200L, gcps(15, 5, 5, 5, 0, 0, 0).last())
         assertEquals(300L, gcps(31, 0, 0, 0, 0, 0, 0).last())
         assertEquals(300L, gcps(31, 10, 10, 10, 3, 3, 3).last())
         assertEquals(400L, gcps(15, 0, 0, 0, 10, 10, 10).last())

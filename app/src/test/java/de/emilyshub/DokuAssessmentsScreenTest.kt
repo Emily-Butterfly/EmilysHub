@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -229,7 +230,9 @@ class DokuAssessmentsScreenTest {
 
             compose.onNodeWithContentDescription("Menü der Dokumentation").performClick()
             compose.onNode(hasText("Bögen") and hasClickAction()).performClick()
-            compose.onNodeWithText("Quelle: PHQ-9, Stand 10/2026", substring = true).assertIsDisplayed()
+            // Under "Kiefer / CMD" first, below the forms on pain there.
+            compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Quelle: PHQ-9, Stand 10/2026", substring = true))
+            compose.onAllNodesWithText("Quelle: PHQ-9, Stand 10/2026", substring = true)[0].assertIsDisplayed()
             // By its action: scrolled to, the row lies under the bottom bar, which a touch would hit.
             compose.onAllNodes(hasText("Patient Health Questionnaire 9") and hasClickAction())[0].performScrollTo()
                 .performSemanticsAction(SemanticsActions.OnClick)

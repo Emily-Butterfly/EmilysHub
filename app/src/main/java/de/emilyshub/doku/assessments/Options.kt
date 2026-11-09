@@ -15,9 +15,9 @@ internal fun scored(vararg options: Pair<String, Int>): List<Option> =
 /** Options without points, their ids numbered from 0, for a choice no score counts, such as the side affected. */
 internal fun unscored(vararg labels: String): List<Option> = labels.mapIndexed { i, label -> Option("$i", label) }
 
-/** Statements answered yes or no, numbered from 1 as in the original. */
-internal fun yesNoItems(vararg statements: String): List<Item> =
-    statements.mapIndexed { i, text -> YesNoItem("${i + 1}", "${i + 1}. $text") }
+/** Statements answered yes or no, numbered from [first], 1 unless the original numbers on, as the DN4 through its questions. */
+internal fun yesNoItems(vararg statements: String, first: Int = 1): List<Item> =
+    statements.mapIndexed { i, text -> YesNoItem("${first + i}", "${first + i}. $text") }
 
 /** Each of [items]' ids. */
 internal fun ids(items: List<Item>): List<String> = items.map(Item::id)

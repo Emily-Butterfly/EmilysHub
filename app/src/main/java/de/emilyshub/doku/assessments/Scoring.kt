@@ -158,7 +158,7 @@ object Scoring {
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
             }
-            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.max != null && item.accepts(it) }?.let { (it / HUNDRED).toInt() }
+            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED).toInt() }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null

@@ -246,13 +246,15 @@ data class Score(
     val divisor: Int = 1,
     /** The ids of the scores before it whose values it adds up, in place of items. */
     val sumOf: List<String> = emptyList(),
-    /** The grades it takes by the scores before it, in place of items: the first that holds, so the last mostly without bounds. */
+    /** The grades it takes by the scores before it, in place of items: the first that holds, the last without bounds. */
     val grades: List<Grade> = emptyList(),
 ) {
     init {
         require(listOf(items, sumOf, grades).count(List<*>::isNotEmpty) == 1) { "$id: a score counts either items, other scores or grades" }
         require(items.isEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
         require(items.isNotEmpty() || rule == ScoreRule.Sum && divisor == 1) { "$id: other scores are only added up or graded, not divided" }
+        // Else answers enough would reach no grade, the same as too few.
+        require(grades.isEmpty() || grades.last().bounds.isEmpty()) { "$id: the last grade takes what the others leave" }
         require(divisor >= 1) { "$id: the divisor must be positive" }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
     }
@@ -269,8 +271,13 @@ data class Grade(val value: Int, val bounds: List<Bound>) {
  */
 data class Bound(val scoreId: String, val from: Long? = null, val below: Long? = null) {
     init {
-        require(from != null || below != null) { "$scoreId: a bound bounds" }
+        require(from != null || below != null) { "$scoreId: a bound needs a from or a below" }
         require(from == null || below == null || from < below) { "$scoreId: a bound must leave room" }
+    }
+
+    companion object {
+        /** Below whole number [whole]. */
+        fun below(scoreId: String, whole: Int) = Bound(scoreId, below = whole * 100L)
     }
 }
 

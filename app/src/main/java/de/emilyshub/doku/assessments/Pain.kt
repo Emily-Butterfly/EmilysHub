@@ -12,10 +12,6 @@ internal val PAIN: List<Assessment> by lazy { listOf(CSI_GE, CSI_9, DN4, LANSS, 
 private fun sum(id: String, name: String, items: List<Item>, direction: Direction = Direction.LowerIsBetter, bands: List<Band> = emptyList()) =
     Score(id, name, ids(items), direction = direction, bands = bands)
 
-/** Yes or no to each of [texts], numbered on from [first], as the DN4 numbers its ten through its four questions. */
-private fun yesNoFrom(first: Int, vararg texts: String): List<Item> =
-    texts.mapIndexed { i, text -> YesNoItem("${first + i}", "${first + i}. $text") }
-
 /** The answers of the CSI-GE, "nie" 0 to "immer" 4. */
 private val CSI_GE_OPTIONS = numbered("nie", "selten", "gelegentlich", "oft", "immer")
 
@@ -131,11 +127,11 @@ private val CSI_9: Assessment = run {
 
 /** Douleur Neuropathique en 4 Questions, as in "Douleur-Neuropathique-en-4-Questions_DN4-Fragebogen_09-2026.pdf". */
 private val DN4: Assessment = run {
-    val character = yesNoFrom(1, "Brennen", "Gefühl einer schmerzhaften Kälte", "Elektrische Schocks")
-    val along = yesNoFrom(4, "Kribbeln", "Pieksen", "Taubheitsgefühl", "Juckreiz")
+    val character = yesNoItems("Brennen", "Gefühl einer schmerzhaften Kälte", "Elektrische Schocks")
+    val along = yesNoItems("Kribbeln", "Pieksen", "Taubheitsgefühl", "Juckreiz", first = 4)
     // Question 3 asks for what the examination shows, the others the patient.
-    val examined = yesNoFrom(8, "Hypoästhesie bei Berührung", "Hypoästhesie bei Nadelreizen")
-    val rubbing = yesNoFrom(10, "Reiben")
+    val examined = yesNoItems("Hypoästhesie bei Berührung", "Hypoästhesie bei Nadelreizen", first = 8)
+    val rubbing = yesNoItems("Reiben", first = 10)
     val items = character + along + examined + rubbing
     Assessment(
         id = "dn4",
@@ -258,10 +254,10 @@ private val GCPS: Assessment = run {
         impairment("6", "Inwieweit haben Ihre Schmerzen in den letzten 6 Monaten Ihre Fähigkeit beeinträchtigt, an Familien- und Freizeitaktivitäten teilzunehmen?"),
         impairment("7", "Inwieweit haben Ihre Schmerzen in den letzten 6 Monaten Ihre Fähigkeit beeinträchtigt, Ihre Arbeit/Hausarbeit zu verrichten?"),
     )
-    /** Beeinträchtigungspunkte 0 to 3 by score [of], the next from each of [bounds] on, in hundredths. */
-    fun points(id: String, name: String, of: String, vararg bounds: Long) = Score(
+    /** Beeinträchtigungspunkte 0 to 3 by score [of], the next from each of whole [bounds] on. */
+    fun points(id: String, name: String, of: String, vararg bounds: Int) = Score(
         id, name, emptyList(), unit = "BP", direction = Direction.LowerIsBetter,
-        grades = bounds.mapIndexed { i, below -> Grade(i, Bound(of, below = below)) } + Grade(bounds.size),
+        grades = bounds.mapIndexed { i, below -> Grade(i, Bound.below(of, below)) } + Grade(bounds.size),
     )
     Assessment(
         id = "gcps",
@@ -270,7 +266,7 @@ private val GCPS: Assessment = run {
         categories = listOf(AssessmentCategory.PainPsychosocial, AssessmentCategory.JawCmd),
         source = "GCPS, Stand 09/2026",
         hint = "Türp JC, Nilges P. Diagnostik von Patienten mit orofazialen Schmerzen - Die deutsche Version des „Graded Chronic " +
-            "Pain Status“. Quintessenz. 2000.\n\n" +
+            "Pain Status“ in: Quintessenz. 2000; 51: 721-27.\n\n" +
             "Bitte beantworten Sie die folgenden sieben Fragen betreffend Ihrer Hauptschmerzen!\n\n" +
             "Beeinträchtigungspunkte (BP): Frage 1, Anzahl der Tage: 0-6 Tage = 0 BP, 7-14 Tage = 1 BP, 15-30 Tage = 2 BP, über " +
             "30 Tage = 3 BP (a). Fragen 5 + 6 + 7, subjektive Beeinträchtigung: Summe / 3 x 10 = Punkte; 0-29 = 0 BP, 30-49 = " +
@@ -282,7 +278,7 @@ private val GCPS: Assessment = run {
             "Grad III, mäßige Einschränkung (3-4 BP); Grad IV, hochgradige Einschränkung (5-6 BP), unabhängig von " +
             "Schmerzintensität.",
         sections = listOf(
-            Section(items = listOf(days)),
+            Section(items = listOf(TextItem("hauptschmerzen", "Hauptschmerzen"), days)),
             Section(
                 hint = "In den folgenden Fragen 2 bis 4 geht es um die Stärke Ihrer Schmerzen. Sie können Ihre Schmerzen jeweils " +
                     "auf einer Skala von 0 bis 10 bewerten: Der Wert 0 bedeutet, dass Sie keine Schmerzen haben. Der Wert 10 " +
@@ -300,18 +296,18 @@ private val GCPS: Assessment = run {
         ),
         scores = listOf(
             Score("tage", "Anzahl der Tage", listOf(days.id), unit = "Tage", direction = Direction.LowerIsBetter),
-            points("bp-tage", "Beeinträchtigungspunkte Tage (a)", "tage", 700, 1500, 3100),
+            points("bp-tage", "Beeinträchtigungspunkte Tage (a)", "tage", 7, 15, 31),
             // Of 30 in percent: the mean times 10.
             Score("beeintraechtigung", "Subjektive Beeinträchtigung", ids(disability), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
-            points("bp-beeintraechtigung", "Beeinträchtigungspunkte subjektiv (b)", "beeintraechtigung", 3000, 5000, 7000),
+            points("bp-beeintraechtigung", "Beeinträchtigungspunkte subjektiv (b)", "beeintraechtigung", 30, 50, 70),
             Score("bp", "Gesamtbeeinträchtigung", emptyList(), unit = "BP", direction = Direction.LowerIsBetter, sumOf = listOf("bp-tage", "bp-beeintraechtigung")),
             Score("intensitaet", "Charakteristische Schmerzintensität", ids(intensity), rule = ScoreRule.Percent, direction = Direction.LowerIsBetter),
             Score(
                 "grad", "Grad", emptyList(), unit = "", direction = Direction.LowerIsBetter,
                 grades = listOf(
-                    Grade(1, Bound("bp", below = 300), Bound("intensitaet", below = 5000)),
-                    Grade(2, Bound("bp", below = 300)),
-                    Grade(3, Bound("bp", below = 500)),
+                    Grade(1, Bound.below("bp", 3), Bound.below("intensitaet", 50)),
+                    Grade(2, Bound.below("bp", 3)),
+                    Grade(3, Bound.below("bp", 5)),
                     Grade(4),
                 ),
                 bands = listOf(
@@ -358,6 +354,8 @@ private val NPQ: Assessment = run {
             "Möglichkeit richtig (R), falsch (F) oder unentschlossen (U) anzukreuzen. Bitte machen Sie ein Kreuz pro Aussage.\n\n" +
             "Der NPQ-D Fragebogen kann grundsätzlich bei Schmerzpatienten verwendet werden, um den Effekt (Lernerfolg) einer " +
             "Schmerzedukation oder den allgemeinen Wissensstand über das Thema Schmerz-Neurophysiologie zu überprüfen.\n\n" +
+            "Der Fragebogen kann vom Patienten eigenständig ausgeführt werden und der Zeiteinsatz sollte auf 5-10 Minuten " +
+            "veranschlagt werden. Die Auswertung beträgt höchstens 2 Minuten.\n\n" +
             "Der Gesamtscore beträgt 12 Punkte für ein maximal gutes Ergebnis. Der schlechteste Wert und damit eine starkes " +
             "Wissensdefizit liegen bei 0 Punkten. Richtig sind die Fragen: 3,5,6,12. Falsch sind die Fragen: " +
             "1,2,4,7,8,9,10,11.\n\nGeschulte Patienten sollten ca. 60% der Fragen korrekt beantworten.",
@@ -442,7 +440,8 @@ private val OEREBRO: Assessment = run {
             "2011). Diese Items werden mit 0-10 bewertet, wobei 0 für das Fehlen einer Beeinträchtigung und 10 für eine schwere " +
             "Beeinträchtigung steht. Drei Items müssen jedoch umgekehrt werden, damit alle Fragen in die gleiche Richtung " +
             "weisen: Punkt 1, zur Schmerzdauer, die Kategorien 1-10 von „0-1 Woche“ bis „über 1 Jahr“; bei den Punkten 2, 5, 6, " +
-            "7, 9 und 10 die eingekreiste Zahl; bei den Punkten 3, 4 und 8 10 minus der eingekreisten Zahl.\n\n" +
+            "7, 9 und 10 die eingekreiste Zahl; bei den Punkten 3, 4 und 8 10 minus der eingekreisten Zahl. So würde z.B. " +
+            "„6-8 Wochen“ mit „5“ bewertet werden.\n\n" +
             "Die Gesamtpunktzahl wird zwischen 1 und 100 liegen, wobei eine Punktzahl >50 ein höheres geschätztes Risiko für " +
             "zukünftige Arbeitsunfähigkeiten anzeigt (Linton, Nicholas & MacDonald, 2011).",
         sections = listOf(Section(items = items)),
@@ -490,7 +489,7 @@ private val START_BACK: Assessment = run {
             sum("teil", "Teilsumme (Fragen 5-9)", psychosocial),
             Score(
                 "risiko", "Chronifizierungsrisiko", emptyList(), unit = "", direction = Direction.LowerIsBetter,
-                grades = listOf(Grade(1, Bound("gesamt", below = 400)), Grade(2, Bound("teil", below = 400)), Grade(3)),
+                grades = listOf(Grade(1, Bound.below("gesamt", 4)), Grade(2, Bound.below("teil", 4)), Grade(3)),
                 bands = listOf(
                     Band.upTo(1, "Geringes Chronifizierungsrisiko"),
                     Band.upTo(2, "Mittleres Chronifizierungsrisiko"),
