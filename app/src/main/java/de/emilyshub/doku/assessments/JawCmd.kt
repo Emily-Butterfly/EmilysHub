@@ -31,8 +31,8 @@ private fun eachJoint(prefix: String, rows: List<Row>): List<Item> =
 private fun lower(id: String, name: String, items: List<Item>, bands: List<Band> = emptyList()) =
     Score(id, name, ids(items), direction = Direction.LowerIsBetter, bands = bands)
 
-/** "falls negativ", checked for a measure below 0. */
-private fun ifNegative(id: String, text: String) = ChecklistItem(id, text, listOf(Option("negativ", "falls negativ")))
+/** "falls negativ", checked for a measure below 0, in the [words] of its place on the form. */
+private fun ifNegative(id: String, text: String, words: String = "falls negativ") = ChecklistItem(id, text, listOf(Option("negativ", words)))
 
 /** DC/TMD Untersuchungsbogen, German version, as in "CMD_DC-TMD-Untersuchungsbogen_09-2026.pdf"; no result. */
 private val DC_TMD_EXAM: Assessment = run {
@@ -47,7 +47,7 @@ private val DC_TMD_EXAM: Assessment = run {
     )
     /** The opening in mm of [prefix], "falls negativ" after it if [negative], then its rows. */
     fun movement(prefix: String, text: String, negative: Boolean = false) =
-        listOf(NumberItem(prefix, text, unit = "mm")) + listOfNotNull(ifNegative("$prefix-negativ", text).takeIf { negative }) + bothSides(prefix, locations)
+        listOf(NumberItem(prefix, text, unit = "mm")) + listOfNotNull(ifNegative("$prefix-negativ", text, "Falls negativ").takeIf { negative }) + bothSides(prefix, locations)
     val palpation = unscored("Schmerz", "Bekannter Schmerz", "Übertragener Schmerz")
     Assessment(
         id = "dc-tmd-untersuchung",
@@ -65,8 +65,8 @@ private val DC_TMD_EXAM: Assessment = run {
                         "1a",
                         "1a. Schmerzlokalisation: letzte 30 Tage (Alle zutreffenden Antworten ankreuzen)",
                         regions = listOf(
-                            BodyRegion.TemporalisRight, BodyRegion.MasseterRight, BodyRegion.JawJointRight, BodyRegion.OtherMasticatoryRight, BodyRegion.NonMasticatoryRight,
-                            BodyRegion.TemporalisLeft, BodyRegion.MasseterLeft, BodyRegion.JawJointLeft, BodyRegion.OtherMasticatoryLeft, BodyRegion.NonMasticatoryLeft,
+                            BodyRegion.TemporalisRight, BodyRegion.MasseterRight, BodyRegion.OtherMasticatoryRight, BodyRegion.JawJointRight, BodyRegion.NonMasticatoryRight,
+                            BodyRegion.TemporalisLeft, BodyRegion.MasseterLeft, BodyRegion.OtherMasticatoryLeft, BodyRegion.JawJointLeft, BodyRegion.NonMasticatoryLeft,
                         ),
                     ),
                     BodyRegionsItem(
@@ -228,7 +228,7 @@ private val DC_TMD_SQ: Assessment = run {
                 title = "Gelenkgeräusche",
                 items = listOf(
                     YesNoItem("8", "8. Hatten Sie in den letzten 30 Tagen Gelenkgeräusche, wenn Sie Ihren Kiefer bewegt oder benutzt haben?"),
-                    ChecklistItem("8-seite", "Office use", unscored("R", "L", "DNK"), showIf = Condition.ifYes("8")),
+                    ChecklistItem("8-seite", "Office use", unscored("R", "L", "DNK")),
                 ),
             ),
             Section(
@@ -335,6 +335,10 @@ private val DHI: Assessment = run {
         hint = "Dieser Fragebogen dient dazu, die Probleme herauszufinden, die Sie wegen Ihres Schwindels oder Ihrer " +
             "Gleichgewichtsprobleme haben können. Beantworten Sie bitte jede Frage entweder mit „ja“, „nein“ oder „manchmal“. " +
             "Beantworten Sie jede Frage nur in Bezug auf Ihr Schwindel- oder Gleichgewichtsproblem.\n\n" +
+            "Der Dizziness Handicap Inventory (Jacobson 1990, Kurre 2009) ist ein guter und einfacher Fragebogen, mit dem man die " +
+            "Auslöser und Folgen von Schwindel und Gleichgewichtsstörungen dokumentieren kann. Außerdem kann er in der " +
+            "Verlaufskontrolle eingesetzt werden. Er ist der am meisten verbreitete Fragebogen zur Thematik Schwindel und wurde " +
+            "mittlerweile in 14 Sprachen übersetzt (Mutlu 2013).\n\n" +
             "Insgesamt besteht der DHI aus 25 und 3 Unterskalen. Die Fragen werden mittels Buchstaben den Unterkategorien " +
             "zugeordnet. P: Physisch – 7 Fragen mit maximal 28 Punkten – Fragen zur Symptomauslösung. E: Emotional – 9 Fragen " +
             "mit maximal 36 Punkten – Fragen zu emotionalen Auswirkungen. F: Funktionell – 9 Fragen mit maximal 36 Punkten – " +

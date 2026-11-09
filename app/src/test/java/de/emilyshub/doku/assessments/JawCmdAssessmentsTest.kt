@@ -25,7 +25,8 @@ class JawCmdAssessmentsTest {
             val typed = form(id).abbreviation ?: form(id).name
             assertTrue("$typed: $id", id in BuiltInAssessments.search(typed, hidden = emptySet()).map(Assessment::id))
         }
-        assertTrue("dc-tmd-untersuchung" in BuiltInAssessments.search("dc/tmd", hidden = emptySet()).map(Assessment::id))
+        assertEquals(listOf("dc-tmd-sq", "dc-tmd-untersuchung"), BuiltInAssessments.search("dc/tmd", hidden = emptySet()).map(Assessment::id).sorted())
+        assertEquals(listOf("cmd-schmerzbild"), BuiltInAssessments.search("schmerzbild", hidden = emptySet()).map(Assessment::id))
         val jaw = BuiltInAssessments.byCategory(hidden = emptySet()).getValue(AssessmentCategory.JawCmd).map(Assessment::id).toSet()
         assertEquals(ids.toSet() + setOf("fabq", "gcps", "npq", "phq-15", "phq-4", "phq-9"), jaw)
         assertEquals("GAD-7, deutsche Version (Löwe 2015)", form("gad-7").source)
@@ -42,6 +43,10 @@ class JawCmdAssessmentsTest {
         val mixed = all("dhi", 2, items = dhi[0].items) + all("dhi", 4, items = dhi[1].items) + all("dhi", 0, items = dhi[2].items)
         assertEquals(listOf(1400L, 3600L, 0L, 5000L), values("dhi", mixed))
         assertEquals(listOf(null, 3600L, 0L, null), values("dhi", mixed - "1"))
+        // Each subscale mixed: P1 ja, P4 manchmal, P8 nein, P11 ja, P13 manchmal, P17 nein, P25 ja = 4 + 2 + 0 + 4 + 2 + 0 + 4.
+        val within = chosen("dhi", 4, 2, 2, 2, 0, 0, 0, 0, 4, 0, 4, 2, 2, 4, 2, 0, 0, 4, 4, 0, 0, 0, 2, 0, 4)
+        // E2 2, E9 4, E10 0, E15 2, E18 4, E20 0, E21 0, E22 0, E23 2; F3 2, F5 0, F6 0, F7 0, F12 2, F14 4, F16 0, F19 4, F24 0.
+        assertEquals(listOf(1600L, 1400L, 1200L, 4200L), values("dhi", within))
         assertEquals(listOf(7, 9, 9), dhi.take(3).map { it.items.size })
         assertEquals(listOf("1", "4", "8", "11", "13", "17", "25"), dhi[0].items)
         assertEquals(0L..10000L, Scoring.range(form("dhi"), dhi[3]))
@@ -79,13 +84,12 @@ class JawCmdAssessmentsTest {
     fun `the DC-TMD symptom questionnaire skips as its notes say and has no result`() {
         val sq = form("dc-tmd-sq")
         fun shown(answers: Map<String, Answer>) = Scoring.visible(sq, answers).map(Item::id)
-        assertEquals(listOf("1", "5", "8", "9", "13"), shown(emptyMap()))
+        assertEquals(listOf("1", "5", "8", "8-seite", "9", "13"), shown(emptyMap()))
         val pain = mapOf("1" to Answer.YesNo(true))
-        assertEquals(listOf("1", "2-jahre", "2-monate", "3", "5", "8", "9", "13"), shown(pain))
+        assertEquals(listOf("1", "2-jahre", "2-monate", "3", "5", "8", "8-seite", "9", "13"), shown(pain))
         assertEquals(shown(pain), shown(pain + ("3" to Answer.Chosen("0"))))
         assertEquals(listOf("4a", "4b", "4c", "4d"), shown(pain + ("3" to Answer.Chosen("1"))) - shown(pain).toSet())
         assertEquals(listOf("6-jahre", "6-monate", "7a", "7b", "7c", "7d"), shown(mapOf("5" to Answer.YesNo(true))) - shown(emptyMap()).toSet())
-        assertEquals(listOf("8-seite"), shown(mapOf("8" to Answer.YesNo(true))) - shown(emptyMap()).toSet())
         assertEquals(listOf("10", "11"), shown(mapOf("9" to Answer.YesNo(true))) - shown(emptyMap()).toSet())
         assertEquals(listOf("10", "11", "12"), shown(mapOf("9" to Answer.YesNo(true), "11" to Answer.YesNo(true))) - shown(emptyMap()).toSet())
         assertEquals(listOf("14"), shown(mapOf("13" to Answer.YesNo(true))) - shown(emptyMap()).toSet())
@@ -98,8 +102,8 @@ class JawCmdAssessmentsTest {
         val where = exam.item("1a") as BodyRegionsItem
         assertEquals(
             listOf(
-                BodyRegion.TemporalisRight, BodyRegion.MasseterRight, BodyRegion.JawJointRight, BodyRegion.OtherMasticatoryRight, BodyRegion.NonMasticatoryRight,
-                BodyRegion.TemporalisLeft, BodyRegion.MasseterLeft, BodyRegion.JawJointLeft, BodyRegion.OtherMasticatoryLeft, BodyRegion.NonMasticatoryLeft,
+                BodyRegion.TemporalisRight, BodyRegion.MasseterRight, BodyRegion.OtherMasticatoryRight, BodyRegion.JawJointRight, BodyRegion.NonMasticatoryRight,
+                BodyRegion.TemporalisLeft, BodyRegion.MasseterLeft, BodyRegion.OtherMasticatoryLeft, BodyRegion.JawJointLeft, BodyRegion.NonMasticatoryLeft,
             ),
             where.regions,
         )
@@ -109,6 +113,8 @@ class JawCmdAssessmentsTest {
         assertEquals(5 * 10 + 4 + 4 + 4 + 16 + 3, rows.size)
         assertEquals(listOf("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz"), rows.single { it.id == "4b-temporalis-r" }.options.map(Option::label))
         assertEquals(listOf("Schmerz", "Bekannter Schmerz"), rows.single { it.id == "5c-masseter-l" }.options.map(Option::label))
+        assertEquals(listOf("Falls negativ"), rows.single { it.id == "5c-negativ" }.options.map(Option::label))
+        assertEquals(listOf("falls negativ"), rows.single { it.id == "2-overjet-negativ" }.options.map(Option::label))
         assertEquals(
             listOf("Schmerz", "Bekannter Schmerz", "Bekannter Kopfschmerz", "Ausbreitender Schmerz", "Übertragener Schmerz"),
             rows.single { it.id == "9-temporalis-r" }.options.map(Option::label),
