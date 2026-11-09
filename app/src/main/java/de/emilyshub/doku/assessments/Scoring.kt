@@ -67,20 +67,7 @@ object Scoring {
      * apart, greyed, and counted nowhere.
      */
     fun orphans(form: Assessment, answers: Map<String, Answer>): Map<String, Answer> =
-        answers.filter { (id, answer) -> form.item(id)?.let { fits(it, answer) } != true }
-
-    /** Whether [answer] is of the kind [item] takes. */
-    fun fits(item: Item, answer: Answer): Boolean = when (item) {
-        is ChoiceItem -> answer is Answer.Chosen
-        is YesNoItem -> answer is Answer.YesNo
-        is ScaleItem -> answer is Answer.OnScale && answer.value in item.steps
-        is ChecklistItem -> answer is Answer.Checked
-        is NumberItem -> answer is Answer.Number
-        is TextItem -> answer is Answer.Text
-        is BodyRegionsItem -> answer is Answer.Regions
-        is GoalsItem -> answer is Answer.Goals
-        is TimeItem -> answer is Answer.Time && answer.minutes in 0 until TimeItem.DAY
-    }
+        answers.filter { (id, answer) -> form.item(id)?.let { it.fits(answer) } != true }
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange = when (score) {
@@ -151,11 +138,7 @@ object Scoring {
     }
 
     /** [value] of [score] as the points of its steps, if it has them. */
-    private fun stepped(score: ItemScore, value: Fraction): Fraction = score.steps?.let { Fraction(it.of(value), 1) } ?: value
-
-    /** The points [steps] gives [value]: the first bound it lies below, else the last. */
-    private fun Steps.of(value: Fraction): Long =
-        (below.firstOrNull { (bound, _) -> value < Fraction(bound.toLong(), 1) }?.second ?: otherwise).toLong()
+    private fun stepped(score: ItemScore, value: Fraction): Fraction = score.steps?.let { steps -> Fraction(steps.points { value < Fraction(it.toLong(), 1) }.toLong(), 1) } ?: value
 
     /**
      * The items of [score] of [form] with what is answered to them, of [answers] to the items [shown]: the one collector
@@ -165,13 +148,13 @@ object Scoring {
         val items: List<Item> = score.items.map { checkNotNull(form.item(it)) }
 
         /** The fewest and the most points of each item that makes points; not of goals, which a T-score rates. */
-        val ranges: Map<String, Pair<Long, Long>> = items.mapNotNull { item -> range(item)?.let { item.id to it } }.toMap()
+        val ranges: Map<String, Pair<Long, Long>> = items.mapNotNull { item -> item.pointRange?.let { item.id to (it.first to it.last) } }.toMap()
 
         /** The points of each item answered, by id, in the order of its items; nothing ticked of a scored checklist shown is 0. */
-        val points: Map<String, Long> = items.mapNotNull { item -> answer(item, answers, shown)?.let { points(item, it) }?.let { item.id to it } }.toMap()
+        val points: Map<String, Long> = items.mapNotNull { item -> answer(item, answers, shown)?.let(item::points)?.let { item.id to it } }.toMap()
 
         /** The answers as they are, to those of its items they fit: for rules that read more than points. */
-        val raw: Map<String, Answer> = items.mapNotNull { item -> answers[item.id]?.takeIf { fits(item, it) }?.let { item.id to it } }.toMap()
+        val raw: Map<String, Answer> = items.mapNotNull { item -> answers[item.id]?.takeIf { item.fits(it) }?.let { item.id to it } }.toMap()
 
         /** Whether enough is answered: [ItemScore.minAnswered] of its items, or with optional ones all the others. */
         val enough: Boolean = if (score.optional.isEmpty()) points.size >= score.minAnswered else (score.items - score.optional.toSet()).all { it in points }
@@ -270,43 +253,6 @@ object Scoring {
         override fun value(counted: Counted) = shareOfSpan(counted.items.map { (counted.raw[it.id] as? Answer.Time)?.minutes ?: return null })
         override fun range(counted: Counted) = 0L..HUNDRED * HUNDRED
     }
-
-    /** The points [answer] makes for [item], reversed ones counted the other way round; none for an answer that does not fit it. */
-    internal fun points(item: Item, answer: Answer): Long? {
-        val raw = when (item) {
-            is ChoiceItem -> (answer as? Answer.Chosen)?.let { chosen -> item.options.find { it.id == chosen.optionId && !it.notApplicable }?.points }
-            is ScaleItem -> (answer as? Answer.OnScale)?.value?.takeIf { it in item.steps }
-            is YesNoItem -> (answer as? Answer.YesNo)?.let { if (it.yes) item.yesPoints else item.noPoints }
-            is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
-                item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
-            }
-            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { hundredths ->
-                item.steps?.of(Fraction(hundredths, HUNDRED))?.toInt() ?: (hundredths / HUNDRED * item.pointsEach).toInt()
-            }
-            is TimeItem -> (answer as? Answer.Time)?.minutes?.takeIf { fits(item, answer) }
-            else -> null
-        }?.toLong() ?: return null
-        val (least, most) = range(item) ?: return null
-        return if (item.reversed) least + most - raw else raw
-    }
-
-    /** The fewest and the most points [item] makes, if it makes any. */
-    private fun range(item: Item): Pair<Long, Long>? = when (item) {
-        is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
-        is ScaleItem -> item.min.toLong() to item.max.toLong()
-        is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
-        is NumberItem -> item.steps?.range?.let { it.first.toLong() to it.last.toLong() } ?: item.max?.let { 0L to it.toLong() * item.pointsEach }
-        is TimeItem -> 0L to TimeItem.DAY - 1L
-        is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
-        else -> null
-    }
-
-    private val Item.reversed: Boolean
-        get() = when (this) {
-            is ChoiceItem -> reversed
-            is ScaleItem -> reversed
-            else -> false
-        }
 
     /** A value as it is, [numerator] over [denominator], to be rounded once at the end. */
     private data class Fraction(val numerator: Long, val denominator: Long) {

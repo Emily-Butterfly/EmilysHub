@@ -271,7 +271,7 @@ data class AssessmentSheet(val filled: FilledAssessment, val canChange: Boolean,
         val form = form ?: return@lazy emptyList()
         val shown = Scoring.visible(form, answers).map(Item::id).toSet()
         form.sections.map { section ->
-            ShownSection(section, section.items.filter { it.id in shown }.map { item -> ShownItem(item, answers[item.id]?.takeIf { Scoring.fits(item, it) }) })
+            ShownSection(section, section.items.filter { it.id in shown }.map { item -> ShownItem(item, answers[item.id]?.takeIf { item.fits(it) }) })
         }
     }
 

@@ -81,6 +81,13 @@ rules carry their own data and reckon value and range together, over one collect
 
 ## 4 · Item kinds own their behaviour
 
+**Status:** done. `Item` declares `fits(answer)`, `points(answer)` (reversed ones counted the other way round) and
+`pointRange`, abstract, so a new kind that leaves one out does not compile; each kind implements them next to its
+fields. `Scoring` has no `when` over item kinds left, and `Scoring.fits` is gone (callers ask the item). `Steps.points`
+is the one rule of steps, for a number's hundredths and for a score's exact value alike. What stays a `when` over kinds,
+on purpose: the Compose rendering (`ItemField`, the adapter), and `AnswerCodec` and `answerText`, which go by the kind of
+answer, as they must read answers back whose item is gone.
+
 A kind of item is spread over about twelve `when` sites in five modules; one that makes points but is missing in
 `points` or `range` compiles, shows "–" and throws on the history page. Each kind answers whether an answer fits it, its
 points and its range itself; only the Compose rendering stays a `when`, as an adapter.

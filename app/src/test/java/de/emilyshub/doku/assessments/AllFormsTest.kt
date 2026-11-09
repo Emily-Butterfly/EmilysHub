@@ -27,7 +27,7 @@ class AllFormsTest {
 
     /** Each scorable item of [form] answered by its fewest points, or its most if [most]. */
     private fun extreme(form: Assessment, most: Boolean): Map<String, Answer> = form.items.mapNotNull { item ->
-        val scored = candidates(item).mapNotNull { answer -> Scoring.points(item, answer)?.let { answer to it } }
+        val scored = candidates(item).mapNotNull { answer -> item.points(answer)?.let { answer to it } }
         (if (most) scored.maxByOrNull { it.second } else scored.minByOrNull { it.second })?.let { item.id to it.first }
     }.toMap()
 

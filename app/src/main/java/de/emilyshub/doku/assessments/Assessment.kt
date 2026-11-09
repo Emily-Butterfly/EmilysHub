@@ -116,7 +116,20 @@ sealed interface Item {
 
     /** Whether its answer has points, to count in a score. */
     val scorable: Boolean get() = false
+
+    /** Whether [answer] is of the kind it takes; one that is not is shown apart, with those its form no longer has. */
+    fun fits(answer: Answer): Boolean
+
+    /** The points [answer] makes, reversed ones counted the other way round; none for one that does not fit or makes none. */
+    fun points(answer: Answer): Long?
+
+    /** The fewest to the most points it makes; none if it makes none, as words, or goals, which a T-score rates. */
+    val pointRange: LongRange?
 }
+
+/** [raw] counted the other way round within [range] if [reversed]. */
+private fun turned(raw: Long?, range: LongRange?, reversed: Boolean): Long? =
+    if (raw == null || range == null) null else if (reversed) range.first + range.last - raw else raw
 
 /** One of fixed [options] to choose, each with points; [reversed] counts them the other way round. */
 data class ChoiceItem(
@@ -127,6 +140,17 @@ data class ChoiceItem(
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = true
+
+    override fun fits(answer: Answer): Boolean = answer is Answer.Chosen
+
+    override fun points(answer: Answer): Long? = turned(
+        (answer as? Answer.Chosen)?.let { chosen -> options.find { it.id == chosen.optionId && !it.notApplicable }?.points?.toLong() },
+        pointRange,
+        reversed,
+    )
+
+    override val pointRange: LongRange
+        get() = options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong()..it.max().toLong() }
 }
 
 /** Yes or no, with [yesPoints] and [noPoints] where a score counts it. */
@@ -138,6 +162,12 @@ data class YesNoItem(
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = true
+
+    override fun fits(answer: Answer): Boolean = answer is Answer.YesNo
+
+    override fun points(answer: Answer): Long? = (answer as? Answer.YesNo)?.let { if (it.yes) yesPoints.toLong() else noPoints.toLong() }
+
+    override val pointRange: LongRange get() = minOf(yesPoints, noPoints).toLong()..maxOf(yesPoints, noPoints).toLong()
 }
 
 /**
@@ -160,6 +190,12 @@ data class ScaleItem(
     /** The numbers to choose, from [min] to [max]. */
     val steps: List<Int> get() = (min..max step step).toList()
 
+    override fun fits(answer: Answer): Boolean = answer is Answer.OnScale && answer.value in steps
+
+    override fun points(answer: Answer): Long? = turned((answer as? Answer.OnScale)?.value?.takeIf { it in steps }?.toLong(), pointRange, reversed)
+
+    override val pointRange: LongRange get() = min.toLong()..max.toLong()
+
     init {
         require(step >= 1 && (max - min) % step == 0) { "$id: the steps must lead from min to max" }
     }
@@ -178,6 +214,15 @@ data class ChecklistItem(
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = scored
+
+    override fun fits(answer: Answer): Boolean = answer is Answer.Checked
+
+    override fun points(answer: Answer): Long? =
+        (answer as? Answer.Checked)?.takeIf { scored }?.let { checked -> options.filter { it.id in checked.optionIds }.sumOf(Option::points).toLong() }
+
+    /** From the options below 0 all checked to those above all checked. */
+    override val pointRange: LongRange?
+        get() = if (scored) options.sumOf { minOf(it.points, 0) }.toLong()..options.sumOf { maxOf(it.points, 0) }.toLong() else null
 }
 
 /**
@@ -197,6 +242,14 @@ data class NumberItem(
     val steps: Steps? = null,
 ) : Item {
     override val scorable: Boolean get() = max != null || steps != null
+
+    override fun fits(answer: Answer): Boolean = answer is Answer.Number
+
+    override fun points(answer: Answer): Long? = (answer as? Answer.Number)?.hundredths?.takeIf { scorable && accepts(it) }?.let { hundredths ->
+        steps?.points { bound -> hundredths < bound * 100L }?.toLong() ?: (hundredths / 100 * pointsEach)
+    }
+
+    override val pointRange: LongRange? get() = steps?.range?.let { it.first.toLong()..it.last.toLong() } ?: max?.let { 0L..it.toLong() * pointsEach }
 
     /** Whether [hundredths] may be answered: any number, or with a [max], a whole one from 0 up to it. */
     fun accepts(hundredths: Long): Boolean = when {
@@ -225,6 +278,13 @@ data class TimeItem(
 ) : Item {
     override val scorable: Boolean get() = true
 
+    override fun fits(answer: Answer): Boolean = answer is Answer.Time && answer.minutes in 0 until DAY
+
+    /** Its minutes, such as hours slept; or as the share of a span ([ScoreRule.ShareOfSpan]). */
+    override fun points(answer: Answer): Long? = (answer as? Answer.Time)?.takeIf(::fits)?.minutes?.toLong()
+
+    override val pointRange: LongRange get() = 0L..DAY - 1L
+
     companion object {
         /** The minutes of a day: a time lies below. */
         const val DAY = 24 * 60
@@ -251,6 +311,9 @@ data class TimeItem(
  * 61 to 2, otherwise 3.
  */
 data class Steps(val below: List<Pair<Int, Int>>, val otherwise: Int) {
+    /** The points of a value that [isBelow] tells against each bound: those of the first it lies below, else [otherwise]. */
+    fun points(isBelow: (Int) -> Boolean): Int = below.firstOrNull { (bound, _) -> isBelow(bound) }?.second ?: otherwise
+
     /** The fewest and the most points. */
     val range: IntRange get() = (below.map { it.second } + otherwise).let { it.min()..it.max() }
 
@@ -264,7 +327,11 @@ data class TextItem(
     override val id: String,
     override val text: String,
     override val showIf: Condition? = null,
-) : Item
+) : Item {
+    override fun fits(answer: Answer): Boolean = answer is Answer.Text
+    override fun points(answer: Answer): Long? = null
+    override val pointRange: LongRange? get() = null
+}
 
 /**
  * Goals named freely, as many as set for the patient, each rated at one of [levels], such as the GAS's "-2 Schlechter" to
@@ -279,6 +346,12 @@ data class GoalsItem(
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = true
+
+    override fun fits(answer: Answer): Boolean = answer is Answer.Goals
+
+    /** None: its goals make a T-score, not points ([ScoreRule.GoalT]). */
+    override fun points(answer: Answer): Long? = null
+    override val pointRange: LongRange? get() = null
 
     init {
         require(levels.isNotEmpty() && levels.map(Option::points).toSet().size == levels.size) { "$id: levels of points of their own" }
@@ -295,6 +368,10 @@ data class BodyRegionsItem(
     override val showIf: Condition? = null,
     val regions: List<BodyRegion> = BodyRegion.body,
 ) : Item {
+    override fun fits(answer: Answer): Boolean = answer is Answer.Regions
+    override fun points(answer: Answer): Long? = null
+    override val pointRange: LongRange? get() = null
+
     init {
         require(regions.isNotEmpty() && regions.size == regions.toSet().size) { "$id: regions to offer, each once" }
     }

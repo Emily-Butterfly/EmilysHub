@@ -497,10 +497,10 @@ class ScoringTest {
         val form = form(ItemScore("sum", "Summe", listOf("dauer"), direction = Direction.HigherIsBetter), items = items)
 
         assertEquals(45000L, value(form, mapOf("dauer" to Answer.Time(7 * 60 + 30))))
-        assertEquals(true, Scoring.fits(items[0], Answer.Time(23 * 60 + 59)))
-        assertEquals(false, Scoring.fits(items[0], Answer.Time(24 * 60)))
-        assertEquals(false, Scoring.fits(items[0], Answer.Time(-1)))
-        assertEquals(false, Scoring.fits(items[0], Answer.Number(100)))
+        assertEquals(true, items[0].fits(Answer.Time(23 * 60 + 59)))
+        assertEquals(false, items[0].fits(Answer.Time(24 * 60)))
+        assertEquals(false, items[0].fits(Answer.Time(-1)))
+        assertEquals(false, items[0].fits(Answer.Number(100)))
         assertEquals(0L..143900L, Scoring.range(form, form.scores.single()))
     }
 
