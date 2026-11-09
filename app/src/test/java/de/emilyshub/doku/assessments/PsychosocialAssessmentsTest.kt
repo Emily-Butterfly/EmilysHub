@@ -73,6 +73,10 @@ class PsychosocialAssessmentsTest {
         // All "manchmal": -0,42 + 1,68 + 3,15 - 4,36.
         assertEquals(listOf(2100L, 2400L, 2100L, 5L), values("ies-r", all("ies-r", 3)))
         assertEquals(listOf(null, 2400L, 2100L, null), values("ies-r", all("ies-r", 3) - "1"))
+        // No intrusion, avoidance all "oft", hyperarousal all "manchmal": 0 + 2,8 + 3,15 - 4,36.
+        val ies = form("ies-r").scores
+        val mixed = all("ies-r", 5, items = ies[1].items) + all("ies-r", 0, items = ies[0].items) + all("ies-r", 3, items = ies[2].items)
+        assertEquals(listOf(0L, 4000L, 2100L, 159L), values("ies-r", mixed))
         assertEquals(listOf(0, 1, 3, 5), (form("ies-r").item("1") as ChoiceItem).options.map(Option::points))
         assertTrue(form("ies-r").item("vorfall") is TextItem)
 
@@ -115,7 +119,10 @@ class PsychosocialAssessmentsTest {
         assertEquals(listOf(600L, 300L, 300L), values("phq-4", chosen("phq-4", 1, 2, 0, 3)))
         assertEquals(listOf(null, 300L, null), values("phq-4", chosen("phq-4", 1, 2, 0)))
 
-        assertEquals(listOf("Keiner", "Gering", "Gering", "Moderat", "Moderat", "Stark"), listOf(200L, 300, 500, 600, 800, 900).map { bandAt("phq-4", it) })
+        assertEquals(
+            listOf("Keiner", "Keiner", "Gering", "Gering", "Moderat", "Moderat", "Stark", "Stark"),
+            listOf(0L, 200, 300, 500, 600, 800, 900, 1200).map { bandAt("phq-4", it) },
+        )
         assertNull(bandAt("phq-4", 200, score = 1))
         assertTrue(bandAt("phq-4", 300, score = 2)!!.startsWith("Positives Screeningergebnis"))
     }
@@ -133,7 +140,8 @@ class PsychosocialAssessmentsTest {
             assertTrue(bandAt("psychologische-screeningfragen", cutoff - 100, score)!!.startsWith("Negativ"))
             assertTrue(bandAt("psychologische-screeningfragen", cutoff, score)!!.startsWith("Positiv"))
         }
-        assertEquals("Positiv: Wahrscheinlichkeit einer Problematik 43,3 %", bandAt("psychologische-screeningfragen", 500))
+        assertEquals("Positiv: Wahrscheinlichkeit einer Problematik bei positivem Test (43,3%)", bandAt("psychologische-screeningfragen", 500))
+        assertEquals("Negativ: Wahrscheinlichkeit einer Problematik bei negativem Test (6,5%)", bandAt("psychologische-screeningfragen", 400))
     }
 
     @Test
@@ -145,6 +153,13 @@ class PsychosocialAssessmentsTest {
         assertEquals(listOf(4000L, 3000L, 3000L, 3000L, 3000L, 3000L, 4000L, 3000L), values("stressbelastung", sometimes))
         assertEquals(listOf(null, 3000L, 3000L, 3000L, 3000L, 3000L, 4000L, 3000L), values("stressbelastung", sometimes - "ernaehrung-1"))
         assertEquals(listOf(4, 2, 1, 0), (form("stressbelastung").item("partnerschaft-1") as ChoiceItem).options.map(Option::points))
+        // Eats in haste always (6), gulps often (3), too much sometimes (2); smokes always (12); a boss to fear often (2).
+        fun at(item: String, label: String) = item to Answer.Chosen((form("stressbelastung").item(item) as ChoiceItem).options.single { it.label == label }.id)
+        val mixed = labelled("stressbelastung", "Stimmt nicht") + listOf(
+            at("ernaehrung-1", "Ist fast immer so"), at("ernaehrung-2", "Ist oft so"), at("ernaehrung-3", "Manchmal"),
+            at("gewohnheiten-1", "Ist fast immer so"), at("arbeit-1", "Ist oft so"),
+        )
+        assertEquals(listOf(1100L, 1200L, 200L, 0L, 0L, 0L, 0L, 0L), values("stressbelastung", mixed))
     }
 
     /** The tension questionnaire: 1 to 33 by [rated], the reactions at work and at home by their option ids, and the counts of 35. */

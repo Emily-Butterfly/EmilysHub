@@ -135,11 +135,9 @@ object Scoring {
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
         val answered = answered(score.items)
-        if (score.optional.isNotEmpty()) {
-            if (answered(score.items - score.optional.toSet()).size < score.items.size - score.optional.size) return null
-        } else if (answered.size < score.minAnswered) {
-            return null
-        }
+        // With optional items, all the others are needed, which minAnswered then is not.
+        val required = score.items - score.optional.toSet()
+        if (if (score.optional.isEmpty()) answered.size < score.minAnswered else answered(required).size < required.size) return null
         val sum = answered.sumOf { it.first }
         val least = answered.sumOf { it.second.first }
         val most = answered.sumOf { it.second.second }
@@ -175,7 +173,7 @@ object Scoring {
             is ChecklistItem -> (answer as? Answer.Checked)?.takeIf { item.scored }?.let { checked ->
                 item.options.filter { it.id in checked.optionIds }.sumOf(Option::points)
             }
-            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED * item.each).toInt() }
+            is NumberItem -> (answer as? Answer.Number)?.hundredths?.takeIf { item.scorable && item.accepts(it) }?.let { (it / HUNDRED * item.pointsEach).toInt() }
             else -> null
         }?.toLong() ?: return null
         val (least, most) = range(item) ?: return null
@@ -187,7 +185,7 @@ object Scoring {
         is ChoiceItem -> item.options.filterNot(Option::notApplicable).map(Option::points).let { it.min().toLong() to it.max().toLong() }
         is ScaleItem -> item.min.toLong() to item.max.toLong()
         is YesNoItem -> minOf(item.yesPoints, item.noPoints).toLong() to maxOf(item.yesPoints, item.noPoints).toLong()
-        is NumberItem -> item.max?.let { 0L to it.toLong() * item.each }
+        is NumberItem -> item.max?.let { 0L to it.toLong() * item.pointsEach }
         is ChecklistItem -> if (item.scored) item.options.sumOf { minOf(it.points, 0) }.toLong() to item.options.sumOf { maxOf(it.points, 0) }.toLong() else null
         else -> null
     }

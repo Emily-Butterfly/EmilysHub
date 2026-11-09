@@ -410,8 +410,8 @@ class ScoringTest {
     }
 
     @Test
-    fun `a number counts its points each times`() {
-        val form = form(Score("n", "n", listOf("n"), direction = Direction.LowerIsBetter), items = listOf(NumberItem("n", "Wie viele?", max = 10, each = 3)))
+    fun `a number may count several points for each`() {
+        val form = form(Score("n", "n", listOf("n"), direction = Direction.LowerIsBetter), items = listOf(NumberItem("n", "Wie viele?", max = 10, pointsEach = 3)))
 
         assertEquals(1200L, value(form, mapOf("n" to Answer.Number(400))))
         assertEquals(0L..3000L, Scoring.range(form, form.scores.single()))

@@ -165,7 +165,7 @@ data class ChecklistItem(
 
 /**
  * A number in [unit], such as minutes or metres, with two [decimals] at most, or whole. With a [max], such as the days of
- * three months, a whole number from 0 up to it, which a score counts as its points, [each] of it as many, such as 3 for
+ * three months, a whole number from 0 up to it, which a score counts as its points: [pointsEach] for each, such as 3 for
  * each problem "stark belastend".
  */
 data class NumberItem(
@@ -174,7 +174,7 @@ data class NumberItem(
     val unit: String = "",
     val decimals: Boolean = false,
     val max: Int? = null,
-    val each: Int = 1,
+    val pointsEach: Int = 1,
     override val showIf: Condition? = null,
 ) : Item {
     override val scorable: Boolean get() = max != null
@@ -184,7 +184,7 @@ data class NumberItem(
 
     init {
         require(max == null || max >= 1 && !decimals) { "$id: a number counted as points is whole, up to a positive most" }
-        require(each >= 1 && (each == 1 || max != null)) { "$id: only a number counted as points counts each as more" }
+        require(pointsEach >= 1 && (pointsEach == 1 || max != null)) { "$id: only a number counted as points counts each as more" }
     }
 }
 
@@ -268,7 +268,7 @@ data class Score(
         require(divisor >= 1) { "$id: the divisor must be positive" }
         require(weights.isEmpty() || weights.size == sumOf.size) { "$id: one weight for each score added up" }
         require(constant == 0 || sumOf.isNotEmpty()) { "$id: only a score of others adds a constant" }
-        require(items.containsAll(optional) && (optional.isEmpty() || minAnswered == items.size && rule == ScoreRule.Sum)) {
+        require(items.containsAll(optional) && optional.size == optional.toSet().size && (optional.isEmpty() || minAnswered == items.size && rule == ScoreRule.Sum)) {
             "$id: optional items are among its items, of a sum that needs all the others"
         }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }

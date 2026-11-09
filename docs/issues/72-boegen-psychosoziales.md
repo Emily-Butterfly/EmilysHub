@@ -62,4 +62,4 @@ Abgestimmt im Interview vom 08.11.2026.
 - Stress- und Spannungsfragebogen: ein Bogen mit zwei Ergebnissen; „Folgende weitere Stresssituationen“ mit Textfeld.
 - Namen wie bei DIGOTOR; Abkürzungen: FABQ, TSK-GV, IES-R, I-PRRS, PHQ-15, PHQ-4; die übrigen haben keine. FABQ, PHQ-15 und PHQ-4 auch unter „Kiefer / CMD“.
 - Neue Bausteine: Items, die leer bleiben dürfen (PHQ-15 d); ein Ergebnis aus früheren mit Gewichten und Konstante (IES-R X); eine Anzahl, die je Stück mehrere Punkte zählt (Frage 35).
-- Offensichtliche Tippfehler: Tampa „Versio“; I-PRRS „valdierte“; FABQ „Georg 2010“ als „George 2010“; Stressbelastung Partnerschaft 7 „Partnerin/mein Partner“ als „Meine Partnerin/mein Partner“, 29 „mein Partnerin“. Der Blindtext am Ende des FABQ-PDFs bleibt weg.
+- Offensichtliche Tippfehler: Tampa „Versio“; I-PRRS „valdierte“; FABQ „Georg 2010“ als „George 2010“; Stressbelastung Partnerschaft 7 „Partnerin/mein Partner“ als „Meine Partnerin/mein Partner“, 29 „mein Partnerin“; PHQ-4 „Items 3 and 4“. Frage 35 nimmt je Stärke bis 10 Probleme an (das PDF nennt keine Grenze). Der Blindtext am Ende des FABQ-PDFs bleibt weg.

@@ -54,11 +54,12 @@ private val FABQ: Assessment = run {
             "dann bewerten Sie die Fragen entsprechend Ihrem Zustand in der vergangenen Woche.\n\n" +
             "Dieser Fragebogen dient der Erfassung einer angstbedingten Vermeidungshaltung. Die Fragen 1 – 5 beziehen sich auf " +
             "körperliche Aktivitäten, die Fragen 6 – 16 auf die Arbeit.\n\n" +
-            "Körperliche Aktivität (FABQ – PA) = Items 2, 3, 4, 5: maximal 24 Punkte, ein hoher Wert und damit ein höheres " +
-            "Chronifizierungsrisiko besteht bei > 15. Die minimal messbare Veränderung beträgt 5,4 Punkte (George 2010).\n\n" +
-            "Arbeitsbelastung (FABQ – W) = Items 6, 7, 9, 10, 11, 12, 15: maximal 42 Punkte, das erhöhte " +
-            "Chronifizierungsrisiko besteht bei > 34 Punkten. Die minimal messbare Veränderung beträgt 6,8 Punkte (George " +
-            "2010).\n\n" +
+            "Körperliche Aktivität (FABQ – PA) = Items 2, 3, 4, 5. Dabei ergibt sich eine maximale Punktzahl von 24 Punkten. " +
+            "Ein hoher Wert und damit ein höheres Chronifizierungsrisiko besteht bei > 15. Die minimal messbare Veränderung " +
+            "beträgt 5,4 Punkte (George 2010).\n\n" +
+            "Arbeitsbelastung (FABQ – W) = Items 6, 7, 9, 10, 11, 12, 15. Hier können maximal 42 Punkte erreicht werden. Das " +
+            "erhöhte Chronifizierungsrisiko besteht bei > 34 Punkten. Die minimal messbare Veränderung beträgt 6,8 Punkte " +
+            "(George 2010).\n\n" +
             "Die Fragen 1, 8, 13, 14 und 16 können zu Verzerrungen in der Aussage führen und werden nicht ausgewertet.",
         sections = listOf(
             Section(items = activity),
@@ -163,6 +164,7 @@ private val IES_R: Assessment = run {
             Score(
                 "x", "X (Verdachtsdiagnose auf PTB)", emptyList(), unit = "", direction = Direction.LowerIsBetter,
                 sumOf = listOf(intrusion.id, avoidance.id, arousal.id), weights = listOf(-2, 7, 15), constant = -436,
+                // X lies between -5,06 and 3,69.
                 bands = listOf(Band.upTo(0, null), Band.upTo(4, "Verdachtsdiagnose auf PTB")),
             ),
         ),
@@ -291,6 +293,7 @@ private val PHQ_4: Assessment = run {
         source = "PHQ-4, Stand 10/2026",
         hint = "PHQ-4 Gesamtscore 0 bis 12, wobei der psychologische Disstress in folgende Kategorien eingeteilt wird: Keiner " +
             "0-2, Gering 3-5, Moderat 6-8, Stark 9-12. Depression Subskala = Summe der Items 1 und 2 (Score range, 0 bis 6); " +
+            // "3 and 4" in the original, a slip mended.
             "Angst Subskala = Summe der Items 3 und 4 (Score range, 0 bis 6). Auf jeder Subskala entspricht ein Score von 3 " +
             "oder größer einem positiven Screeningergebnis.",
         sections = listOf(Section(hint = "Wie oft fühlten Sie sich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?", items = items)),
@@ -321,8 +324,8 @@ private val SCREENING: Assessment = run {
     fun screen(id: String, name: String, cutoff: Int, positive: String, negative: String, vararg numbers: Int) = Score(
         id, name, numbers.map { "$it" }, direction = Direction.LowerIsBetter,
         bands = listOf(
-            Band.upTo(cutoff - 1, "Negativ: Wahrscheinlichkeit einer Problematik $negative"),
-            Band.upTo(10 * numbers.size, "Positiv: Wahrscheinlichkeit einer Problematik $positive"),
+            Band.upTo(cutoff - 1, "Negativ: Wahrscheinlichkeit einer Problematik bei negativem Test ($negative)"),
+            Band.upTo(10 * numbers.size, "Positiv: Wahrscheinlichkeit einer Problematik bei positivem Test ($positive)"),
         ),
     )
     Assessment(
@@ -339,11 +342,11 @@ private val SCREENING: Assessment = run {
             "Punkte, Sens (77,2%), Spez (73,1%).",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            screen("angst", "Angst (Frage 1)", 5, "43,3 %", "6,5 %", 1),
-            screen("bewegung", "Angst vor Bewegung (Frage 2 und 3)", 5, "87,4 %", "43,3 %", 2, 3),
-            screen("stress", "Stress (Frage 4)", 7, "30,0 %", "6,7 %", 4),
-            screen("katastrophisierung", "Katastrophisierung (Frage 5 und 6)", 7, "57,4 %", "8,1 %", 5, 6),
-            screen("depressionen", "Depressionen (Frage 7 und 8)", 6, "46,5 %", "8,6 %", 7, 8),
+            screen("angst", "Angst (Frage 1)", 5, "43,3%", "6,5%", 1),
+            screen("bewegung", "Angst vor Bewegung (Frage 2 und 3)", 5, "87,4%", "43,3%", 2, 3),
+            screen("stress", "Stress (Frage 4)", 7, "30,0%", "6,7%", 4),
+            screen("katastrophisierung", "Katastrophisierung (Frage 5 und 6)", 7, "57,4%", "8,1%", 5, 6),
+            screen("depressionen", "Depressionen (Frage 7 und 8)", 6, "46,5%", "8,6%", 7, 8),
         ),
     )
 }
@@ -443,16 +446,16 @@ private val STRESS_LOAD: Assessment = run {
         "Ich werde von meinem Partner/meiner Partnerin geschlagen.", "Meine Partnerin/mein Partner ist süchtig (Alkohol, Drogen, Spielsucht etc.).",
         "Ich bin von meinem Partner/meiner Partnerin abhängig.", "Wir streiten wegen der Kinder.", "Meine Partnerin/mein Partner erfüllt nicht meine Erwartungen.",
         "Ich schlage meinen Partner/meine Partnerin, obwohl ich das nicht will.", "Wir haben zu wenig (überhaupt keinen, schlechten) Sex.",
+        "Ich bin meinem Partner/meiner Partnerin untreu.",
         // "mein Partnerin" in the original, a slip mended.
-        "Ich bin meinem Partner/meiner Partnerin untreu.", "Meine Partnerin/mein Partner ist nicht zärtlich zu mir.", "Meine Partnerin/mein Partner misstraut mir.",
+        "Meine Partnerin/mein Partner ist nicht zärtlich zu mir.", "Meine Partnerin/mein Partner misstraut mir.",
     )
     Assessment(
         id = "stressbelastung",
         name = "Ermittlung der Stressbelastung",
         categories = listOf(AssessmentCategory.PainPsychosocial),
         source = "Ermittlung der Stressbelastung, Stand 09/2026",
-        hint = "Strobel I. Stressbewältigung und Burnoutprävention. Stuttgart: Haug; 2015.\n\n" +
-            "Je Stressfaktor eine Summe, bis 120 Punkte; im Original als Netz der acht Stressfaktoren ausgewertet.",
+        hint = "Strobel I. Stressbewältigung und Burnoutprävention. Stuttgart: Haug; 2015.",
         sections = listOf(
             Section("Persönliche Stressoren – Stressfaktor: Ernährung", items = food),
             Section("Persönliche Stressoren – Stressfaktor: Schädliche Gewohnheiten", items = habits),
@@ -508,9 +511,10 @@ private val STRESS_TENSION: Assessment = run {
     )
     val problems = listOf(
         TextItem("t35", "35. Welche Probleme belasteten Sie in letzter Zeit?"),
-        NumberItem("t35-etwas", "Anzahl der Probleme: a) etwas belastend (je 1 Punkt)", max = 10, each = 1),
-        NumberItem("t35-belastend", "Anzahl der Probleme: b) belastend (je 2 Punkte)", max = 10, each = 2),
-        NumberItem("t35-stark", "Anzahl der Probleme: c) stark belastend (je 3 Punkte)", max = 10, each = 3),
+        // Up to 10 problems of each burden, which the PDF leaves open; none is 0, to be entered as such.
+        NumberItem("t35-etwas", "Anzahl der Probleme: a) etwas belastend (je 1 Punkt)", max = 10),
+        NumberItem("t35-belastend", "Anzahl der Probleme: b) belastend (je 2 Punkte)", max = 10, pointsEach = 2),
+        NumberItem("t35-stark", "Anzahl der Probleme: c) stark belastend (je 3 Punkte)", max = 10, pointsEach = 3),
     )
     Assessment(
         id = "stress-spannung",
