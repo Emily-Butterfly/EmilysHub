@@ -175,7 +175,7 @@ private val FUGL_MEYER: Assessment = run {
         ),
         described(
             "b-wiederholt-0", "Wiederholte Dorsalextension/freiwillige Flexion, Ellenbogen bei 0°, Unterarm proniert, leichte Schulterflexion/Abduktion",
-            "kann nicht freiwillig durchführen,", "limitiertes ROM", "bewegt ohne Probleme",
+            "kann nicht freiwillig durchführen", "limitiertes ROM", "bewegt ohne Probleme",
         ),
         described("b-zirkumduktion", "Circumduction", "kann freiwillig nicht bewegen", "ruckartige oder inkomplette Bewegung", "komplette sanfte Bewegung"),
     )
@@ -238,7 +238,9 @@ private val FUGL_MEYER: Assessment = run {
         abbreviation = "FMA",
         categories = listOf(AssessmentCategory.Neurology),
         source = "Fugl-Meyer Assessment Score, Stand 10/2026",
-        hint = "Nicht validierte deutsche Version.",
+        hint = "Nicht validierte deutsche Version.\n\n" +
+            "Die vier Fragen zum Lagesinn unter H fehlen im Bogen; sie sind ergänzt nach dem Original (FMA-UE, Universität " +
+            "Göteborg), mit den Antworten des Bogens.",
         sections = listOf(
             Section("A. Obere Extremität (sitzende Position)", "1) Reflexaktivität", reflexes),
             Section(
@@ -336,7 +338,7 @@ private val GAS: Assessment = run {
         source = "(Stroke) Goal Attainment Scale, Stand 10/2026",
         hint = "Je Ziel die erreichte Stufe von -2 bis +2.\n\n" +
             "T-Wert nach Kiresuk & Sherman (1968), jedes Ziel gleich gewichtet: T = 50 + 10 · Σx / √(0,7 · n + 0,3 · n²), mit x " +
-            "der Stufe je Ziel und n der Zahl der Ziele. 50 heißt: die Ziele im Mittel erreicht.",
+            "der Stufe je Ziel und n der Zahl der Ziele.",
         sections = listOf(Section(items = listOf(goals))),
         scores = listOf(Score("t", "T-Wert", listOf(goals.id), rule = ScoreRule.GoalT, unit = "", direction = Direction.HigherIsBetter)),
     )
@@ -347,6 +349,7 @@ private val MINI_BEST: Assessment = run {
     fun task(id: String, text: String, normal: String, moderate: String, hard: String) =
         ChoiceItem(id, text, scored("(2) Normal: $normal" to 2, "(1) Moderat: $moderate" to 1, "(0) Erschwert: $hard" to 0))
     fun seconds(id: String, text: String) = NumberItem(id, text, unit = "s", decimals = true)
+    val sides = listOf("links" to "Links", "rechts" to "Rechts")
     val step = listOf("Ausgleich durch einen großen, sicheren Schritt.", "Mehr als ein Schritt wurde benötigt.", "Kein Schritt, würde fallen ohne Hilfe oder fällt.")
 
     val sitToStand = task(
@@ -360,15 +363,15 @@ private val MINI_BEST: Assessment = run {
         "Fersen sind oben, aber nicht die gleiche Höhe, wie wenn mit Hilfe der Hände des Therapeuten, oder nicht stabil innerhalb der 3 Sekunden.",
         "< 3 sec.",
     )
-    val oneLeg = listOf("links" to "Links", "rechts" to "Rechts").map { (id, side) ->
+    val oneLeg = sides.map { (id, side) ->
         task("3-$id", "3. Einbeinstand – $side", "20 sec.", "< 20 sec.", "Nicht in der Lage, Bein zu heben.")
     }
-    val oneLegTimes = listOf("links" to "Links", "rechts" to "Rechts").flatMap { (id, side) ->
+    val oneLegTimes = sides.flatMap { (id, side) ->
         listOf(1, 2).map { n -> seconds("3-$id-$n", "$side: Zeit in Sekunden, Versuch $n") }
     }
     val forward = task("4", "4. Kompensatorische Schrittkorrektur - Vorwärts", step[0], step[1], step[2])
     val backward = task("5", "5. Kompensatorische Schrittkorrektur - Rückwärts", step[0], step[1], step[2])
-    val sideways = listOf("links" to "Links", "rechts" to "Rechts").map { (id, side) ->
+    val sideways = sides.map { (id, side) ->
         task(
             "6-$id", "6. Kompensatorische Schrittkorrektur - Seitlich – $side",
             "Gleicht selbstständig mit einem Schritt aus (Crossover oder Side Step - OK).", "Mehrere Schritte nötig, um auszugleichen.",
@@ -497,6 +500,7 @@ private val MINI_BEST: Assessment = run {
                     "Tempo bis zur Markierung gehen, sich umdrehen und sich wieder hinsetzen. Zählen Sie währenddessen weiter.“",
                 tug + dualTask,
             ),
+            Section(hint = "Wenn die Testperson ein Hilfsmittel bei der Durchführung der Aufgaben braucht, wird das notiert.", items = listOf(TextItem("hilfsmittel", "Hilfsmittel"))),
         ),
         scores = listOf(
             Score("antizipation", "Antizipation", ids(anticipation), direction = Direction.HigherIsBetter, worseOf = pairOf(oneLeg)),
@@ -554,7 +558,7 @@ private val MFIS: Assessment = run {
             "Bitte lesen Sie jede Aussage bedacht und kreisen Sie die Aussage ein, die am ehesten auf Ihre Symptomatik zutrifft, " +
             "die in den letzten 4 Wochen auftrat. (Bei Fragen nicht zögern und den Interviewer bitte nach Hilfe fragen.)\n\n" +
             "Die Modified Fatigue Impact Scale-5-Artikelversion (MFIS-5) besteht aus den 5 MFIS-Artikeln, die am stärksten mit " +
-            "dem Gesamt-MFIS-Score korrelieren. Die folgenden Elemente aus dem MFIS bilden das MFIS-5: Elemente 1, 9, 10, 17 und " +
+            "dem Gesamt-MFIS-Score korrelieren (Einzelheiten zur Methodik finden Sie im Abschnitt Datenanalyse). Die folgenden Elemente aus dem MFIS bilden das MFIS-5: Elemente 1, 9, 10, 17 und " +
             "19. Daher werden Elemente aus allen drei Subskalen dargestellt. Die MFIS-5-Gesamtpunktzahl besteht aus der Summe " +
             "der Rohpunktzahlen für diese 5 Elemente und kann daher zwischen 0 und 20 liegen.",
         sections = listOf(Section(title = "Aufgrund der Fatigue in den letzten 4 Wochen...", items = items)),
@@ -590,6 +594,12 @@ private val MOS_PES: Assessment = run {
             "Falls Sie Hilfe beim Einkreisen Ihrer Antwort brauchen, fragen Sie Ihren Therapeuten nach der besten Antwort.\n\n" +
             "Bitte beantworten Sie jede Frage. Falls Sie sich nicht sicher sind, für welche Antwort Sie sich entscheiden sollen, " +
             "nehmen Sie jene, die Ihrer Antwort am nächsten kommt.\n\n" +
+            "Schmerzen und andere unangenehme sensorische Symptome sind ebenfalls unterbewertete, aber überraschend häufige " +
+            "Symptome von MS. Im MSQLI-Feldtest gaben 50,3% der Teilnehmer Schmerz als aktuelles Symptom ihrer MS an. Sechs " +
+            "Punkte aus der Medical Outcomes Study (Stewart und Ware 1992), in denen die Auswirkungen von Schmerzen auf " +
+            "Verhalten und Stimmung bewertet werden, sind im MSLQI enthalten (beachten Sie, dass die SF-36-Schmerzskala (BP) ein " +
+            "zusätzliches, unabhängiges Maß für die Schwere und den Einfluss von Schmerzen auf das Leben des Patienten " +
+            "darstellt).\n\n" +
             "Die Rohwerte für die 6 Elemente, aus denen sich diese Skala zusammensetzt, werden einfach zu einem PES-Gesamtwert " +
             "addiert. Somit können die Punktzahlen zwischen 6 und 30 liegen. Die Elemente werden so skaliert, dass höhere Werte " +
             "einen stärkeren Einfluss von Schmerzen auf die Stimmung und das Verhalten eines Patienten anzeigen.",

@@ -116,7 +116,8 @@ object Scoring {
      * least and the most of them, as only one of them is answered.
      */
     private fun alternativesOnce(form: Assessment, ranges: List<Pair<Item, Pair<Long, Long>>>): List<Pair<Long, Long>> {
-        val (alternatives, alone) = ranges.partition { (item, _) -> item.showIf?.let { form.item(it.itemId) } is ChoiceItem }
+        // Shown by one choice alone, not by one or another condition.
+        val (alternatives, alone) = ranges.partition { (item, _) -> item.showIf?.takeIf { it.orElse == null }?.let { form.item(it.itemId) } is ChoiceItem }
         return alone.map { it.second } + alternatives.groupBy { (item, _) -> checkNotNull(item.showIf).itemId }.values.flatMap { group ->
             val options = group.flatMap { (item, _) -> checkNotNull(item.showIf).values }
             if (options.size == options.toSet().size) listOf(group.minOf { it.second.first } to group.maxOf { it.second.second }) else group.map { it.second }
@@ -135,13 +136,11 @@ object Scoring {
     private fun value(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Fraction? {
         fun answered(ids: List<String>) = ids.mapNotNull { id ->
             val item = checkNotNull(form.item(id))
-            // Nothing checked of a scored checklist shown is an answer too: none applies.
-            val answer = answers[id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true && id in shown }
-            answer?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
+            answer(item, answers, shown)?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
         }
         if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
-        if (score.rule == ScoreRule.GoalT) return goals(answers[score.items.single()])
-        if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers)
+        if (score.rule == ScoreRule.GoalT) return goals(form.item(score.items.single()) as GoalsItem, answers[score.items.single()])
+        if (score.worseOf.isNotEmpty()) return worseOf(form, score, answers, shown)
         val answered = answered(score.items)
         // With optional items, all the others are needed, which minAnswered then is not.
         val required = score.items - score.optional.toSet()
@@ -163,19 +162,27 @@ object Scoring {
         }.takeIf { it.denominator != 0L }
     }
 
+    /** What [answers] hold for [item]: nothing checked of a scored checklist [shown] is an answer too, none applying. */
+    private fun answer(item: Item, answers: Map<String, Answer>, shown: Set<String>): Answer? =
+        answers[item.id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true && item.id in shown }
+
     /** The sum of [score] of [form], each of its pairs counted by the one with fewer points; none while any of its items is unanswered. */
-    private fun worseOf(form: Assessment, score: Score, answers: Map<String, Answer>): Fraction? {
-        val points = score.items.associateWith { id -> answers[id]?.let { points(checkNotNull(form.item(id)), it) } ?: return null }
+    private fun worseOf(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Fraction? {
+        val points = score.items.associateWith { id ->
+            val item = checkNotNull(form.item(id))
+            answer(item, answers, shown)?.let { points(item, it) } ?: return null
+        }
         val paired = score.worseOf.flatten().toSet()
         return Fraction(points.filterKeys { it !in paired }.values.sum() + score.worseOf.sumOf { pair -> pair.minOf { points.getValue(it) } }, 1)
     }
 
     /**
-     * The T-score of the goals of [answer], each rated; none without a goal or while one is unrated. A goal without words
-     * or level is none, as it is stored ([AnswerCodec]).
+     * The T-score of the goals of [answer] to [item], each rated at one of its levels; none without a goal or while one is
+     * unrated. A goal without words or level is none, as it is stored ([AnswerCodec]).
      */
-    private fun goals(answer: Answer?): Fraction? {
-        val levels = (answer as? Answer.Goals)?.goals?.filter { it.text.isNotBlank() || it.level != null }?.map { it.level ?: return null }?.takeIf(List<Int>::isNotEmpty) ?: return null
+    private fun goals(item: GoalsItem, answer: Answer?): Fraction? {
+        val known = item.levels.map(Option::points).toSet()
+        val levels = (answer as? Answer.Goals)?.goals?.filterNot(Goal::isEmpty)?.map { goal -> goal.level?.takeIf { it in known } ?: return null }?.takeIf(List<Int>::isNotEmpty) ?: return null
         val n = levels.size.toDouble()
         return Fraction(goalT(10.0 * levels.sum() / Math.sqrt(0.7 * n + 0.3 * n * n)), HUNDRED)
     }

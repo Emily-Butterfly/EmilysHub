@@ -446,6 +446,29 @@ class ScoringTest {
         assertEquals(0L..600L, Scoring.range(form, score))
     }
 
+    @Test
+    fun `of a pair a scored checklist shown with nothing ticked counts 0, as elsewhere`() {
+        val items = listOf(choice("a"), ChecklistItem("k", "Was trifft zu?", listOf(Option("x", "x", 2)), scored = true), choice("c"))
+        val score = Score("sum", "Summe", listOf("a", "k", "c"), direction = Direction.HigherIsBetter, worseOf = listOf(listOf("k", "c")))
+        val form = form(score, items = items)
+
+        assertEquals(300L, value(form, chosen("a" to "3", "c" to "2")))
+    }
+
+    @Test
+    fun `items shown by one choice or another are not taken as alternatives of the first`() {
+        val items = listOf(
+            choice("a"), choice("b"),
+            choice("x", reversed = false).copy(showIf = Condition("a", setOf("1")) or Condition("b", setOf("1"))),
+            choice("y").copy(showIf = Condition("a", setOf("2"))),
+        )
+        val score = Score("sum", "Summe", listOf("x", "y"), direction = Direction.LowerIsBetter, minAnswered = 1)
+        val form = form(score, items = items)
+
+        // Both may show at once: x by b, y by a.
+        assertEquals(0L..600L, Scoring.range(form, score))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `the worse of a pair is of the score's own items`() {
         Score("sum", "Summe", listOf("a", "b"), direction = Direction.HigherIsBetter, worseOf = listOf(listOf("b", "c")))
@@ -466,6 +489,8 @@ class ScoringTest {
         assertEquals(5000L, t(2, -2))
         assertEquals(null, t(2, null))
         assertEquals(7000L, value(form, mapOf("ziele" to Answer.Goals(listOf(Goal("Gehen", 2), Goal(" ", null))))))
+        // A level the item does not have, such as from a stored answer gone wrong, is none.
+        assertEquals(null, t(7))
         assertEquals(null, t())
         assertEquals(null, value(form, emptyMap()))
         assertEquals(1349L..8651L, Scoring.range(form, score))

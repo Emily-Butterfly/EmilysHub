@@ -28,7 +28,10 @@ sealed interface Answer {
 }
 
 /** A goal in [text], rated at the [level] of its points, such as +1 "Ziel übertroffen"; none while unrated. */
-data class Goal(val text: String, val level: Int? = null)
+data class Goal(val text: String, val level: Int? = null) {
+    /** Without words and level: no goal at all, neither stored nor counted. */
+    val isEmpty: Boolean get() = text.isBlank() && level == null
+}
 
 /** With option [optionId] of [item] checked, or unchecked if it was: an exclusive one, such as "nein", stands alone. */
 fun Answer.Checked.toggled(item: ChecklistItem, optionId: String): Answer.Checked {

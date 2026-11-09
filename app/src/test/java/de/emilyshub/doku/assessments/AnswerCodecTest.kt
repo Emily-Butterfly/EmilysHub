@@ -51,6 +51,19 @@ class AnswerCodecTest {
 
         assertEquals("Gehen ohne Stock\nTreppe", stored.text)
         assertEquals(Answer.Goals(listOf(Goal("Gehen ohne Stock", 2), Goal("Treppe", -1))), AnswerCodec.decode(stored))
-        assertNull(AnswerCodec.decode(StoredAnswer("g:1,2", "nur eins")))
+        assertNull(AnswerCodec.decode(StoredAnswer("g:1", "eins\nzwei")))
+    }
+
+    @Test
+    fun `goals whose last are without words read back once the stored text lost its trailing lines`() {
+        listOf(
+            Answer.Goals(listOf(Goal("Treppe", 1), Goal("", 2))),
+            Answer.Goals(listOf(Goal("", 1), Goal("", 0))),
+        ).forEach { answer ->
+            val stored = checkNotNull(AnswerCodec.encode(answer))
+            // As the Doku stores it.
+            val saved = stored.copy(text = de.emilyshub.data.InputText.multiLine(stored.text))
+            assertEquals(answer, AnswerCodec.decode(saved))
+        }
     }
 }

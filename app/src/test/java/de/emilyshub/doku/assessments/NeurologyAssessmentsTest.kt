@@ -62,7 +62,10 @@ class NeurologyAssessmentsTest {
         assertEquals(listOf(null), values("fac", emptyMap()))
         assertEquals("Nicht Funktionell / nicht möglich", bandAt("fac", 0))
         assertEquals("Abhängig - Aufsicht", bandAt("fac", 300))
-        assertEquals("Unabhängig", bandAt("fac", 500))
+        assertEquals(
+            listOf("Nicht Funktionell / nicht möglich", "Abhängig Stufe 2", "Abhängig Stufe 1", "Abhängig - Aufsicht", "Unabhängig - auf ebenen Boden", "Unabhängig"),
+            (0..5).map { bandAt("fac", it * 100L) },
+        )
     }
 
     @Test
@@ -79,6 +82,8 @@ class NeurologyAssessmentsTest {
         assertEquals(5725L, t(1, 0, -1, 2))
         assertNull(t(1, null))
         assertNull(t())
+        // A row left empty is no goal.
+        assertEquals(7000L, value("gas", mapOf("ziele" to Answer.Goals(listOf(Goal("Gehen", 2), Goal("")))), "t"))
         assertEquals(Direction.HigherIsBetter, form("gas").scores.single().direction)
     }
 
@@ -89,9 +94,9 @@ class NeurologyAssessmentsTest {
         // Anticipation, reactive, sensory, gait, total.
         assertEquals(listOf(0L, 0L, 0L, 0L, 0L), values("mini-bestest", everything(0)))
         assertEquals(listOf(600L, 600L, 600L, 1000L, 2800L), values("mini-bestest", everything(2)))
-        // 3 and 6 left 2, right 1: each part loses one; 14 at 1.
-        val mixed = everything(2) + mapOf("3-rechts" to Answer.Chosen("1"), "6-links" to Answer.Chosen("2"), "6-rechts" to Answer.Chosen("2"), "14" to Answer.Chosen("1"))
-            .mapValues { (id, a) -> Answer.Chosen(scored.single { it.id == id }.options.single { o -> o.points == (a as Answer.Chosen).optionId.toInt() }.id) }
+        fun at(id: String, points: Int) = id to Answer.Chosen(scored.single { it.id == id }.options.single { it.points == points }.id)
+        // 3 left 2, right 1: anticipation loses one; 14 at 1.
+        val mixed = everything(2) + at("3-rechts", 1) + at("14", 1)
         assertEquals(listOf(500L, 600L, 600L, 900L, 2600L), values("mini-bestest", mixed))
         assertEquals(listOf(null, 600L, 600L, 900L, null), values("mini-bestest", mixed - "3-links"))
         assertEquals(0L..600L, Scoring.range(form("mini-bestest"), form("mini-bestest").scores[0]))
@@ -134,6 +139,9 @@ class NeurologyAssessmentsTest {
 
         // Screening, symptoms, of them the first two, DSM-IV.
         assertEquals(listOf(0L, null, null, null), values("ms-depression", no))
+        // One question unanswered: no screening yet, the symptoms shown if the other is yes.
+        assertEquals(listOf(null, 0L, 0L, 0L), values("ms-depression", mapOf("1" to Answer.YesNo(true))))
+        assertEquals(listOf("1", "2", "kern", "weitere"), shown(mapOf("1" to Answer.YesNo(true))))
         val yes = no + ("1" to Answer.YesNo(true))
         assertEquals(listOf(100L, 0L, 0L, 0L), values("ms-depression", yes))
         fun checked(core: Set<String>, further: Set<String>) = yes + mapOf("kern" to Answer.Checked(core), "weitere" to Answer.Checked(further))

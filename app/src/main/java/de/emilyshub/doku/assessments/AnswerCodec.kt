@@ -23,7 +23,7 @@ object AnswerCodec {
             if (answer.regions.isEmpty() && text.isEmpty()) null else StoredAnswer(REGIONS + answer.regions.sorted().joinToString(",") { it.id }, text)
         }
         // A line of words each, in the order of the levels; a goal without words or level is none.
-        is Answer.Goals -> answer.goals.map { it.copy(text = it.text.replace('\n', ' ').trim()) }.filter { it.text.isNotEmpty() || it.level != null }
+        is Answer.Goals -> answer.goals.map { it.copy(text = it.text.replace('\n', ' ').trim()) }.filterNot(Goal::isEmpty)
             .takeIf(List<Goal>::isNotEmpty)
             ?.let { goals -> StoredAnswer(GOALS + goals.joinToString(",") { it.level?.toString().orEmpty() }, goals.joinToString("\n", transform = Goal::text)) }
     }
@@ -47,7 +47,8 @@ object AnswerCodec {
             REGIONS -> Answer.Regions(ids().mapNotNull(BodyRegion::of).toSet(), stored.text)
             GOALS -> {
                 val levels = rest.split(',')
-                val texts = stored.text.split('\n')
+                // Stored text loses its trailing empty lines (InputText.multiLine): those of the last goals without words.
+                val texts = stored.text.split('\n').let { it + List(maxOf(0, levels.size - it.size)) { "" } }
                 if (levels.size != texts.size || levels.any { it.isNotEmpty() && it.toIntOrNull() == null }) {
                     null
                 } else {
