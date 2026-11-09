@@ -259,4 +259,53 @@ class ScoringTest {
         val items = listOf(YesNoItem("w", "Sport?"), ChoiceItem("x", "Frage x", zeroToThree, showIf = Condition.ifYes("w")))
         form(Score("all", "Prozent", listOf("x"), rule = ScoreRule.PercentOfAll, unit = "%", direction = Direction.LowerIsBetter), items = items)
     }
+
+    @Test
+    fun `a sum filled by the mean counts each item left out as the mean of those answered of its section, once half of each is answered`() {
+        val sections = listOf(Section(items = listOf(choice("a"), choice("b"), choice("c"))), Section(items = listOf(choice("d"), choice("e"))))
+        val score = Score("filled", "Gefüllt", listOf("a", "b", "c", "d", "e"), rule = ScoreRule.MeanFilled, direction = Direction.LowerIsBetter)
+        val form = Assessment(id = "probe", name = "Probe", categories = listOf(AssessmentCategory.Miscellaneous), source = "Probe", sections = sections, scores = listOf(score))
+
+        assertEquals(1500L, value(form, chosen("a" to "3", "b" to "3", "c" to "3", "d" to "3", "e" to "3")))
+        // a, b: 1 + 2 filled up to three by 1,5 = 4,5; d alone: 3 twice = 6.
+        assertEquals(1050L, value(form, chosen("a" to "1", "b" to "2", "d" to "3")))
+        assertEquals(null, value(form, chosen("a" to "1", "d" to "3", "e" to "3")))
+        assertEquals(null, value(form, chosen("a" to "1", "b" to "2", "c" to "3")))
+        assertEquals(0L..1500L, Scoring.range(form, score))
+    }
+
+    @Test
+    fun `a score with a divisor is divided by it, and so is its range`() {
+        val form = form(Score("half", "Hälfte", listOf("a", "b", "c"), direction = Direction.LowerIsBetter, divisor = 2))
+
+        assertEquals(350L, value(form, chosen("a" to "1", "b" to "3", "c" to "3")))
+        assertEquals(0L..450L, Scoring.range(form, form.scores.single()))
+    }
+
+    @Test
+    fun `a score of others adds up their values, none while any of them has none`() {
+        val first = Score("ab", "a und b", listOf("a", "b"), direction = Direction.LowerIsBetter)
+        val second = Score("c", "c halb", listOf("c"), direction = Direction.LowerIsBetter, divisor = 2)
+        val total = Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("ab", "c"), direction = Direction.LowerIsBetter)
+        val form = form(first, second, total)
+
+        assertEquals(listOf(300L, 150L, 450L), Scoring.results(form, chosen("a" to "1", "b" to "2", "c" to "3")).map(ScoreResult::value))
+        assertEquals(listOf(300L, null, null), Scoring.results(form, chosen("a" to "1", "b" to "2")).map(ScoreResult::value))
+        assertEquals(0L..750L, Scoring.range(form, total))
+    }
+
+    @Test
+    fun `a score of others adds up their exact values, rounded once`() {
+        val third = Score("a", "a durch 3", listOf("a"), direction = Direction.LowerIsBetter, divisor = 3)
+        val b = Score("b", "b durch 3", listOf("b"), direction = Direction.LowerIsBetter, divisor = 3)
+        val form = form(third, b, Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("a", "b"), direction = Direction.LowerIsBetter))
+
+        // 1/3 and 1/3 are 0,33 each, but 2/3 together.
+        assertEquals(listOf(33L, 33L, 67L), Scoring.results(form, chosen("a" to "1", "b" to "1")).map(ScoreResult::value))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a score of others counts only scores before it`() {
+        form(Score("gesamt", "Gesamt", emptyList(), sumOf = listOf("ab"), direction = Direction.LowerIsBetter), Score("ab", "a und b", listOf("a", "b"), direction = Direction.LowerIsBetter))
+    }
 }

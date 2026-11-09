@@ -12,7 +12,16 @@ object Scoring {
     /** Each score of [form] from [answers] by item id; items not shown ([visible]) count for nothing. */
     fun results(form: Assessment, answers: Map<String, Answer>): List<ScoreResult> {
         val shown = visible(form, answers).map(Item::id).toSet()
-        return form.scores.map { score -> ScoreResult(score, value(form, score, answers.filterKeys { it in shown }, shown)) }
+        val exact = mutableMapOf<String, Fraction?>()
+        return form.scores.map { score ->
+            val fraction = if (score.sumOf.isNotEmpty()) {
+                score.sumOf.map { exact[it] }.takeIf { parts -> parts.all { it != null } }?.map { checkNotNull(it) }?.reduce(Fraction::plus)
+            } else {
+                value(form, score, answers.filterKeys { it in shown }, shown)
+            }?.let { Fraction(it.numerator, it.denominator * score.divisor) }
+            exact[score.id] = fraction
+            ScoreResult(score, fraction?.hundredths())
+        }
     }
 
     /** Whether [form] reaches a result with nothing answered, as one counting what is ticked, nothing being 0. */
@@ -50,16 +59,23 @@ object Scoring {
 
     /** The least and the most [score] of [form] can be, in hundredths: for the chart's scale. */
     fun range(form: Assessment, score: Score): LongRange {
+        if (score.sumOf.isNotEmpty()) {
+            val parts = score.sumOf.map { id -> range(form, form.scores.single { it.id == id }) }
+            return parts.sumOf { it.first }..parts.sumOf { it.last }
+        }
         val items = score.items.map { checkNotNull(form.item(it)) }
         val ranges = items.map { checkNotNull(range(it)) }
-        return when (score.rule) {
+        val range = when (score.rule) {
             ScoreRule.Sum -> {
                 val counted = alternativesOnce(form, items.zip(ranges))
                 counted.sumOf { it.first } * HUNDRED..counted.sumOf { it.second } * HUNDRED
             }
+            ScoreRule.MeanFilled -> ranges.sumOf { it.first } * HUNDRED..ranges.sumOf { it.second } * HUNDRED
             ScoreRule.Mean -> ranges.minOf { it.first } * HUNDRED..ranges.maxOf { it.second } * HUNDRED
             ScoreRule.Percent, ScoreRule.ZeroTo100, ScoreRule.PercentOfAll -> 0L..HUNDRED * HUNDRED
         }
+        val by = HUNDRED * score.divisor
+        return Fraction(range.first, by).hundredths()..Fraction(range.last, by).hundredths()
     }
 
     /**
@@ -82,30 +98,42 @@ object Scoring {
         else -> false
     }
 
-    /** [score] of [form] from [answers] to the items [shown], in hundredths; none while fewer than its [Score.minAnswered] are answered. */
-    private fun value(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Long? {
-        val answered = score.items.mapNotNull { id ->
+    /** [score] of [form] from [answers] to the items [shown], exact; none while fewer than its [Score.minAnswered] are answered. */
+    private fun value(form: Assessment, score: Score, answers: Map<String, Answer>, shown: Set<String>): Fraction? {
+        fun answered(ids: List<String>) = ids.mapNotNull { id ->
             val item = checkNotNull(form.item(id))
             // Nothing checked of a scored checklist shown is an answer too: none applies.
             val answer = answers[id] ?: Answer.Checked(emptySet()).takeIf { (item as? ChecklistItem)?.scored == true && id in shown }
             answer?.let { points(item, it)?.let { p -> p to checkNotNull(range(item)) } }
         }
+        if (score.rule == ScoreRule.MeanFilled) return meanFilled(form, score, ::answered)
+        val answered = answered(score.items)
         if (answered.size < score.minAnswered) return null
         val sum = answered.sumOf { it.first }
         val least = answered.sumOf { it.second.first }
         val most = answered.sumOf { it.second.second }
         return when (score.rule) {
-            ScoreRule.Sum -> sum * HUNDRED
-            ScoreRule.Mean -> rounded(sum * HUNDRED, answered.size.toLong())
-            ScoreRule.Percent -> rounded(sum * HUNDRED * HUNDRED, most)
-            ScoreRule.ZeroTo100 -> rounded((sum - least) * HUNDRED * HUNDRED, most - least)
+            ScoreRule.Sum -> Fraction(sum, 1)
+            ScoreRule.Mean -> Fraction(sum, answered.size.toLong())
+            ScoreRule.Percent -> Fraction(sum * HUNDRED, most)
+            ScoreRule.ZeroTo100 -> Fraction((sum - least) * HUNDRED, most - least)
             ScoreRule.PercentOfAll -> {
                 val all = score.items.mapNotNull { range(checkNotNull(form.item(it))) }
-                rounded((sum + (all.sumOf { it.first } - least)) * HUNDRED * HUNDRED, all.sumOf { it.second })
+                Fraction((sum + (all.sumOf { it.first } - least)) * HUNDRED, all.sumOf { it.second })
             }
-        }
+            ScoreRule.MeanFilled -> error("reckoned by section")
+        }.takeIf { it.denominator != 0L }
     }
 
+    /** [score] filled up by the mean of each section of [form]'s items: the sum of each section times its items over those answered. */
+    private fun meanFilled(form: Assessment, score: Score, answered: (List<String>) -> List<Pair<Long, Pair<Long, Long>>>): Fraction? {
+        val sections = form.sections.map { section -> section.items.map(Item::id).filter { it in score.items } }.filter(List<String>::isNotEmpty)
+        return sections.map { ids ->
+            val points = answered(ids)
+            if (points.size < half(ids.size)) return null
+            Fraction(points.sumOf { it.first } * ids.size, points.size.toLong())
+        }.reduce(Fraction::plus)
+    }
     /** The points [answer] makes for [item], reversed ones counted the other way round; none for an answer that does not fit it. */
     internal fun points(item: Item, answer: Answer): Long? {
         val raw = when (item) {
@@ -137,12 +165,17 @@ object Scoring {
             else -> false
         }
 
-    /** [dividend] / [divisor], rounded half away from zero; none if the divisor is 0. */
-    private fun rounded(dividend: Long, divisor: Long): Long? {
-        if (divisor == 0L) return null
-        val half = Math.abs(divisor) / 2
-        val sign = if ((dividend < 0) != (divisor < 0)) -1 else 1
-        return sign * ((Math.abs(dividend) + half) / Math.abs(divisor))
+    /** A value as it is, [numerator] over [denominator], to be rounded once at the end. */
+    private data class Fraction(val numerator: Long, val denominator: Long) {
+        operator fun plus(other: Fraction) = Fraction(numerator * other.denominator + other.numerator * denominator, denominator * other.denominator)
+
+        /** In hundredths, rounded half away from zero. */
+        fun hundredths(): Long {
+            val dividend = numerator * HUNDRED
+            val by = denominator
+            val sign = if ((dividend < 0) != (by < 0)) -1 else 1
+            return sign * ((Math.abs(dividend) + Math.abs(by) / 2) / Math.abs(by))
+        }
     }
 
     private const val HUNDRED = 100L

@@ -96,4 +96,10 @@ class BuiltInAssessmentsTest {
         val lower = BuiltInAssessments.byCategory(hidden = emptySet()).getValue(AssessmentCategory.LowerExtremity).map(Assessment::id)
         assertEquals((KNEE_HIP + FOOT_ANKLE).map(Assessment::id).sorted(), lower.sorted())
     }
+
+    @Test
+    fun `the upper extremity holds its own forms, and no other`() {
+        val upper = BuiltInAssessments.byCategory(hidden = emptySet()).getValue(AssessmentCategory.UpperExtremity).map(Assessment::id)
+        assertEquals(UPPER_EXTREMITY.map(Assessment::id).sorted(), upper.sorted())
+    }
 }

@@ -41,6 +41,12 @@ data class Assessment(
             score.items.forEach { itemId ->
                 require(item(itemId)?.scorable == true) { "$id: score ${score.id} counts $itemId, which has no points" }
             }
+            // Filled up by section, it needs half of each section, not a number of its own.
+            require(score.rule != ScoreRule.MeanFilled || score.minAnswered == score.items.size) {
+                "$id: score ${score.id} is filled by the mean, which needs half of each section answered, not minAnswered"
+            }
+            val before = scores.takeWhile { it !== score }.map(Score::id)
+            require(score.sumOf.all { it in before }) { "$id: score ${score.id} adds up scores that do not come before it" }
         }
         items.forEach { item ->
             val options = (item as? ChoiceItem)?.options ?: (item as? ChecklistItem)?.options.orEmpty()
@@ -206,9 +212,10 @@ enum class BodyRegion(val id: String, val label: String) {
 }
 
 /**
- * A result of a form, such as its sum or a subscale: by [rule] over the points of [items], in [unit], better the
- * [direction] way, its [bands] naming where it lies. Reckoned once [minAnswered] of its items are answered, all of them
- * unless the original allows fewer.
+ * A result of a form, such as its sum or a subscale: by [rule] over the points of [items], divided by [divisor], in [unit],
+ * better the [direction] way, its [bands] naming where it lies. Reckoned once [minAnswered] of its items are answered, all
+ * of them unless the original allows fewer. Or, with no items, the sum of the scores before it that [sumOf] names, such as
+ * a total of pain and function, once each of them has a value.
  */
 data class Score(
     val id: String,
@@ -220,9 +227,16 @@ data class Score(
     /** From the lowest up, each up to and including its bound. */
     val bands: List<Band> = emptyList(),
     val minAnswered: Int = items.size,
+    /** Such as 2, for "geteilt durch 2". */
+    val divisor: Int = 1,
+    /** The ids of the scores before it whose values it adds up, in place of items. */
+    val sumOf: List<String> = emptyList(),
 ) {
     init {
-        require(minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
+        require(items.isEmpty() != sumOf.isEmpty()) { "$id: a score counts either items or other scores" }
+        require(sumOf.isNotEmpty() || minAnswered in 1..items.size) { "$id: minAnswered must lie within 1 and the number of its items" }
+        require(sumOf.isEmpty() || rule == ScoreRule.Sum) { "$id: other scores are only added up" }
+        require(divisor >= 1) { "$id: the divisor must be positive" }
         require(bands.zipWithNext().all { (a, b) -> a.upTo < b.upTo }) { "$id: bands must rise" }
     }
 }
@@ -243,6 +257,12 @@ enum class ScoreRule {
 
     /** Their sum in percent of the most all its items could reach: an item left out counts its least. */
     PercentOfAll,
+
+    /**
+     * Their sum, each item left out counted as the mean of those answered in its section of the form, once half of each
+     * section's items are answered: the PRTEE's "Mittelwert der entsprechenden Kategorie" (09.11.2026).
+     */
+    MeanFilled,
 }
 
 /** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */
