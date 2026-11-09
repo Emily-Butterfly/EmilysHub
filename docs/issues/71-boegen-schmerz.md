@@ -56,6 +56,7 @@ Abgestimmt im Interview vom 08.11.2026.
 - GCPS: Grad I bei weniger als 3 BP und unter 50 Schmerzintensität, Grad II bei weniger als 3 BP ab 50, Grad III bei 3–4 BP, Grad IV bei 5–6 BP; die Zwischenergebnisse (Tage, BP (a), subjektive Beeinträchtigung, BP (b), Gesamtbeeinträchtigung, Schmerzintensität) stehen als eigene Ergebnisse da.
 - STarT Back: Gesamtpunktzahl bis 3 geringes Risiko, sonst Teilsumme der Fragen 5–9 bis 3 mittleres Risiko, sonst hohe Chronifizierungsgefahr; „Chronifizierungsrisiko“ als drittes Ergebnis (1 bis 3).
 - Tage als Zahl: MIDAS-Fragen 1–5 je 0 bis 92 (drei Monate), GCPS-Frage 1 0 bis 184 (sechs Monate); mehr oder Nachkommastellen nimmt das Feld nicht an. MIDAS A und B zählen nicht mit.
+- GCPS: „Hauptschmerzen:“ als Textfeld vor Frage 1, da die Fragen „betreffend Ihrer Hauptschmerzen“ gestellt sind; die übrigen Kopfzeilen (Name, Datum …) nicht.
 - CSI-GE Teil B ohne Punkte, das Jahr der Diagnosestellung erst nach einem Ja.
 - Örebro: Frage 1 zählt 1 bis 10 nach der Auswertung („über 1 Jahr“ = 10, im Bogen ohne Zahl); Fragen 3, 4 und 8 als 10 minus die Zahl.
 - Namen wie bei DIGOTOR; Abkürzungen aus den PDFs: CSI-GE, CSI-9, DN4, LANSS, GCPS, NPQ-D, MIDAS, ÖMPSQ, PCS, FESS; der STarT Back hat keine, die Suche findet ihn über den Namen.
