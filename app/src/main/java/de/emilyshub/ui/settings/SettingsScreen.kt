@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,28 +41,40 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
 import de.emilyshub.data.Design
-import de.emilyshub.data.Settings
+import de.emilyshub.data.AppSettings
 import de.emilyshub.reminders.Tone
 import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.security.AppLock
+import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.reminders.DefaultToneSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    settings: Settings,
+    appSettings: AppSettings,
+    appLock: AppLock,
     canAuthenticate: () -> Boolean,
-    onDesignChange: (Design) -> Unit,
-    onAppLockChange: (Boolean) -> Unit,
-    onLookAroundChange: (Boolean) -> Unit,
     tones: ToneCollection,
-    onAlarmToneChange: (Tone) -> Unit,
-    onNotificationToneChange: (Tone) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenPlaces: () -> Unit,
     onOpenTags: () -> Unit,
     onOpenBackups: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val settings = appSettings.current ?: return
+    // Each saves to its end by itself, though the screen is gone meanwhile (AppSettings).
+    val scope = rememberCoroutineScope()
+    val onDesignChange = { design: Design -> scope.launchNow { appSettings.setDesign(design) }; Unit }
+    val onAppLockChange = { enabled: Boolean ->
+        scope.launchNow {
+            appSettings.setAppLockEnabled(enabled)
+            appLock.setEnabled(enabled)
+        }
+        Unit
+    }
+    val onLookAroundChange = { enabled: Boolean -> scope.launchNow { appSettings.setLookAroundEnabled(enabled) }; Unit }
+    val onAlarmToneChange = { tone: Tone -> scope.launchNow { appSettings.setAlarmTone(tone) }; Unit }
+    val onNotificationToneChange = { tone: Tone -> scope.launchNow { appSettings.setNotificationTone(tone) }; Unit }
     Scaffold(
         topBar = {
             TopAppBar(

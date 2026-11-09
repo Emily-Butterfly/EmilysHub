@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import de.emilyshub.reminders.DefaultTones
 import de.emilyshub.reminders.Tone
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
@@ -65,22 +66,16 @@ class AppSettings(
     suspend fun setRemindersAsked() =
         save(REMINDERS_ASKED, YES) { it.copy(remindersAsked = true) }
 
-    suspend fun setLookAroundEnabled(enabled: Boolean) {
-        save(LOOK_AROUND, if (enabled) ON else OFF) { it.copy(lookAroundEnabled = enabled) }
-        onLookAroundChange()
-    }
+    suspend fun setLookAroundEnabled(enabled: Boolean) =
+        save(LOOK_AROUND, if (enabled) ON else OFF, then = onLookAroundChange) { it.copy(lookAroundEnabled = enabled) }
 
     /** The default tone of full-screen alarms (SPEC.md §3), for those without one of their own. */
-    suspend fun setAlarmTone(tone: Tone) {
-        save(ALARM_TONE, tone.stored) { it.copy(tones = it.tones.copy(alarm = tone)) }
-        onTonesChange()
-    }
+    suspend fun setAlarmTone(tone: Tone) =
+        save(ALARM_TONE, tone.stored, then = onTonesChange) { it.copy(tones = it.tones.copy(alarm = tone)) }
 
     /** The default tone of notifications (SPEC.md §3), for those without one of their own. */
-    suspend fun setNotificationTone(tone: Tone) {
-        save(NOTIFICATION_TONE, tone.stored) { it.copy(tones = it.tones.copy(notification = tone)) }
-        onTonesChange()
-    }
+    suspend fun setNotificationTone(tone: Tone) =
+        save(NOTIFICATION_TONE, tone.stored, then = onTonesChange) { it.copy(tones = it.tones.copy(notification = tone)) }
 
     /** The default tones, read anew from the database: the reminders ask while the app may be closed. */
     suspend fun defaultTones(): DefaultTones = withContext(io) {
@@ -93,12 +88,17 @@ class AppSettings(
     /** On unless stored as off, as for the app lock and looking around. */
     private fun isOn(stored: String?) = stored != OFF
 
-    /** Writes first and only then shows the change, applied to whatever is current by then. */
-    private suspend fun save(name: String, value: String, change: (Settings) -> Settings) {
-        checkNotNull(current) { "Settings can only change after load()" }
-        withContext(io) { dao().put(Setting(name, value)) }
-        current = current?.let(change)
-    }
+    /**
+     * Writes first and only then shows the change, applied to whatever is current by then, and does what follows it
+     * ([then]); all of it to its end, though the screen that asked is gone meanwhile, as when the app locks.
+     */
+    private suspend fun save(name: String, value: String, then: suspend () -> Unit = {}, change: (Settings) -> Settings) =
+        withContext(NonCancellable) {
+            checkNotNull(current) { "Settings can only change after load()" }
+            withContext(io) { dao().put(Setting(name, value)) }
+            current = current?.let(change)
+            then()
+        }
 
     private companion object {
         const val DESIGN = "design"

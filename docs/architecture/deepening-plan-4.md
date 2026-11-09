@@ -150,7 +150,11 @@ getters plan 2 §2 kept for tests, go.
 
 ## 8 · The shell stops passing things through
 
-**Status:** open.
+**Status:** done. `SettingsScreen` takes `AppSettings` and `AppLock` and saves itself; `AppSettings` saves each setting,
+and what follows it (the reminders following looking around and the tones), to its end however its caller goes
+(`NonCancellable`), so that the outer scope `EmilysHubApp` kept against the lock, and the seven callbacks `AppShell`
+passed on, are gone: `AppShell(hub, settings)`. `DokuArea` takes the `Hub` and builds its `DokuModules` itself, so that
+a new module of the Doku no longer touches the shell. The `when` over the destinations stays (plan 1 §3).
 
 `EmilysHubApp` passes seven settings callbacks to `SettingsScreen` and builds the Doku's `DokuModules` bag of five
 modules. The settings screen takes the settings module, which saves non-cancellably itself; the Doku is handed over

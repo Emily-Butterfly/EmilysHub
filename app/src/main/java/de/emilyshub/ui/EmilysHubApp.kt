@@ -58,7 +58,6 @@ import de.emilyshub.data.Settings
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
-import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.tags.Tags
@@ -68,7 +67,6 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
-import de.emilyshub.ui.doku.DokuModules
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
@@ -117,7 +115,6 @@ import de.emilyshub.ui.wishes.WishEditorScreen
 import de.emilyshub.ui.wishes.WishEditorTarget
 import de.emilyshub.ui.wishes.WishReviewScreen
 import de.emilyshub.ui.wishes.WishlistScreen
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -138,29 +135,12 @@ fun EmilysHubApp(hub: Hub) {
 
     // Keeps the open area and screen while the content is gone behind the lock screen.
     val lockedAwayState = rememberSaveableStateHolder()
-    // Outside the content, so that locking does not cancel a setting that is still being saved.
-    val scope = rememberCoroutineScope()
     EmilysHubTheme(darkTheme = darkTheme) {
         if (lock.isLocked) {
             LockScreen(onUnlock = { authenticator.authenticate(activity, lock::unlock) })
         } else {
             lockedAwayState.SaveableStateProvider("content") {
-                AppShell(
-                    hub = hub,
-                    settings = current,
-                    canAuthenticate = authenticator::canAuthenticate,
-                    onDesignChange = { design -> scope.launch { settings.setDesign(design) } },
-                    onAppLockChange = { enabled ->
-                        scope.launch {
-                            settings.setAppLockEnabled(enabled)
-                            lock.setEnabled(enabled)
-                        }
-                    },
-                    onLookAroundChange = { enabled -> scope.launch { settings.setLookAroundEnabled(enabled) } },
-                    onAlarmToneChange = { tone -> scope.launch { settings.setAlarmTone(tone) } },
-                    onNotificationToneChange = { tone -> scope.launch { settings.setNotificationTone(tone) } },
-                    onRemindersAsked = { scope.launch { settings.setRemindersAsked() } },
-                )
+                AppShell(hub, current)
             }
         }
     }
@@ -192,17 +172,9 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 }
 
 @Composable
-private fun AppShell(
-    hub: Hub,
-    settings: Settings,
-    canAuthenticate: () -> Boolean,
-    onDesignChange: (Design) -> Unit,
-    onAppLockChange: (Boolean) -> Unit,
-    onLookAroundChange: (Boolean) -> Unit,
-    onAlarmToneChange: (Tone) -> Unit,
-    onNotificationToneChange: (Tone) -> Unit,
-    onRemindersAsked: () -> Unit,
-) {
+private fun AppShell(hub: Hub, settings: Settings) {
+    // Saves to its end by itself, though the shell is gone meanwhile behind the lock (AppSettings).
+    val scope = rememberCoroutineScope()
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
     // The screens open over the tabs, each going back to the one it was opened from.
     var stack by rememberSaveable { mutableStateOf(BackStack()) }
@@ -247,7 +219,9 @@ private fun AppShell(
             onTabsChange = { tabs = it },
             open = open,
         )
-        if (!settings.remindersAsked) AskOnceSomethingReminds(hub.routines, hub.todos, onRemindersAsked)
+        if (!settings.remindersAsked) {
+            AskOnceSomethingReminds(hub.routines, hub.todos) { scope.launchNow { hub.settings.setRemindersAsked() } }
+        }
         return
     }
     BackHandler(onBack = back)
@@ -320,14 +294,10 @@ private fun AppShell(
             Destination.Tags -> TagsScreen(hub.tags, onBack = back)
             Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, onBack = back)
             Destination.Settings -> SettingsScreen(
-                settings = settings,
-                canAuthenticate = canAuthenticate,
-                onDesignChange = onDesignChange,
-                onAppLockChange = onAppLockChange,
-                onLookAroundChange = onLookAroundChange,
+                appSettings = hub.settings,
+                appLock = hub.appLock,
+                canAuthenticate = hub.authenticator::canAuthenticate,
                 tones = hub.toneCollection,
-                onAlarmToneChange = onAlarmToneChange,
-                onNotificationToneChange = onNotificationToneChange,
                 onOpenStatus = { open(Destination.Status) },
                 onOpenPlaces = { open(Destination.Places) },
                 onOpenTags = { open(Destination.Tags) },
@@ -524,8 +494,7 @@ private fun TopLevelScaffold(
                     onOpenReview = { open(Destination.WishReview) },
                 )
                 MoreEntry.Doku -> DokuArea(
-                    doku = hub.doku,
-                    modules = remember(hub) { DokuModules(hub.patients, hub.appointments, hub.tests, hub.measurements, hub.assessments) },
+                    hub = hub,
                     pages = tabs.doku,
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,

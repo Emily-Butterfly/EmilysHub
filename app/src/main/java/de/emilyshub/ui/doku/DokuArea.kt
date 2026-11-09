@@ -46,6 +46,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.withResumed
+import de.emilyshub.Hub
 import de.emilyshub.R
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Assessments
@@ -64,7 +65,9 @@ import kotlinx.coroutines.launch
  * unlock starts on its start page.
  */
 @Composable
-internal fun DokuArea(doku: Doku, modules: DokuModules, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+internal fun DokuArea(hub: Hub, pages: DokuPages, onPagesChange: (DokuPages) -> Unit, contentPadding: PaddingValues) {
+    val doku = hub.doku
+    val modules = remember(hub) { DokuModules(hub.patients, hub.appointments, hub.tests, hub.measurements, hub.assessments) }
     val activity = checkNotNull(LocalActivity.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(doku, lifecycle) {
