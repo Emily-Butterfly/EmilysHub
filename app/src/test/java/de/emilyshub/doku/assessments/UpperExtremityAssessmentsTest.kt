@@ -44,9 +44,10 @@ class UpperExtremityAssessmentsTest {
         assertEquals(listOf(null), values("isis", chosen("isis", 2, 2, 0, 1, 0)))
 
         assertNull(bandAt("isis", 300))
-        assertTrue(bandAt("isis", 400)!!.startsWith("Höheres Rezidivrisiko"))
-        assertTrue(bandAt("isis", 500)!!.startsWith("Höheres Rezidivrisiko"))
-        assertTrue(bandAt("isis", 600)!!.startsWith("Hoher Score"))
+        assertEquals("Höheres Rezidivrisiko (> 3)", bandAt("isis", 400))
+        assertEquals("Höheres Rezidivrisiko (> 3)", bandAt("isis", 500))
+        assertEquals("Hoher Score (6/10 nach Balg)", bandAt("isis", 600))
+        assertEquals("Hoher Score (6/10 nach Balg)", bandAt("isis", 1000))
         assertEquals(Direction.LowerIsBetter, form("isis").scores.single().direction)
     }
 
@@ -60,6 +61,7 @@ class UpperExtremityAssessmentsTest {
 
         assertNull(bandAt("nisis", 600))
         assertTrue(bandAt("nisis", 700)!!.contains("seltener ein Return to Sport"))
+        assertTrue(bandAt("nisis", 1000)!!.contains("seltener ein Return to Sport"))
     }
 
     @Test
@@ -80,6 +82,7 @@ class UpperExtremityAssessmentsTest {
         assertTrue(bandAt("karpaltunnel", 300)!!.startsWith("Bei einer Punktzahl von 3-4"))
         assertTrue(bandAt("karpaltunnel", 400)!!.startsWith("Bei einer Punktzahl von 3-4"))
         assertTrue(bandAt("karpaltunnel", 500)!!.startsWith("Ab 5 Punkten"))
+        assertTrue(bandAt("karpaltunnel", 1200)!!.startsWith("Ab 5 Punkten"))
     }
 
     @Test
@@ -173,6 +176,7 @@ class UpperExtremityAssessmentsTest {
         assertEquals("Gut", bandAt("walch-duplay", 7600))
         assertEquals("Gut", bandAt("walch-duplay", 9000))
         assertEquals("Exzellent", bandAt("walch-duplay", 9100))
+        assertEquals("Exzellent", bandAt("walch-duplay", 10000))
     }
 
     @Test

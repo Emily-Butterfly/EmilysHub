@@ -20,7 +20,7 @@ private fun choose(id: String, text: String, vararg labels: String) = ChoiceItem
 private fun lettered(prefix: String, least: String, most: String, vararg texts: String): List<Item> =
     texts.mapIndexed { i, text -> ('a' + i).let { letter -> ScaleItem("$prefix-$letter", "$letter) $text", 0, 10, least, most) } }
 
-/** Instability Severity Index Score (Balg et al. 2007), as in "Instability-Severity-Score_ISIS_10-2026.pdf". */
+/** Instability Severity Score (Balg et al. 2007), as in "Instability-Severity-Score_ISIS_10-2026.pdf". */
 private val ISIS: Assessment = run {
     val items = listOf(
         ChoiceItem("1", "1. Alter", scored("≤20" to 2, ">20" to 0)),
@@ -36,7 +36,8 @@ private val ISIS: Assessment = run {
     )
     Assessment(
         id = "isis",
-        name = "Instability Severity Index Score",
+        // As the PDF's title and DIGOTOR name it.
+        name = "Instability Severity Score",
         abbreviation = "ISIS",
         categories = listOf(AssessmentCategory.UpperExtremity),
         source = "ISIS, Stand 10/2026",
@@ -58,8 +59,8 @@ private val ISIS: Assessment = run {
                 "gesamt", "Gesamtscore", items,
                 bands = listOf(
                     Band.upTo(3, null),
-                    Band.upTo(5, "Höheres Rezidivrisiko schon bei Werten >3"),
-                    Band.upTo(10, "Hoher Score (6/10 nach Balg et al. 2007): höhere Rezidivrate nach einer arthroskopischen Bankart-Stabilisation"),
+                    Band.upTo(5, "Höheres Rezidivrisiko (> 3)"),
+                    Band.upTo(10, "Hoher Score (6/10 nach Balg)"),
                 ),
             ),
         ),
@@ -91,7 +92,7 @@ private val NISIS: Assessment = run {
             "Score keinen prädiktiven Wert für eine Rezidivinstabilität (Luxation, Subluxation) auf.",
         sections = listOf(Section(items = items)),
         scores = listOf(
-            lowerBetter("gesamt", "Gesamtscore", items, bands = listOf(Band.upTo(6, null), Band.upTo(10, "Bei einem höheren Score ≥7/10 gelingt seltener ein Return to Sport"))),
+            lowerBetter("gesamt", "Gesamtscore", items, bands = listOf(Band.upTo(6, null), Band.upTo(10, "Nach Tokish et al. gelingt bei einem höheren Score ≥7/10 seltener ein Return to Sport."))),
         ),
     )
 }
@@ -317,7 +318,8 @@ private val SPADI: Assessment = run {
             "schlechteste Ergebnis.\n\n" +
             "Eine deutsche kulturelle Validierung ist vorhanden (Angst et al. 2007). Sie beschreiben die interne Konsistenz mit " +
             "Cronbachs Alpha von 0.95, die Reliabilität mit r = 0.94, der MDC wird mit 18 Punkten angegeben. Es bestehen leichte " +
-            "Boden und Deckeneffekte.\n\n" +
+            "Boden und Deckeneffekte. Die Dauer des Ausfüllens und Auswertens wird mit 5 – 10 Minuten angegeben (Roach et " +
+            "al. 1991), Angst et al. (2007) geben 2 Minuten + Auswertung an. Der Fragebogen ist im Internet frei erhältlich.\n\n" +
             "Der Patient gibt sich selbst Punkte zwischen 0 (keine Schmerzen/keine Schwierigkeiten) und 10 (schlimmste " +
             "Schmerzen/Tätigkeit nicht ausführbar). Achtung: Alle Fragen müssen beantwortet werden!\n\n" +
             "Total Score: Summe der Antwortpunkte / 130 x 100. 100 Punkte = maximale Schmerzen, keine der Tätigkeiten ist " +
