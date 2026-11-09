@@ -28,15 +28,22 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
     /** Appointment [id]; none once deleted or the Doku is locked. */
     suspend fun get(id: Long): Appointment? = doku.withDatabase { it.appointments().get(id) }
 
-    /** Whether appointment [id] may be changed: it is there, and its patient is active. */
-    suspend fun canChange(id: Long): Boolean = doku.withDatabase { changeable(it, id) != null } == true
+    /**
+     * Appointment [id] as its page shows it, in one read: with its patient's name and whether it may be changed
+     * ([editableAppointment]); none once deleted, its patient gone, or the Doku locked.
+     */
+    suspend fun page(id: Long): AppointmentView? = doku.withDatabase { database ->
+        val appointment = database.appointments().get(id) ?: return@withDatabase null
+        val patient = database.patients().get(appointment.patientId) ?: return@withDatabase null
+        AppointmentView(appointment, patient.name, patient.canChange)
+    }
 
     /**
      * Adds an appointment today, without a time, to active patient [patientId], its text the template's as it is now;
      * its id, none for a closed patient or once locked.
      */
     suspend fun create(patientId: Long): Long? = doku.changing { database ->
-        database.patients().get(patientId)?.takeUnless(Patient::isClosed) ?: return@changing null
+        database.editablePatient(patientId) ?: return@changing null
         val text = database.settings().get(TEMPLATE).orEmpty()
         val appointment = Appointment(patientId = patientId, date = LocalDate.now(clock), text = text)
         database.appointments().insert(appointment).also { made[it] = appointment.copy(id = it) }
@@ -78,7 +85,7 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
 
     /** Deletes appointment [id] for good; one of a closed patient stays, as it is only to read. */
     suspend fun delete(id: Long) {
-        doku.changing { database -> changeable(database, id)?.let { database.appointments().delete(it.id) } }
+        doku.changing { database -> database.editableAppointment(id)?.let { database.appointments().delete(it.id) } }
     }
 
     /** The appointment template, empty for none; none once locked. */
@@ -95,13 +102,13 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
 
     /** Sets the text of appointment [id] to [text], cleaned; a closed patient's is only to read. */
     private suspend fun writeText(database: DokuDatabase, id: Long, text: String) {
-        val appointment = changeable(database, id) ?: return
+        val appointment = database.editableAppointment(id) ?: return
         database.appointments().update(appointment.copy(text = InputText.multiLine(text)))
     }
 
     /** Deletes the appointment [created] if it is still as it was and nothing was measured or filled in at it. */
     private suspend fun dropIfUntouched(database: DokuDatabase, created: Appointment) {
-        val appointment = changeable(database, created.id) ?: return
+        val appointment = database.editableAppointment(created.id) ?: return
         if (appointment == created && database.measurements().at(created.id).isEmpty() && database.assessments().at(created.id).isEmpty()) {
             database.appointments().delete(created.id)
         }
@@ -114,16 +121,13 @@ class Appointments(private val doku: Doku, private val clock: Clock, private val
 
     /** Changes appointment [id] as [change] has it; a closed patient's is only to read. */
     private suspend fun change(id: Long, change: (Appointment) -> Appointment) {
-        doku.changing { database -> changeable(database, id)?.let { database.appointments().update(change(it)) } }
-    }
-
-    /** Appointment [id], if its patient is active; a closed patient's are only to read. */
-    private suspend fun changeable(database: DokuDatabase, id: Long): Appointment? {
-        val appointment = database.appointments().get(id) ?: return null
-        return appointment.takeIf { database.patients().get(it.patientId)?.isClosed == false }
+        doku.changing { database -> database.editableAppointment(id)?.let { database.appointments().update(change(it)) } }
     }
 
     companion object {
         private const val TEMPLATE = "appointment-template"
     }
 }
+
+/** An appointment as its page shows it: with its [patientName], and whether it [canChange] (SPEC.md §14). */
+data class AppointmentView(val appointment: Appointment, val patientName: String, val canChange: Boolean)

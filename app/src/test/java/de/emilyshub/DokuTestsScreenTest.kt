@@ -62,7 +62,7 @@ class DokuTestsScreenTest {
         val test = checkNotNull(app.tests.save(null, draft))
         val patient = checkNotNull(app.patients.create(PatientDraft("Frau M.")))
         val appointment = checkNotNull(app.appointments.create(patient))
-        val form = checkNotNull(app.measurements.newForm(test))
+        val form = checkNotNull(app.measurements.newForm(appointment, test))
         app.measurements.save(appointment, null, form, MeasurementDraft(mapOf(form.fields.last().id to "5")))
         test
     }

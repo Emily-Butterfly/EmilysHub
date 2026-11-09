@@ -72,6 +72,9 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
         doku.changing { writeText(it, id, field, text) }
     }
 
+    /** [field] of patient [id] to write; none for a closed patient ([editablePatient]), once deleted, or once locked. */
+    suspend fun textToWrite(id: Long, field: PatientField): String? = doku.withDatabase { it.editablePatient(id)?.textOf(field) }
+
     /** What the page of [field] of patient [id], opened with [original], has not saved yet: [text], once changed. */
     fun textDraft(id: Long, field: PatientField, original: String, text: String): DokuDraft =
         TextDraft(doku, background, original, text) { database, written -> writeText(database, id, field, written) }
@@ -164,14 +167,14 @@ class Patients(private val doku: Doku, private val clock: Clock, private val bac
 
     /** Sets [field] of active patient [id] to [text], cleaned; a closed one is only to read. */
     private suspend fun writeText(database: DokuDatabase, id: Long, field: PatientField, text: String) {
-        val patient = database.patients().get(id)?.takeUnless(Patient::isClosed) ?: return
+        val patient = database.editablePatient(id) ?: return
         database.patients().update(patient.withText(field, InputText.multiLine(text)))
     }
 
     /** Changes active patient [id] as [change] has it; a closed one is only to read. */
     private suspend fun changeActive(id: Long, change: (Patient) -> Patient) {
         doku.changing { database ->
-            val patient = database.patients().get(id)?.takeUnless(Patient::isClosed) ?: return@changing
+            val patient = database.editablePatient(id) ?: return@changing
             database.patients().update(change(patient))
         }
     }

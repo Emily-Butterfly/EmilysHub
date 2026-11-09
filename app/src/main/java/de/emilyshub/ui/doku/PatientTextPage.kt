@@ -24,8 +24,8 @@ import de.emilyshub.doku.Patients
 internal fun PatientTextPage(doku: Doku, patients: Patients, page: DokuPage.Text, contentPadding: PaddingValues, onDone: () -> Unit) {
     var loaded by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(page) {
-        val patient = patients.get(page.id)
-        if (patient == null || patient.isClosed) onDone() else loaded = patient.textOf(page.field)
+        val text = patients.textToWrite(page.id, page.field)
+        if (text == null) onDone() else loaded = text
     }
     val original = loaded ?: return
     var text by remember { mutableStateOf(original) }

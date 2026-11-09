@@ -89,12 +89,12 @@ class MeasurementsTest {
 
     /** Measures [testId] at [appointmentId], typing [typed] by value name; the measurement's id. */
     private fun measure(appointmentId: Long, testId: Long, vararg typed: Pair<String, String>, remark: String = ""): Long = runBlocking {
-        val form = checkNotNull(measurements.newForm(testId))
+        val form = checkNotNull(measurements.newForm(appointmentId, testId))
         val draft = MeasurementDraft(typed.associate { (name, number) -> valueId(testId, name) to number }, remark)
         checkNotNull(measurements.save(appointmentId, null, form, draft))
     }
 
-    private fun form(testId: Long) = runBlocking { checkNotNull(measurements.newForm(testId)) }
+    private fun form(testId: Long, at: Long = appointment("2026-10-20")) = runBlocking { checkNotNull(measurements.newForm(at, testId)) }
 
     private fun draftOf(testId: Long, vararg typed: Pair<String, String>) =
         MeasurementDraft(typed.associate { (name, number) -> valueId(testId, name) to number })
@@ -171,11 +171,11 @@ class MeasurementsTest {
             catalog.save(rom, catalog.draftOf(details).let { it.copy(values = it.values.map { value -> value.copy(retired = value.name == "Flexion") }) })
         }
 
-        val form = runBlocking { checkNotNull(measurements.form(id)) }
+        val form = runBlocking { checkNotNull(measurements.form(at, id)) }
         assertEquals(listOf("Flexion", "Abduktion"), form.fields.map(TestValue::name))
         assertEquals("120", form.initial.typed[valueId(rom, "Flexion")])
-        assertEquals(listOf("Abduktion"), runBlocking { checkNotNull(measurements.form(other)) }.fields.map(TestValue::name))
-        assertEquals(listOf("Abduktion"), runBlocking { checkNotNull(measurements.newForm(rom)) }.fields.map(TestValue::name))
+        assertEquals(listOf("Abduktion"), runBlocking { checkNotNull(measurements.form(at, other)) }.fields.map(TestValue::name))
+        assertEquals(listOf("Abduktion"), runBlocking { checkNotNull(measurements.newForm(at, rom)) }.fields.map(TestValue::name))
 
         runBlocking { measurements.save(at, id, form, form.initial.copy(typed = form.initial.typed + (valueId(rom, "Abduktion") to "100"))) }
         assertEquals(listOf(12000L, 10000L), runBlocking { checkNotNull(measurements.at(at)) }.first().entries.map { it.second })
@@ -190,7 +190,7 @@ class MeasurementsTest {
             catalog.save(pain, catalog.draftOf(details).let { it.copy(values = it.values.map { value -> value.copy(decimals = false, max = "3") }) })
         }
 
-        val form = runBlocking { checkNotNull(measurements.form(id)) }
+        val form = runBlocking { checkNotNull(measurements.form(at, id)) }
         val vas = valueId(pain, "VAS")
 
         assertTrue(form.problems(form.initial).isEmpty)
@@ -203,7 +203,7 @@ class MeasurementsTest {
     fun `an archived test is not measured anew`() {
         runBlocking { catalog.archive(pain) }
 
-        assertNull(runBlocking { measurements.newForm(pain) })
+        assertNull(runBlocking { measurements.newForm(appointment("2026-10-20"), pain) })
     }
 
     @Test
@@ -224,9 +224,11 @@ class MeasurementsTest {
     fun `a closed patient's measurements are only to read`() {
         val at = appointment("2026-10-20")
         val id = measure(at, pain, "VAS" to "6")
+        val form = form(pain, at)
         runBlocking { patients.close(patient) }
 
-        val form = form(pain)
+        assertNull(runBlocking { measurements.newForm(at, pain) })
+        assertNull(runBlocking { measurements.form(at, id) })
         assertNull(runBlocking { measurements.save(at, null, form, draftOf(pain, "VAS" to "1")) })
         runBlocking { measurements.delete(id) }
 

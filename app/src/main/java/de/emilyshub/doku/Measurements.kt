@@ -29,16 +29,24 @@ class Measurements(private val doku: Doku) {
         }
     }
 
-    /** The form for a new measurement of test [testId]: a field for each value not retired. */
-    suspend fun newForm(testId: Long): MeasurementForm? = doku.withDatabase { database ->
+    /**
+     * The form for a new measurement of test [testId] at appointment [appointmentId]: a field for each value not
+     * retired; none for a closed patient's appointment ([editableAppointment]), an archived test, or once locked.
+     */
+    suspend fun newForm(appointmentId: Long, testId: Long): MeasurementForm? = doku.withDatabase { database ->
+        database.editableAppointment(appointmentId) ?: return@withDatabase null
         val test = database.tests().get(testId)?.takeUnless(ClinicalTest::isArchived) ?: return@withDatabase null
         val values = database.tests().values(testId)
         MeasurementForm(test, values.filterNot(TestValue::retired), formsSum(test, values), MeasurementDraft())
     }
 
-    /** The form to change measurement [id] with: the values not retired, and those retired it has a number for. */
-    suspend fun form(id: Long): MeasurementForm? = doku.withDatabase { database ->
-        val measurement = database.measurements().get(id) ?: return@withDatabase null
+    /**
+     * The form to change measurement [id] at appointment [appointmentId] with: the values not retired, and those retired
+     * it has a number for; none for a closed patient's ([editableAppointment]), one at another appointment, or once locked.
+     */
+    suspend fun form(appointmentId: Long, id: Long): MeasurementForm? = doku.withDatabase { database ->
+        database.editableAppointment(appointmentId) ?: return@withDatabase null
+        val measurement = database.measurements().get(id)?.takeIf { it.appointmentId == appointmentId } ?: return@withDatabase null
         val test = database.tests().get(measurement.testId) ?: return@withDatabase null
         val values = database.tests().values(test.id)
         val numbers = database.measurements().values(id).associate { it.valueId to it.amount }
@@ -57,7 +65,7 @@ class Measurements(private val doku: Doku) {
     suspend fun save(appointmentId: Long, id: Long?, form: MeasurementForm, draft: MeasurementDraft): Long? {
         require(form.problems(draft).isEmpty) { "The measurement has problems" }
         return doku.changing { database ->
-            if (!isChangeable(database, appointmentId)) return@changing null
+            database.editableAppointment(appointmentId) ?: return@changing null
             if (id != null && database.measurements().get(id)?.appointmentId != appointmentId) return@changing null
             val measurement = Measurement(id = id ?: 0, appointmentId = appointmentId, testId = form.test.id, remark = draft.cleanedRemark())
             val values = form.numbers(draft).map { (valueId, amount) -> MeasurementValue(0, valueId, amount) }
@@ -69,7 +77,7 @@ class Measurements(private val doku: Doku) {
     suspend fun delete(id: Long) {
         doku.changing { database ->
             val measurement = database.measurements().get(id) ?: return@changing
-            if (isChangeable(database, measurement.appointmentId)) database.measurements().delete(id)
+            if (database.editableAppointment(measurement.appointmentId) != null) database.measurements().delete(id)
         }
     }
 
@@ -117,12 +125,6 @@ class Measurements(private val doku: Doku) {
             )
         }
         TestHistory(test, patient.name, columns, rows)
-    }
-
-    /** Whether the appointment's patient is active: a closed patient's measurements are only to read. */
-    private suspend fun isChangeable(database: DokuDatabase, appointmentId: Long): Boolean {
-        val appointment = database.appointments().get(appointmentId) ?: return false
-        return database.patients().get(appointment.patientId)?.isClosed == false
     }
 
     /** The line of a card for what [label] names, from its [numbers] by day, oldest first; none without any. */

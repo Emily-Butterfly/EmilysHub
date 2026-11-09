@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import de.emilyshub.R
 import de.emilyshub.doku.Appointment
+import de.emilyshub.doku.AppointmentView
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.DokuDraft
@@ -58,16 +59,15 @@ internal fun AppointmentPage(
     onFill: (assessmentId: String, id: Long, new: Boolean) -> Unit,
     onDone: () -> Unit,
 ) {
-    val (patients, appointments, tests, measurements, assessments) = modules
+    val (_, appointments, tests, measurements, assessments) = modules
     // The text once, as it was on opening; the day and time anew with each change.
-    var loaded by remember { mutableStateOf<Loaded?>(null) }
+    var loaded by remember { mutableStateOf<AppointmentView?>(null) }
     LaunchedEffect(page) {
-        val appointment = appointments.get(page.id)
-        val patient = patients.get(page.patientId)
-        if (appointment == null || patient == null) onDone() else loaded = Loaded(appointment, patient.name, appointments.canChange(page.id))
+        val view = appointments.page(page.id)
+        if (view == null) onDone() else loaded = view
     }
     val opened = loaded ?: return
-    val appointment = rememberDokuLoad(doku, page.id) { appointments.get(page.id) }
+    val appointment = rememberDokuLoad(doku, page.id) { appointments.page(page.id)?.appointment }
     var text by remember { mutableStateOf(opened.appointment.text) }
     var deleted by remember { mutableStateOf(false) }
     var measuring by remember { mutableStateOf(false) }
@@ -206,7 +206,6 @@ internal fun AppointmentPage(
 }
 
 /** What the page opened with: the appointment as it was, the patient's name, and whether it may be changed. */
-private data class Loaded(val appointment: Appointment, val patientName: String, val canChange: Boolean)
 
 /** The three dots of an appointment, with "Löschen". */
 @Composable

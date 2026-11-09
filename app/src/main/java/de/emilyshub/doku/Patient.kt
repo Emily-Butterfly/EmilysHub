@@ -26,6 +26,9 @@ data class Patient(
     /** Whether they are closed: in the archive, only to read. */
     val isClosed: Boolean get() = closedOn != null
 
+    /** Whether they and what belongs to them may be changed: only while active ([editablePatient]). */
+    val canChange: Boolean get() = !isClosed
+
     /** All four texts, in the order of [PatientField]. */
     val texts: List<String> get() = PatientField.entries.map(::textOf)
 

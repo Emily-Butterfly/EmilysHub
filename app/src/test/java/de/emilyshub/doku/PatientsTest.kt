@@ -155,6 +155,9 @@ class PatientsTest {
         )
         assertEquals("", get(id).diagnosis)
         assertEquals("Frau M.", get(id).name)
+        assertNull(runBlocking { patients.textToWrite(id, PatientField.Diagnosis) })
+        runBlocking { patients.restore(id) }
+        assertEquals("", runBlocking { patients.textToWrite(id, PatientField.Diagnosis) })
     }
 
     @Test

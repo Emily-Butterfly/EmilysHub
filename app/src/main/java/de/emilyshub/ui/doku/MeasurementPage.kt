@@ -124,7 +124,7 @@ internal fun ChooseTest(doku: Doku, tests: TestCatalog, onChoose: (Long) -> Unit
 internal fun MeasurementPage(doku: Doku, measurements: Measurements, page: DokuPage.Measurement, contentPadding: PaddingValues, onDone: () -> Unit) {
     var loaded by remember { mutableStateOf<MeasurementForm?>(null) }
     LaunchedEffect(page) {
-        val form = if (page.id == null) measurements.newForm(page.testId) else measurements.form(page.id)
+        val form = if (page.id == null) measurements.newForm(page.appointmentId, page.testId) else measurements.form(page.appointmentId, page.id)
         if (form == null) onDone() else loaded = form
     }
     val form = loaded ?: return

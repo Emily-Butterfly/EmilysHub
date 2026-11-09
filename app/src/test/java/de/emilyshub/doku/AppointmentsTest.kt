@@ -294,10 +294,10 @@ class AppointmentsTest {
 
         assertEquals("vorher", get(id).text)
         assertEquals(LocalDate.parse("2026-10-23"), get(id).date)
-        assertFalse(runBlocking { appointments.canChange(id) })
+        assertFalse(runBlocking { checkNotNull(appointments.page(id)) }.canChange)
         assertNull(runBlocking { appointments.create(patient) })
         runBlocking { patients.restore(patient) }
-        assertTrue(runBlocking { appointments.canChange(id) })
+        assertTrue(runBlocking { checkNotNull(appointments.page(id)) }.canChange)
     }
 
     @Test

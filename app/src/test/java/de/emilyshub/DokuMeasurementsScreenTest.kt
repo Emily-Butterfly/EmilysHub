@@ -60,7 +60,7 @@ class DokuMeasurementsScreenTest {
     /** An appointment of [patient] on [date], measuring [testId] with [typed] by value name. */
     private fun measured(patient: Long, testId: Long, date: String, vararg typed: Pair<String, String>, remark: String = ""): Long = runBlocking {
         val appointment = checkNotNull(app.appointments.create(patient)).also { app.appointments.setDate(it, LocalDate.parse(date)) }
-        val form = checkNotNull(app.measurements.newForm(testId))
+        val form = checkNotNull(app.measurements.newForm(appointment, testId))
         val ids = form.fields.associate { it.name to it.id }
         app.measurements.save(appointment, null, form, MeasurementDraft(typed.associate { (name, number) -> ids.getValue(name) to number }, remark))
         appointment

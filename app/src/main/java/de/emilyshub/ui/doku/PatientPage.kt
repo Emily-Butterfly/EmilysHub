@@ -122,12 +122,12 @@ internal fun PatientPage(
             }
         }
         when (page.tab) {
-            PatientTab.Overview -> Overview(patient, onEditText = onEditText.takeUnless { patient.isClosed })
+            PatientTab.Overview -> Overview(patient, onEditText = onEditText.takeIf { patient.canChange })
             PatientTab.Appointments -> AppointmentList(
                 doku = doku,
                 appointments = appointments,
                 patient = patient,
-                onAdd = if (patient.isClosed) null else addAppointment,
+                onAdd = addAppointment.takeIf { patient.canChange },
                 onOpen = onOpenAppointment,
             )
             PatientTab.Tests -> TestCards(doku, measurements, patient.id, onOpen = onOpenHistory)
@@ -185,7 +185,7 @@ private fun Header(
                 Text(stringResource(R.string.doku_patient_born, born, year - born), style = MaterialTheme.typography.bodyMedium)
             }
         }
-        if (!patient.isClosed) {
+        if (patient.canChange) {
             IconButton(onClick = onRename) {
                 Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.doku_patient_edit_action))
             }

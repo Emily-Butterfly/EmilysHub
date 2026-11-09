@@ -32,7 +32,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
 
     /** Filled-in form [id] to fill in or read, with whether it may be changed; none once deleted or locked. */
     suspend fun sheet(id: Long): AssessmentSheet? = doku.withDatabase { database ->
-        read(database, id)?.let { AssessmentSheet(it, isChangeable(database, it.appointmentId)) }
+        read(database, id)?.let { AssessmentSheet(it, database.editableAppointment(it.appointmentId) != null) }
     }
 
     /**
@@ -78,9 +78,6 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
         database.assessments().at(appointmentId).map { filled(it, appointment.date, database.assessments().answers(it.id)) }
     }
 
-    /** Whether forms may be filled in or changed at appointment [appointmentId]: its patient is active. */
-    suspend fun canChange(appointmentId: Long): Boolean = doku.withDatabase { isChangeable(it, appointmentId) } == true
-
     /**
      * Saves [answers] to form [assessmentId] as filled-in form [id] or as a new one at appointment [appointmentId]: those
      * to items shown, and to items the form no longer has, so that they stay. Its id; none for a closed patient's, for
@@ -93,7 +90,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
     suspend fun delete(id: Long) {
         doku.changing { database ->
             val entry = database.assessments().get(id) ?: return@changing
-            if (isChangeable(database, entry.appointmentId)) database.assessments().delete(id)
+            if (database.editableAppointment(entry.appointmentId) != null) database.assessments().delete(id)
         }
     }
 
@@ -150,7 +147,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
      */
     private suspend fun dropIfEmpty(database: DokuDatabase, id: Long, confirmed: Boolean) {
         val entry = database.assessments().get(id) ?: return
-        if (!isChangeable(database, entry.appointmentId) || database.assessments().answers(id).isNotEmpty()) return
+        if (database.editableAppointment(entry.appointmentId) == null || database.assessments().answers(id).isNotEmpty()) return
         if (confirmed && BuiltInAssessments.byId(entry.assessmentId)?.let(Scoring::reachesResultUnanswered) == true) {
             markUsed(database, entry.assessmentId)
         } else {
@@ -168,7 +165,7 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
      * [save] describes; its id, or none.
      */
     private suspend fun write(database: DokuDatabase, appointmentId: Long, id: Long?, assessmentId: String, answers: Map<String, Answer>): Long? {
-        if (!isChangeable(database, appointmentId)) return null
+        database.editableAppointment(appointmentId) ?: return null
         if (id != null && database.assessments().get(id)?.let { it.appointmentId == appointmentId && it.assessmentId == assessmentId } != true) return null
         val form = BuiltInAssessments.byId(assessmentId)
         if (form == null && id == null) return null
@@ -214,12 +211,6 @@ class Assessments(private val doku: Doku, private val background: CoroutineScope
 
     /** The ids of the forms hidden from "+ Bogen". */
     private suspend fun hidden(database: DokuDatabase): Set<String> = idsOf(database.settings().get(HIDDEN_KEY)).toSet()
-
-    /** Whether the appointment's patient is active: a closed patient's forms are only to read. */
-    private suspend fun isChangeable(database: DokuDatabase, appointmentId: Long): Boolean {
-        val appointment = database.appointments().get(appointmentId) ?: return false
-        return database.patients().get(appointment.patientId)?.isClosed == false
-    }
 
     companion object {
         /** How many forms "Zuletzt benutzt" shows. */
