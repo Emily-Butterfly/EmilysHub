@@ -48,8 +48,7 @@ private val WELLS_LE: Assessment = wells(
         criterion("haemoptyse", "Hämoptyse vorhanden", 10),
         criterion("malignitaet", "Malignität vorhanden", 10),
     ),
-    // In halves only: "< 2" is up to 1,99.
-    listOf(Band(199, "geringe Wahrscheinlichkeit"), Band.upTo(6, "mäßige Wahrscheinlichkeit"), Band(1050, "hohe Wahrscheinlichkeit")),
+    listOf(Band.below(2, "geringe Wahrscheinlichkeit"), Band.upTo(6, "mäßige Wahrscheinlichkeit"), Band.rest("hohe Wahrscheinlichkeit")),
 )
 
 /** Wells-Score – Tiefe Venenthrombose (TVT), as in "Wells-Score-Tiefe-Venenthrombose_TVT_11-2026.pdf". */

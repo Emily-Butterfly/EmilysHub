@@ -18,7 +18,7 @@ answers of the fewest and the most points stay within it, and a plain sum of ite
 | 2 | A Doku draft session: save on close, written once | Worth exploring | local-substitutable (in-memory `DokuDatabase`) |
 | 3 | `Score` as a sealed type; each rule owns its value and its range | Worth exploring | in-process |
 | 4 | Item kinds own their answer, fit, points and range | Worth exploring | in-process |
-| 5 | Exact score values: one band rule, hundredths only at the edge | Speculative | in-process |
+| 5 | Exact score values: one band rule, hundredths only at the edge | Speculative (done in part) | in-process |
 
 Looked at and left alone: `Fraction` (private, deep), `Condition`, `AnswerCodec` (a storage adapter, round-trip tested),
 `Options.kt` (the forms' authoring helpers), `BuiltInAssessments`, `DokuPages`, `DokuNumbers`/`LineChart`/`Change`
@@ -93,6 +93,15 @@ A kind of item is spread over about twelve `when` sites in five modules; one tha
 points and its range itself; only the Compose rendering stays a `when`, as an adapter.
 
 ## 5 · Exact score values
+
+**Status:** done in part, the rest decided against. Bands keep naming the value **as shown**, rounded to hundredths,
+and that is now written on `Band`: compared on the exact value, "51,00 %" could read "unter 51 %" on the same line. A
+grade's `Bound` keeps the exact value, as it decides a value rather than naming it. What hurt was form authors writing
+hundredths by hand (`Band(5099)`, `Band(199)`, `Band(1050)`, each with a comment on rounding): `Band.below(51, …)` and
+`Band.rest(…)` say "unter 51" and "> 6" as the originals do. **Not done**: decimal option points in place of the
+Wells-Scores' `divisor = 10`. An option's points stay whole, as every form's helpers (`scored`, `numbered`, …) and the
+range of every item are; one family of forms with tenths does not pay for turning them all over, and the divisor says
+so on `ItemScore`.
 
 Bands compare the rounded value, inclusive; a grade's bounds compare the exact value, "below" exclusive. Form authors
 reason about rounding by hand (`Band(5099)`, `Band(199)`), and the Wells-Scores' tenths ride on `divisor = 10`. Bands

@@ -582,4 +582,16 @@ class ScoringTest {
         assertEquals(List(7) { null }, listOf("24:00", "7:60", "7:3", "abends", "", "7,30", "7.30").map(TimeItem::parse))
         assertEquals(listOf("07:30", "00:00", "23:59"), listOf(450, 0, 1439).map(TimeItem::format))
     }
+
+    @Test
+    fun `a band names the value as shown, below a whole number whatever its decimals, the last taking all above`() {
+        val score = ItemScore(
+            "s", "S", listOf("a"), direction = Direction.LowerIsBetter,
+            bands = listOf(Band.below(2, "unter 2"), Band.upTo(6, "bis 6"), Band.rest("darüber")),
+        )
+        assertEquals(
+            listOf("unter 2", "unter 2", "bis 6", "bis 6", "darüber", "darüber"),
+            listOf(0L, 199L, 200L, 600L, 601L, 99_999L).map { ScoreResult(score, it).band },
+        )
+    }
 }

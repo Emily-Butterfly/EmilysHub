@@ -61,8 +61,7 @@ private val ACL_RSI: Assessment = run {
                 unit = "%",
                 direction = Direction.HigherIsBetter,
                 bands = listOf(
-                    // "Unter 51 %": up to 50,99, as means of twelve tens fall between.
-                    Band(5099, "Personen, die ihrem Kniegelenk noch kein Vertrauen schenken und eine signifikante Angst vor einer Retraumatisierung haben. Diese Patienten kehren seltener in den Sport zurück."),
+                    Band.below(51, "Personen, die ihrem Kniegelenk noch kein Vertrauen schenken und eine signifikante Angst vor einer Retraumatisierung haben. Diese Patienten kehren seltener in den Sport zurück."),
                     Band.upTo(100, null),
                 ),
             ),

@@ -589,10 +589,20 @@ enum class ScoreRule {
     ShareOfSpan,
 }
 
-/** Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a [label]. */
+/**
+ * Where a score lies, up to and including [upTo], in hundredths, named as the original names it; unnamed without a
+ * [label]. A band names the value as it is shown, rounded to hundredths, so that "51,00 %" never reads "unter 51 %";
+ * a grade's [Bound], which decides a value, takes the exact one.
+ */
 data class Band(val upTo: Long, val label: String?) {
     companion object {
-        /** Up to whole number [upTo]. */
+        /** Up to whole number [upTo], such as "0–4". */
         fun upTo(upTo: Int, label: String?) = Band(upTo * 100L, label)
+
+        /** Below whole number [below], such as "unter 51 %" or "< 2", whatever the value's decimals. */
+        fun below(below: Int, label: String?) = Band(below * 100L - 1, label)
+
+        /** All above the bands before it, such as "> 6": the last. */
+        fun rest(label: String?) = Band(Long.MAX_VALUE, label)
     }
 }
