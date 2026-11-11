@@ -3,6 +3,7 @@ package de.emilyshub.notes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -37,19 +38,36 @@ class Notes(
     /** The note, or null once it is deleted. */
     suspend fun get(id: Long): Note? = withContext(io) { dao.get(id) }
 
-    /** Whether the note is in the archive (SPEC.md §7), archived itself or in a folder archived; only to read there. */
-    suspend fun isArchived(id: Long): Boolean = withContext(io) {
-        database().withTransaction { read().let { book -> book.note(id)?.let(book::isArchived) == true } }
+    /**
+     * The note [id] as it is saved, to edit (SPEC.md §7), read at once: with what it is linked to, its tags, and whether
+     * it is in the archive, archived itself or in a folder archived, only to read there; null once it is deleted.
+     */
+    suspend fun editing(id: Long): NoteEditing? = withContext(io) {
+        database().withTransaction {
+            dao.get(id)?.let { note ->
+                val book = read()
+                NoteEditing(id, note.toDraft(links(id), dao.tagIdsOf(id).toSet()), archived = book.note(id)?.let(book::isArchived) == true)
+            }
+        }
+    }
+
+    /**
+     * Saves [draft] as [editing] has it: a new note, or the changes to the one opened; refused, with nothing saved, for
+     * its problems.
+     */
+    suspend fun save(editing: NoteEditing, draft: NoteDraft): Saving<NoteProblem> {
+        val problems = draft.problems
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(create(draft))
+        update(id, draft)
+        return Saving.Saved(id)
     }
 
     /** The tags of the note. */
     suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
 
     /** What the note is linked to. */
-    suspend fun linksOf(id: Long): Set<NoteLink> = withContext(io) {
-        (dao.goalIdsOf(id).map(NoteLink::Goal) + dao.todoIdsOf(id).map(NoteLink::Todo) + dao.routineIdsOf(id).map(NoteLink::Routine))
-            .toSet()
-    }
+    suspend fun linksOf(id: Long): Set<NoteLink> = withContext(io) { links(id) }
 
     /** The goals, to-dos and routines a note can be linked to, each by its name. */
     fun linkCandidates(): Flow<List<LinkCandidate>> = flow {
@@ -406,6 +424,10 @@ class Notes(
     }
 
     /** The to-do [id] and those that came again after it, one after the other. */
+    private suspend fun links(id: Long): Set<NoteLink> =
+        (dao.goalIdsOf(id).map(NoteLink::Goal) + dao.todoIdsOf(id).map(NoteLink::Todo) + dao.routineIdsOf(id).map(NoteLink::Routine))
+            .toSet()
+
     private suspend fun series(id: Long): List<Long> {
         val ids = mutableListOf(id)
         while (true) ids += dao.nextOf(ids.last()) ?: return ids

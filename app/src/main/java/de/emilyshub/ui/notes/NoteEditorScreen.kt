@@ -47,12 +47,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.Markdown
 import de.emilyshub.notes.NoteDraft
+import de.emilyshub.notes.NoteEditing
 import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
-import de.emilyshub.notes.toDraft
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
@@ -80,9 +81,9 @@ sealed interface NoteEditorTarget : Serializable {
 fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
     val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (noteId == null) NoteEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
-    var loaded by rememberSaveable { mutableStateOf(noteId == null) }
-    var archived by rememberSaveable { mutableStateOf(false) }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -90,15 +91,15 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     // Counts the tries to save without a title fit to save, each of which goes to the title.
     var titleAsked by remember { mutableIntStateOf(0) }
 
-    if (!loaded && noteId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(noteId) {
-            val note = notes.get(noteId)
-            if (note == null) {
+            val saved = notes.editing(checkNotNull(noteId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = note.toDraft(notes.linksOf(noteId), notes.tagIdsOf(noteId))
-                archived = notes.isArchived(noteId)
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
@@ -116,13 +117,13 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         } else {
             val saved = draft
             closeWith {
-                val id = noteId?.also { notes.update(it, saved) } ?: notes.create(saved)
-                after?.invoke(id)
+                val saving = notes.save(opened, saved)
+                if (saving is Saving.Saved) after?.invoke(saving.id)
             }
         }
     }
 
-    if (archived) {
+    if (opened.archived) {
         ArchivedNote(notes, draft, onClose)
         return
     }
