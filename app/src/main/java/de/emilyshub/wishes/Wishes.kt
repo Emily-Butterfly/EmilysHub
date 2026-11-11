@@ -3,7 +3,6 @@ package de.emilyshub.wishes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
-import de.emilyshub.todos.TodoDraft
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -132,12 +131,6 @@ class Wishes(
             // In its place, its parts: open if one of them is. Not through the watch, as they take its place all at once.
             database().settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen), today())
         }
-    }
-
-    /** A to-do made of the wish (SPEC.md §6), to be saved as one: with its title, description and tags, hanging under it. */
-    suspend fun todoDraftOf(id: Long): TodoDraft = withContext(io) {
-        val wish = checkNotNull(dao.get(id)) { "No wish $id" }
-        TodoDraft(wish.title, wish.description, tagIds = dao.tagIdsOf(id).toSet(), goalId = id)
     }
 
     /** The day it is now, which a wish done comes true on unless another is chosen, and none after. */

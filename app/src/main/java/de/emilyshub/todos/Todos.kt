@@ -125,8 +125,22 @@ class Todos(
      * A new to-do, open, reminding as [Reminding] describes; refuses a draft with problems, which the editor shows
      * before. Under a goal, it is a part of it, which opens that goal again if it was done.
      */
-    suspend fun create(draft: TodoDraft): Long = write {
-        val cleaned = checked(draft)
+    suspend fun create(draft: TodoDraft): Long = write { insert(checked(draft)) }
+
+    /**
+     * A to-do made of the goal [goalId] (SPEC.md §6), read and made at once: with its title, description and tags,
+     * hanging under it, as [create] makes one; none once the goal is deleted.
+     */
+    suspend fun ofGoal(goalId: Long): Long? = write {
+        database().withTransaction {
+            val goals = database().wishes()
+            val goal = goals.get(goalId) ?: return@withTransaction null
+            insert(checked(TodoDraft(goal.title, goal.description, tagIds = goals.tagIdsOf(goalId).toSet(), goalId = goalId)))
+        }
+    }
+
+    /** The to-do [cleaned] makes, as [create] tells. */
+    private suspend fun insert(cleaned: TodoDraft): Long =
         database().withTransaction {
             watchingGoals { watch ->
                 val goalId = database().wishes().stillThere(cleaned.goalId)
@@ -140,7 +154,6 @@ class Todos(
                 }
             }
         }
-    }
 
     /**
      * Changes the to-do as [draft] has it, as [create] checks it; checklist items kept keep their ticks. A new due, wake

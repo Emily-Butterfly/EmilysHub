@@ -321,12 +321,24 @@ class GoalsTest {
         val taxes = tags.create("Steuern")
         val wish = wishes.create(WishDraft("Steuererklärung", description = "Belege sammeln", tagIds = setOf(taxes)))
 
-        val todo = todos.create(wishes.todoDraftOf(wish))
+        val todo = checkNotNull(todos.ofGoal(wish))
 
         val saved = checkNotNull(todos.get(todo))
         assertEquals("Steuererklärung" to "Belege sammeln", saved.title to saved.description)
         assertEquals(wish, saved.goalId)
         assertEquals(setOf(taxes), todos.tagIdsOf(todo))
         assertEquals(listOf("Steuererklärung"), wishes.current().first().single().todos.map { it.title })
+    }
+
+    @Test
+    fun `a goal done is in progress again when a to-do is made of it, and one deleted makes none`() = runBlocking {
+        val wish = wishes.create(WishDraft("Umzug", status = WishStatus.Done))
+        val gone = wishes.create(WishDraft("Alt"))
+        wishes.delete(gone)
+
+        checkNotNull(todos.ofGoal(wish))
+
+        assertEquals(WishStatus.InProgress, wishes.get(wish)!!.status)
+        assertNull(todos.ofGoal(gone))
     }
 }

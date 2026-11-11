@@ -38,7 +38,12 @@ them and `save` is built from them. Tests: `notes/NoteEditingTest`.
 
 ## 2 · A to-do made of a goal, in one move
 
-**Status:** open.
+**Status:** done, in a smaller shape. `Todos.ofGoal(goalId)` reads the goal and makes its to-do in one transaction,
+through the same insert as `create` (the goal watch, tags, reminder); none once the goal is deleted. The editor calls it
+after saving the goal, the step "add a subgoal" takes too, so the goal's own save stays a transaction of its own:
+dying in between leaves the goal saved and no to-do, which a second tap mends. `Wishes.todoDraftOf` is gone, and with it
+the order of the steps from the Composable and `GoalsTest`. Tests: `wishes/GoalsTest` (the goal done is in progress again;
+a goal deleted makes none).
 
 ## 3 · Wünsche and Orte join the editing sessions too
 

@@ -256,7 +256,7 @@ fun WishEditorScreen(
                 OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
                     Text(stringResource(R.string.wish_add_subgoal))
                 }
-                OutlinedButton(onClick = { saveAndThen { onOpenTodo(todos.create(wishes.todoDraftOf(it))) } }) {
+                OutlinedButton(onClick = { saveAndThen { todos.ofGoal(it)?.let(onOpenTodo) } }) {
                     Text(stringResource(R.string.wish_to_todo))
                 }
             }
