@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import de.emilyshub.data.InputText
 import java.io.Serializable
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 
 /** What a notice is counted in (SPEC.md §13): days, weeks or months, each with the most it may be. */
@@ -20,15 +21,24 @@ enum class NoticeUnit(val stored: String, val range: IntRange) {
 /** A notice of [count] [unit]s before the end of a term (SPEC.md §13). */
 data class Notice(val count: Int, val unit: NoticeUnit) : Serializable {
     /**
-     * The last day to cancel a term ending on [end]: so long before it. A term ending on the last of a month gives notice
-     * by the last of a month; any other day falls on the same day, or the last of a shorter month.
+     * The last day to cancel a term ending on [end], whose terms end on [endDay] of the month: so long before it. In
+     * months, on that day of the month, or the last of a shorter month; [LAST_DAY] for the last of every month.
      */
-    fun before(end: LocalDate): LocalDate = when (unit) {
+    fun before(end: LocalDate, endDay: Int = endDayOf(end)): LocalDate = when (unit) {
         NoticeUnit.Days -> end.minusDays(count.toLong())
         NoticeUnit.Weeks -> end.minusWeeks(count.toLong())
-        NoticeUnit.Months -> plusMonthsKeepingEnd(end, -count.toLong())
+        NoticeUnit.Months -> onDay(YearMonth.from(end).minusMonths(count.toLong()), endDay)
     }
 }
+
+/** The day of the month that terms ending on [date] end on: its own, or [LAST_DAY] if it is the last of its month. */
+fun endDayOf(date: LocalDate): Int = if (date.dayOfMonth == date.lengthOfMonth()) LAST_DAY else date.dayOfMonth
+
+/** The day of the month standing for the last of every month. */
+const val LAST_DAY = 31
+
+/** [day] of [month], or its last if it is shorter. */
+private fun onDay(month: YearMonth, day: Int): LocalDate = month.atDay(minOf(day, month.lengthOfMonth()))
 
 /**
  * Until when an Abo is to be cancelled (SPEC.md §13): by a single date ([OnDate]), or reckoned from the end of its term
@@ -38,13 +48,17 @@ sealed interface Deadline : Serializable {
     /** Cancelled by [cancelBy]; gone by, it waits for a new date. */
     data class OnDate(val cancelBy: LocalDate) : Deadline
 
-    /** A term ending on [termEnd], to be cancelled [notice] before, and renewed by [renewalMonths] if not. */
-    data class Term(val termEnd: LocalDate, val notice: Notice, val renewalMonths: Int) : Deadline {
+    /**
+     * A term ending on [termEnd], to be cancelled [notice] before, and renewed by [renewalMonths] if not. Its terms end on
+     * [endDay] of the month, as the first one did, so that one ending on the 30th ends on the 30th again after February;
+     * [LAST_DAY] for the last of every month.
+     */
+    data class Term(val termEnd: LocalDate, val notice: Notice, val renewalMonths: Int, val endDay: Int = endDayOf(termEnd)) : Deadline {
         /** The last day to cancel it. */
-        val lastDay: LocalDate get() = notice.before(termEnd)
+        val lastDay: LocalDate get() = notice.before(termEnd, endDay)
 
-        /** The term after it, the last of a month staying the last. */
-        fun next(): Term = copy(termEnd = plusMonthsKeepingEnd(termEnd, renewalMonths.toLong()))
+        /** The term after it, ending on its day of the month again. */
+        fun next(): Term = copy(termEnd = onDay(YearMonth.from(termEnd).plusMonths(renewalMonths.toLong()), endDay))
 
         /** The term that holds on [today]: this one, or, its last day gone by, the first after it whose has not. */
         fun current(today: LocalDate): Term {
@@ -54,12 +68,6 @@ sealed interface Deadline : Serializable {
             return term
         }
     }
-}
-
-/** [date] so many [months] on, or back with a negative number; from the last of a month to the last of a month. */
-internal fun plusMonthsKeepingEnd(date: LocalDate, months: Long): LocalDate {
-    val moved = date.plusMonths(months)
-    return if (date.dayOfMonth == date.lengthOfMonth()) moved.withDayOfMonth(moved.lengthOfMonth()) else moved
 }
 
 /** How an Abo stands on a day (SPEC.md §13). */
@@ -80,7 +88,8 @@ sealed interface SubscriptionStatus {
 /**
  * An Abo of the household book (SPEC.md §13): a contract by [name] to cancel before it renews, with an amount every
  * [interval] if known ([amountCents]), a [note], and its deadline: a single date [cancelBy], or the end of its term
- * [termEnd] with a notice of [noticeCount] [noticeUnit]s and a renewal by [renewalMonths]. The reminder begins [leadDays]
+ * [termEnd], on [termDay] of the month as its first did, with a notice of [noticeCount] [noticeUnit]s and a renewal by
+ * [renewalMonths]. The reminder begins [leadDays]
  * before its last day (#80). Linked to a fixed booking ([recurringId]), at most one Abo to each, its amount and interval
  * are that booking's; the booking deleted, it keeps them as its own. [runsOn]: its single date was let run on, and it
  * waits for a new one. Cancelled, it ends on [endsOn].
@@ -103,6 +112,7 @@ data class Subscription(
     val note: String = "",
     @ColumnInfo(name = "cancel_by") val cancelBy: LocalDate? = null,
     @ColumnInfo(name = "term_end") val termEnd: LocalDate? = null,
+    @ColumnInfo(name = "term_day") val termDay: Int? = null,
     @ColumnInfo(name = "notice_count") val noticeCount: Int? = null,
     @ColumnInfo(name = "notice_unit") val noticeUnit: NoticeUnit? = null,
     @ColumnInfo(name = "renewal_months") val renewalMonths: Int? = null,
@@ -113,7 +123,9 @@ data class Subscription(
     /** Its deadline, from what is stored: reckoned if it has the end of a term, else by its single date. */
     val deadline: Deadline
         get() = if (termEnd != null) {
-            Deadline.Term(termEnd, Notice(checkNotNull(noticeCount), checkNotNull(noticeUnit)), checkNotNull(renewalMonths))
+            Deadline.Term(
+                termEnd, Notice(checkNotNull(noticeCount), checkNotNull(noticeUnit)), checkNotNull(renewalMonths), termDay ?: endDayOf(termEnd),
+            )
         } else {
             Deadline.OnDate(checkNotNull(cancelBy))
         }
@@ -136,10 +148,12 @@ data class Subscription(
 
     /** With [deadline] in place of the one it has. */
     fun with(deadline: Deadline): Subscription = when (deadline) {
-        is Deadline.OnDate -> copy(cancelBy = deadline.cancelBy, termEnd = null, noticeCount = null, noticeUnit = null, renewalMonths = null)
+        is Deadline.OnDate -> copy(
+            cancelBy = deadline.cancelBy, termEnd = null, termDay = null, noticeCount = null, noticeUnit = null, renewalMonths = null,
+        )
         is Deadline.Term -> copy(
-            cancelBy = null, termEnd = deadline.termEnd, noticeCount = deadline.notice.count, noticeUnit = deadline.notice.unit,
-            renewalMonths = deadline.renewalMonths,
+            cancelBy = null, termEnd = deadline.termEnd, termDay = deadline.endDay, noticeCount = deadline.notice.count,
+            noticeUnit = deadline.notice.unit, renewalMonths = deadline.renewalMonths,
         )
     }
 
@@ -184,7 +198,8 @@ enum class SubscriptionProblem {
  * An Abo as typed into its editor (SPEC.md §13): its [name]; an [amount] with a comma every [interval], none if left
  * empty, or those of the fixed booking [recurringId] it is linked to; a [note]; its deadline, [reckoned] from the end of
  * its term [termEnd] with a [notice] in [noticeUnit]s and a [renewal] in months, or by the single date [cancelBy]; and
- * the [lead] in days. Serializable, so that the editor keeps it.
+ * the [lead] in days. [termDay] is the day of the month its terms end on, kept from the one saved while its end is not
+ * chosen anew; none to take it from [termEnd]. Serializable, so that the editor keeps it.
  */
 data class SubscriptionDraft(
     val name: String,
@@ -195,14 +210,17 @@ data class SubscriptionDraft(
     val reckoned: Boolean = false,
     val cancelBy: LocalDate? = null,
     val termEnd: LocalDate? = null,
+    val termDay: Int? = null,
     val notice: String = "1",
     val noticeUnit: NoticeUnit = NoticeUnit.Months,
     val renewal: String = "12",
     val lead: String = Subscription.DEFAULT_LEAD.toString(),
 ) : Serializable {
 
+    /** Its name on a single line, as it is saved. */
     val cleanedName: String get() = InputText.singleLine(name)
 
+    /** Its note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
 
     /** Its own amount in cents: none if left empty, or linked. */
@@ -216,11 +234,12 @@ data class SubscriptionDraft(
     val deadline: Deadline?
         get() = if (reckoned) {
             val end = termEnd ?: return null
-            Deadline.Term(end, Notice(noticeCount ?: return null, noticeUnit), renewalMonths ?: return null)
+            Deadline.Term(end, Notice(noticeCount ?: return null, noticeUnit), renewalMonths ?: return null, termDay ?: endDayOf(end))
         } else {
             cancelBy?.let(Deadline::OnDate)
         }
 
+    /** What keeps it from being saved; none if it can be. */
     val problems: Set<SubscriptionProblem>
         get() = buildSet {
             when {

@@ -34,9 +34,6 @@ interface SubscriptionDao {
     @Transaction
     @Query("SELECT * FROM recurring_bookings")
     fun observeTemplates(): Flow<List<RecurringWithCategory>>
-
-    @Query("SELECT recurring_id FROM subscriptions WHERE recurring_id IS NOT NULL")
-    fun observeLinked(): Flow<List<Long>>
 }
 
 /** An Abo with the fixed booking it is linked to, if any. */

@@ -91,7 +91,6 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun ledger(): LedgerDao
 
-
     abstract fun subscriptions(): SubscriptionDao
 
     abstract fun search(): SearchDao

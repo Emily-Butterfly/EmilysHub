@@ -66,7 +66,7 @@ class Subscriptions(
     /** Today, by which each Abo stands. */
     fun today(): LocalDate = LocalDate.now(clock)
 
-    /** The Abos as their list shows them today. */
+    /** The Abos as their list shows them today; looked at anew by the screen when the day changes. */
     fun overview(): Flow<SubscriptionOverview> = flow {
         emitAll(
             combine(dao.observeAll(), dao.observeTemplates()) { all, templates ->
@@ -86,21 +86,23 @@ class Subscriptions(
                     )
                 }
                 val (cancelled, running) = items.partition { it.status is SubscriptionStatus.Cancelled }
+                val order = compareBy<SubscriptionItem> { dayOf(it.status) }.thenBy(InputText.byName) { it.subscription.name }
                 SubscriptionOverview(
-                    running = running.sortedWith(compareBy<SubscriptionItem> { dayOf(it.status) }.thenBy(InputText.byName) { it.subscription.name }),
-                    cancelled = cancelled.sortedWith(compareBy<SubscriptionItem> { dayOf(it.status) }.thenBy(InputText.byName) { it.subscription.name }),
+                    running = running.sortedWith(order),
+                    cancelled = cancelled.sortedWith(order),
                     perMonth = perMonth(running.mapNotNull { it.cost }),
                 )
             },
         )
     }.flowOn(io)
 
-    /** The fixed bookings an Abo may be linked to: those without one, and that of the Abo [except], if it has one. */
+    /** The fixed bookings an Abo may be linked to: those of expenses without one, and that of the Abo [except], if it has one. */
     fun linkable(except: Long?): Flow<List<LinkChoice>> = flow {
         emitAll(
             combine(dao.observeTemplates(), dao.observeAll()) { templates, all ->
                 val taken = all.filter { it.subscription.id != except }.mapNotNull { it.subscription.recurringId }.toSet()
-                templates.filter { it.recurring.id !in taken }.map(::choiceOf).sortedWith(compareBy(InputText.byName) { it.name })
+                // Abos cost: only fixed bookings of expenses.
+                templates.filter { it.recurring.id !in taken && it.category.kind == BookingKind.Expense }.map(::choiceOf).sortedWith(compareBy(InputText.byName) { it.name })
             },
         )
     }.flowOn(io)
@@ -141,7 +143,7 @@ class Subscriptions(
             is Deadline.OnDate -> base.copy(cancelBy = deadline.cancelBy)
             is Deadline.Term -> deadline.current(today()).let { term ->
                 base.copy(
-                    reckoned = true, termEnd = term.termEnd, notice = term.notice.count.toString(), noticeUnit = term.notice.unit,
+                    reckoned = true, termEnd = term.termEnd, termDay = term.endDay, notice = term.notice.count.toString(), noticeUnit = term.notice.unit,
                     renewal = term.renewalMonths.toString(),
                 )
             }
@@ -160,9 +162,11 @@ class Subscriptions(
             val id = editing.id
             val linkedTo = draft.recurringId?.takeIf { database().ledger().template(it) != null }
             val taken = linkedTo?.let { dao.ofRecurring(it) }?.takeIf { it.id != id }
-            val problems = draft.problems + listOfNotNull(SubscriptionProblem.RecurringTaken.takeIf { taken != null })
+            // Its fixed booking deleted meanwhile, its own amount counts again, and is checked as such.
+            val checked = draft.copy(recurringId = linkedTo)
+            val problems = checked.problems + listOfNotNull(SubscriptionProblem.RecurringTaken.takeIf { taken != null })
             if (problems.isNotEmpty()) return@withTransaction Saving.Refused(problems)
-            val subscription = draft.copy(recurringId = linkedTo).toSubscription()
+            val subscription = checked.toSubscription()
             if (id == null) {
                 Saving.Saved(dao.insert(subscription))
             } else {
@@ -183,9 +187,19 @@ class Subscriptions(
         database().withTransaction { dao.get(id)?.let { dao.update(it.copy(endsOn = endsOn)) } }
     }
 
-    /** Takes back that the Abo was cancelled. */
+    /**
+     * Takes back that the Abo was cancelled; its fixed booking, if it was ended on the same day with it, runs on again
+     * without end.
+     */
     suspend fun uncancel(id: Long) = write {
-        database().withTransaction { dao.get(id)?.let { dao.update(it.copy(endsOn = null)) } }
+        database().withTransaction {
+            val saved = dao.get(id) ?: return@withTransaction
+            val ledger = database().ledger()
+            saved.recurringId?.let { ledger.template(it) }
+                ?.takeIf { it.endsOn != null && it.endsOn == saved.endsOn && it.endsAfter == null }
+                ?.let { ledger.updateTemplate(it.copy(endsOn = null)) }
+            dao.update(saved.copy(endsOn = null))
+        }
     }
 
     /**

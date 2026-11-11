@@ -822,6 +822,7 @@
     <string name="subscription_ends">Endet am %1$s</string>
     <string name="subscription_cost">%1$s %2$s</string>
     <string name="subscription_name">Name</string>
+    <string name="subscription_range">Von %1$d bis %2$d</string>
     <string name="subscription_name_missing">Bitte gib einen Namen ein.</string>
     <string name="subscription_amount">Betrag in Euro (optional)</string>
     <string name="subscription_recurring">Fixbuchung</string>
@@ -847,10 +848,11 @@
     <string name="subscription_cancel">Gekündigt</string>
     <string name="subscription_cancel_title">„%1$s“ gekündigt</string>
     <string name="subscription_cancel_term">Das Abo endet mit seiner Laufzeit am %1$s.</string>
-    <string name="subscription_cancel_date">Wann endet das Abo?</string>
+    <string name="subscription_cancel_date">Das Abo endet am %1$s, oder an einem Tag, den du wählst.</string>
     <string name="subscription_end_recurring_title">Fixbuchung beenden?</string>
     <string name="subscription_end_recurring_text">Soll die verknüpfte Fixbuchung „%1$s“ am %2$s enden?</string>
     <string name="subscription_end_recurring_yes">Beenden</string>
+    <string name="subscription_end_recurring_failed">Die Fixbuchung beginnt erst später und läuft deshalb weiter.</string>
     <string name="subscription_end_recurring_no">Weiterlaufen lassen</string>
     <string name="subscription_uncancel">Kündigung zurücknehmen</string>
     <string name="subscription_run_on">Läuft weiter</string>

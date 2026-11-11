@@ -261,7 +261,7 @@ private fun AppShell(hub: Hub, settings: Settings) {
                 onOpenSubscription = { open(Destination.SubscriptionEditor(it)) },
             )
             Destination.Subscriptions ->
-                SubscriptionListScreen(hub.subscriptions, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
+                SubscriptionListScreen(hub.subscriptions, hub.day, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
             is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
             Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
             Destination.LedgerArchive ->

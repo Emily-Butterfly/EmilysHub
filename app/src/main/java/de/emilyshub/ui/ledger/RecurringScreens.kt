@@ -49,6 +49,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
+import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
@@ -219,8 +220,9 @@ fun RecurringEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (recurringId != null) {
-                Hint(stringResource(R.string.recurring_edit_hint))
+            if (recurringId != null) Hint(stringResource(R.string.recurring_edit_hint))
+            // Abos cost: only a fixed booking of expenses is kept as one.
+            if (recurringId != null && opened.original?.kind == BookingKind.Expense) {
                 // Whether it has an Abo, also once one is made from here.
                 val abo by remember(subscriptions, recurringId) { subscriptions.linkedTo(recurringId) }.collectAsState(initial = null)
                 OutlinedButton(

@@ -174,6 +174,39 @@ class SubscriptionsTest {
     }
 
     @Test
+    fun `taken back, the cancellation lets its fixed booking run on again if it ended with it`() = runBlocking {
+        val rent = template("Zeitung", "30", BookingInterval.Monthly)
+        val paper = save(checkNotNull(subscriptions.draftFor(rent)).copy(cancelBy = date("2026-12-01")))
+        subscriptions.cancel(paper, date("2027-01-31"))
+        ledger.endTemplateOn(rent, date("2027-01-31"))
+
+        subscriptions.uncancel(paper)
+
+        assertEquals(RecurrenceEnd.Never, ledger.editingTemplate(rent)?.original?.end)
+    }
+
+    @Test
+    fun `only fixed bookings of expenses are offered to link`() = runBlocking {
+        val salary = ledger.categories().first().single { it.kind == BookingKind.Income && it.name == "Gehalt" }.id
+        val income = ledger.createTemplate(
+            RecurringDraft(BookingKind.Income, "2.500", salary, "Gehalt", BookingInterval.Monthly, day = 1, firstMonth = YearMonth.of(2026, 12)),
+        )
+        val expense = template("Zeitung", "30", BookingInterval.Monthly)
+
+        assertEquals(listOf(expense), subscriptions.linkable(except = null).first().map { it.id }.filter { it == income || it == expense })
+    }
+
+    @Test
+    fun `saved from its editor in February, a term on the 30th keeps ending on the 30th`() = runBlocking {
+        val gym = save(SubscriptionDraft("Fitness", reckoned = true, termEnd = date("2027-01-30"), notice = "0", noticeUnit = NoticeUnit.Days, renewal = "1"))
+        clock.now = Instant.parse("2027-02-10T09:00:00Z")
+        change(gym) { it.copy(note = "Studio am Markt") }
+
+        clock.now = Instant.parse("2027-03-10T09:00:00Z")
+        assertEquals(date("2027-03-30"), lastDayOf(gym))
+    }
+
+    @Test
     fun `deleted, the Abo goes, its fixed booking stays`() = runBlocking {
         val rent = template("Zeitung", "30", BookingInterval.Monthly)
         val paper = save(checkNotNull(subscriptions.draftFor(rent)).copy(cancelBy = date("2026-12-01")))

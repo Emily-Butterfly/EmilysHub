@@ -637,7 +637,7 @@ val MIGRATION_42_43 = object : Migration(42, 43) {
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
                 "`amount_cents` INTEGER, `interval` TEXT, `recurring_id` INTEGER, `note` TEXT NOT NULL, `cancel_by` TEXT, " +
-                "`term_end` TEXT, `notice_count` INTEGER, `notice_unit` TEXT, `renewal_months` INTEGER, " +
+                "`term_end` TEXT, `term_day` INTEGER, `notice_count` INTEGER, `notice_unit` TEXT, `renewal_months` INTEGER, " +
                 "`lead_days` INTEGER NOT NULL, `runs_on` INTEGER NOT NULL DEFAULT 0, `ends_on` TEXT, " +
                 "FOREIGN KEY(`recurring_id`) REFERENCES `recurring_bookings`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         )

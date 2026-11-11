@@ -39,6 +39,18 @@ class SubscriptionTermsTest {
     }
 
     @Test
+    fun `a term on the 30th renews on the 30th again after February, not on the last of each month`() {
+        val term = Deadline.Term(date("2027-01-30"), Notice(1, NoticeUnit.Months), renewalMonths = 1)
+        val february = term.next()
+        assertEquals(date("2027-02-28"), february.termEnd)
+        assertEquals(date("2027-03-30"), february.next().termEnd)
+        // Its notice by the 30th too, where the month has one.
+        assertEquals(date("2027-02-28"), february.next().lastDay)
+        assertEquals(date("2027-03-30"), february.next().next().lastDay)
+        assertEquals(date("2027-05-30"), term.current(date("2027-04-01")).termEnd)
+    }
+
+    @Test
     fun `a term whose last day went by moves on to the next, over several if need be`() {
         val term = Deadline.Term(date("2026-12-31"), Notice(3, NoticeUnit.Months), renewalMonths = 12)
         assertEquals(date("2026-09-30"), term.lastDay)

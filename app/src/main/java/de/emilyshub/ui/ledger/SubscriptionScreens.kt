@@ -1,8 +1,10 @@
 package de.emilyshub.ui.ledger
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,12 +41,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
@@ -72,13 +76,16 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberToday
 import java.io.Serializable
 import java.time.LocalDate
 
 /** What the editor of Abos opens: a new one, linked to the fixed booking [recurringId] if given, or one saved already. */
 sealed interface SubscriptionEditorTarget : Serializable {
+    /** A new Abo, linked to the fixed booking [recurringId] if given. */
     data class New(val recurringId: Long? = null) : SubscriptionEditorTarget
 
+    /** The Abo saved under [subscriptionId]. */
     data class Edit(val subscriptionId: Long) : SubscriptionEditorTarget
 }
 
@@ -89,8 +96,10 @@ sealed interface SubscriptionEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SubscriptionListScreen(subscriptions: Subscriptions, onOpen: (SubscriptionEditorTarget) -> Unit, onBack: () -> Unit) {
-    val overview by remember(subscriptions) { subscriptions.overview() }.collectAsState(initial = null)
+fun SubscriptionListScreen(subscriptions: Subscriptions, day: Day, onOpen: (SubscriptionEditorTarget) -> Unit, onBack: () -> Unit) {
+    // Looked at anew when the day changes, so that the days left are those of today.
+    val today = rememberToday(day)
+    val overview by remember(subscriptions, today) { subscriptions.overview() }.collectAsState(initial = null)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -130,6 +139,7 @@ fun SubscriptionListScreen(subscriptions: Subscriptions, onOpen: (SubscriptionEd
     }
 }
 
+/** An Abo in its list: its name, how it stands, and what it costs, if known; tapping it opens it. */
 @Composable
 private fun SubscriptionRow(item: SubscriptionItem, onOpen: (SubscriptionEditorTarget) -> Unit) {
     val lapsed = item.status is SubscriptionStatus.Lapsed
@@ -212,6 +222,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
     val item = overview?.let { it.running + it.cancelled }?.find { it.subscription.id == subscriptionId }
     val closeWith = rememberClosing(onClose)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
     // Cancelled to end on a day: linked to a fixed booking, it asks next whether that ends then too, else it closes.
     val cancelOn = { saved: SubscriptionItem, endsOn: LocalDate ->
         if (saved.linked == null) {
@@ -311,7 +322,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                 supportingText = {
                     Text(
                         if (SubscriptionProblem.LeadOutOfRange in problems) {
-                            stringResource(R.string.routine_interval_range, SubscriptionDraft.LEAD.first, SubscriptionDraft.LEAD.last)
+                            stringResource(R.string.subscription_range, SubscriptionDraft.LEAD.first, SubscriptionDraft.LEAD.last)
                         } else {
                             stringResource(R.string.subscription_lead_hint)
                         },
@@ -327,7 +338,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
         DateChoice.CancelBy, DateChoice.TermEnd -> DateDialog(
             initial = (if (choice == DateChoice.CancelBy) draft.cancelBy else draft.termEnd) ?: subscriptions.today(),
             onConfirm = { date ->
-                draft = if (choice == DateChoice.CancelBy) draft.copy(cancelBy = date) else draft.copy(termEnd = date)
+                draft = if (choice == DateChoice.CancelBy) draft.copy(cancelBy = date) else draft.copy(termEnd = date, termDay = null)
                 choosingDate = null
             },
             onDismiss = { choosingDate = null },
@@ -365,7 +376,16 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
             title = { Text(stringResource(R.string.subscription_end_recurring_title)) },
             text = { Text(stringResource(R.string.subscription_end_recurring_text, linkedToEnd.name, endsOn.numericDate())) },
             confirmButton = {
-                TextButton(onClick = { closeWith { ledger.endTemplateOn(linkedToEnd.id, endsOn) } }) {
+                TextButton(
+                    onClick = {
+                        closeWith {
+                            // Not before its first booking: it says so, and the booking runs on.
+                            if (!ledger.endTemplateOn(linkedToEnd.id, endsOn)) {
+                                Toast.makeText(context, context.getString(R.string.subscription_end_recurring_failed), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                ) {
                     Text(stringResource(R.string.subscription_end_recurring_yes))
                 }
             },
@@ -428,7 +448,7 @@ private fun StatusActions(
  */
 @Composable
 private fun CancelDialog(item: SubscriptionItem, onCancel: (LocalDate) -> Unit, onChooseDate: () -> Unit, onDismiss: () -> Unit) {
-    val reckoned = item.subscription.termEnd != null
+    val reckoned = item.subscription.deadline is Deadline.Term
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.subscription_cancel_title, item.subscription.name)) },
@@ -437,18 +457,19 @@ private fun CancelDialog(item: SubscriptionItem, onCancel: (LocalDate) -> Unit, 
                 if (reckoned) {
                     stringResource(R.string.subscription_cancel_term, item.endIfCancelled.numericDate())
                 } else {
-                    stringResource(R.string.subscription_cancel_date)
+                    stringResource(R.string.subscription_cancel_date, item.endIfCancelled.numericDate())
                 },
             )
         },
         confirmButton = {
-            if (reckoned) {
-                TextButton(onClick = { onCancel(item.endIfCancelled) }) { Text(stringResource(R.string.subscription_cancel)) }
-            } else {
-                TextButton(onClick = onChooseDate) { Text(stringResource(R.string.field_date_change)) }
+            TextButton(onClick = { onCancel(item.endIfCancelled) }) { Text(stringResource(R.string.subscription_cancel)) }
+        },
+        dismissButton = {
+            Row {
+                if (!reckoned) TextButton(onClick = onChooseDate) { Text(stringResource(R.string.field_date_change)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -526,7 +547,7 @@ private fun DeadlineFields(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         isError = SubscriptionProblem.NoticeOutOfRange in problems,
         supportingText = {
-            Text(stringResource(R.string.routine_interval_range, draft.noticeUnit.range.first, draft.noticeUnit.range.last))
+            Text(stringResource(R.string.subscription_range, draft.noticeUnit.range.first, draft.noticeUnit.range.last))
         },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -543,7 +564,7 @@ private fun DeadlineFields(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         isError = SubscriptionProblem.RenewalOutOfRange in problems,
         supportingText = {
-            Text(stringResource(R.string.routine_interval_range, SubscriptionDraft.RENEWAL.first, SubscriptionDraft.RENEWAL.last))
+            Text(stringResource(R.string.subscription_range, SubscriptionDraft.RENEWAL.first, SubscriptionDraft.RENEWAL.last))
         },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -565,6 +586,7 @@ private fun DateChoiceValue(label: String, date: LocalDate?, missing: Boolean, o
     }
 }
 
+/** "Tage", "Wochen" or "Monate". */
 private fun unitLabel(unit: NoticeUnit): Int = when (unit) {
     NoticeUnit.Days -> R.string.subscription_notice_days
     NoticeUnit.Weeks -> R.string.subscription_notice_weeks
