@@ -10,6 +10,7 @@ import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
@@ -45,6 +46,9 @@ interface Hub {
     val nightlyBackups: NightlyBackups
     val search: Search
     val ledger: Ledger
+
+    /** The Abos of the household book (SPEC.md §13). */
+    val subscriptions: Subscriptions
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute

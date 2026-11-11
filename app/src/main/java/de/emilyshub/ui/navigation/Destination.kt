@@ -3,6 +3,7 @@ package de.emilyshub.ui.navigation
 import de.emilyshub.search.SearchArea
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.RecurringEditorTarget
+import de.emilyshub.ui.ledger.SubscriptionEditorTarget
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.places.PlaceEditorTarget
 import de.emilyshub.ui.routines.RoutineEditorTarget
@@ -113,6 +114,12 @@ sealed interface Destination : Serializable {
     /** A booking's editor (SPEC.md §13). */
     data class BookingEditor(override val target: BookingEditorTarget) : Editor
 
+    /** The Abos (SPEC.md §13). */
+    data object Subscriptions : Destination
+
+    /** An Abo's editor (SPEC.md §13). */
+    data class SubscriptionEditor(override val target: SubscriptionEditorTarget) : Editor
+
     companion object {
         /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */
         fun found(area: SearchArea, id: Long): Destination = when (area) {
@@ -121,6 +128,7 @@ sealed interface Destination : Serializable {
             SearchArea.Wishes -> WishEditor(WishEditorTarget.Edit(id))
             SearchArea.Notes -> NoteEditor(NoteEditorTarget.Edit(id))
             SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
+            SearchArea.Subscriptions -> SubscriptionEditor(SubscriptionEditorTarget.Edit(id))
         }
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -93,6 +94,7 @@ fun LedgerScreen(
     onCreate: () -> Unit,
     onOpenCategories: () -> Unit,
     onOpenRecurring: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onOpenArchive: () -> Unit,
     onOpenYear: () -> Unit,
     onOpenCalculator: (YearMonth) -> Unit,
@@ -127,6 +129,9 @@ fun LedgerScreen(
                     }
                     IconButton(onClick = onOpenRecurring) {
                         Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.recurring_title))
+                    }
+                    IconButton(onClick = onOpenSubscriptions) {
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.subscriptions_title))
                     }
                     IconButton(onClick = onOpenCategories) {
                         Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.ledger_categories))

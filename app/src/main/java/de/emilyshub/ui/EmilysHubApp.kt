@@ -73,6 +73,8 @@ import de.emilyshub.ui.ledger.LedgerArchiveScreen
 import de.emilyshub.ui.ledger.LedgerButton
 import de.emilyshub.ui.ledger.BudgetCalculatorScreen
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
+import de.emilyshub.ui.ledger.SubscriptionEditorScreen
+import de.emilyshub.ui.ledger.SubscriptionListScreen
 import de.emilyshub.ui.ledger.LedgerIconButton
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.LedgerYearScreen
@@ -254,7 +256,13 @@ private fun AppShell(hub: Hub, settings: Settings) {
             Destination.WishReview ->
                 WishReviewScreen(hub.wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
             is Destination.BookingEditor -> BookingEditorScreen(hub.ledger, top.target, onClose = back)
-            is Destination.RecurringEditor -> RecurringEditorScreen(hub.ledger, top.target, onClose = back)
+            is Destination.RecurringEditor -> RecurringEditorScreen(
+                hub.ledger, hub.subscriptions, top.target, onClose = back,
+                onOpenSubscription = { open(Destination.SubscriptionEditor(it)) },
+            )
+            Destination.Subscriptions ->
+                SubscriptionListScreen(hub.subscriptions, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
+            is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
             Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
             Destination.LedgerArchive ->
                 LedgerArchiveScreen(hub.ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
@@ -278,6 +286,7 @@ private fun AppShell(hub: Hub, settings: Settings) {
                 onCreate = { open(Destination.BookingEditor(BookingEditorTarget.New)) },
                 onOpenCategories = { open(Destination.LedgerCategories) },
                 onOpenRecurring = { open(Destination.Recurring) },
+                onOpenSubscriptions = { open(Destination.Subscriptions) },
                 onOpenArchive = { open(Destination.LedgerArchive) },
                 onOpenYear = { stack = stack.openLedgerYear() },
                 onOpenCalculator = { open(Destination.BudgetCalculator(it)) },

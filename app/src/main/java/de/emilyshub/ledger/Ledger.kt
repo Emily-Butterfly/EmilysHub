@@ -673,8 +673,26 @@ class Ledger(
         enterDue()
     }
 
-    /** Deletes the fixed booking: no more come, those entered stay. */
-    suspend fun deleteTemplate(id: Long) = write { dao.deleteTemplate(id) }
+    /** Deletes the fixed booking: no more come, those entered stay; its Abo stays, with its amount and interval as its own. */
+    suspend fun deleteTemplate(id: Long) = write {
+        database().withTransaction {
+            dao.unlinkSubscription(id)
+            dao.deleteTemplate(id)
+        }
+    }
+
+    /**
+     * Ends the fixed booking with the last on [date], that day included (SPEC.md §13), as when its Abo is cancelled; not
+     * if that is before its first booking, and says whether it did.
+     */
+    suspend fun endTemplateOn(id: Long, date: LocalDate): Boolean = write {
+        database().withTransaction {
+            val template = dao.template(id) ?: return@withTransaction false
+            if (date.isBefore(template.dates().firstOrNull() ?: return@withTransaction false)) return@withTransaction false
+            dao.updateTemplate(template.copy(endsAfter = null, endsOn = date))
+            true
+        }
+    }
 
     /**
      * Enters every fixed booking due by today that is not yet: those of days the app did not run on too, each exactly

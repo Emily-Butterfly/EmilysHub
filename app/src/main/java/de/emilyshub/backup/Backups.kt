@@ -177,6 +177,7 @@ class Backups(
             "ledger_skipped" to dao::skipped, "ledger_closed_budgets" to dao::closedBudgets,
             "ledger_opening_balances" to dao::openingBalances, "ledger_month_budgets" to dao::monthBudgets,
             "ledger_total_budget" to dao::standardTotalBudget, "ledger_month_total_budgets" to dao::monthTotalBudgets,
+            "subscriptions" to dao::subscriptions,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {

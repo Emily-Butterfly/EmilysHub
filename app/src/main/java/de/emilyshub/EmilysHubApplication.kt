@@ -25,6 +25,7 @@ import de.emilyshub.doku.TestCatalog
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
@@ -170,6 +171,8 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** The household book (SPEC.md §13). */
     final override val ledger: Ledger by lazy { Ledger({ database }, clock, io) }
+
+    final override val subscriptions: Subscriptions by lazy { Subscriptions({ database }, clock, io) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 

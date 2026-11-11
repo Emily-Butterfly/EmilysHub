@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,6 +55,7 @@ import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.ledger.RecurringEditing
 import de.emilyshub.ledger.RecurringProblem
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
@@ -137,10 +139,17 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
 /**
  * A fixed booking, new or saved (SPEC.md §13): a booking without a date, which comes every so often on a day of the
  * month from its first month on. A change holds from the next one entered; deleting asks first, and keeps those entered.
+ * One saved can be kept as an Abo, or opens the one it has.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose: () -> Unit) {
+fun RecurringEditorScreen(
+    ledger: Ledger,
+    subscriptions: Subscriptions,
+    target: RecurringEditorTarget,
+    onClose: () -> Unit,
+    onOpenSubscription: (SubscriptionEditorTarget) -> Unit,
+) {
     val recurringId = (target as? RecurringEditorTarget.Edit)?.recurringId
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (recurringId == null) RecurringEditing.New else null) }
@@ -210,7 +219,16 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (recurringId != null) Hint(stringResource(R.string.recurring_edit_hint))
+            if (recurringId != null) {
+                Hint(stringResource(R.string.recurring_edit_hint))
+                // Whether it has an Abo, also once one is made from here.
+                val abo by remember(subscriptions, recurringId) { subscriptions.linkedTo(recurringId) }.collectAsState(initial = null)
+                OutlinedButton(
+                    onClick = {
+                        onOpenSubscription(abo?.let(SubscriptionEditorTarget::Edit) ?: SubscriptionEditorTarget.New(recurringId))
+                    },
+                ) { Text(stringResource(if (abo == null) R.string.subscription_as_abo else R.string.subscription_open)) }
+            }
             KindChips(draft.kind) { draft = draft.copy(kind = it, categoryId = null) }
             AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems) { draft = draft.copy(amount = it) }
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && RecurringProblem.CategoryMissing in problems) {
@@ -282,7 +300,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
 }
 
 @Composable
-private fun intervalLabel(interval: BookingInterval): String = stringResource(
+internal fun intervalLabel(interval: BookingInterval): String = stringResource(
     when (interval) {
         BookingInterval.Monthly -> R.string.recurring_monthly
         BookingInterval.Quarterly -> R.string.recurring_quarterly

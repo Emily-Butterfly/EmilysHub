@@ -7,6 +7,7 @@ import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
@@ -141,4 +142,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM ledger_month_total_budgets")
     fun monthTotalBudgets(): List<MonthTotalBudget>
+
+    @Query("SELECT * FROM subscriptions")
+    fun subscriptions(): List<Subscription>
 }

@@ -150,6 +150,7 @@ private val SearchArea.label: Int
         SearchArea.Wishes -> R.string.search_wishes
         SearchArea.Notes -> R.string.destination_notes
         SearchArea.Bookings -> R.string.ledger_title
+        SearchArea.Subscriptions -> R.string.subscriptions_title
     }
 
 /** How long typing has to pause before the search looks again. */

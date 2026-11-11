@@ -65,6 +65,13 @@ interface LedgerDao {
     @Query("DELETE FROM recurring_bookings WHERE id = :id")
     suspend fun deleteTemplate(id: Long)
 
+    /** Takes the amount and interval of the fixed booking [id] into its Abo, if it has one, as its own, unlinked. */
+    @Query(
+        "UPDATE subscriptions SET amount_cents = (SELECT amount_cents FROM recurring_bookings WHERE id = :id), " +
+            "interval = (SELECT interval FROM recurring_bookings WHERE id = :id), recurring_id = NULL WHERE recurring_id = :id",
+    )
+    suspend fun unlinkSubscription(id: Long)
+
     @Query("SELECT date FROM bookings WHERE category_id = :categoryId")
     suspend fun datesIn(categoryId: Long): List<LocalDate>
 

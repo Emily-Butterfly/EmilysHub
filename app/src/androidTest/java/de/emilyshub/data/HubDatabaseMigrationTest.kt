@@ -12,6 +12,7 @@ import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
 import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
@@ -925,6 +926,25 @@ class HubDatabaseMigrationTest {
             ledger.setMonthTotal(MonthTotalBudget.of(YearMonth.of(2026, 12), TotalBudget.Fixed(150_000)))
             assertEquals(TotalBudget.FromIncome(10_000), ledger.standardTotal()?.budget)
             assertEquals(TotalBudget.Fixed(150_000), ledger.monthTotal(YearMonth.of(2026, 12))?.budget)
+        }
+    }
+
+    @Test
+    fun `version 42 moves to version 43 without Abos, and then one can be linked to a fixed booking`() {
+        createAtVersion(42) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other, budget_cents) VALUES (1, 'expense', 'Freizeit', 0, NULL)")
+            it.execSQL(
+                "INSERT INTO recurring_bookings (id, amount_cents, category_id, description, interval, day, first_month) " +
+                    "VALUES (7, 1299, 1, 'Streaming', 'monthly', 1, '2026-12')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.subscriptions()
+            assertEquals(null, dao.ofRecurring(7))
+
+            val id = dao.insert(Subscription(name = "Streaming", recurringId = 7, cancelBy = LocalDate.parse("2027-01-31")))
+            assertEquals(id, dao.ofRecurring(7)?.id)
         }
     }
 

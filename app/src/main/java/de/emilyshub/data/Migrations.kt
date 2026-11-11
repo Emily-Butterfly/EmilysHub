@@ -627,3 +627,20 @@ val MIGRATION_41_42 = object : Migration(41, 42) {
         db.execSQL("ALTER TABLE `ledger_closed_months` ADD COLUMN `total_budget_cents` INTEGER")
     }
 }
+
+/**
+ * Version 43: the household book has Abos (SPEC.md §13, #79), contracts with the last day to cancel them, linked to a
+ * fixed booking if wanted. None is there yet.
+ */
+val MIGRATION_42_43 = object : Migration(42, 43) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`amount_cents` INTEGER, `interval` TEXT, `recurring_id` INTEGER, `note` TEXT NOT NULL, `cancel_by` TEXT, " +
+                "`term_end` TEXT, `notice_count` INTEGER, `notice_unit` TEXT, `renewal_months` INTEGER, " +
+                "`lead_days` INTEGER NOT NULL, `runs_on` INTEGER NOT NULL DEFAULT 0, `ends_on` TEXT, " +
+                "FOREIGN KEY(`recurring_id`) REFERENCES `recurring_bookings`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_subscriptions_recurring_id` ON `subscriptions` (`recurring_id`)")
+    }
+}

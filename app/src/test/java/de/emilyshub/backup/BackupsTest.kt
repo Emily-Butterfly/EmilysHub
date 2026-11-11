@@ -14,6 +14,8 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.SubscriptionDraft
+import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.saveNew
 import de.emilyshub.notes.Container
@@ -221,6 +223,22 @@ class BackupsTest {
         val restored = everything()
         assertEquals(emptyList<Any>(), restored.getValue("ledger_month_budgets"))
         assertEquals(made.getValue("ledger_categories"), restored.getValue("ledger_categories"))
+    }
+
+    @Test
+    fun `a backup keeps the Abos, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(42, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("subscriptions"), everything().getValue("subscriptions"))
+
+        restore(older)
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("subscriptions"))
+        assertEquals(made.getValue("recurring_bookings"), restored.getValue("recurring_bookings"))
     }
 
     @Test
@@ -536,6 +554,11 @@ class BackupsTest {
             app.ledger.setTotalBudget(TotalBudget.Fixed(200_000))
             app.ledger.close(YearMonth.of(2026, 9), carryOver = true)
             app.ledger.setTotalBudgetIn(YearMonth.of(2026, 12), TotalBudget.FromIncome(10_000))
+            val rentId = app.ledger.templates().first().first().id
+            app.subscriptions.save(
+                SubscriptionEditing.New,
+                SubscriptionDraft("Miete", recurringId = rentId, note = "Kündigung schriftlich", cancelBy = LocalDate.parse("2027-01-31")),
+            )
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(

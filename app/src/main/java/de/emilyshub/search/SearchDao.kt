@@ -46,6 +46,13 @@ interface SearchDao {
             "WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun bookings(pattern: String): List<Candidate>
+
+    /** The Abos of the household book, by their names and notes. */
+    @Query(
+        "SELECT * FROM (SELECT s.id, s.name AS title, s.name || ' ' || s.note AS text FROM subscriptions s) " +
+            "WHERE text LIKE :pattern ESCAPE '\\'",
+    )
+    suspend fun subscriptions(pattern: String): List<Candidate>
 }
 
 /** An entry the database found, with all its text in one, for [Search] to look at more closely. */
