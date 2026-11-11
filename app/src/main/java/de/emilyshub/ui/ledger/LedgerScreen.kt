@@ -79,9 +79,8 @@ import java.time.YearMonth
 /**
  * The household book (SPEC.md §13), a month at a time, the current one first: its opening balance, or the ways to get
  * one while it is open; its total budget as a bar, if it has one; its income, expenses and balance, and the end balance
- * that follows from an opening one; its
- * expenses by category as bars, the largest first, and as a pie chart with its legend; then all its bookings, the
- * latest first. "+" adds a booking, tapping one opens it.
+ * that follows from an opening one; its expenses by category as bars, the largest first, and as a pie chart with its
+ * legend; then all its bookings, the latest first. "+" adds a booking, tapping one opens it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

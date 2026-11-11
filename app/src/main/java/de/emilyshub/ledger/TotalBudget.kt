@@ -76,11 +76,14 @@ data class StandardTotalBudget(
     val kind: TotalBudgetKind,
     val cents: Long,
 ) {
+    /** The total budget it stores. */
     val budget: TotalBudget get() = TotalBudget.of(kind, cents)
 
     companion object {
+        /** The id of the one row. */
         const val ONLY = 1
 
+        /** [budget] as the one row stores it. */
         fun of(budget: TotalBudget) = StandardTotalBudget(ONLY, budget.kind, budget.cents)
     }
 }
@@ -96,9 +99,11 @@ data class MonthTotalBudget(
     val kind: TotalBudgetKind,
     val cents: Long,
 ) {
+    /** The total budget it stores. */
     val budget: TotalBudget get() = TotalBudget.of(kind, cents)
 
     companion object {
+        /** [budget] as [month]'s own, stored. */
         fun of(month: YearMonth, budget: TotalBudget) = MonthTotalBudget(month, budget.kind, budget.cents)
     }
 }

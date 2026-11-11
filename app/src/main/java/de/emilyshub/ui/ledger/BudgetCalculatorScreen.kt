@@ -60,7 +60,11 @@ fun BudgetCalculatorScreen(ledger: Ledger, month: YearMonth?, onClose: () -> Uni
     var typed by rememberSaveable { mutableStateOf<PlanTyped?>(null) }
     LaunchedEffect(ledger, month) {
         // A month closed meanwhile has no calculator.
-        val read = runCatching { ledger.budgetPlan(month) }.getOrNull() ?: return@LaunchedEffect onClose()
+        val read = try {
+            ledger.budgetPlan(month)
+        } catch (_: IllegalArgumentException) {
+            return@LaunchedEffect onClose()
+        }
         plan = read
         if (typed == null) typed = PlanTyped.of(read)
     }

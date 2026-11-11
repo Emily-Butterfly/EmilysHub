@@ -39,8 +39,10 @@ data class PlanTyped(
     val amount: String,
     val saving: String,
 ) : Serializable {
+    /** With the budget of the category [categoryId] typed anew. */
     fun withBudget(categoryId: Long, typed: String) = copy(budgets = budgets + (categoryId to typed))
 
+    /** With the total budget chosen anew, what is typed for each choice kept. */
     fun withTotal(choice: TotalChoice) = copy(choice = choice)
 
     companion object {

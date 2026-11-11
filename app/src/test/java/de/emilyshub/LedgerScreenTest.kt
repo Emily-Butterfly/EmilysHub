@@ -782,6 +782,8 @@ class LedgerScreenTest {
             openLedger()
             compose.onNodeWithText("Jahresübersicht 2026").performClick()
             compose.onNodeWithText("Gesamtbudget: 1.840,00 € von 24.000,00 € · 22.160,00 € frei").assertExists()
+            // September's own line, named too.
+            ledgerList().performScrollToNode(hasText("Gesamtbudget: 1.840,00 € von 2.000,00 € · 160,00 € frei"))
         }
     }
 

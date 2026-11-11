@@ -68,12 +68,15 @@ fun LedgerArchiveScreen(ledger: Ledger, onOpen: (YearMonth) -> Unit, onBack: () 
     }
 }
 
-/** A month's sums in words ([sumsText]), and what it spent of its total budget, if it has one, under them. */
+/**
+ * A month's sums in words ([sumsText]), and what it spent of its total budget, if it has one, under them; named
+ * "Gesamtbudget" if [labelled], as the year overview has it.
+ */
 @Composable
-internal fun MonthSumsText(sums: MonthSums) {
+internal fun MonthSumsText(sums: MonthSums, labelled: Boolean = false) {
     Column {
         Text(sumsText(sums))
-        sums.totalUse?.let { TotalBudgetLine(it) }
+        sums.totalUse?.let { TotalBudgetLine(it, labelled) }
     }
 }
 

@@ -825,7 +825,6 @@
     <string name="budget_calculator_average">Ø %1$s in den letzten %2$d abgeschlossenen Monaten</string>
     <string name="budget_calculator_average_one">Ø %1$s im letzten abgeschlossenen Monat</string>
     <string name="budget_calculator_no_average">Noch kein abgeschlossener Monat für einen Durchschnitt</string>
-    <string name="total_choice_as_usual">Wie sonst</string>
     <string name="total_choice_as_usual_is">Wie sonst (%1$s)</string>
     <string name="total_choice_none">Keins</string>
     <string name="total_choice_fixed">Fester Betrag</string>

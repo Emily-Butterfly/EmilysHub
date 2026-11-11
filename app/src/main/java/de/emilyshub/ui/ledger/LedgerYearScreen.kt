@@ -45,8 +45,8 @@ import java.time.YearMonth
  * The year overview of the household book (SPEC.md §13), a year at a time: its income, expenses and balance; each
  * month with its own, tapping one shows it; and the year's expenses by category, each with its sum and share, the
  * largest first. Months open and closed count the same. Each month's total budget is under its sums, an open one's
- * as of now, and their sum next to the expenses of the same months under the year's. The opening balance of January and the end balance of
- * December show apart, where they are, and count in no sum.
+ * as of now, and their sum next to the expenses of the same months under the year's. The opening balance of January
+ * and the end balance of December show apart, where they are, and count in no sum.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +92,7 @@ fun LedgerYearScreen(
             items(shown.months, key = { it.month.toString() }) { sums ->
                 ListItem(
                     headlineContent = { Text(sums.month.monthName()) },
-                    supportingContent = { MonthSumsText(sums) },
+                    supportingContent = { MonthSumsText(sums, labelled = true) },
                     modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) {
                         onOpenMonth(sums.month)
                     },
