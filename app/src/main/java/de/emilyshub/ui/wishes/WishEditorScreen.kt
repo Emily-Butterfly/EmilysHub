@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
@@ -61,10 +62,10 @@ import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.WishEditing
 import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
-import de.emilyshub.wishes.toDraft
 import kotlinx.coroutines.flow.flowOf
 import java.io.Serializable
 import java.time.LocalDate
@@ -101,22 +102,24 @@ fun WishEditorScreen(
 ) {
     val wishId = (target as? WishEditorTarget.Edit)?.wishId
     val parentId = (target as? WishEditorTarget.New)?.parentId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (wishId == null) WishEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(WishDraft(title = "", parentId = parentId)) }
-    var loaded by rememberSaveable { mutableStateOf(wishId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     // As saved, with its parts.
     val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
 
-    if (!loaded && wishId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(wishId) {
-            val wish = wishes.get(wishId)
-            if (wish == null) {
+            val saved = wishes.editing(checkNotNull(wishId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = wish.toDraft(wishes.tagIdsOf(wishId))
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
@@ -130,7 +133,7 @@ fun WishEditorScreen(
             showMissingTitle = true
         } else {
             val saved = draft
-            closeWith { if (wishId == null) wishes.create(saved) else wishes.update(wishId, saved) }
+            closeWith { wishes.save(opened, saved) }
         }
     }
 
@@ -143,8 +146,8 @@ fun WishEditorScreen(
         }
         val saved = draft
         closeWith.leaveThrough {
-            wishes.update(wishId, saved)
-            next(wishId)
+            val saving = wishes.save(opened, saved)
+            if (saving is Saving.Saved) next(saving.id)
         }
     }
 

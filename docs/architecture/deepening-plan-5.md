@@ -47,7 +47,14 @@ a goal deleted makes none).
 
 ## 3 · Wünsche and Orte join the editing sessions too
 
-**Status:** open.
+**Status:** done. `WishEditing` and `PlaceEditing`, with `Wishes.editing(id)` / `save(editing, draft)` and
+`Places.editing(id)` / `save(editing, draft)`, as the other kinds have them. The wish is read at once with its tags; the
+wish editor's "add a subgoal" and "make a to-do" save through `save` too and go on with the id it gives. A place's
+problems are judged in `save` inside its transaction, against the other places as they are saved: a name taken since
+the editor last saw the list comes back as `Saving.Refused` instead of failing the save with `require`. The editor still
+checks as typed, to show the problems at their fields; it closes on saving, as the other editors do, so a refusal it
+could not have seen leaves the place unsaved rather than the app stopped. `Places.get` is gone, its only caller was the
+editor. Tests: `places/PlacesTest`, `wishes/WishesTest`.
 
 ## 4 · A budget as typed, judged once
 

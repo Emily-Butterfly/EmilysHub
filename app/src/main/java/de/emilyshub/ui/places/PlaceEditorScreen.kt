@@ -53,12 +53,12 @@ import de.emilyshub.places.Area
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.PlaceDraft
+import de.emilyshub.places.PlaceEditing
 import de.emilyshub.places.PlaceProblem
 import de.emilyshub.places.Places
 import de.emilyshub.places.Position
 import de.emilyshub.places.Ssid
 import de.emilyshub.places.Wifi
-import de.emilyshub.places.toDraft
 import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
@@ -88,27 +88,29 @@ fun PlaceEditorScreen(
     onClose: () -> Unit,
 ) {
     val placeId = (target as? PlaceEditorTarget.Edit)?.placeId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (placeId == null) PlaceEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(PlaceDraft(name = "", wifis = emptyList())) }
-    var loaded by rememberSaveable { mutableStateOf(placeId == null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var triedToSave by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     val all by remember(places) { places.all() }.collectAsState(initial = null)
     val access = rememberLocationAccess()
 
-    if (!loaded && placeId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(placeId) {
-            val place = places.get(placeId)
-            if (place == null) {
+            val saved = places.editing(checkNotNull(placeId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = place.toDraft()
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
     }
-    // The other places, which its name is checked against; saving waits for them.
+    // The other places, which its name is checked against as it is typed; saving checks it again, as they are saved.
     val others = all?.filter { it.id != placeId } ?: return
     val problems = draft.problems(others)
     val closeWith = rememberClosing(onClose)
@@ -117,7 +119,7 @@ fun PlaceEditorScreen(
             triedToSave = true
         } else {
             val saved = draft
-            closeWith { if (placeId == null) places.create(saved) else places.update(placeId, saved) }
+            closeWith { places.save(opened, saved) }
         }
     }
 

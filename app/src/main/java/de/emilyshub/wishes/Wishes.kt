@@ -3,6 +3,7 @@ package de.emilyshub.wishes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -66,6 +67,23 @@ class Wishes(
 
     /** The wish's tags (SPEC.md §8). */
     suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
+
+    /** The wish [id] as it is saved, to edit (SPEC.md §6), read at once with its tags; null once it is deleted. */
+    suspend fun editing(id: Long): WishEditing? = withContext(io) {
+        database().withTransaction { dao.get(id)?.let { WishEditing(id, it.toDraft(dao.tagIdsOf(id).toSet())) } }
+    }
+
+    /**
+     * Saves [draft] as [editing] has it: a new wish, or the changes to the one opened; refused, with nothing saved, for
+     * its problems.
+     */
+    suspend fun save(editing: WishEditing, draft: WishDraft): Saving<WishProblem> {
+        val problems = draft.problems
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(create(draft))
+        update(id, draft)
+        return Saving.Saved(id)
+    }
 
     /**
      * A new wish; refuses a draft with problems, which the editor shows before. Under a goal, it is a part of it, which
