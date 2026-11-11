@@ -467,7 +467,7 @@ class Ledger(
 
     /**
      * Closes [month]: it goes to the archive, only to read, keeping the budgets of now and the amount its total budget
-     * comes to; the screen asks first. The fixed bookings due by today are entered before, so that none of its last day
+     * comes to, and the total budget that held in it as its own; the screen asks first. The fixed bookings due by today are entered before, so that none of its last day
      * is lost. With [carryOver], its end balance goes into the month after as its opening balance, replacing one it has,
      * all or nothing: into a closed one it does not, nor is [month] closed then.
      */
@@ -482,7 +482,10 @@ class Ledger(
             }
             // Closed already, it keeps the budgets it had then.
             if (month !in closedNow()) {
-                dao.close(ClosedMonth(month, totalAmountIn(month)))
+                val setting = totalSettingIn(month)
+                dao.close(ClosedMonth(month, setting.amount(incomeOf(month))))
+                // The standard of now becomes its own, so that it has it again once opened, whatever the standard is then.
+                if (dao.monthTotal(month) == null) dao.setMonthTotal(MonthTotalBudget.of(month, setting))
                 dao.keepBudgets(month)
             }
         }
@@ -541,8 +544,17 @@ class Ledger(
     private suspend fun endBalance(month: YearMonth): Long =
         LedgerMonth.endBalance(dao.opening(month)?.cents, dao.balanceBetween(month.atDay(1), month.atEndOfMonth()))
 
-    /** Opens the closed [month] again, with the budgets of now, its own among them; the screen asks first. */
-    suspend fun reopen(month: YearMonth) = write { dao.reopen(month) }
+    /**
+     * Opens the closed [month] again, with the budgets of now, its own among them; the screen asks first. Its total budget
+     * is the one that held when it was closed, not a standard changed meanwhile; the same as the standard of now, it
+     * follows the standard again.
+     */
+    suspend fun reopen(month: YearMonth) = write {
+        database().withTransaction {
+            dao.reopen(month)
+            if (dao.monthTotal(month)?.budget == storedStandard()) dao.removeMonthTotal(month)
+        }
+    }
 
     /** The months closed, the latest first, each with its sums (SPEC.md §13). */
     fun archive(): Flow<List<MonthSums>> = flow {

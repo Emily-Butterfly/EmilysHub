@@ -18,7 +18,7 @@ Die Budgets der Ausgaben-Kategorien bekommen ein **Gesamtbudget** über sich und
 - [x] Standard für alle offenen und kommenden Monate: **keins** (wie bisher), ein **fester Betrag** (Euro mit Cent, größer als 0) oder **aus Einnahmen** mit einem **Sparbetrag** (Standard 0 €)
 - [x] „Aus Einnahmen“ = die im Monat eingetragenen Einnahmen + die Fixbuchungen, die bis zum Monatsende noch als Einnahme kommen, − Sparbetrag; nie unter 0 €; der Anfangssaldo zählt nicht
 - [x] Jeder offene Monat, auch künftige, kann abweichen: eigener Betrag, „aus Einnahmen“ mit eigenem Sparbetrag oder keins; „Wie sonst“ nimmt es zurück. Ein geänderter Standard gilt in allen offenen Monaten außer denen mit eigenem
-- [x] Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest; wieder geöffnet gilt seine Einstellung wieder
+- [x] Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest; wieder geöffnet gilt seine Einstellung wieder, auch der Standard von damals: ein inzwischen geänderter Standard gilt für ihn nicht
 - [x] Monatsansicht: oben ein **Gesamtbalken** „ausgegeben von Gesamtbudget“ mit den Farben der Kategorie-Balken (ab 80 % orange, darüber rot mit „… über Budget“); ohne Gesamtbudget keiner
 - [x] Kurzer Hinweis beim Speichern einer Buchung, die das Gesamtbudget ihres Monats überschreitet, neben dem der Kategorie; keine Benachrichtigungen
 
@@ -51,3 +51,4 @@ Abgestimmt im Interview vom 11.11.2026.
 - Durchschnitt als Hilfe, kein „alle anteilig kürzen“.
 - Über dem Gesamtbudget speichern ist erlaubt, es steht dann rot da.
 - Archiv und Jahresübersicht zeigen das Gesamtbudget.
+- Nachgefragt am 11.11.2026: Die Jahresübersicht zählt auch kommende offene Monate mit ihrem Gesamtbudget von jetzt; eine Kategorie ohne Ausgaben in den abgeschlossenen Monaten zeigt „Ø 0,00 €“; ein wieder geöffneter Monat übernimmt keinen inzwischen geänderten Standard.

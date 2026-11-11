@@ -305,7 +305,7 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der M
   - ein **fester Betrag**, Euro mit Cent, größer als 0,
   - **aus Einnahmen**: die im Monat eingetragenen Einnahmen samt den Fixbuchungen, die bis zum Monatsende noch als Einnahme kommen, minus einem **Sparbetrag** (Standard 0 €); nie unter 0 €. Der Anfangssaldo zählt nicht.
 
-  Jeder offene Monat kann abweichen: ein eigener Betrag, „aus Einnahmen“ mit eigenem Sparbetrag oder keins; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest.
+  Jeder offene Monat kann abweichen: ein eigener Betrag, „aus Einnahmen“ mit eigenem Sparbetrag oder keins; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest; wieder geöffnet gilt die Einstellung von damals, auch der Standard von damals, nicht ein inzwischen geänderter.
   - Monatsansicht: oben ein **Gesamtbalken** „ausgegeben von Gesamtbudget“ mit den Farben der Kategorie-Balken (ab 80 % orange, darüber rot); ohne Gesamtbudget keiner.
   - Kurzer Hinweis beim Speichern einer Buchung, die das Gesamtbudget ihres Monats überschreitet. Keine Benachrichtigungen.
 - **Budget-Rechner**: eine Seite mit allen Ausgaben-Kategorien, je einem Budget-Feld, der laufenden Summe, dem Gesamtbudget und der Differenz („50 € frei“ oder rot „120 € drüber“). Neben jedem Feld steht als Hilfe der Durchschnitt der Ausgaben der letzten drei abgeschlossenen Monate. Kategorien ohne Budget heißen „ohne Budget“ und zählen 0 €. Gespeichert wird alles auf einmal, auch über dem Gesamtbudget; gekürzt wird nichts von selbst. Zwei Einstiege:

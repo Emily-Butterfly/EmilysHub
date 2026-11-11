@@ -143,6 +143,36 @@ class TotalBudgetTest {
     }
 
     @Test
+    fun `reopened, a month has the standard of when it was closed, not one changed meanwhile`() = runBlocking {
+        book("Gehalt", BookingKind.Income, "2.000", "2026-09-01")
+        ledger.setTotalBudget(TotalBudget.FromIncome(savingCents = 20_000))
+        ledger.close(september)
+        ledger.setTotalBudget(TotalBudget.Fixed(100_000))
+
+        ledger.reopen(september)
+
+        val reopened = ledger.month(september).first()
+        assertEquals(TotalBudget.FromIncome(20_000), reopened.totalSetting)
+        assertEquals(180_000L, reopened.totalBudget)
+        assertTrue(reopened.ownTotal)
+        // "Wie sonst" takes the standard of now.
+        ledger.setTotalBudgetIn(september, null)
+        assertEquals(100_000L, totalIn(september))
+    }
+
+    @Test
+    fun `reopened with the standard unchanged, a month follows it again`() = runBlocking {
+        ledger.setTotalBudget(TotalBudget.Fixed(150_000))
+        ledger.close(september)
+
+        ledger.reopen(september)
+        ledger.setTotalBudget(TotalBudget.Fixed(120_000))
+
+        assertFalse(ledger.month(september).first().ownTotal)
+        assertEquals(120_000L, totalIn(september))
+    }
+
+    @Test
     fun `a month closed keeps its total budget as an amount, and has its setting again once opened`() = runBlocking {
         book("Gehalt", BookingKind.Income, "2.000", "2026-09-01")
         ledger.setTotalBudget(TotalBudget.Fixed(150_000))
