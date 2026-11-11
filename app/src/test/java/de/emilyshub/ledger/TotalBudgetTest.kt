@@ -131,6 +131,18 @@ class TotalBudgetTest {
     }
 
     @Test
+    fun `set to the standard, a month follows it only while open, closed it keeps the amount of then`() = runBlocking {
+        ledger.setTotalBudget(TotalBudget.Fixed(200_000))
+        ledger.setTotalBudgetIn(september, TotalBudget.Fixed(200_000))
+        ledger.close(september)
+
+        ledger.setTotalBudget(TotalBudget.Fixed(150_000))
+
+        assertEquals(200_000L, totalIn(september))
+        assertEquals(150_000L, totalIn(october))
+    }
+
+    @Test
     fun `a month closed keeps its total budget as an amount, and has its setting again once opened`() = runBlocking {
         book("Gehalt", BookingKind.Income, "2.000", "2026-09-01")
         ledger.setTotalBudget(TotalBudget.Fixed(150_000))
