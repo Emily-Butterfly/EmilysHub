@@ -58,6 +58,7 @@ import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
 import java.io.Serializable
+import java.time.YearMonth
 
 /** What the booking editor opens: a new booking, or one saved already. */
 sealed interface BookingEditorTarget : Serializable {
@@ -116,12 +117,18 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
             closeWith {
                 val over = ledger.overrunOf(saved, replacing = bookingId)
+                val overTotal = ledger.totalOverrunOf(saved, replacing = bookingId)
                 // A month closed meanwhile, elsewhere, refuses it: nothing is saved, as it says when opened again.
                 val saving = ledger.save(opened, saved)
                 // Briefly, once saved: no notification (SPEC.md §13).
-                if (saving is Saving.Saved && over != null) {
-                    val text = context.getString(R.string.booking_over_budget, Money.format(over), category)
-                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                val texts = listOfNotNull(
+                    over?.let { context.getString(R.string.booking_over_budget, Money.format(it), category) },
+                    overTotal?.let {
+                        context.getString(R.string.booking_over_total_budget, Money.format(it), YearMonth.from(saved.date).monthAndYear())
+                    },
+                )
+                if (saving is Saving.Saved && texts.isNotEmpty()) {
+                    Toast.makeText(context, texts.joinToString("\n"), Toast.LENGTH_SHORT).show()
                 }
             }
         }

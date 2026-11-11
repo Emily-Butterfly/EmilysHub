@@ -44,7 +44,8 @@ import java.time.YearMonth
 /**
  * The year overview of the household book (SPEC.md §13), a year at a time: its income, expenses and balance; each
  * month with its own, tapping one shows it; and the year's expenses by category, each with its sum and share, the
- * largest first. Months open and closed count the same. The opening balance of January and the end balance of
+ * largest first. Months open and closed count the same. Each month's total budget is under its sums, an open one's
+ * as of now, and their sum next to the expenses of the same months under the year's. The opening balance of January and the end balance of
  * December show apart, where they are, and count in no sum.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +78,12 @@ fun LedgerYearScreen(
             // Of the year shown, not of the one before while it loads.
             val shown = summary?.takeIf { it.year == year } ?: return@LazyColumn
             item(key = "sums") { Sums(shown.income, shown.expenses, shown.balance) }
+            // The months with a total budget only, on both sides.
+            shown.totalUse?.let { use ->
+                item(key = "total-budget") {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { TotalBudgetLine(use, labelled = true) }
+                }
+            }
             // Where the year starts, apart from its sums: it counts as no income.
             shown.openingOfJanuary?.let { cents ->
                 item(key = "opening") { YearBalance(stringResource(R.string.ledger_year_opening, Money.format(cents))) }
@@ -85,7 +92,7 @@ fun LedgerYearScreen(
             items(shown.months, key = { it.month.toString() }) { sums ->
                 ListItem(
                     headlineContent = { Text(sums.month.monthName()) },
-                    supportingContent = { Text(sumsText(sums)) },
+                    supportingContent = { MonthSumsText(sums) },
                     modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) {
                         onOpenMonth(sums.month)
                     },

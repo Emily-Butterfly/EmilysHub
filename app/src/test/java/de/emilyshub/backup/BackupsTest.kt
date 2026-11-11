@@ -14,6 +14,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.saveNew
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
@@ -223,6 +224,26 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps the total budgets, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(41, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("ledger_total_budget"), everything().getValue("ledger_total_budget"))
+        assertEquals(made.getValue("ledger_closed_months"), everything().getValue("ledger_closed_months"))
+        assertEquals(TotalBudget.FromIncome(10_000), runBlocking { app.ledger.month(YearMonth.of(2026, 12)).first().totalSetting })
+
+        restore(older)
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_total_budget"))
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_month_total_budgets"))
+        assertEquals(null, runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().totalBudget })
+        assertEquals(made.getValue("bookings"), restored.getValue("bookings"))
+    }
+
+    @Test
     fun `a backup from before opening balances loads without them`() {
         val made = someOfEverything()
         val file = sealed(asOf(37, contentOf(exported())))
@@ -245,7 +266,8 @@ class BackupsTest {
 
         val restored = everything()
         assertEquals(emptyList<Any>(), restored.getValue("ledger_closed_budgets"))
-        assertEquals(made.getValue("ledger_closed_months"), restored.getValue("ledger_closed_months"))
+        // The months alone: the total budget they keep came later still.
+        assertEquals(made.getValue("ledger_closed_months").map { it.first() }, restored.getValue("ledger_closed_months").map { it.first() })
         assertTrue(runBlocking { app.ledger.categories().first() }.all { it.budgetCents == null })
     }
 
@@ -511,7 +533,9 @@ class BackupsTest {
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
             app.ledger.setBudget(food.id, 30_000)
+            app.ledger.setTotalBudget(TotalBudget.Fixed(200_000))
             app.ledger.close(YearMonth.of(2026, 9), carryOver = true)
+            app.ledger.setTotalBudgetIn(YearMonth.of(2026, 12), TotalBudget.FromIncome(10_000))
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(

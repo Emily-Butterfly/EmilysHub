@@ -3,6 +3,7 @@ package de.emilyshub.data
 import androidx.room.TypeConverter
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.TotalBudgetKind
 import de.emilyshub.notes.NoteSort
 import de.emilyshub.reminders.Tone
 import de.emilyshub.routines.OccurrenceStatus
@@ -168,6 +169,12 @@ class Converters {
 
     @TypeConverter
     fun toBookingKind(text: String): BookingKind = BookingKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromTotalBudgetKind(kind: TotalBudgetKind): String = kind.stored
+
+    @TypeConverter
+    fun toTotalBudgetKind(text: String): TotalBudgetKind = TotalBudgetKind.entries.first { it.stored == text }
 
     @TypeConverter
     fun fromBookingInterval(interval: BookingInterval): String = interval.stored

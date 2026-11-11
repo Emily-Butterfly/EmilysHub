@@ -5,6 +5,8 @@ import androidx.room.Query
 import de.emilyshub.ledger.Booking
 import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
+import de.emilyshub.ledger.StandardTotalBudget
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
@@ -133,4 +135,10 @@ interface BackupDao {
 
     @Query("SELECT * FROM ledger_month_budgets")
     fun monthBudgets(): List<MonthBudget>
+
+    @Query("SELECT * FROM ledger_total_budget")
+    fun standardTotalBudget(): List<StandardTotalBudget>
+
+    @Query("SELECT * FROM ledger_month_total_budgets")
+    fun monthTotalBudgets(): List<MonthTotalBudget>
 }

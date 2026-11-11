@@ -609,3 +609,21 @@ val MIGRATION_40_41 = object : Migration(40, 41) {
         db.execSQL("ALTER TABLE `note_folders` ADD COLUMN `archived_at` TEXT")
     }
 }
+
+/**
+ * Version 42: the household book can have a total budget (SPEC.md §13, #78), as a standard and of a month's own, and a
+ * month closed keeps the amount its total budget came to. None has one yet.
+ */
+val MIGRATION_41_42 = object : Migration(41, 42) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_total_budget` (`id` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                "`cents` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_month_total_budgets` (`month` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`cents` INTEGER NOT NULL, PRIMARY KEY(`month`))",
+        )
+        db.execSQL("ALTER TABLE `ledger_closed_months` ADD COLUMN `total_budget_cents` INTEGER")
+    }
+}

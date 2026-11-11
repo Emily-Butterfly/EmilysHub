@@ -10,6 +10,9 @@ import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.OpeningBalance
@@ -904,6 +907,24 @@ class HubDatabaseMigrationTest {
 
             database.notes().archiveFolder(1, Instant.parse("2026-11-02T12:00:00Z"))
             assertEquals(Instant.parse("2026-11-02T12:00:00Z"), database.notes().folders().single().archivedAt)
+        }
+    }
+
+    @Test
+    fun `version 41 moves to version 42 where months closed keep no total budget and then one can be set`() {
+        createAtVersion(41) {
+            it.execSQL("INSERT INTO ledger_closed_months (month) VALUES ('2026-09')")
+        }
+
+        withMigratedDatabase { database ->
+            val ledger = database.ledger()
+            assertEquals(listOf(ClosedMonth(YearMonth.of(2026, 9), totalBudgetCents = null)), ledger.closed())
+            assertEquals(null, ledger.standardTotal())
+
+            ledger.setStandardTotal(StandardTotalBudget.of(TotalBudget.FromIncome(10_000)))
+            ledger.setMonthTotal(MonthTotalBudget.of(YearMonth.of(2026, 12), TotalBudget.Fixed(150_000)))
+            assertEquals(TotalBudget.FromIncome(10_000), ledger.standardTotal()?.budget)
+            assertEquals(TotalBudget.Fixed(150_000), ledger.monthTotal(YearMonth.of(2026, 12))?.budget)
         }
     }
 

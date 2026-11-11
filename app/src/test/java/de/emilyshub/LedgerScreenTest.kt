@@ -33,6 +33,7 @@ import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.saveNew
 import de.emilyshub.todos.RecurrenceEnd
 import kotlinx.coroutines.flow.first
@@ -643,6 +644,150 @@ class LedgerScreenTest {
             val title = compose.onNode(hasText("Notizen") and isHeading()).getBoundsInRoot()
             assertTrue("${title.right} <= ${bounds.left}", title.right <= bounds.left)
         }
+    }
+
+    @Test
+    fun `a month with a total budget shows what is spent of it on top, one without none`() {
+        book("Lebensmittel", BookingKind.Expense, "850", "2026-10-12")
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Gesamtbudget").assertDoesNotExist()
+        }
+        runBlocking { app.ledger.setTotalBudget(TotalBudget.Fixed(100_000)) }
+        launchApp().use {
+            openLedger()
+            ledgerList().performScrollToNode(hasText("850,00 € von 1.000,00 €"))
+            compose.onNode(hasText("Gesamtbudget") and hasText("850,00 € von 1.000,00 €") and hasText("noch 150,00 € übrig")).assertExists()
+        }
+        book("Freizeit", BookingKind.Expense, "200", "2026-10-13")
+        launchApp().use {
+            openLedger()
+            ledgerList().performScrollToNode(hasText("50,00 € über Budget"))
+            compose.onNode(hasText("Gesamtbudget") and hasText("50,00 € über Budget")).assertExists()
+        }
+    }
+
+    @Test
+    fun `the calculator from the categories sums the monthly budgets against the standard and saves them all at once`() {
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.onNodeWithText("Gesamtbudget: keins", substring = true).assertExists()
+            compose.onNodeWithText("Budget-Rechner").performClick()
+
+            calculatorField("Lebensmittel").performTextInput("400")
+            calculatorField("Wohnen").performTextInput("700")
+            ledgerList().performScrollToNode(hasText("Summe der Budgets"))
+            compose.onNode(hasText("Summe der Budgets") and hasText("1.100,00 €")).assertExists()
+            ledgerList().performScrollToNode(hasText("Fester Betrag"))
+            option("Fester Betrag").performClick()
+            calculatorField("Gesamtbudget im Monat").performTextInput("1.000")
+            ledgerList().performScrollToNode(hasText("100,00 € drüber"))
+            compose.onNodeWithText("100,00 € drüber").assertExists()
+            calculatorField("Wohnen").performTextReplacement("550")
+            ledgerList().performScrollToNode(hasText("50,00 € frei"))
+            compose.onNodeWithText("50,00 € frei").assertExists()
+
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Budget 400,00 € im Monat").assertExists()
+            compose.onNodeWithText("Gesamtbudget: 1.000,00 € im Monat", substring = true).assertExists()
+        }
+        val categories = runBlocking { app.ledger.categories().first() }
+        assertEquals(55_000L, categories.single { it.name == "Wohnen" }.budgetCents)
+        assertEquals(TotalBudget.Fixed(100_000), runBlocking { app.ledger.totalBudget().first() })
+    }
+
+    @Test
+    fun `the calculator keeps nothing it was left without saving, nor saves with a field it cannot take`() {
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.onNodeWithText("Budget-Rechner").performClick()
+            calculatorField("Lebensmittel").performTextInput("0")
+            compose.onNodeWithText("Der Betrag muss größer als 0 sein.").assertExists()
+            compose.onNodeWithText("Speichern").assertIsNotEnabled()
+
+            calculatorField("Lebensmittel").performTextReplacement("300")
+            compose.onNodeWithContentDescription("Zurück").performClick()
+        }
+        assertTrue(runBlocking { app.ledger.categories().first() }.all { it.budgetCents == null })
+    }
+
+    @Test
+    fun `the calculator from a month sets its budgets and total budget there alone`() {
+        runBlocking {
+            app.ledger.setBudget(app.ledger.categories().first().single { it.name == "Lebensmittel" }.id, 30_000)
+            app.ledger.setTotalBudget(TotalBudget.Fixed(100_000))
+        }
+        launchApp().use {
+            openLedger()
+            ledgerList().performScrollToNode(hasText("Budget-Rechner"))
+            compose.onNodeWithText("Budget-Rechner").performClick()
+            compose.onNodeWithText("Die Budgets im Oktober 2026", substring = true).assertExists()
+            compose.onNode(hasText("Summe der Budgets") and hasText("300,00 €")).assertExists()
+            compose.onNodeWithText("700,00 € frei").assertExists()
+
+            calculatorField("Lebensmittel").performTextReplacement("450")
+            ledgerList().performScrollToNode(hasText("Fester Betrag"))
+            option("Fester Betrag").performClick()
+            calculatorField("Gesamtbudget im Monat").performTextReplacement("1.200")
+            ledgerList().performScrollToNode(hasText("750,00 € frei"))
+            compose.onNodeWithText("Speichern").performClick()
+
+            ledgerList().performScrollToNode(hasText("0,00 € von 1.200,00 €"))
+            compose.onNodeWithText("0,00 € von 1.200,00 €").assertExists()
+        }
+        val month = runBlocking { app.ledger.month(october).first() }
+        assertEquals(45_000L, month.budgets.single { it.category.name == "Lebensmittel" }.inMonth)
+        assertEquals(30_000L, runBlocking { app.ledger.categories().first().single { it.name == "Lebensmittel" }.budgetCents })
+        assertEquals(TotalBudget.Fixed(100_000), runBlocking { app.ledger.totalBudget().first() })
+    }
+
+    @Test
+    fun `saving a booking that goes over the total budget says so briefly, with the budget of its category`() {
+        runBlocking {
+            app.ledger.setBudget(app.ledger.categories().first().single { it.name == "Lebensmittel" }.id, 30_000)
+            app.ledger.setTotalBudget(TotalBudget.Fixed(50_000))
+        }
+        book("Wohnen", BookingKind.Expense, "450", "2026-10-01")
+
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Buchung anlegen").performClick()
+            field("Betrag in Euro").performTextInput("310")
+            option("Lebensmittel").tap()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.waitForIdle()
+
+            assertEquals(
+                "Lebensmittel liegt damit 10,00 € über Budget.\nDer Oktober 2026 liegt damit 260,00 € über dem Gesamtbudget.",
+                ShadowToast.getTextOfLatestToast(),
+            )
+        }
+    }
+
+    @Test
+    fun `the archive and the year show the total budget next to the expenses`() {
+        book("Lebensmittel", BookingKind.Expense, "1.840", "2026-09-10")
+        runBlocking {
+            app.ledger.setTotalBudget(TotalBudget.Fixed(200_000))
+            app.ledger.close(YearMonth.of(2026, 9))
+        }
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.onNodeWithText("1.840,00 € von 2.000,00 € · 160,00 € frei").assertExists()
+        }
+        launchApp().use {
+            openLedger()
+            compose.onNodeWithText("Jahresübersicht 2026").performClick()
+            compose.onNodeWithText("Gesamtbudget: 1.840,00 € von 24.000,00 € · 22.160,00 € frei").assertExists()
+        }
+    }
+
+    private fun calculatorField(label: String): SemanticsNodeInteraction {
+        ledgerList().performScrollToNode(hasSetTextAction() and hasText(label))
+        return compose.onNode(hasSetTextAction() and hasText(label))
     }
 
     private fun dialogField(label: String) = compose.onNode(hasSetTextAction() and hasText(label) and hasAnyAncestor(isDialog()))

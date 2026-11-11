@@ -1,6 +1,7 @@
 package de.emilyshub.ui.ledger
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -30,7 +31,8 @@ import java.time.YearMonth
 
 /**
  * The archive of the household book (SPEC.md §13): the months closed, the latest first, each with its income, expenses
- * and balance, and its end balance if it has an opening one; tapping one shows it, only to read.
+ * and balance, its end balance if it has an opening one, and what it spent of the total budget it kept; tapping one
+ * shows it, only to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,12 +59,21 @@ fun LedgerArchiveScreen(ledger: Ledger, onOpen: (YearMonth) -> Unit, onBack: () 
                     val month = archived.month
                     ListItem(
                         headlineContent = { Text(month.monthAndYear()) },
-                        supportingContent = { Text(sumsText(archived)) },
+                        supportingContent = { MonthSumsText(archived) },
                         modifier = Modifier.clickable(onClickLabel = stringResource(R.string.ledger_archive_open)) { onOpen(month) },
                     )
                 }
             }
         }
+    }
+}
+
+/** A month's sums in words ([sumsText]), and what it spent of its total budget, if it has one, under them. */
+@Composable
+internal fun MonthSumsText(sums: MonthSums) {
+    Column {
+        Text(sumsText(sums))
+        sums.totalUse?.let { TotalBudgetLine(it) }
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.YearMonth
@@ -81,13 +82,14 @@ interface LedgerDao {
     @Query("SELECT DISTINCT substr(date, 1, 7) FROM bookings")
     fun observeBookingMonths(): Flow<List<String>>
 
-    /** The months closed, each with its sums and its opening balance. */
+    /** The months closed, each with its sums, its opening balance and the total budget it keeps. */
     @Query(
         "SELECT m.month, (SELECT o.cents FROM ledger_opening_balances o WHERE o.month = m.month) AS opening, " +
+            "m.total_budget_cents AS totalBudget, " +
             "IFNULL(SUM(CASE WHEN c.kind = 'income' THEN b.amount_cents END), 0) AS income, " +
             "IFNULL(SUM(CASE WHEN c.kind = 'expense' THEN b.amount_cents END), 0) AS expenses " +
             "FROM ledger_closed_months m LEFT JOIN bookings b ON substr(b.date, 1, 7) = m.month " +
-            "LEFT JOIN ledger_categories c ON c.id = b.category_id GROUP BY m.month",
+            "LEFT JOIN ledger_categories c ON c.id = b.category_id GROUP BY m.month, m.total_budget_cents",
     )
     fun observeArchive(): Flow<List<MonthSums>>
 
@@ -112,6 +114,9 @@ interface LedgerDao {
 
     @Query("SELECT * FROM ledger_month_budgets WHERE month = :month")
     fun observeMonthBudgets(month: YearMonth): Flow<List<MonthBudget>>
+
+    @Query("SELECT * FROM ledger_month_budgets WHERE month = :month")
+    suspend fun monthBudgets(month: YearMonth): List<MonthBudget>
 
     @Query("SELECT * FROM ledger_month_budgets WHERE month = :month AND category_id = :categoryId")
     suspend fun monthBudget(month: YearMonth, categoryId: Long): MonthBudget?
@@ -185,4 +190,50 @@ interface LedgerDao {
 
     @Query("DELETE FROM bookings WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM ledger_total_budget")
+    fun observeStandardTotal(): Flow<List<StandardTotalBudget>>
+
+    @Query("SELECT * FROM ledger_total_budget")
+    suspend fun standardTotal(): StandardTotalBudget?
+
+    @Upsert
+    suspend fun setStandardTotal(budget: StandardTotalBudget)
+
+    @Query("SELECT * FROM ledger_month_total_budgets")
+    fun observeMonthTotals(): Flow<List<MonthTotalBudget>>
+
+    @Query("SELECT * FROM ledger_month_total_budgets WHERE month = :month")
+    suspend fun monthTotal(month: YearMonth): MonthTotalBudget?
+
+    @Upsert
+    suspend fun setMonthTotal(budget: MonthTotalBudget)
+
+    @Query("DELETE FROM ledger_month_total_budgets WHERE month = :month")
+    suspend fun removeMonthTotal(month: YearMonth)
+
+    /** What the expenses between the days come to, but for the booking [except]. */
+    @Query(
+        "SELECT IFNULL(SUM(b.amount_cents), 0) FROM bookings b JOIN ledger_categories c ON c.id = b.category_id " +
+            "WHERE c.kind = 'expense' AND b.date BETWEEN :from AND :to AND b.id != :except",
+    )
+    suspend fun expensesBetween(from: LocalDate, to: LocalDate, except: Long): Long
+
+    /** What the income between the days comes to. */
+    @Query(
+        "SELECT IFNULL(SUM(b.amount_cents), 0) FROM bookings b JOIN ledger_categories c ON c.id = b.category_id " +
+            "WHERE c.kind = 'income' AND b.date BETWEEN :from AND :to",
+    )
+    suspend fun incomeBetween(from: LocalDate, to: LocalDate): Long
+
+    /** What the expenses between the days come to in each category that has any. */
+    @Query(
+        "SELECT b.category_id AS categoryId, SUM(b.amount_cents) AS cents FROM bookings b " +
+            "JOIN ledger_categories c ON c.id = b.category_id " +
+            "WHERE c.kind = 'expense' AND b.date BETWEEN :from AND :to GROUP BY b.category_id",
+    )
+    suspend fun spentByCategory(from: LocalDate, to: LocalDate): List<SpentInCategory>
 }
+
+/** What a category's expenses come to, in cents. */
+data class SpentInCategory(val categoryId: Long, val cents: Long)

@@ -37,7 +37,10 @@ data class BudgetInput(val typed: String) {
 /** How far a month's expenses in a category have come in its budget (SPEC.md §13). */
 enum class BudgetLevel { Within, Near, Over }
 
-/** What a month has [spent] in a category of its [budget], above zero, both in cents. */
+/**
+ * What a month has [spent] of a [budget], both in cents: a category's, above zero, or its total budget, which may be
+ * zero, coming from income.
+ */
 data class BudgetUse(val budget: Long, val spent: Long) {
     /** What is left of it; below zero by as much as it is over. */
     val left: Long get() = budget - spent
@@ -46,12 +49,12 @@ data class BudgetUse(val budget: Long, val spent: Long) {
     val level: BudgetLevel
         get() = when {
             spent > budget -> BudgetLevel.Over
-            spent * 100 >= budget * NEAR_PERCENT -> BudgetLevel.Near
+            budget > 0 && spent * 100 >= budget * NEAR_PERCENT -> BudgetLevel.Near
             else -> BudgetLevel.Within
         }
 
-    /** How much of it is used, as a bar is filled: at most all of it. */
-    val share: Float get() = (spent.toFloat() / budget).coerceAtMost(1f)
+    /** How much of it is used, as a bar is filled: at most all of it; all of one of nothing, once anything is spent. */
+    val share: Float get() = if (budget == 0L) (if (spent > 0) 1f else 0f) else (spent.toFloat() / budget).coerceAtMost(1f)
 
     private companion object {
         const val NEAR_PERCENT = 80

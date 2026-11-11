@@ -95,6 +95,12 @@ sealed interface Destination : Serializable {
     /** The household book's categories (SPEC.md §13). */
     data object LedgerCategories : Destination
 
+    /**
+     * The budget calculator (SPEC.md §13): the monthly budgets against the standard total budget, with [month] null, or
+     * the budgets of the open [month] against its own.
+     */
+    data class BudgetCalculator(val month: YearMonth?) : Destination
+
     /** The months closed, in the archive (SPEC.md §13). */
     data object LedgerArchive : Destination
 

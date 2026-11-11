@@ -50,12 +50,14 @@ import de.emilyshub.ui.launchNow
 /**
  * The categories of the household book (SPEC.md §13), those of expenses and those of income: each kind can have more,
  * tapping one renames it, deleting one with bookings asks first and moves them to "Sonstiges" of its kind, which stays.
- * One of expenses can have a monthly budget.
+ * One of expenses can have a monthly budget; the budget calculator sets them all at once, with the standard total
+ * budget, which shows above them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
+fun LedgerCategoriesScreen(ledger: Ledger, onOpenCalculator: () -> Unit, onBack: () -> Unit) {
     val all by remember(ledger) { ledger.categories() }.collectAsState(initial = null)
+    val standard by remember(ledger) { ledger.totalBudget() }.collectAsState(initial = null)
     var creating by rememberSaveable { mutableStateOf<BookingKind?>(null) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     // The category asked about, with how many bookings it has.
@@ -80,6 +82,15 @@ fun LedgerCategoriesScreen(ledger: Ledger, onBack: () -> Unit) {
     ) { contentPadding ->
         val list = all ?: return@Scaffold
         LazyColumn(contentPadding = contentPadding) {
+            item(key = "calculator") {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.budget_calculator)) },
+                    supportingContent = {
+                        Text(listOfNotNull(standard?.let { totalBudgetText(it) }, stringResource(R.string.budget_calculator_hint)).joinToString("\n"))
+                    },
+                    modifier = Modifier.clickable(onClick = onOpenCalculator),
+                )
+            }
             BookingKind.entries.forEach { kind ->
                 item(key = "title:$kind") {
                     SectionTitle(stringResource(if (kind == BookingKind.Expense) R.string.ledger_expenses else R.string.ledger_income))

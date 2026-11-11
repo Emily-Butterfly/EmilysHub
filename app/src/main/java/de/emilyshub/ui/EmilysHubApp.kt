@@ -71,6 +71,7 @@ import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
 import de.emilyshub.ui.ledger.LedgerButton
+import de.emilyshub.ui.ledger.BudgetCalculatorScreen
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
 import de.emilyshub.ui.ledger.LedgerIconButton
 import de.emilyshub.ui.ledger.LedgerScreen
@@ -265,7 +266,9 @@ private fun AppShell(hub: Hub, settings: Settings) {
                 onOpenMonth = { open(Destination.Ledger(it)) },
                 onBack = back,
             )
-            Destination.LedgerCategories -> LedgerCategoriesScreen(hub.ledger, onBack = back)
+            Destination.LedgerCategories ->
+                LedgerCategoriesScreen(hub.ledger, onOpenCalculator = { open(Destination.BudgetCalculator(null)) }, onBack = back)
+            is Destination.BudgetCalculator -> BudgetCalculatorScreen(hub.ledger, top.month, onClose = back)
             is Destination.Ledger -> LedgerScreen(
                 ledger = hub.ledger,
                 day = hub.day,
@@ -277,6 +280,7 @@ private fun AppShell(hub: Hub, settings: Settings) {
                 onOpenRecurring = { open(Destination.Recurring) },
                 onOpenArchive = { open(Destination.LedgerArchive) },
                 onOpenYear = { stack = stack.openLedgerYear() },
+                onOpenCalculator = { open(Destination.BudgetCalculator(it)) },
                 onBack = back,
             )
             Destination.NoteTabs -> NoteTabsScreen(hub.notes, onBack = back)
