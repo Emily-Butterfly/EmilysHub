@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10** und #77 **Etappe 11**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11** und #85 **Etappe 12**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -139,3 +139,17 @@ Abgestimmt im Interview vom 08.11.2026; Sammel-Issue #77. #66 braucht #65, weil 
 | 74 | [Bögen: Neurologie](74-boegen-neurologie.md) | 🤖 | 66 |
 | 75 | [Bögen: Schlafverhalten](75-boegen-schlaf.md) | 🤖 | 66 |
 | 76 | [Bögen: Verschiedenes](76-boegen-verschiedenes.md) | 🤖 | 66 |
+
+## Etappe 12 – Budget-Rechner, Abos & Sprachen
+
+Abgestimmt im Interview vom 11.11.2026; Sammel-Issue #85. Gebaut wird in der Reihenfolge der Tabelle. #78, #79 und #81 hängen von nichts ab.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 78 | [Haushaltsbuch: Gesamtbudget & Budget-Rechner](78-haushaltsbuch-gesamtbudget-budget-rechner.md) | 🤖 | – |
+| 79 | [Haushaltsbuch: Abos mit Kündigungsfrist](79-haushaltsbuch-abos.md) | 🤖 | – |
+| 80 | [Abos: Erinnerung zum Kündigen & „Demnächst“ in Heute](80-abos-erinnerung.md) | 🤖 | 79 |
+| 81 | [Sprachen: Sessions, Sprachen, Lehrer & Auswertung](81-sprachen-sessions.md) | 🤖 | – |
+| 82 | [Sprachen: Themen & Prüfungen](82-sprachen-themen-pruefungen.md) | 🤖 | 81 |
+| 83 | [Sprachen: Session-Notizen importieren – Textdatei, Foto, PDF](83-sprachen-import-anhaenge.md) | 🤖 | 81 |
+| 84 | [Sprachen: Suche & Prüfungen an Zielen](84-sprachen-suche-ziele.md) | 🤖 | 82 |

@@ -1,6 +1,6 @@
 # EmilysHub – Spezifikation
 
-Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele, Notizen, Haushaltsbuch und eine gesperrte Dokumentation zu Patienten.
+Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele, Notizen, Haushaltsbuch, Sprachunterricht und eine gesperrte Dokumentation zu Patienten.
 
 ## 1. Grundlagen
 
@@ -18,7 +18,7 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
-Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab) und **Dokumentation** (§14). Beide öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Die Ziele bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14) und **Sprachen** (§15). Alle drei öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme.
 
 ### Heute-Übersicht
 
@@ -26,7 +26,7 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 - Einträge, die auf das Erreichen eines Ortes warten
 - Überfällige To-dos oben
 - Angepinnte Notizen
-- Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5)
+- Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5), und Abos, deren Kündigungsfrist näher rückt (§13)
 - **Heatmap** der letzten 6 Monate unter den Einträgen: je Tag ein Kästchen, je mehr Routinen und To-dos erledigt, desto kräftiger
 - **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau, solange heute noch etwas offen und nichts erledigt ist; Tippen öffnet die Statistik
 - **„€“** in der oberen Leiste links neben der Flamme: öffnet den laufenden Monat im Haushaltsbuch (§13)
@@ -141,7 +141,7 @@ Bis v1 hieß der Bereich „Wunschliste“; überall ist jetzt von Zielen die Re
 | Zeitraum | Freitext (z. B. „2027“, „Sommer“), keine Erinnerung |
 
 - **Mehrstufig**: beliebig tief verschachtelte Unterziele, eingerückt und auf-/zuklappbar.
-- Verknüpfbar: **To-dos** und **Routinen** (Routinen mit optionalem Routinen-Ziel, z. B. 30 Tage Streak).
+- Verknüpfbar: **To-dos** und **Routinen** (Routinen mit optionalem Routinen-Ziel, z. B. 30 Tage Streak) und **Prüfungen** aus dem Bereich Sprachen (§15).
 - **Fortschritt**: automatisch aus erledigten Unterpunkten, manuell überschreibbar.
 - Ziel mit einem Tipp in verknüpfte To-dos umwandeln.
 - **Rückblick**: Liste erreichter Ziele mit Datum.
@@ -187,7 +187,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 - **Markdown** mit Vorschau; Rendering ohne HTML und ohne ausführbare Links.
 - Notizen anpinnen (auch in die Heute-Übersicht).
 - Verknüpfung mit Zielen, To-dos und Routinen.
-- **Keine Anhänge** in Version 1.
+- **Keine Anhänge** an Notizen; Anhänge gibt es nur an den Sessions im Bereich Sprachen (§15).
 
 ### Archiv
 
@@ -198,7 +198,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 ## 8. Übergreifend
 
 - **Gemeinsame Tags** für alle Bereiche.
-- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch); die Dokumentation hat ihre eigene (§14).
+- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch mit Abos, Sprachen); die Dokumentation hat ihre eigene (§14).
 - **Statistik** pro Routine und gesamt:
   - Aktueller und längster Streak
   - Kalender-Ansicht (erledigt / übersprungen / ausgelassen / verpasst)
@@ -218,6 +218,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 | Zugriff auf entsperrtes Handy | App-Sperre per Fingerabdruck mit Geräte-PIN als Ersatz; erneute Sperre nach 1 min im Hintergrund |
 | Mitlesen | `FLAG_SECURE` (keine Screenshots, ausgeblendet in „Zuletzt verwendet“); Sperrbildschirm zeigt nur „Erinnerung fällig“, Namen nur von Einträgen, die es erlauben (Standard: aus) |
 | Manipulierte Dateien | Backup-Import mit Authentifizierung (AES-GCM) und strenger Schemaprüfung; Markdown ohne HTML/Links |
+| Importierte Dateien (Sprachen, §15) | Anhänge liegen nur verschlüsselt im Speicher der App, nie im Klartext; Fotos werden neu kodiert, PDFs nur angezeigt (Androids eigener Renderer), nichts daraus ausgeführt; Größengrenzen beim Import; keine Kamera-Berechtigung, „Foto aufnehmen“ läuft über die Kamera-App des Handys |
 | Gesundheitsdaten (Dokumentation, §14) | Eigene SQLCipher-Datenbank, deren Schlüssel nur Doku-Passwort oder Fingerabdruck freigeben, nicht der Schlüssel der übrigen App; Sperre beim Verlassen, im Hintergrund und nach 5 min ohne Eingabe; nicht in Suche, Heute und Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich und beim Sperren geleert; gelöschte Daten überschrieben |
 
 Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
@@ -231,6 +232,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 - Hinweis in der Heute-Übersicht, wenn das letzte Backup älter als 30 Tage ist oder fehlgeschlagen ist.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
+- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein.
 - Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
 
 ## 11. Berechtigungen
@@ -250,7 +252,7 @@ Ausschließlich:
 - `FOREGROUND_SERVICE_LOCATION` (nur falls für die Ortserkennung nötig)
 
 - Abfrage **erst bei Bedarf**, jeweils mit deutscher Erklärung.
-- **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s.
+- **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s. Was fehlt, richtet sich danach, was Routinen, To-dos und Abos (§13) brauchen.
 - Warnbanner in der Heute-Übersicht bei fehlenden wichtigen Berechtigungen.
 
 ## 12. Lieferung
@@ -274,6 +276,7 @@ Ausschließlich:
 | 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste, voraussichtlicher Endsaldo, Fixbuchungen mit Ende |
 | 10 | Sonstiges mit Zielen und Dokumentation, „€“ und „Gestern nachtragen“ in Heute, Dokumentation: Sperre, Patienten, Termine, Tests, Backup |
 | 11 | Dokumentation: Assessmentbögen (eingebaut, nach Unterkategorie) |
+| 12 | Haushaltsbuch: Gesamtbudget und Budget-Rechner, Abos mit Kündigungsfrist und Erinnerung; Sprachen: Sessions, Lehrer, Themen, Prüfungen, Anhänge |
 
 Nach jeder Etappe: installierbare APK.
 
@@ -297,9 +300,41 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der M
 - **Übertrag**: Ein offener Monat ohne Anfangssaldo bietet „Saldo aus Vormonat übertragen“ (aus einem offenen Vormonat mit Rückfrage, sein Endsaldo kann sich noch ändern) und „Anfangssaldo festlegen“. In offenen Monaten lässt er sich von Hand ändern und entfernen. Beim Abschließen fragt der Dialog „Abbrechen · Nur abschließen · Abschließen & übertragen“: Der Endsaldo geht als Anfangssaldo in den Folgemonat (nie in den Kalendermonat von heute) und ersetzt einen vorhandenen, den der Dialog nennt; in einen abgeschlossenen Folgemonat wird nicht übertragen. Ein Übertrag ist ein fester Wert und ändert sich nicht mit dem Vormonat.
 - **Budget** je Ausgaben-Kategorie und Monat: Balken ab 80 % orange, darüber rot („12,50 € über Budget“); kurzer Hinweis beim Speichern einer Buchung, die es überschreitet. Keine Benachrichtigungen.
 - **Monatsbudget**: In der Monatsansicht eines offenen Monats lässt sich das Budget einer Ausgaben-Kategorie nur für diesen Monat ändern: ein anderer Betrag, ein neues oder keins. Es geht dem monatlichen vor, sieht aber aus wie jedes Budget; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat es fest.
-- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält sein Budget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat.
-- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden.
-- Buchungen kommen in die Backups und in die Suche.
+- **Gesamtbudget** für alle Ausgaben eines Monats, als Standard für alle offenen und kommenden Monate eins von dreien:
+  - **keins** (wie bisher),
+  - ein **fester Betrag**, Euro mit Cent, größer als 0,
+  - **aus Einnahmen**: die im Monat eingetragenen Einnahmen samt den Fixbuchungen, die bis zum Monatsende noch als Einnahme kommen, minus einem **Sparbetrag** (Standard 0 €); nie unter 0 €. Der Anfangssaldo zählt nicht.
+
+  Jeder offene Monat kann abweichen: ein eigener Betrag, „aus Einnahmen“ mit eigenem Sparbetrag oder keins; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest.
+  - Monatsansicht: oben ein **Gesamtbalken** „ausgegeben von Gesamtbudget“ mit den Farben der Kategorie-Balken (ab 80 % orange, darüber rot); ohne Gesamtbudget keiner.
+  - Kurzer Hinweis beim Speichern einer Buchung, die das Gesamtbudget ihres Monats überschreitet. Keine Benachrichtigungen.
+- **Budget-Rechner**: eine Seite mit allen Ausgaben-Kategorien, je einem Budget-Feld, der laufenden Summe, dem Gesamtbudget und der Differenz („50 € frei“ oder rot „120 € drüber“). Neben jedem Feld steht als Hilfe der Durchschnitt der Ausgaben der letzten drei abgeschlossenen Monate. Kategorien ohne Budget heißen „ohne Budget“ und zählen 0 €. Gespeichert wird alles auf einmal, auch über dem Gesamtbudget; gekürzt wird nichts von selbst. Zwei Einstiege:
+  - aus den **Kategorien**: die monatlichen Budgets gegen das Standard-Gesamtbudget (ist das „aus Einnahmen“, mit dem Wert des laufenden Monats, was die Seite sagt); hier lässt sich auch das Standard-Gesamtbudget ändern,
+  - aus einer **offenen Monatsansicht**: die Budgets dieses Monats gegen sein Gesamtbudget; was vom monatlichen abweicht, wird ein Monatsbudget. Hier lässt sich auch das Gesamtbudget des Monats ändern.
+- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält seine Budgets und sein Gesamtbudget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat, und neben den Ausgaben das Gesamtbudget mit der Differenz („1 840 € von 2 000 € · 160 € frei“ oder rot „… · 75 € drüber“), wenn er eins hat.
+- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden. Unter den Ausgaben eine Zeile **Gesamtbudget** je Monat (offene Monate mit ihrem von jetzt) und in der Jahresspalte deren Summe neben den Ausgaben derselben Monate; Monate ohne Gesamtbudget bleiben leer und zählen in diesem Vergleich auf keiner Seite mit.
+- Buchungen und Abos kommen in die Backups und in die Suche.
+
+### Abos
+
+Verträge, die gekündigt werden müssen, bevor sie sich verlängern. Eine eigene Liste **Abos** im Haushaltsbuch neben den Fixbuchungen, sortiert nach dem nächsten letzten Kündigungstag; oben die Summe der laufenden Abos, auf den Monat umgerechnet (Abos ohne Betrag zählen nicht).
+
+| Feld | Details |
+|---|---|
+| Name | Pflicht |
+| Betrag und Abstand | Optional; Abstand monatlich, vierteljährlich, halbjährlich oder jährlich |
+| Fixbuchung | Optional verknüpft; dann kommen Betrag und Abstand von ihr und sind am Abo nicht änderbar |
+| Notiz | Optional (Kundennummer, Kündigungsweg) |
+| Frist | Ein Datum „kündigen bis“, oder gerechnet (unten) |
+| Vorlauf | Tage vor dem letzten Kündigungstag, an denen die Erinnerung beginnt; Standard 14 |
+
+- **Gerechnete Frist**: „Laufzeit bis“ (Datum), Kündigungsfrist (eine Anzahl Tage, Wochen oder Monate vor dem Ende der Laufzeit) und Verlängerung um eine Anzahl Monate. Der letzte Kündigungstag ergibt sich daraus. Verstreicht er ohne Kündigung, rückt das Abo von selbst auf die nächste Laufzeit vor.
+- **Einzelnes Datum**: Verstreicht es ohne Kündigung, zeigt das Abo „Frist verstrichen“ und erinnert nicht mehr, bis ein neues Datum eingetragen ist.
+- **Verknüpfung**: Eine Fixbuchung gehört zu höchstens einem Abo. Der Editor der Fixbuchung bietet „Als Abo führen“, das ein verknüpftes Abo anlegt. Wird die Fixbuchung gelöscht, bleibt das Abo und behält Betrag und Abstand als eigene Angabe.
+- **Erinnerung**: eine Benachrichtigung um 21:00 Uhr, mit dem Standard-Ton für Benachrichtigungen, kein Vollbild-Alarm: am ersten Tag des Vorlaufs und noch einmal am letzten Kündigungstag. Auf dem Sperrbildschirm steht nur „Ein Abo ist zu kündigen“, ohne Namen. Antippen öffnet das Abo. Lief das Handy um 21:00 nicht, kommt sie beim nächsten Start nach, solange die Frist nicht verstrichen ist. Vom ersten Tag des Vorlaufs bis zum letzten Kündigungstag steht das Abo in Heute unter **Demnächst** (§1).
+- **Gekündigt**: Das Abo wandert in den Abschnitt „Gekündigt“ mit seinem Enddatum (dem Ende der Laufzeit, beim einzelnen Datum einem selbst gewählten) und erinnert nicht mehr. Ist eine Fixbuchung verknüpft, fragt die App, ob sie deren Ende auf dieses Datum setzen soll. Zurücknehmen lässt es sich.
+- **Läuft weiter**: beendet die Erinnerungen dieser Laufzeit; ein gerechnetes Abo rückt auf die nächste vor, eins mit einzelnem Datum wartet auf ein neues.
+- Löschen jederzeit, mit Rückfrage; die Fixbuchung bleibt.
 
 ## 14. Dokumentation
 
@@ -370,3 +405,53 @@ Abgestimmt im Interview vom 08.11.2026.
 - **Auswahl** bei „+ Bogen“: nach Unterkategorie wie bei DIGOTOR, Suche nach Name und Abkürzung, oben „Zuletzt benutzt“ (die letzten 5). Ein Bogen in mehreren Kategorien ist derselbe Bogen. Unter **Bögen** im Menü lassen sich Bögen ausblenden.
 - **Reiter Bögen** beim Patienten: je Bogen mit Ergebnis eine Karte wie bei den Tests (letztes Ergebnis, Veränderung zur ersten Ausfüllung, besser oder schlechter); der Verlauf mit einem Liniendiagramm je Ergebnis (bei Teilskalen je Teilskala) und einer Tabelle, eine Zeile öffnet den Bogen am Termin. Darunter die Bögen ohne Ergebnis nach Datum.
 - Die Doku-Suche findet die Freitexte der Bögen; Bögen kommen ins Backup; es gelten die Regeln der Insel.
+
+## 15. Sprachen
+
+Sprachunterricht festhalten: gehaltene Sessions mit Zeit, Lehrer, Themen und Notizen, dazu die Themen, die bis zu einer Prüfung noch dran sind. Gedacht für Unterricht über italki, aber für jeden Unterricht brauchbar. Erreichbar über Sonstiges (§1). Die App holt nichts ab (§9: kein Internet); alles wird von Hand eingetragen. Hinter der App-Sperre wie alles andere, ohne eigene Sperre.
+
+### Sprachen & Lehrer
+
+- **Sprachen**: Name (Pflicht, eindeutig). Anlegen, umbenennen, archivieren; eine archivierte wird nicht mehr angeboten, ihre Sessions bleiben.
+- **Lehrer**: Name (Pflicht), optionale Notiz, mindestens eine Sprache, die sie unterrichten. Anlegen, ändern, archivieren wie Sprachen. Eine weggenommene Sprache lässt die alten Sessions, wie sie sind; der Lehrer wird für sie nur nicht mehr angeboten.
+- Beides lässt sich im Session-Editor nebenbei anlegen und über das Menü der Startseite verwalten.
+
+### Sessions
+
+Nur gehaltene Sessions; geplant wird mit To-dos und Routinen.
+
+| Feld | Details |
+|---|---|
+| Datum | Pflicht, Standard heute; keine Uhrzeit |
+| Dauer | Pflicht, in Minuten; Schnellwahl 30 / 45 / 60 / 90 und freie Eingabe |
+| Sprache | Pflicht |
+| Lehrer | Pflicht; angeboten werden die Lehrer der gewählten Sprache, dazu „Neuer Lehrer“ (gleich mit dieser Sprache) und „Anderen Lehrer wählen“ (gibt einem vorhandenen die Sprache dazu) |
+| Preis | Optional, Euro mit Cent; nur für die Auswertung, keine Buchung im Haushaltsbuch |
+| Themen | Die behandelten Themen: aus der Liste der Sprache gewählt oder neu getippt |
+| Notiz | Optional, Markdown wie in den Notizen (§7), bis 100 000 Zeichen |
+| Anhänge | Bis zu 10 Fotos und PDFs |
+
+- Ändern und, mit Rückfrage, löschen; eine gelöschte Session nimmt ihre Anhänge mit.
+- Keine Tags, nichts in Heute, keine Erinnerungen.
+
+### Import & Anhänge
+
+- **Textdatei**: Ihr Text wird an die Notiz der Session angehängt und ist danach wie getippter Text. Was die Notiz über 100 000 Zeichen brächte, wird abgelehnt.
+- **Foto und PDF** werden Anhänge: über den Dateiwähler des Handys gewählt, ein Foto auch mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung (§11). Fotos werden auf höchstens 2000 px an der langen Kante verkleinert; ein PDF darf höchstens 10 MB haben.
+- Anhänge liegen verschlüsselt im Speicher der App (§9) und werden in der App angezeigt: Fotos mit Zoom, PDFs seitenweise. Einzeln löschbar; „Exportieren“ speichert eine Kopie über den Dateiwähler. Kein Teilen an andere Apps, keine Texterkennung.
+- Anhänge stehen im Backup (§10).
+
+### Themen & Prüfungen
+
+- **Themen** gehören zu einer Sprache und sind optional einer Prüfung zugeordnet. Anlegen in der Themenliste oder beim Tippen in einer Session; ein dort neu getipptes landet offen und ohne Prüfung auf der Liste.
+- Ein Thema ist **offen** oder **abgehakt**. Abgehakt wird nur von Hand, und es lässt sich wieder öffnen; dass eine Session es behandelt hat, hakt es nicht ab. Das Thema zeigt, in wie vielen Sessions es dran war und wann zuletzt.
+- **Prüfungen**: je Sprache beliebig viele, mit Name und Datum. Die nächste anstehende steht oben mit den Tagen bis dahin und den offenen Themen („noch 43 Tage · 12 von 30 offen“).
+- Eine Prüfung wird von Hand als **abgelegt** markiert, optional mit einem Ergebnis als Freitext; zurücknehmen lässt es sich. Ihre Themen bleiben bei ihr, nur zum Nachlesen; offene lassen sich einzeln oder alle zusammen zu einer anderen Prüfung verschieben.
+- **Ziel**: Eine Prüfung kann an höchstens einem Ziel hängen (§6), gewählt im Editor der Prüfung. Dort ist sie ein Teil wie ein To-do, mit eigener Zeile („Prüfung: Arabisch A2 · 18 von 30 Themen“): Ihr Fortschritt ist der Anteil abgehakter Themen (ohne Themen 0 %), erledigt ist sie, sobald sie abgelegt ist. Nimmt man „abgelegt“ zurück, öffnet das ein dadurch erledigtes Ziel wieder. Eine gelöschte Prüfung verschwindet aus dem Ziel; wird das Ziel gelöscht, bleibt die Prüfung ohne Ziel.
+
+### Auswertung & Aufbau
+
+- **Startseite**: oben Stunden und Anzahl Sessions für diesen Monat, dieses Jahr und insgesamt; darunter je Sprache eine Karte mit ihren Zahlen und ihrer nächsten Prüfung; „+“ legt eine Session an.
+- **Seite einer Sprache** mit drei Reitern: **Sessions** (nach Datum, filterbar nach Lehrer), **Themen** (nach Prüfung gruppiert, mit Abhaken) und **Auswertung** (Stunden, Sessions und, wo Preise stehen, Kosten je Lehrer, für Monat, Jahr und insgesamt). Unterrichtet ein Lehrer mehrere Sprachen, zählt jede Sprache für sich.
+- Keine Diagramme.
+- Sessions kommen in die Backups und in die Suche (§8): Notiz, Themen und Name des Lehrers.
