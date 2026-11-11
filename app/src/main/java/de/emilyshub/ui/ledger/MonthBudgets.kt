@@ -1,5 +1,6 @@
 package de.emilyshub.ui.ledger
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import de.emilyshub.R
+import de.emilyshub.ledger.BudgetInput
+import de.emilyshub.ledger.BudgetProblem
 import de.emilyshub.ledger.CategoryBudget
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.monthAndYear
@@ -57,14 +60,8 @@ internal fun MonthBudgetsDialog(month: YearMonth, budgets: List<CategoryBudget>,
 @Composable
 internal fun MonthBudgetDialog(month: YearMonth, budget: CategoryBudget, onConfirm: (Long?) -> Unit, onDismiss: () -> Unit) {
     var typed by rememberSaveable { mutableStateOf(budget.inMonth?.let(Money::typed).orEmpty()) }
-    val cents = Money.parse(typed)
-    val empty = typed.isBlank()
-    val problem = when {
-        empty -> null
-        cents == null -> R.string.booking_amount_invalid
-        cents == 0L -> R.string.booking_amount_not_above_zero
-        else -> null
-    }
+    val input = BudgetInput(typed)
+    val problem = input.problem?.let(::budgetProblemText)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.month_budget_title, budget.category.name, month.monthAndYear())) },
@@ -90,7 +87,7 @@ internal fun MonthBudgetDialog(month: YearMonth, budget: CategoryBudget, onConfi
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(if (empty) null else cents) }, enabled = problem == null) {
+            TextButton(onClick = { onConfirm(input.budget) }, enabled = problem == null) {
                 Text(stringResource(R.string.save))
             }
         },
@@ -103,4 +100,11 @@ internal fun MonthBudgetDialog(month: YearMonth, budget: CategoryBudget, onConfi
             }
         },
     )
+}
+
+/** What keeps a budget typed from being set, in words. */
+@StringRes
+internal fun budgetProblemText(problem: BudgetProblem): Int = when (problem) {
+    BudgetProblem.AmountInvalid -> R.string.booking_amount_invalid
+    BudgetProblem.NotAboveZero -> R.string.booking_amount_not_above_zero
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import de.emilyshub.R
 import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.BudgetInput
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.Money
@@ -232,14 +233,8 @@ private fun CategoryNameDialog(
 @Composable
 private fun BudgetDialog(category: LedgerCategory, onConfirm: (Long?) -> Unit, onDismiss: () -> Unit) {
     var typed by rememberSaveable { mutableStateOf(category.budgetCents?.let(Money::typed).orEmpty()) }
-    val cents = Money.parse(typed)
-    val empty = typed.isBlank()
-    val problem = when {
-        empty -> null
-        cents == null -> R.string.booking_amount_invalid
-        cents == 0L -> R.string.booking_amount_not_above_zero
-        else -> null
-    }
+    val input = BudgetInput(typed)
+    val problem = input.problem?.let(::budgetProblemText)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.budget_title, category.name)) },
@@ -256,7 +251,7 @@ private fun BudgetDialog(category: LedgerCategory, onConfirm: (Long?) -> Unit, o
                     Text(
                         when {
                             problem != null -> stringResource(problem)
-                            cents != null -> Money.format(cents)
+                            input.budget != null -> Money.format(checkNotNull(input.budget))
                             else -> stringResource(R.string.budget_hint)
                         },
                     )
@@ -264,7 +259,7 @@ private fun BudgetDialog(category: LedgerCategory, onConfirm: (Long?) -> Unit, o
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(if (empty) null else cents) }, enabled = problem == null) {
+            TextButton(onClick = { onConfirm(input.budget) }, enabled = problem == null) {
                 Text(stringResource(R.string.save))
             }
         },

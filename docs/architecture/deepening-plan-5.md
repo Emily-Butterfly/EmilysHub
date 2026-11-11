@@ -58,4 +58,8 @@ editor. Tests: `places/PlacesTest`, `wishes/WishesTest`.
 
 ## 4 · A budget as typed, judged once
 
-**Status:** open.
+**Status:** done. `BudgetInput` (ledger/Budget.kt) is a budget as typed: none if left empty, else an amount above zero
+up to `Money.MAX`, with its `problem` (`BudgetProblem`) and the `budget` it sets. The monthly budget's dialog and the
+one of a month alone read it instead of each judging the text; `Ledger.setBudget` and `setBudgetIn` refuse what
+`BudgetInput.fits` does not. The opening balance keeps its own rule, signed and zero allowed. Tests:
+`ledger/BudgetInputTest` (JVM, no Robolectric).

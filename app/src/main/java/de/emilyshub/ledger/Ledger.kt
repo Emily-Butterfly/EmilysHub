@@ -215,7 +215,7 @@ class Ledger(
         database().withTransaction {
             val category = requireNotNull(dao.category(categoryId)) { "No such category" }
             require(category.kind == BookingKind.Expense) { "Budgets are only for expenses" }
-            require(cents == null || cents in 1..Money.MAX) { "A budget is above zero" }
+            require(BudgetInput.fits(cents)) { "A budget is above zero" }
             dao.setBudget(categoryId, cents)
         }
     }
@@ -229,7 +229,7 @@ class Ledger(
         database().withTransaction {
             val category = requireNotNull(dao.category(categoryId)) { "No such category" }
             require(category.kind == BookingKind.Expense) { "Budgets are only for expenses" }
-            require(cents == null || cents in 1..Money.MAX) { "A budget is above zero" }
+            require(BudgetInput.fits(cents)) { "A budget is above zero" }
             requireOpen(month.atDay(1))
             if (cents == category.budgetCents) {
                 dao.removeMonthBudget(month, categoryId)
