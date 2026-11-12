@@ -440,6 +440,9 @@
     <string name="routine_target_count">Anzahl</string>
     <string name="routine_target_hint">Mit einem Routinen-Ziel zählt die Routine zum Fortschritt ihres Ziels und gilt als erledigt, sobald sie es erreicht hat. Ohne wird sie beim Ziel nur angezeigt.</string>
     <string name="goal_routine">Routine</string>
+    <string name="goal_exam">Prüfung: %1$s</string>
+    <string name="goal_exam_topics">%1$d von %2$d Themen</string>
+    <string name="goal_exam_taken">Abgelegt</string>
     <string name="goal_routine_streak">%1$d von %2$d Tagen am Stück</string>
     <string name="goal_routine_times_done">%1$d von %2$d Mal erledigt</string>
     <string name="goal_routine_streak_reached">Erreicht: %1$d Tage am Stück</string>

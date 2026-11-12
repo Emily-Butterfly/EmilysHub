@@ -278,6 +278,65 @@ class LanguagesScreenTest {
         assertEquals(listOf("Tafel.jpg"), attachments.map { it.name })
     }
 
+    @Test
+    fun `a lesson is found through the search by its note, and opens`() {
+        runBlocking {
+            val arabic = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            app.languages.save(
+                LessonEditing.New,
+                LessonDraft(LocalDate.parse("2026-10-20"), "60", arabic, teacher("Amal", arabic), note = "Präsens geübt"),
+            )
+        }
+        launchApp().use {
+            compose.onNodeWithContentDescription("Suchen").performClick()
+            compose.onNode(hasSetTextAction() and hasText("Suchbegriff")).performTextInput("präsens")
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("20.10.2026 · Arabisch · Amal").fetchSemanticsNodes().isNotEmpty() }
+
+            compose.onNode(isHeading() and hasText("Sprachen")).assertIsDisplayed()
+            compose.onNodeWithText("20.10.2026 · Arabisch · Amal").performClick()
+            heading("Session bearbeiten").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `an exam is made part of a goal in its dialog, and shows in the goal's tree with its topics, opening them`() {
+        app.wish("Arabisch lernen")
+        runBlocking {
+            val arabic = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            app.languages.createTopic(arabic, "Verben").also { app.languages.setTopicDone((it as Saving.Saved).id, done = true) }
+            app.languages.createTopic(arabic, "Zahlen")
+        }
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNode(hasText("Themen") and isSelectable()).performClick()
+            compose.onNode(hasText("Neue Prüfung") and hasClickAction()).performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("A2")
+            compose.onNode(hasText("Datum wählen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("OK").performClick()
+            compose.onNode(hasText("Kein Ziel") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(isSelectable() and hasText("Arabisch lernen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+            // Both topics to the new exam.
+            runBlocking {
+                val tab = checkNotNull(app.languages.page(arabicId()).first()).topics
+                app.languages.moveTopics(tab.withoutExam.topics.map { it.topic.id }, checkNotNull(tab.upcoming.single().exam).exam.id)
+            }
+
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
+            compose.onNodeWithText("Fortschritt: 50 %").assertIsDisplayed()
+            compose.onNodeWithContentDescription("„Arabisch lernen“ aufklappen").performClick()
+            compose.onNodeWithText("Prüfung: Arabisch A2").assertIsDisplayed()
+            compose.onNodeWithText("1 von 2 Themen").assertIsDisplayed()
+
+            compose.onNodeWithText("Prüfung: Arabisch A2").performClick()
+            heading("Arabisch").assertIsDisplayed()
+            compose.onNode(hasText("Themen") and isSelectable()).assertIsSelected()
+        }
+    }
+
     private fun arabicId() = runBlocking { app.languages.languages().first() }.single { it.language.name == "Arabisch" }.language.id
 
     private fun openLanguages() {

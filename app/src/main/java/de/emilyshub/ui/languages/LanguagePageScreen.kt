@@ -52,6 +52,7 @@ import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.flow.map
 
 /**
@@ -59,20 +60,22 @@ import kotlinx.coroutines.flow.map
  * ([onOpenLesson]) and can be shown for one teacher only; "Themen", its topics by exam, to do by hand
  * ([TopicsTabContent]); and "Auswertung", what each teacher's lessons of it come to for
  * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]).
- * Gone meanwhile, it closes.
+ * Gone meanwhile, it closes. It opens on "Themen" if [showTopics], as an exam at a goal does.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguagePageScreen(
     languages: Languages,
+    wishes: Wishes,
     languageId: Long,
+    showTopics: Boolean,
     onOpenLesson: (Long) -> Unit,
     onCreateLesson: () -> Unit,
     onBack: () -> Unit,
 ) {
     val page by remember(languages, languageId) { languages.page(languageId).map<LanguagePage?, PageState?> { it?.let(::Shown) } }
         .collectAsState(initial = Loading)
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(if (showTopics) TOPICS_TAB else 0) }
     var teacherFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     val shown = page
     if (shown == null) {
@@ -116,7 +119,7 @@ fun LanguagePageScreen(
             }
             when (tab) {
                 0 -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
-                1 -> TopicsTabContent(languages, languageId, loaded.topics, onOpenLesson)
+                TOPICS_TAB -> TopicsTabContent(languages, wishes, languageId, loaded.topics, onOpenLesson)
                 else -> EvaluationTab(loaded)
             }
         }
@@ -196,6 +199,9 @@ private fun EvaluationTab(page: LanguagePage) {
         }
     }
 }
+
+/** Where "Themen" is among the tabs. */
+private const val TOPICS_TAB = 1
 
 /** The page as it is read: not yet, or as it is; none once its language is gone. */
 private sealed interface PageState

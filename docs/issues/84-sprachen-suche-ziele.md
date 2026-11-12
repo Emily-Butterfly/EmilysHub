@@ -15,22 +15,22 @@ Der Bereich Sprachen schließt an den Rest der App an: Die Suche findet Sessions
 
 ### Suche
 
-- [ ] Die Suche über alle Bereiche findet Sessions nach Notiz, Themen und Name des Lehrers, in einem eigenen Abschnitt „Sprachen“; ein Treffer zeigt Datum, Sprache und Lehrer und öffnet die Session
-- [ ] Es gelten die Regeln der Suche (Groß-/Kleinschreibung, ß/ss, unsichtbare Zeichen, mehr als 50 Treffer)
+- [x] Die Suche über alle Bereiche findet Sessions nach Notiz, Themen und Name des Lehrers, in einem eigenen Abschnitt „Sprachen“; ein Treffer zeigt Datum, Sprache und Lehrer und öffnet die Session
+- [x] Es gelten die Regeln der Suche (Groß-/Kleinschreibung, ß/ss, unsichtbare Zeichen, mehr als 50 Treffer)
 
 ### Prüfung am Ziel
 
-- [ ] Der Editor der Prüfung hat ein Feld „Ziel“ wie beim To-do: höchstens eins
-- [ ] Am Ziel steht die Prüfung als eigene Zeile, „Prüfung: Arabisch A2 · 18 von 30 Themen“; Antippen öffnet die Themen der Prüfung
-- [ ] Sie zählt als Teil wie ein To-do: Ihr Fortschritt ist der Anteil abgehakter Themen (ohne Themen 0 %), erledigt ist sie, sobald sie abgelegt ist; ein von Hand gesetzter Fortschritt am Ziel geht vor
-- [ ] Abgelegt erledigt ein Ziel, dessen übrige Teile erledigt sind; „abgelegt“ zurückgenommen öffnet es wieder, wie bei einem To-do (über `GoalWatch`)
-- [ ] Eine neue Prüfung unter einem erledigten Ziel öffnet es wieder; eine gelöschte verschwindet aus dem Ziel; wird das Ziel gelöscht, bleibt die Prüfung ohne Ziel; „Löschen, Teile rücken auf“ nimmt sie mit nach oben
-- [ ] Themen abhaken, öffnen, zuordnen und verschieben ändert den Fortschritt des Ziels
-- [ ] Backups enthalten die Verknüpfung
+- [x] Der Editor der Prüfung hat ein Feld „Ziel“ wie beim To-do: höchstens eins
+- [x] Am Ziel steht die Prüfung als eigene Zeile, „Prüfung: Arabisch A2 · 18 von 30 Themen“; Antippen öffnet die Themen der Prüfung
+- [x] Sie zählt als Teil wie ein To-do: Ihr Fortschritt ist der Anteil abgehakter Themen (ohne Themen 0 %), erledigt ist sie, sobald sie abgelegt ist; ein von Hand gesetzter Fortschritt am Ziel geht vor
+- [x] Abgelegt erledigt ein Ziel, dessen übrige Teile erledigt sind; „abgelegt“ zurückgenommen öffnet es wieder, wie bei einem To-do (über `GoalWatch`)
+- [x] Eine neue Prüfung unter einem erledigten Ziel öffnet es wieder; eine gelöschte verschwindet aus dem Ziel; wird das Ziel gelöscht, bleibt die Prüfung ohne Ziel; „Löschen, Teile rücken auf“ nimmt sie mit nach oben
+- [x] Themen abhaken, öffnen, zuordnen und verschieben ändert den Fortschritt des Ziels
+- [x] Backups enthalten die Verknüpfung
 
 ### Tests
 
-- [ ] Unit-Tests: Treffer nach Notiz, Thema und Lehrer; Fortschritt aus Themen; abgelegt und zurück mit Ziel erledigt und wieder offen; neue Prüfung öffnet erledigtes Ziel; Löschen auf beiden Seiten; manueller Fortschritt geht vor. UI-Tests: Session über die Suche öffnen; Prüfung im Zielbaum
+- [x] Unit-Tests: Treffer nach Notiz, Thema und Lehrer; Fortschritt aus Themen; abgelegt und zurück mit Ziel erledigt und wieder offen; neue Prüfung öffnet erledigtes Ziel; Löschen auf beiden Seiten; manueller Fortschritt geht vor. UI-Tests: Session über die Suche öffnen; Prüfung im Zielbaum
 
 ## Entscheidungen
 
@@ -38,3 +38,10 @@ Abgestimmt im Interview vom 11.11.2026.
 
 - Die Prüfung hängt am Ziel, nicht die Sprache; kein Stundenziel.
 - Sie zählt für den Fortschritt, nicht nur als Verweis.
+
+Bei der Umsetzung festgelegt (12.11.2026):
+
+- Treffer der Sprachen stehen nach Datum, die neueste oben, nicht nach Titel.
+- Am Ziel heißt die Prüfung nach Sprache und Name („Arabisch A2“); steht die Sprache schon im Namen, nur nach dem Namen. Eine abgelegte zeigt „Abgelegt“ statt der Themen und zählt voll.
+- Antippen öffnet die Seite der Sprache auf dem Reiter Themen.
+- Das Ziel wählt man im Dialog der Prüfung wie beim To-do, auch ein schon erledigtes.

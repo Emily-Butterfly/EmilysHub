@@ -123,8 +123,8 @@ sealed interface Destination : Serializable {
     /** An Abo's editor (SPEC.md §13). */
     data class SubscriptionEditor(override val target: SubscriptionEditorTarget) : Editor
 
-    /** A language's page, with its lessons and their evaluation (SPEC.md §15). */
-    data class LanguagePage(val languageId: Long) : Destination
+    /** A language's page, with its lessons, topics and their evaluation (SPEC.md §15), opened on its topics if [showTopics]. */
+    data class LanguagePage(val languageId: Long, val showTopics: Boolean = false) : Destination
 
     /** A lesson's editor (SPEC.md §15). */
     data class LessonEditor(override val target: LessonEditorTarget) : Editor

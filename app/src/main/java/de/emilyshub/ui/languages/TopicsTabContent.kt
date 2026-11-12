@@ -64,11 +64,13 @@ import de.emilyshub.languages.TopicGroup
 import de.emilyshub.languages.TopicRow
 import de.emilyshub.languages.TopicsTab
 import de.emilyshub.ui.fields.DateDialog
+import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
+import de.emilyshub.wishes.Wishes
 import java.io.Serializable
 import java.time.LocalDate
 import kotlin.math.absoluteValue
@@ -117,7 +119,7 @@ private sealed interface TopicsDialog : Serializable {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: TopicsTab, onOpenLesson: (Long) -> Unit) {
+internal fun TopicsTabContent(languages: Languages, wishes: Wishes, languageId: Long, tab: TopicsTab, onOpenLesson: (Long) -> Unit) {
     var dialog by rememberSaveable { mutableStateOf<TopicsDialog?>(null) }
     var unfolded by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     val scope = rememberCoroutineScope()
@@ -199,7 +201,7 @@ internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: Topic
             onDismiss = { dialog = null },
         )
         TopicsDialog.NewExam -> ExamDialog(
-            title = R.string.exam_create, initial = ExamDraft(), today = languages.today(),
+            title = R.string.exam_create, initial = ExamDraft(), today = languages.today(), wishes = wishes,
             onConfirm = { draft ->
                 dialog = null
                 scope.launchNow { languages.createExam(languageId, draft) }
@@ -208,7 +210,7 @@ internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: Topic
         )
         is TopicsDialog.EditExam -> exams[shown.examId]?.let { exam ->
             ExamDialog(
-                title = R.string.exam_edit, initial = ExamDraft(exam.name, exam.date), today = languages.today(),
+                title = R.string.exam_edit, initial = ExamDraft(exam.name, exam.date, exam.goalId), today = languages.today(), wishes = wishes,
                 onConfirm = { draft ->
                     dialog = null
                     scope.launchNow { languages.saveExam(exam.id, draft) }
@@ -511,7 +513,7 @@ internal fun topicNameProblem(name: String, taken: List<String>): String? =
 
 /** An exam's name and date, new or changed; told at the field what is missing once tried. */
 @Composable
-private fun ExamDialog(title: Int, initial: ExamDraft, today: LocalDate, onConfirm: (ExamDraft) -> Unit, onDismiss: () -> Unit) {
+private fun ExamDialog(title: Int, initial: ExamDraft, today: LocalDate, wishes: Wishes, onConfirm: (ExamDraft) -> Unit, onDismiss: () -> Unit) {
     var draft by rememberSaveable { mutableStateOf(initial) }
     var tried by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
@@ -542,6 +544,14 @@ private fun ExamDialog(title: Int, initial: ExamDraft, today: LocalDate, onConfi
                     Text(draft.date?.let { "${stringResource(R.string.exam_date)}: ${it.numericDate()}" } ?: stringResource(R.string.exam_choose_date))
                 }
                 if (tried && ExamProblem.DateMissing in problems) Problem(stringResource(R.string.exam_date_missing))
+                // A part of a goal, as a to-do is (SPEC.md §6, §15).
+                GoalField(
+                    wishes = wishes,
+                    selected = draft.goalId,
+                    label = R.string.goal_field,
+                    none = R.string.goal_field_none,
+                    onChange = { draft = draft.copy(goalId = it) },
+                )
             }
         },
         confirmButton = {

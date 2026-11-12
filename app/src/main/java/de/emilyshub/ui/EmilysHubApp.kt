@@ -283,7 +283,9 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
             is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
             is Destination.LanguagePage -> LanguagePageScreen(
                 languages = hub.languages,
+                wishes = hub.wishes,
                 languageId = top.languageId,
+                showTopics = top.showTopics,
                 onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
                 onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
                 onBack = back,
@@ -549,6 +551,7 @@ private fun TopLevelScaffold(
                     onOpen = { openWish(WishEditorTarget.Edit(it)) },
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
+                    onOpenExam = { open(Destination.LanguagePage(it, showTopics = true)) },
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
                 )

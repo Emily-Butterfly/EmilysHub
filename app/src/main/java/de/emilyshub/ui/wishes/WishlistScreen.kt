@@ -50,6 +50,7 @@ import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.wishes.Goal
+import de.emilyshub.wishes.GoalExam
 import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.GoalTodo
 import de.emilyshub.wishes.WishStatus
@@ -60,9 +61,9 @@ import kotlinx.coroutines.flow.map
  * The wishes not yet done (SPEC.md §6): those in progress, then the open ones, each with its period, tags, description
  * and progress; above them, once there are tags, the choice of one to show only the goals that have it, at any depth. A
  * goal with parts opens up to show them, indented below it: its subgoals, which open up in turn, its to-dos, ticked off
- * right there, and its routines, with how far they have come towards what they aim at. Nothing here reminds. Tapping a
- * goal, a to-do or a routine opens it in its editor, "+" starts a new wish. Below them, the way to the review of the
- * wishes come true, once there is one.
+ * right there, its routines, with how far they have come towards what they aim at, and its exams, with their topics.
+ * Nothing here reminds. Tapping a goal, a to-do or a routine opens it in its editor, an exam its language's topics;
+ * "+" starts a new wish. Below them, the way to the review of the wishes come true, once there is one.
  */
 @Composable
 fun WishlistScreen(
@@ -75,6 +76,7 @@ fun WishlistScreen(
     onOpen: (Long) -> Unit,
     onOpenTodo: (Long) -> Unit,
     onOpenRoutine: (Long) -> Unit,
+    onOpenExam: (Long) -> Unit,
     onCreate: () -> Unit,
     onOpenReview: () -> Unit,
 ) {
@@ -91,7 +93,8 @@ fun WishlistScreen(
     fun lines(goal: Goal, depth: Int): List<TreeLine> = listOf(TreeLine.OfGoal(goal, depth)) + if (goal.wish.id in opened) {
         goal.subgoals.flatMap { lines(it, depth + 1) } +
             goal.todos.map { TreeLine.OfTodo(it, depth + 1) } +
-            goal.routines.map { TreeLine.OfRoutine(it, depth + 1) }
+            goal.routines.map { TreeLine.OfRoutine(it, depth + 1) } +
+            goal.exams.map { TreeLine.OfExam(it, depth + 1) }
     } else {
         emptyList()
     }
@@ -143,6 +146,7 @@ fun WishlistScreen(
                             )
                             is TreeLine.OfRoutine ->
                                 RoutinePartRow(line.routine, line.depth, onClick = { onOpenRoutine(line.routine.id) })
+                            is TreeLine.OfExam -> ExamPartRow(line.exam, line.depth, onClick = { onOpenExam(line.exam.languageId) })
                         }
                     }
                 }
@@ -181,6 +185,10 @@ private sealed interface TreeLine {
 
     data class OfRoutine(val routine: GoalRoutine, val depth: Int) : TreeLine {
         override val key get() = "routine ${routine.id}"
+    }
+
+    data class OfExam(val exam: GoalExam, val depth: Int) : TreeLine {
+        override val key get() = "exam ${exam.id}"
     }
 }
 
@@ -246,6 +254,29 @@ private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit
         leadingContent = { Icon(Icons.Filled.Refresh, contentDescription = null) },
         headlineContent = { Text(routine.name) },
         supportingContent = { Text(routineProgressText(routine)) },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(start = treeIndent(depth, INDENT)),
+    )
+}
+
+/**
+ * An exam of Sprachen that is part of a goal (SPEC.md §15), "Prüfung: Arabisch A2", with how many of its topics are
+ * done, or that it is taken; tapped, its language's topics.
+ */
+@Composable
+private fun ExamPartRow(exam: GoalExam, depth: Int, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.goal_exam, exam.title)) },
+        supportingContent = {
+            Text(
+                if (exam.taken) {
+                    stringResource(R.string.goal_exam_taken)
+                } else {
+                    stringResource(R.string.goal_exam_topics, exam.ticked, exam.topics)
+                },
+            )
+        },
         modifier = Modifier
             .clickable(onClick = onClick)
             .padding(start = treeIndent(depth, INDENT)),
