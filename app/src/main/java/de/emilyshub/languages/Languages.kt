@@ -5,6 +5,8 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
+import de.emilyshub.wishes.GoalWatch
+import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -458,46 +460,72 @@ class Languages(
         }
     }
 
-    /** A new exam of the language [languageId], as [draft] has it; refused, with nothing saved, for its problems. */
+    /**
+     * A new exam of the language [languageId], as [draft] has it, a part of its goal if it names one still there, which
+     * opens that goal again if it was done; refused, with nothing saved, for its problems.
+     */
     suspend fun createExam(languageId: Long, draft: ExamDraft): Saving<ExamProblem> = write {
         database().withTransaction {
             when {
                 draft.problems.isNotEmpty() -> Saving.Refused(draft.problems)
                 dao.language(languageId) == null -> Saving.Saved(0)
-                else -> Saving.Saved(
-                    dao.insertExam(Exam(languageId = languageId, name = draft.cleanedName, date = checkNotNull(draft.date))),
-                )
+                else -> watchingGoals { watch ->
+                    val exam = Exam(
+                        languageId = languageId, name = draft.cleanedName, date = checkNotNull(draft.date),
+                        goalId = database().wishes().stillThere(draft.goalId),
+                    )
+                    Saving.Saved(dao.insertExam(exam).also(watch::examAdded))
+                }
             }
         }
     }
 
-    /** Changes the name and date of the exam [id] to what [draft] has; refused as [createExam] is. */
+    /**
+     * Changes the name, date and goal of the exam [id] to what [draft] has; refused as [createExam] is. The goals it was
+     * and is part of are settled anew.
+     */
     suspend fun saveExam(id: Long, draft: ExamDraft): Saving<ExamProblem> = write {
         database().withTransaction {
             if (draft.problems.isNotEmpty()) return@withTransaction Saving.Refused(draft.problems)
-            dao.exam(id)?.let { dao.updateExam(it.copy(name = draft.cleanedName, date = checkNotNull(draft.date))) }
+            val saved = dao.exam(id) ?: return@withTransaction Saving.Saved(id)
+            watchingGoals { watch ->
+                watch.exam(id)
+                val goalId = database().wishes().stillThere(draft.goalId)
+                dao.updateExam(saved.copy(name = draft.cleanedName, date = checkNotNull(draft.date), goalId = goalId))
+            }
             Saving.Saved(id)
         }
     }
 
     /** The exam [id] as its dialog opens it. */
-    suspend fun examDraft(id: Long): ExamDraft? = withContext(io) { dao.exam(id)?.let { ExamDraft(it.name, it.date) } }
+    suspend fun examDraft(id: Long): ExamDraft? = withContext(io) { dao.exam(id)?.let { ExamDraft(it.name, it.date, it.goalId) } }
 
     /**
      * Marks the exam [id] taken, with [result] if any, or takes it back, which forgets its result; refused, with nothing
-     * changed, for a result too long.
+     * changed, for a result too long. Taken, it is done as a part of its goal, which is done then if all its parts are;
+     * taken back, it opens that goal again.
      */
     suspend fun setExamTaken(id: Long, taken: Boolean, result: String = ""): Boolean = write {
         val cleaned = InputText.multiLine(result).trim()
         if (taken && InputText.lengthOf(cleaned) > Exam.RESULT_MAX) return@write false
         database().withTransaction {
-            dao.exam(id)?.let { dao.updateExam(it.copy(taken = taken, result = if (taken) cleaned else "")) }
+            watchingGoals { watch ->
+                watch.exam(id)
+                dao.exam(id)?.let { dao.updateExam(it.copy(taken = taken, result = if (taken) cleaned else "")) }
+            }
         }
         true
     }
 
-    /** Deletes the exam [id]; its topics stay, without an exam. The screen asks first. */
-    suspend fun deleteExam(id: Long) = write { dao.deleteExam(id) }
+    /** Deletes the exam [id]; its topics stay, without an exam, and its goal loses it. The screen asks first. */
+    suspend fun deleteExam(id: Long) = write {
+        database().withTransaction {
+            watchingGoals { watch ->
+                watch.exam(id)
+                dao.deleteExam(id)
+            }
+        }
+    }
 
     /** Whether [topic] is only to read, its exam being taken. */
     private suspend fun isClosed(topic: Topic) = topic.examId?.let { dao.exam(it)?.taken } == true
@@ -558,6 +586,8 @@ class Languages(
             },
         )
     }.flowOn(io)
+
+    private suspend fun <T> watchingGoals(change: suspend (GoalWatch) -> T): T = database().watchingGoals(today(), change)
 
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 }

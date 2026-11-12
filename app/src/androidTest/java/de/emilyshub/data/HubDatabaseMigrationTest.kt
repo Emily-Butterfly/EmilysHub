@@ -1032,6 +1032,25 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 47 moves to version 48 with exams at no goal, and then one is part of a goal, without it once that goes`() {
+        createAtVersion(47) {
+            it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
+            it.execSQL("INSERT INTO exams (id, language_id, name, date, taken, result) VALUES (1, 1, 'A2', '2026-12-25', 0, '')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            assertEquals(null, dao.exam(1)?.goalId)
+            val goal = database.wishes().insert(Wish(title = "A2 erreichen", description = "", period = ""))
+            dao.updateExam(checkNotNull(dao.exam(1)).copy(goalId = goal))
+            assertEquals(goal, dao.exam(1)?.goalId)
+
+            database.wishes().delete(goal)
+            assertEquals(null, dao.exam(1)?.goalId)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

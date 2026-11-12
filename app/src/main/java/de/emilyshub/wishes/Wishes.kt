@@ -20,7 +20,7 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The wishlist (SPEC.md §6): things to do some day, deliberately without reminders, so that nothing here tells the
- * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos and routines hanging under them; a
+ * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos, routines and exams hanging under them; a
  * goal is done once all of its parts that count are. [database] is only called on [io], since the first call opens it.
  * Writes run to the end once started, even if the screen that started them goes away.
  */
@@ -145,6 +145,7 @@ class Wishes(
             dao.moveSubgoals(from = id, to = wish.parentId)
             dao.moveTodos(from = id, to = wish.parentId)
             dao.moveRoutines(from = id, to = wish.parentId)
+            dao.moveExams(from = id, to = wish.parentId)
             dao.delete(id)
             // In its place, its parts: open if one of them is. Not through the watch, as they take its place all at once.
             database().settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen), today())
@@ -155,7 +156,8 @@ class Wishes(
     private fun today(): LocalDate = LocalDate.now(clock)
 
     private fun tree(): Flow<List<Goal>> =
-        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), GoalTree::build)) }.flowOn(io)
+        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), dao.observeGoalExams(), GoalTree::build)) }
+            .flowOn(io)
 
     /**
      * The routines hanging under goals, each with how far it has come towards what it aims at; anew only as that changes,

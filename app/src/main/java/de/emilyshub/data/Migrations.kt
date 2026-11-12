@@ -734,3 +734,17 @@ val MIGRATION_46_47 = object : Migration(46, 47) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_lesson_attachments_file` ON `lesson_attachments` (`file`)")
     }
 }
+
+/**
+ * Version 48: an exam of Sprachen may be a part of a goal (SPEC.md §6, §15, #84), without it once the goal is deleted.
+ * None is yet.
+ */
+val MIGRATION_47_48 = object : Migration(47, 48) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `exams` ADD COLUMN `goal_id` INTEGER " +
+                "REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_exams_goal_id` ON `exams` (`goal_id`)")
+    }
+}

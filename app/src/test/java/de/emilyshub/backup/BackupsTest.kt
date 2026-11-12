@@ -270,6 +270,20 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps which goal an exam is part of, and one from before that loads with none`() {
+        someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(47, contentOf(now)), attachmentsOf(now))
+
+        restore(now)
+        val goalColumn = { rows: List<List<Any?>> -> rows.map { it[6] } }
+        assertTrue(goalColumn(everything().getValue("exams")).single() != null)
+
+        restore(older)
+        assertEquals(listOf(null), goalColumn(everything().getValue("exams")))
+    }
+
+    @Test
     fun `a backup keeps the topics, exams and the topics of the lessons, and one from before them loads without any`() {
         val made = someOfEverything()
         val now = exported()
@@ -627,7 +641,7 @@ class BackupsTest {
             )
             val arabicLessons = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
             val amal = app.languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal", "italki", setOf(arabicLessons))) as Saving.Saved
-            val a2 = app.languages.createExam(arabicLessons, ExamDraft("A2", LocalDate.parse("2026-12-25"))) as Saving.Saved
+            val a2 = app.languages.createExam(arabicLessons, ExamDraft("A2", LocalDate.parse("2026-12-25"), goalId = northernLights)) as Saving.Saved
             val numbers = app.languages.createTopic(arabicLessons, "Zahlen", a2.id) as Saving.Saved
             app.languages.setTopicDone(numbers.id, done = true)
             app.languages.save(

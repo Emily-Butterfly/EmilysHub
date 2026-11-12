@@ -25,6 +25,27 @@ data class GoalTodo(
 }
 
 /**
+ * An exam of Sprachen hanging at a goal (SPEC.md §6, §15), as far as the goal's progress goes: of the language
+ * [language], with [ticked] of its [topics] done; done itself once [taken].
+ */
+data class GoalExam(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "language_id") val languageId: Long,
+    val language: String,
+    @ColumnInfo(name = "goal_id") val goalId: Long,
+    val taken: Boolean,
+    val topics: Int = 0,
+    val ticked: Int = 0,
+) {
+    /** From 0 to 1: all of it once taken, else the share of its topics done; nothing without topics. */
+    val progress: Double get() = if (taken) 1.0 else if (topics > 0) ticked.toDouble() / topics else 0.0
+
+    /** How it is called at its goal: by its language and its name, the language once only if the name has it already. */
+    val title: String get() = if (name.startsWith(language, ignoreCase = true)) name else "$language $name"
+}
+
+/**
  * A routine hanging at a goal (SPEC.md §2, §6), with what it aims at, its [target], if any, and how far its history has
  * come towards that; paused or archived, as its [status] says, it counts all the same. Without a target it only shows
  * with the goal and counts towards nothing.
@@ -66,15 +87,16 @@ class GoalRoutine(
 }
 
 /**
- * A goal (SPEC.md §6): a wish with the [subgoals], [todos] and [routines] hanging under it, its parts. How far it has
- * come, its [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a goal
- * done has come all the way. A routine counts only with a target.
+ * A goal (SPEC.md §6): a wish with the [subgoals], [todos], [routines] and [exams] hanging under it, its parts. How far
+ * it has come, its [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a
+ * goal done has come all the way. A routine counts only with a target.
  */
 class Goal(
     private val withTags: WishWithTags,
     val subgoals: List<Goal>,
     val todos: List<GoalTodo>,
     val routines: List<GoalRoutine>,
+    val exams: List<GoalExam> = emptyList(),
 ) {
 
     val wish: Wish get() = withTags.wish
@@ -82,13 +104,13 @@ class Goal(
     val tagIds: Set<Long> get() = withTags.tagIds
 
     /** Whether anything hangs under it, to show below it. */
-    val hasParts: Boolean get() = subgoals.isNotEmpty() || todos.isNotEmpty() || routines.isNotEmpty()
+    val hasParts: Boolean get() = subgoals.isNotEmpty() || todos.isNotEmpty() || routines.isNotEmpty() || exams.isNotEmpty()
 
     /** Whether anything under it counts towards its progress: all but routines without a target. */
     val hasCountingParts: Boolean get() = countingProgress.isNotEmpty()
 
     private val countingProgress: List<Double> by lazy {
-        subgoals.map { it.progress } + todos.map { it.progress } + routines.mapNotNull { it.progress }
+        subgoals.map { it.progress } + todos.map { it.progress } + routines.mapNotNull { it.progress } + exams.map { it.progress }
     }
 
     /** From 0 to 1, the mean of the progress of the parts that count; nothing without such. */
@@ -123,15 +145,21 @@ data class FulfilledWish(val wish: Wish, val partOf: String?)
 object GoalTree {
 
     /**
-     * The goals at the top, each with its parts below it, subgoals by title, then to-dos by title, then routines by name.
-     * A goal whose parent is gone, or that is caught in a cycle, which the app never makes, is at the top too, so that
-     * each shows once.
+     * The goals at the top, each with its parts below it, subgoals by title, then to-dos by title, then routines by name,
+     * then exams by title. A goal whose parent is gone, or that is caught in a cycle, which the app never makes, is at the
+     * top too, so that each shows once.
      */
-    fun build(wishes: List<WishWithTags>, todos: List<GoalTodo>, routines: List<GoalRoutine>): List<Goal> {
+    fun build(
+        wishes: List<WishWithTags>,
+        todos: List<GoalTodo>,
+        routines: List<GoalRoutine>,
+        exams: List<GoalExam> = emptyList(),
+    ): List<Goal> {
         val byId = wishes.associateBy { it.wish.id }
         val subgoalsOf = wishes.groupBy { it.wish.parentId }
         val todosOf = todos.groupBy { it.goalId }
         val routinesOf = routines.groupBy { it.goalId }
+        val examsOf = exams.groupBy { it.goalId }
         val placed = mutableSetOf<Long>()
 
         fun goal(details: WishWithTags): Goal {
@@ -142,7 +170,8 @@ object GoalTree {
                 .map(::goal)
             val todos = todosOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.title })
             val routines = routinesOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.name })
-            return Goal(details, subgoals, todos, routines)
+            val examParts = examsOf[details.wish.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.title })
+            return Goal(details, subgoals, todos, routines, examParts)
         }
 
         val tops = wishes.filter { it.wish.parentId == null || it.wish.parentId !in byId }.map(::goal)

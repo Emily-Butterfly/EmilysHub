@@ -6,20 +6,23 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import de.emilyshub.data.InputText
+import de.emilyshub.wishes.Wish
 import java.io.Serializable
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 /**
  * An exam of a language (SPEC.md §15): by [name], on [date]; [taken] by hand, with a [result] as free text if wished.
- * Its topics are only to read once it is taken. Deleted, its topics stay, without an exam.
+ * Its topics are only to read once it is taken. Deleted, its topics stay, without an exam. It may be a part of the goal
+ * [goalId] (SPEC.md §6), done once taken; without it once the goal is deleted.
  */
 @Entity(
     tableName = "exams",
     foreignKeys = [
         ForeignKey(entity = Language::class, parentColumns = ["id"], childColumns = ["language_id"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
     ],
-    indices = [Index("language_id")],
+    indices = [Index("language_id"), Index("goal_id")],
 )
 data class Exam(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -28,6 +31,7 @@ data class Exam(
     val date: LocalDate,
     @ColumnInfo(defaultValue = "0") val taken: Boolean = false,
     val result: String = "",
+    @ColumnInfo(name = "goal_id") val goalId: Long? = null,
 ) {
     companion object {
         /** The longest an exam's name may be, in characters. */
@@ -85,8 +89,8 @@ enum class ExamProblem {
     DateMissing,
 }
 
-/** An exam as typed into its dialog: [name] and [date]. Serializable, so that the dialog keeps it. */
-data class ExamDraft(val name: String = "", val date: LocalDate? = null) : Serializable {
+/** An exam as typed into its dialog: [name], [date] and the goal it is part of, if any. Serializable, so the dialog keeps it. */
+data class ExamDraft(val name: String = "", val date: LocalDate? = null, val goalId: Long? = null) : Serializable {
     /** Its name on a single line, as it is saved. */
     val cleanedName: String get() = InputText.singleLine(name)
 
