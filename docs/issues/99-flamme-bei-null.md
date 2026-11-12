@@ -19,12 +19,12 @@ Bricht der Gesamt-Streak, verschwindet die Flamme nicht mehr aus Heute, und die 
 - [ ] Die Statistik, gesamt und je Routine, nennt bei einem Streak von 0 den letzten: „Letzter Streak: 23 Tage, bis Mi., 21. Okt.“; gab es noch keinen, steht dort nichts
 - [ ] Der letzte Streak ist die Folge erledigter Tage vor dem jüngsten Bruch; übersprungene und offene Tage zählen darin nicht und brechen ihn nicht, wie beim Streak selbst
 - [ ] Für Screenreader sagt die Flamme „Kein Streak. Letzter: 23 Tage“ bzw. „Kein Streak“
-- [ ] An den Regeln des Streaks ändert sich nichts (SPEC §8)
+- [ ] An den Regeln des Streaks ändert dieses Ticket nichts; ab wann ein Tag für den Gesamt-Streak zählt, regelt #109
 - [ ] Unit-Tests: letzter Streak nach einem Bruch, nach mehreren, mit übersprungenen Tagen dazwischen, ohne früheren; UI-Tests: graue Flamme mit 0 in Heute, die Zeile in der Statistik
 
 ## Entscheidungen
 
 Aus dem Gutachten vom 12.11.2026 (Befund U6); die Einzelheiten sind nicht in einem Interview abgestimmt.
 
-- Nur die Anzeige ändert sich. Ob ein Tag für den Gesamt-Streak schon ab einer Quote zählt, ist offen und nicht Teil dieses Tickets.
+- Nur die Anzeige ändert sich. Ab wann ein Tag für den Gesamt-Streak zählt, regelt #109.
 - Eine graue 0 statt nichts: Die Stelle bleibt, und der Weg zur Statistik auch.

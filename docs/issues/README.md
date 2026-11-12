@@ -156,7 +156,7 @@ Abgestimmt im Interview vom 11.11.2026; Sammel-Issue #85. Gebaut wird in der Rei
 
 ## Etappe 13 – Absichern, Eingang, Heute, Ablauf-Modus & Vokabeltrainer
 
-Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und zwei Entscheidungen (#95, #96) sind am 12.11.2026 bestätigt; die Einzelheiten der Slices sind nicht in einem Interview abgestimmt. Gebaut wird in der Reihenfolge der Tabelle. #91 und #92 sind der Rest von „UX 1“ und können auch später gebaut werden; #108 ist dran, sobald Heute merklich zäh wird.
+Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und die Entscheidungen zu #95, #96, #98, #104 und #109 sind vom 12.11.2026; die Einzelheiten der Slices sind nicht in einem Interview abgestimmt. Gebaut wird in der Reihenfolge der Tabelle. #91 und #92 sind der Rest von „UX 1“ und können auch später gebaut werden; #108 ist dran, sobald Heute merklich zäh wird.
 
 | # | Slice | Art | Blockiert durch |
 |---|---|---|---|
@@ -173,6 +173,7 @@ Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und zwei Ent
 | 97 | [Heute: Menü je Eintrag – verschieben, öffnen, überspringen](97-heute-menue-je-eintrag.md) | 🤖 | 96 |
 | 98 | [Erinnerungen: „Später“ für To-dos bis heute Abend und morgen früh](98-spaeter-fuer-todos.md) | 🤖 | – |
 | 99 | [Flamme: bei null stehen bleiben, letzter Streak in der Statistik](99-flamme-bei-null.md) | 🤖 | – |
+| 109 | [Gesamt-Streak: ab wann ein Tag zählt, einstellbar](109-gesamt-streak-quote.md) | 🤖 | 99 |
 | 100 | [Rettungsbildschirm, wenn sich die Daten nicht öffnen lassen](100-rettungsbildschirm.md) | 🤖 | – |
 | 101 | [Ablauf-Modus: eine Routine Schritt für Schritt](101-ablauf-modus.md) | 🤖 | 97 |
 | 102 | [Ablauf-Modus: Minuten je Schritt, Restzeit & laufende Benachrichtigung](102-ablauf-modus-zeit.md) | 🤖 | 101 |
@@ -182,3 +183,7 @@ Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und zwei Ent
 | 106 | [Vokabeltrainer: Routine und Ziel zählen mit](106-vokabeltrainer-routine-und-ziel.md) | 🤖 | 104 |
 | 107 | [Vokabeltrainer: Zahlen an Themen, Thema üben & Suche](107-vokabeltrainer-themen-suche.md) | 🤖 | 104 |
 | 108 | [Heute & To-dos: nur laden, was gebraucht wird](108-nur-laden-was-gebraucht-wird.md) | 🤖 | – |
+
+## Ohne Ticket
+
+Was aus dem Gutachten noch kein Ticket hat, steht in [ohne-ticket.md](ohne-ticket.md), mit Befund, Fundstelle und Vorschlag, damit es sich in einem neuen Chat aufgreifen lässt.

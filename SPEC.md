@@ -29,7 +29,7 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 - Angepinnte Notizen
 - Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5), und Abos, deren Kündigungsfrist näher rückt (§13)
 - **Heatmap** der letzten 6 Monate unter den Einträgen: je Tag ein Kästchen, je mehr Routinen und To-dos erledigt, desto kräftiger
-- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau, solange heute noch etwas offen und nichts erledigt ist, und grau mit „0“, wenn kein Streak läuft; Tippen öffnet die Statistik
+- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau, solange der heutige Tag noch nicht zählt, und grau mit „0“, wenn kein Streak läuft; Tippen öffnet die Statistik
 - **„€“** in der oberen Leiste links neben der Flamme: öffnet den laufenden Monat im Haushaltsbuch (§13)
 - **„‹ Gestern“** über der Liste: der Vortag zum Nachtragen (unten)
 - Warnbanner bei fehlenden Berechtigungen, fehlgeschlagenem oder veraltetem Backup und wenn die Backups zu lange nicht vom Handy wegkopiert wurden (§10)
@@ -113,7 +113,7 @@ Eine Routine mit Checkliste lässt sich Schritt für Schritt abarbeiten.
 - Standard: Benachrichtigung mit hoher Priorität (Heads-up) und Aktionen **Erledigt · Später · Überspringen**; bei einer Routine mit Checkliste **Starten · Erledigt · Später** (§2, Ablauf-Modus), Überspringen bleibt in Heute und im Vollbild-Alarm.
 - Optional pro Routine und To-do: **Vollbild-Alarm** (auch auf dem Sperrbildschirm). Bei Routinen bietet er entsperrt **Erledigt · Später · Überspringen · Heute nicht**, mit Checkliste dazu **Starten**.
 - **Keine** Overlays über anderen Apps (`SYSTEM_ALERT_WINDOW` wird nicht verwendet).
-- **Später**: Auswahl 10 min / 30 min / 1 h. In der Benachrichtigung einer Routine 10 min / 30 min / **Heute nicht** (§2), da Android dort höchstens drei Knöpfe zeigt; der Vollbild-Alarm bietet alle drei Zeiten. Bei To-dos kommen **Heute Abend** (18:00, angeboten bis 17:00) und **Morgen früh** (08:00 am nächsten Tag, nachts vor 04:00 am selben) dazu: Ihre Benachrichtigung bietet 30 min / Heute Abend / Morgen früh, nach 17:00 statt „Heute Abend“ 1 h; der Vollbild-Alarm bietet alle. „Später“ verschiebt nur die Erinnerung, nicht die Fälligkeit.
+- **Später**: Auswahl 10 min / 30 min / 1 h. In der Benachrichtigung einer Routine 10 min / 30 min / **Heute nicht** (§2), da Android dort höchstens drei Knöpfe zeigt; der Vollbild-Alarm bietet alle drei Zeiten. Bei To-dos kommen **Heute Abend** (20:00, angeboten bis 19:00) und **Morgen früh** (08:00 am nächsten Tag, nachts vor 04:00 am selben) dazu: Ihre Benachrichtigung bietet 30 min / Heute Abend / Morgen früh, nach 19:00 statt „Heute Abend“ 1 h; der Vollbild-Alarm bietet alle. „Später“ verschiebt nur die Erinnerung, nicht die Fälligkeit.
 - **Ignoriert**: erneute Erinnerung im eingestellten Abstand, höchstens die eingestellte Anzahl (max. 5); danach bleibt die Benachrichtigung still stehen, bis das Zeitfenster abläuft.
 - Sperrbildschirm: nur „Erinnerung fällig“, außer der Eintrag erlaubt seinen Namen dort (dann Name und Uhrzeit, im Vollbild-Alarm wie in der Benachrichtigung). Aktionen in jedem Fall erst nach Entsperren.
 - **Ton**: je Routine und To-do ein Ton; der Vollbild-Alarm spielt ihn in Schleife, die Benachrichtigung einmal. Zur Wahl stehen die Töne des Handys und eigene Audiodateien, die die App dafür in die Töne des Handys kopiert. In den Einstellungen je ein Standard für Wecker und für Benachrichtigungen; fehlt ein Ton, gilt der Standard. Benachrichtigungen mit eigenem Ton laufen über einen eigenen Kanal je Ton.
@@ -246,6 +246,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
   - Durch eine gekoppelte Routine erledigte Fälligkeiten zählen wie Übersprungen.
   - Am Vortag Nachgetragenes zählt wie Erledigt.
   - Läuft kein Streak, nennt die Statistik den letzten: seine Tage und bis wann er lief.
+  - **Gesamt-Streak** (alle Routinen zusammen; die Flamme in Heute, §1): Ab wann ein Tag zählt, bestimmt die Einstellung „Ein Tag zählt für den Gesamt-Streak“ (Einstellungen, Statistik): **ab der ersten Erledigung** (Standard: mindestens eine Fälligkeit des Tages ist erledigt) oder **ab einer Quote** (10–100 % in Zehnerschritten: der Anteil der erledigten an den erledigten, verpassten und ausgelassenen Fälligkeiten des Tages; Übersprungenes und Offenes zählen nicht mit). Ein Tag mit solchen Fälligkeiten, der die Regel nicht erfüllt, bricht den Streak, der heutige erst, wenn nichts mehr offen ist; ein Tag ohne sie zählt nicht und bricht nicht. 100 % ist die Regel, die für den Streak je Routine gilt. Die Einstellung wirkt rückwirkend auf die ganze Geschichte und bleibt auf dem Gerät. Der Streak je Routine und die Routinen-Ziele (§2) folgen ihr nicht.
 
 ## 9. Sicherheit
 
