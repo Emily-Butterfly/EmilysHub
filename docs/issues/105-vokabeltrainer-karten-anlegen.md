@@ -29,7 +29,7 @@ Karten entstehen dort, wo die Wörter schon stehen: aus den Zeilen einer Session
 - [ ] Grenzen: bis 1 MB und 2 000 Zeilen; darüber wird die Datei mit dem Grund abgelehnt
 - [ ] Vor dem Anlegen eine Vorschau: „312 Karten, 5 schon vorhanden, 2 Zeilen nicht lesbar (Zeile 17, 40)“, die ersten Karten zur Kontrolle und die Wahl eines Themas für alle
 - [ ] Ein zu langes Feld macht seine Zeile nicht lesbar; nichts wird stillschweigend gekürzt
-- [ ] Angelegt wird alles in einem Zug oder nichts; die neuen Karten liegen in Fach 1 und kommen mit dem Tagespensum (#104)
+- [ ] Angelegt wird alles in einem Zug oder nichts; die neuen Karten gelten als neu und kommen mit dem Tagespensum (#104)
 - [ ] Die Datei wird nur gelesen und nicht behalten
 
 ### Tests

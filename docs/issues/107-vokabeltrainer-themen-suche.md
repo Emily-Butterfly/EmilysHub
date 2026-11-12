@@ -18,8 +18,8 @@ Die Themen einer Sprache zeigen, wie viele ihrer Karten sitzen, und lassen sich 
 - [ ] Im Reiter Themen zeigt jedes Thema mit Karten „12 Karten · 5 sicher“, neben dem, was es schon zeigt
 - [ ] Die nächste anstehende Prüfung zeigt dazu „Karten: 40 von 120 sicher“, die Summe über ihre Themen; ohne Karten nichts
 - [ ] Antippen der Zahl öffnet den Reiter Karten, auf das Thema gefiltert
-- [ ] Das Menü eines Themas bietet „Thema üben“: Es fragt alle Karten des Themas ab, die fälligen zuerst, dann nach Fach aufsteigend; die Abfrage sieht aus wie die tägliche (#104)
-- [ ] Eine fällige Karte zählt dabei wie im Tagespensum. Eine noch nicht fällige rückt bei „Gewusst“ und „Leicht“ nicht vor und behält ihre Fälligkeit; bei „Nochmal“ fällt sie in Fach 1
+- [ ] Das Menü eines Themas bietet „Thema üben“: Es fragt alle Karten des Themas ab, die fälligen zuerst, dann die mit der nächsten Fälligkeit; die Abfrage sieht aus wie die tägliche (#104)
+- [ ] Jede Antwort zählt wie im Tagespensum, auch bei einer Karte, die noch nicht fällig war: FSRS rechnet ein, dass sie früh kommt, und lässt ihre Stabilität dann nur wenig wachsen (#104). Neue Karten des Themas zählen dabei nicht gegen die Grenze für neue Karten am Tag
 - [ ] Auch ein abgehaktes Thema und ein Thema einer abgelegten Prüfung lassen sich üben
 
 ### Suche & Auswertung
@@ -37,5 +37,5 @@ Die Themen einer Sprache zeigen, wie viele ihrer Karten sitzen, und lassen sich 
 
 Aus dem Gutachten vom 12.11.2026 (Feature 3); die Einzelheiten sind nicht in einem Interview abgestimmt.
 
-- Vorzeitiges Üben lässt eine Karte nicht vorrücken: Sonst verlören die Abstände ihren Sinn. Zurückfallen kann sie, denn eine Lücke ist eine Lücke.
+- Keine Sonderregel für vorzeitiges Üben: Der Algorithmus aus #104 rechnet den kurzen Abstand selbst ein.
 - Eine feste Reihenfolge statt einer zufälligen, damit die Abfrage sich fortsetzen und prüfen lässt.

@@ -178,7 +178,7 @@ Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und die Ents
 | 101 | [Ablauf-Modus: eine Routine Schritt für Schritt](101-ablauf-modus.md) | 🤖 | 97 |
 | 102 | [Ablauf-Modus: Minuten je Schritt, Restzeit & laufende Benachrichtigung](102-ablauf-modus-zeit.md) | 🤖 | 101 |
 | 103 | [Ablauf-Modus: Start aus Erinnerung und Vollbild-Alarm](103-ablauf-modus-start-aus-erinnerung.md) | 🤖 | 101 |
-| 104 | [Vokabeltrainer: Karten, Fächer & Abfrage](104-vokabeltrainer-karten.md) | 🤖 | – |
+| 104 | [Vokabeltrainer: Karten, FSRS & Abfrage](104-vokabeltrainer-karten.md) | 🤖 | – |
 | 105 | [Vokabeltrainer: Karten aus Session-Notiz und Textdatei](105-vokabeltrainer-karten-anlegen.md) | 🤖 | 104 |
 | 106 | [Vokabeltrainer: Routine und Ziel zählen mit](106-vokabeltrainer-routine-und-ziel.md) | 🤖 | 104 |
 | 107 | [Vokabeltrainer: Zahlen an Themen, Thema üben & Suche](107-vokabeltrainer-themen-suche.md) | 🤖 | 104 |

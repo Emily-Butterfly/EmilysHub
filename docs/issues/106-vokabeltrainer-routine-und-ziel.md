@@ -29,7 +29,7 @@ Wer seine Karten geübt hat, muss die Routine „Vokabeln“ nicht noch einmal a
 - [ ] Der Ziel-Editor bekommt „Karten-Ziel“: eine Sprache und eine Zahl sicherer Karten (1–100 000); je Ziel höchstens eins
 - [ ] Im Zielbaum steht es als eigene Zeile, wie eine Prüfung (#84): „Karten: Arabisch · 412 von 1 000“; Antippen öffnet den Reiter Karten der Sprache
 - [ ] Sein Fortschritt ist der Anteil sicherer Karten an der Zahl, höchstens 100 %, und zählt im Ziel wie ein To-do oder eine Prüfung
-- [ ] Erreicht, ist der Teil erledigt. Fällt die Zahl wieder darunter (eine Karte geht bei „Nochmal“ in Fach 1, Karten werden gelöscht), ist er wieder offen, und ein dadurch erledigtes Ziel öffnet sich wieder, wie beim Zurücknehmen von „abgelegt“
+- [ ] Erreicht, ist der Teil erledigt. Fällt die Zahl wieder darunter (eine Karte ist nach „Nochmal“ nicht mehr sicher, Karten werden gelöscht), ist er wieder offen, und ein dadurch erledigtes Ziel öffnet sich wieder, wie beim Zurücknehmen von „abgelegt“
 - [ ] Wird das Ziel gelöscht, verschwindet das Karten-Ziel; die Karten bleiben
 - [ ] Der Abgleich läuft über `GoalWatch`, wie bei To-dos, Routinen und Prüfungen
 
@@ -43,4 +43,4 @@ Wer seine Karten geübt hat, muss die Routine „Vokabeln“ nicht noch einmal a
 Aus dem Gutachten vom 12.11.2026 (Feature 3); die Einzelheiten sind nicht in einem Interview abgestimmt.
 
 - Die Routine wird nur an Tagen mit Pensum erledigt: Ein Tag ohne Karten soll nicht als geübt zählen.
-- Gezählt werden sichere Karten (Fach 4 und 5), nicht alle angelegten: Ein Import soll das Ziel nicht sofort erfüllen.
+- Gezählt werden sichere Karten (Abstand ab 21 Tagen, #104), nicht alle angelegten: Ein Import soll das Ziel nicht sofort erfüllen.

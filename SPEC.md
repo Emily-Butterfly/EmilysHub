@@ -510,7 +510,7 @@ Nur gehaltene Sessions; geplant wird mit To-dos und Routinen.
 
 ### Vokabeltrainer
 
-Karteikarten je Sprache, abgefragt in wachsenden Abständen (fünf Fächer nach Leitner).
+Karteikarten je Sprache, abgefragt in wachsenden Abständen, die der Algorithmus FSRS-6 plant (Formeln, Parameter und Testwerte: `docs/research/spaced-repetition.md`).
 
 | Feld | Details |
 |---|---|
@@ -520,15 +520,15 @@ Karteikarten je Sprache, abgefragt in wachsenden Abständen (fünf Fächer nach 
 | Notiz | Optional |
 | Thema | Optional, aus den Themen der Sprache |
 
-- **Fächer**: Eine neue Karte liegt in Fach 1. Die Abstände der Fächer 1 bis 5 sind 1, 3, 7, 14 und 30 Tage. **Sicher** ist eine Karte in Fach 4 oder 5.
-- **Abfrage**: Die Karte zeigt die Vorderseite; „Aufdecken“ zeigt den Rest. „Nochmal“ legt sie in Fach 1 und zeigt sie in derselben Runde wieder; „Gewusst“ rückt sie ein Fach vor, „Leicht“ zwei; aus Fach 5 geht es nicht weiter. Fällig ist sie wieder nach dem Abstand ihres Fachs.
+- **Planung**: FSRS-6 mit seinen 21 Standardparametern und einer gewünschten Behaltensquote von 90 %, in ganzen Kalendertagen, ohne Lernschritte in Minuten und ohne zufällige Streuung; selbst gerechnet, ohne fremde Bibliothek. Je Karte merkt sich die App Stabilität, Schwierigkeit, den Tag der letzten Abfrage und die Fälligkeit, dazu ein Protokoll jeder Abfrage. **Sicher** ist eine Karte, deren zuletzt geplanter Abstand mindestens 21 Tage beträgt.
+- **Abfrage**: Die Karte zeigt die Vorderseite; „Aufdecken“ zeigt den Rest. Vier Antworten: **Nochmal · Schwer · Gut · Leicht**, jede mit dem Abstand, den sie ergäbe. „Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“. Nach „Nochmal“ kommt die Karte in derselben Runde wieder.
 - **Tagespensum** einer Sprache: alle fälligen Karten und dazu höchstens 10 neue am Tag (je Sprache einstellbar, 0–50). Geschafft ist es, wenn nichts davon mehr offen ist.
 - Abgefragt wird nur von der Vorderseite zur Rückseite. Keine Tonaufnahmen, keine Bilder.
 - **Anlegen**: von Hand; aus einer Session-Notiz (Zeilen mit „ – “, „ = “ oder Tabulator werden als Vorder- und Rückseite vorgeschlagen, zum Ankreuzen); aus einer Textdatei über den Dateiwähler (je Zeile Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon, bis 2 000 Zeilen). Eine Karte, deren Vorderseite es in der Sprache schon gibt, wird übersprungen und gezählt.
-- **Reiter Karten** auf der Seite einer Sprache: alle Karten mit Fach und nächster Fälligkeit, filterbar nach Thema; ändern und löschen.
+- **Reiter Karten** auf der Seite einer Sprache: alle Karten mit ihrer nächsten Fälligkeit und der Marke „sicher“, filterbar nach Thema; ändern und löschen.
 - **Routine**: Eine Routine kann „erledigt durch Vokabeln“ einer Sprache sein (§2): Ist deren Tagespensum geschafft, ist die offene Fälligkeit der Routine von heute erledigt. Ist an dem Tag nichts fällig und nichts neu, bleibt die Routine offen.
 - **Karten-Ziel**: An einem Ziel (§6) hängt optional „N sichere Karten“ einer Sprache, mit eigener Zeile („Karten: Arabisch · 412 von 1 000“). Der Fortschritt ist ihr Anteil; erreicht, ist der Teil erledigt, wie eine abgelegte Prüfung.
-- **Themen**: Ein Thema zeigt „12 Karten · 5 sicher“, die nächste Prüfung die Summe ihrer Themen. „Thema üben“ fragt alle Karten des Themas ab; eine noch nicht fällige rückt dabei nicht vor, fällt aber bei „Nochmal“ in Fach 1.
+- **Themen**: Ein Thema zeigt „12 Karten · 5 sicher“, die nächste Prüfung die Summe ihrer Themen. „Thema üben“ fragt alle Karten des Themas ab; jede Antwort zählt wie sonst, der Algorithmus rechnet ein, wenn eine Karte früh kommt.
 - Karten einer archivierten Sprache bleiben, werden aber nicht abgefragt. Karten kommen in die Backups und in die Suche (§8).
 
 ## 16. Eingang
