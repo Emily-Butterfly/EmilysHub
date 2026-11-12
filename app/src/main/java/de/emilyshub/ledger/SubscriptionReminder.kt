@@ -50,13 +50,17 @@ fun SubscriptionReminder.dueAt(now: Instant, zone: ZoneId): Boolean = !now.isBef
 /**
  * The reminder of the Abo that comes due after [after] and up to [until], in [zone]: of the term that holds at [until],
  * whose last day is not over; none otherwise. What came due while the phone was off still comes so, but never once its
- * last day is over.
+ * last day is over, and never what was due before the Abo was last saved: one made or changed within its lead notifies
+ * first on its last day.
  */
 fun Subscription.reminderDue(after: Instant, until: Instant, zone: ZoneId): SubscriptionReminder? {
     val reminder = reminderOn(until.atZone(zone).toLocalDate(), zone) ?: return null
     if (!until.isBefore(reminder.ends)) return null
-    return reminder.takeIf { r -> r.moments(zone).any { it.isAfter(after) && !it.isAfter(until) } }
+    return reminder.takeIf { r -> r.moments(zone).any { counts(it) && it.isAfter(after) && !it.isAfter(until) } }
 }
+
+/** Whether it notifies at [moment]: not before it was last saved ([Subscription.remindsFrom]), as it was not set then. */
+private fun Subscription.counts(moment: Instant): Boolean = remindsFrom?.let { !moment.isBefore(it) } ?: true
 
 /**
  * When the Abo is to notify, or its reminder to go, next after [after], in [zone]: in the term that holds then, or the
@@ -67,7 +71,7 @@ fun Subscription.nextAlarm(after: Instant, zone: ZoneId): Instant? {
     // The term that holds, then the one after it, which is all after [after].
     repeat(2) {
         val reminder = reminderOn(day, zone) ?: return null
-        (reminder.moments(zone) + reminder.ends).firstOrNull { it.isAfter(after) }?.let { return it }
+        (reminder.moments(zone).filter(::counts) + reminder.ends).firstOrNull { it.isAfter(after) }?.let { return it }
         day = reminder.lastDay.plusDays(1)
     }
     return null

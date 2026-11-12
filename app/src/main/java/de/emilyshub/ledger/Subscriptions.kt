@@ -196,7 +196,7 @@ class Subscriptions(
 
     /**
      * Saves [draft] as [editing] has it: a new Abo, or the changes to the one opened, which waits for a new date no more
-     * once it has one;
+     * once it has one; its reminder counts from now on (#80);
      * refused, with nothing saved, for its problems, a fixed booking with another Abo among them. One deleted meanwhile
      * stays deleted; a fixed booking deleted meanwhile is left out.
      */
@@ -211,11 +211,16 @@ class Subscriptions(
             if (problems.isNotEmpty()) return@withTransaction Saving.Refused(problems)
             val subscription = checked.toSubscription()
             if (id == null) {
-                Saving.Saved(dao.insert(subscription))
+                Saving.Saved(dao.insert(subscription.copy(remindsFrom = clock.instant())))
             } else {
                 // Cancelled it stays so; let run on, it waits for a new deadline until one is saved.
                 dao.get(id)?.let { before ->
-                    dao.update(subscription.copy(id = id, endsOn = before.endsOn, runsOn = before.runsOn && before.deadline == subscription.deadline))
+                    dao.update(
+                        subscription.copy(
+                            id = id, endsOn = before.endsOn, runsOn = before.runsOn && before.deadline == subscription.deadline,
+                            remindsFrom = clock.instant(),
+                        ),
+                    )
                 }
                 Saving.Saved(id)
             }
@@ -231,7 +236,7 @@ class Subscriptions(
     }
 
     /**
-     * Takes back that the Abo was cancelled; its fixed booking, if it was ended on the same day with it, runs on again
+     * Takes back that the Abo was cancelled, its reminder counting from now on; its fixed booking, if it was ended on the same day with it, runs on again
      * without end.
      */
     suspend fun uncancel(id: Long) = write {
@@ -241,23 +246,23 @@ class Subscriptions(
             saved.recurringId?.let { ledger.template(it) }
                 ?.takeIf { it.endsOn != null && it.endsOn == saved.endsOn && it.endsAfter == null }
                 ?.let { ledger.updateTemplate(it.copy(endsOn = null)) }
-            dao.update(saved.copy(endsOn = null))
+            dao.update(saved.copy(endsOn = null, remindsFrom = clock.instant()))
         }
     }
 
     /**
      * Lets the Abo run on ("Läuft weiter"), its reminders of this term ending: a reckoned one moves on to the term after
-     * the one that holds today, one by a single date waits for a new one.
+     * the one that holds today, one by a single date waits for a new one; a lead of the next term begun already counts
+     * from now on.
      */
     suspend fun runOn(id: Long) = write {
         database().withTransaction {
             val saved = dao.get(id) ?: return@withTransaction
-            dao.update(
-                when (val deadline = saved.deadline) {
-                    is Deadline.OnDate -> saved.copy(runsOn = true)
-                    is Deadline.Term -> saved.with(deadline.current(today()).next())
-                },
-            )
+            val ranOn = when (val deadline = saved.deadline) {
+                is Deadline.OnDate -> saved.copy(runsOn = true)
+                is Deadline.Term -> saved.with(deadline.current(today()).next())
+            }
+            dao.update(ranOn.copy(remindsFrom = clock.instant()))
         }
     }
 

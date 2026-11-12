@@ -7,6 +7,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import de.emilyshub.data.InputText
 import java.io.Serializable
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
@@ -92,7 +93,9 @@ sealed interface SubscriptionStatus {
  * [renewalMonths]. The reminder begins [leadDays]
  * before its last day (#80). Linked to a fixed booking ([recurringId]), at most one Abo to each, its amount and interval
  * are that booking's; the booking deleted, it keeps them as its own. [runsOn]: its single date was let run on, and it
- * waits for a new one. Cancelled, it ends on [endsOn].
+ * waits for a new one. Cancelled, it ends on [endsOn]. Its reminder counts from [remindsFrom] on, when it was last saved,
+ * let run on or taken back from cancelled: a time to notify before that was not missed, but not yet set (#80). None
+ * for an Abo from before that was kept, whose times all count.
  */
 @Entity(
     tableName = "subscriptions",
@@ -119,6 +122,7 @@ data class Subscription(
     @ColumnInfo(name = "lead_days") val leadDays: Int = DEFAULT_LEAD,
     @ColumnInfo(name = "runs_on", defaultValue = "0") val runsOn: Boolean = false,
     @ColumnInfo(name = "ends_on") val endsOn: LocalDate? = null,
+    @ColumnInfo(name = "reminds_from") val remindsFrom: Instant? = null,
 ) {
     /** Its deadline, from what is stored: reckoned if it has the end of a term, else by its single date. */
     val deadline: Deadline

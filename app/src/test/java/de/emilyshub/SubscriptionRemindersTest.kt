@@ -99,6 +99,32 @@ class SubscriptionRemindersTest {
     }
 
     @Test
+    fun `made within its lead, it does not notify for the time gone by, however long ago the last reminder came`() {
+        // Nothing reminded for days: the app last reminded on the 23rd.
+        runBlocking { app.reminders.update() }
+        app.clock.now = berlin("2026-10-28T10:00")
+
+        // Its lead began on the 26th.
+        abo(SubscriptionDraft("Streaming", cancelBy = date("2026-11-09")))
+
+        assertEquals(berlin("2026-11-09T21:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-28T10:01")
+        assertEquals(emptyList<Notification>(), reminders())
+    }
+
+    @Test
+    fun `a lead made longer reaches back only from the change on`() {
+        val streaming = abo(SubscriptionDraft("Streaming", cancelBy = date("2026-11-20")))
+        assertEquals(berlin("2026-11-06T21:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+
+        // On the 25th, a lead of 30 days: it would have begun on the 21st.
+        app.clock.now = berlin("2026-10-25T09:00")
+        save(streaming, SubscriptionDraft("Streaming", cancelBy = date("2026-11-20"), lead = "30"))
+
+        assertEquals(berlin("2026-11-20T21:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+    }
+
+    @Test
     fun `after a restart of the phone its reminder is set again`() {
         abo(SubscriptionDraft("Streaming", cancelBy = date("2026-11-06")))
         // As a restart takes the alarms.

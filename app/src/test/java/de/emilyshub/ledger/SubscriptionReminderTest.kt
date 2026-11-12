@@ -79,6 +79,15 @@ class SubscriptionReminderTest {
     }
 
     @Test
+    fun `made or changed within its lead, it notifies first on its last day, not for the time gone by`() {
+        val streaming = onDate("2026-11-30").copy(remindsFrom = at("2026-11-20T10:00"))
+
+        assertEquals(at("2026-11-30T21:00"), streaming.nextAlarm(at("2026-11-12T10:00"), zone))
+        assertNull(streaming.reminderDue(at("2026-11-12T10:00"), at("2026-11-20T10:00"), zone))
+        assertEquals(date("2026-11-30"), streaming.reminderDue(at("2026-11-12T10:00"), at("2026-11-30T21:00"), zone)?.lastDay)
+    }
+
+    @Test
     fun `cancelled or let run on, it reminds no more`() {
         val cancelled = onDate("2026-11-30").copy(endsOn = date("2026-11-30"))
         val runsOn = onDate("2026-11-30").copy(runsOn = true)

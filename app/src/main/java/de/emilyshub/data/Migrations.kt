@@ -644,3 +644,13 @@ val MIGRATION_42_43 = object : Migration(42, 43) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_subscriptions_recurring_id` ON `subscriptions` (`recurring_id`)")
     }
 }
+
+/**
+ * Version 44: an Abo keeps from when its reminder counts (#80), so that one made or changed within its lead does not
+ * notify for a time gone by. Those there already have none, and all their times count.
+ */
+val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `subscriptions` ADD COLUMN `reminds_from` TEXT")
+    }
+}

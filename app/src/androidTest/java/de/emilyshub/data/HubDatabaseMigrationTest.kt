@@ -948,6 +948,23 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 43 moves to version 44 where the Abos there remind at all their times, and then one can count from a moment`() {
+        createAtVersion(43) {
+            it.execSQL(
+                "INSERT INTO subscriptions (id, name, note, cancel_by, lead_days, runs_on) VALUES (1, 'Streaming', '', '2027-01-31', 14, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.subscriptions()
+            assertEquals(null, dao.get(1)?.remindsFrom)
+
+            dao.update(checkNotNull(dao.get(1)).copy(remindsFrom = Instant.parse("2026-11-12T10:00:00Z")))
+            assertEquals(Instant.parse("2026-11-12T10:00:00Z"), dao.get(1)?.remindsFrom)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

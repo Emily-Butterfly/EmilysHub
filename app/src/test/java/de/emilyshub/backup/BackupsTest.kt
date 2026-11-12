@@ -242,6 +242,22 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps from when the Abos remind, and one from before that loads with all their times counting`() {
+        someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(43, contentOf(now)))
+        val made = runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription }
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.map { it.remindsFrom }, runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription.remindsFrom })
+
+        restore(older)
+        val restored = runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription }
+        assertEquals(made.map { it.copy(remindsFrom = null) }, restored)
+    }
+
+    @Test
     fun `a backup keeps the total budgets, and one from before them loads without any`() {
         val made = someOfEverything()
         val now = exported()
