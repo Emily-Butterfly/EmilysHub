@@ -173,7 +173,7 @@ Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und die Ents
 | 97 | [Heute: Menü je Eintrag – verschieben, öffnen, überspringen](97-heute-menue-je-eintrag.md) | 🤖 | 96 |
 | 98 | [Erinnerungen: „Später“ für To-dos bis heute Abend und morgen früh](98-spaeter-fuer-todos.md) | 🤖 | – |
 | 99 | [Flamme: bei null stehen bleiben, letzter Streak in der Statistik](99-flamme-bei-null.md) | 🤖 | – |
-| 109 | [Gesamt-Streak: ab wann ein Tag zählt, einstellbar](109-gesamt-streak-quote.md) | 🤖 | 99 |
+| 109 | [Gesamt-Streak: ab wann ein Tag zählt (Anzahl oder Quote), einstellbar](109-gesamt-streak-quote.md) | 🤖 | 99 |
 | 100 | [Rettungsbildschirm, wenn sich die Daten nicht öffnen lassen](100-rettungsbildschirm.md) | 🤖 | – |
 | 101 | [Ablauf-Modus: eine Routine Schritt für Schritt](101-ablauf-modus.md) | 🤖 | 97 |
 | 102 | [Ablauf-Modus: Minuten je Schritt, Restzeit & laufende Benachrichtigung](102-ablauf-modus-zeit.md) | 🤖 | 101 |
