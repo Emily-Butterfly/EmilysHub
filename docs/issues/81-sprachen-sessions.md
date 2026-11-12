@@ -15,31 +15,31 @@ Der neue Bereich **Sprachen** unter „Sonstiges“: gehaltene Unterrichts-Sessi
 
 ### Navigation
 
-- [ ] „Sonstiges“ zeigt als dritten Eintrag **Sprachen**; er öffnet im Tab wie die Ziele (untere Leiste bleibt, Zurück-Pfeil zur Liste) und bleibt beim Tabwechsel, nach Drehen und nach der App-Sperre offen
+- [x] „Sonstiges“ zeigt als dritten Eintrag **Sprachen**; er öffnet im Tab wie die Ziele (untere Leiste bleibt, Zurück-Pfeil zur Liste) und bleibt beim Tabwechsel, nach Drehen und nach der App-Sperre offen
 
 ### Sprachen & Lehrer
 
-- [ ] Sprachen: Name (Pflicht, eindeutig); anlegen, umbenennen, archivieren und zurückholen; eine archivierte wird nicht mehr angeboten, ihre Sessions bleiben
-- [ ] Lehrer: Name (Pflicht), optionale Notiz, mindestens eine Sprache; anlegen, ändern, archivieren und zurückholen; eine weggenommene Sprache lässt die alten Sessions, wie sie sind
-- [ ] Beide über das Menü der Startseite verwaltbar; nichts davon lässt sich löschen, solange Sessions daran hängen
+- [x] Sprachen: Name (Pflicht, eindeutig); anlegen, umbenennen, archivieren und zurückholen; eine archivierte wird nicht mehr angeboten, ihre Sessions bleiben
+- [x] Lehrer: Name (Pflicht), optionale Notiz, mindestens eine Sprache; anlegen, ändern, archivieren und zurückholen; eine weggenommene Sprache lässt die alten Sessions, wie sie sind
+- [x] Beide über das Menü der Startseite verwaltbar; nichts davon lässt sich löschen, solange Sessions daran hängen
 
 ### Sessions
 
-- [ ] Felder: Datum (Pflicht, Standard heute, keine Uhrzeit), Dauer in Minuten (Pflicht; Schnellwahl 30 / 45 / 60 / 90 und freie Eingabe), Sprache (Pflicht), Lehrer (Pflicht), Preis (optional, Euro mit Cent), Notiz (optional, Markdown mit Vorschau wie in den Notizen, bis 100 000 Zeichen); strikte Eingabeprüfung (§9)
-- [ ] Der Lehrer-Wähler bietet die Lehrer der gewählten Sprache, dazu „Neuer Lehrer“ (gleich mit dieser Sprache) und „Anderen Lehrer wählen“ (gibt einem vorhandenen die Sprache dazu); eine neue Sprache lässt sich im Editor nebenbei anlegen
-- [ ] Ändern und, mit Rückfrage, löschen; der Editor lädt und speichert über eine Sitzung wie die anderen Editoren (`editing` / `save`, `Saving`)
-- [ ] Der Preis macht keine Buchung im Haushaltsbuch
+- [x] Felder: Datum (Pflicht, Standard heute, keine Uhrzeit), Dauer in Minuten (Pflicht; Schnellwahl 30 / 45 / 60 / 90 und freie Eingabe), Sprache (Pflicht), Lehrer (Pflicht), Preis (optional, Euro mit Cent), Notiz (optional, Markdown mit Vorschau wie in den Notizen, bis 100 000 Zeichen); strikte Eingabeprüfung (§9)
+- [x] Der Lehrer-Wähler bietet die Lehrer der gewählten Sprache, dazu „Neuer Lehrer“ (gleich mit dieser Sprache) und „Anderen Lehrer wählen“ (gibt einem vorhandenen die Sprache dazu); eine neue Sprache lässt sich im Editor nebenbei anlegen
+- [x] Ändern und, mit Rückfrage, löschen; der Editor lädt und speichert über eine Sitzung wie die anderen Editoren (`editing` / `save`, `Saving`)
+- [x] Der Preis macht keine Buchung im Haushaltsbuch
 
 ### Auswertung & Aufbau
 
-- [ ] Startseite: oben Stunden und Anzahl Sessions für diesen Monat, dieses Jahr und insgesamt; darunter je Sprache eine Karte mit ihren Zahlen; „+“ legt eine Session an
-- [ ] Seite einer Sprache mit den Reitern **Sessions** (nach Datum, neueste oben, filterbar nach Lehrer) und **Auswertung** (Stunden, Sessions und, wo Preise stehen, Kosten je Lehrer, für Monat, Jahr und insgesamt); der Reiter „Themen“ kommt mit #82
-- [ ] Unterrichtet ein Lehrer mehrere Sprachen, zählt jede Sprache für sich; keine Diagramme
-- [ ] Backups enthalten Sprachen, Lehrer und Sessions; ältere Backups laden weiter (ohne)
+- [x] Startseite: oben Stunden und Anzahl Sessions für diesen Monat, dieses Jahr und insgesamt; darunter je Sprache eine Karte mit ihren Zahlen; „+“ legt eine Session an
+- [x] Seite einer Sprache mit den Reitern **Sessions** (nach Datum, neueste oben, filterbar nach Lehrer) und **Auswertung** (Stunden, Sessions und, wo Preise stehen, Kosten je Lehrer, für Monat, Jahr und insgesamt); der Reiter „Themen“ kommt mit #82
+- [x] Unterrichtet ein Lehrer mehrere Sprachen, zählt jede Sprache für sich; keine Diagramme
+- [x] Backups enthalten Sprachen, Lehrer und Sessions; ältere Backups laden weiter (ohne)
 
 ### Tests
 
-- [ ] Unit-Tests: Eingabeprüfung; Summen je Sprache und Lehrer über Monats- und Jahresgrenzen; Lehrer mit mehreren Sprachen; archivierte Sprachen und Lehrer; weggenommene Sprache; Sitzung laden, speichern, ablehnen. UI-Tests: Bereich über Sonstiges öffnen; Session anlegen mit neuem Lehrer; Filter nach Lehrer
+- [x] Unit-Tests: Eingabeprüfung; Summen je Sprache und Lehrer über Monats- und Jahresgrenzen; Lehrer mit mehreren Sprachen; archivierte Sprachen und Lehrer; weggenommene Sprache; Sitzung laden, speichern, ablehnen. UI-Tests: Bereich über Sonstiges öffnen; Session anlegen mit neuem Lehrer; Filter nach Lehrer
 
 ## Entscheidungen
 

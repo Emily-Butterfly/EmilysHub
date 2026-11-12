@@ -1,6 +1,8 @@
 package de.emilyshub.ui.navigation
 
 import de.emilyshub.search.SearchArea
+import de.emilyshub.ui.languages.LessonEditorTarget
+import de.emilyshub.ui.languages.TeacherEditorTarget
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.RecurringEditorTarget
 import de.emilyshub.ui.ledger.SubscriptionEditorTarget
@@ -119,6 +121,21 @@ sealed interface Destination : Serializable {
 
     /** An Abo's editor (SPEC.md §13). */
     data class SubscriptionEditor(override val target: SubscriptionEditorTarget) : Editor
+
+    /** A language's page, with its lessons and their evaluation (SPEC.md §15). */
+    data class LanguagePage(val languageId: Long) : Destination
+
+    /** A lesson's editor (SPEC.md §15). */
+    data class LessonEditor(override val target: LessonEditorTarget) : Editor
+
+    /** The languages, to manage (SPEC.md §15). */
+    data object LanguageList : Destination
+
+    /** The teachers, to manage (SPEC.md §15). */
+    data object TeacherList : Destination
+
+    /** A teacher's editor (SPEC.md §15). */
+    data class TeacherEditor(override val target: TeacherEditorTarget) : Editor
 
     companion object {
         /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */

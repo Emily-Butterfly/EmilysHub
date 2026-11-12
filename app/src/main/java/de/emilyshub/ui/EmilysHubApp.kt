@@ -68,6 +68,14 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
+import de.emilyshub.ui.languages.LanguageListScreen
+import de.emilyshub.ui.languages.LanguagePageScreen
+import de.emilyshub.ui.languages.LanguagesHomeScreen
+import de.emilyshub.ui.languages.LanguagesMenu
+import de.emilyshub.ui.languages.LessonEditorScreen
+import de.emilyshub.ui.languages.LessonEditorTarget
+import de.emilyshub.ui.languages.TeacherEditorScreen
+import de.emilyshub.ui.languages.TeacherListScreen
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.BudgetCalculatorScreen
@@ -272,6 +280,18 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
             Destination.Subscriptions ->
                 SubscriptionListScreen(hub.subscriptions, hub.day, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
             is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
+            is Destination.LanguagePage -> LanguagePageScreen(
+                languages = hub.languages,
+                languageId = top.languageId,
+                onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
+                onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
+                onBack = back,
+            )
+            is Destination.LessonEditor -> LessonEditorScreen(hub.languages, top.target, onClose = back)
+            Destination.LanguageList -> LanguageListScreen(hub.languages, onBack = back)
+            Destination.TeacherList ->
+                TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
+            is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)
             Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
             Destination.LedgerArchive ->
                 LedgerArchiveScreen(hub.ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
@@ -415,6 +435,13 @@ private fun TopLevelScaffold(
                         if (moreOpen == MoreEntry.Doku) {
                             DokuMenu(hub.doku, onOpen = { page -> onTabsChange(tabs.copy(doku = tabs.doku.open(page))) })
                         }
+                        // Where the languages and teachers are managed (SPEC.md §15).
+                        if (moreOpen == MoreEntry.Languages) {
+                            LanguagesMenu(
+                                onManageLanguages = { open(Destination.LanguageList) },
+                                onManageTeachers = { open(Destination.TeacherList) },
+                            )
+                        }
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {
                             LedgerIconButton(onClick = { open(Destination.Ledger(hub.ledger.thisMonth())) })
@@ -518,6 +545,12 @@ private fun TopLevelScaffold(
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
+                )
+                MoreEntry.Languages -> LanguagesHomeScreen(
+                    languages = hub.languages,
+                    contentPadding = contentPadding,
+                    onOpenLanguage = { open(Destination.LanguagePage(it)) },
+                    onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New())) },
                 )
                 MoreEntry.Doku -> DokuArea(
                     hub = hub,
