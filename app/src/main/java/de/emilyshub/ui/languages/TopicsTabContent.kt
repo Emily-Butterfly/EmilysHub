@@ -77,17 +77,18 @@ import kotlin.math.absoluteValue
 @Composable
 internal fun examStatusText(status: ExamStatus): String {
     val days = status.days.toInt()
-    val when_ = when {
+    val distance = when {
         days > 0 -> pluralStringResource(R.plurals.exam_days_left, days, days)
         days == 0 -> stringResource(R.string.exam_today)
         else -> pluralStringResource(R.plurals.exam_days_since, days.absoluteValue, days.absoluteValue)
     }
-    return stringResource(R.string.exam_status, when_, stringResource(R.string.exam_open_topics, status.open, status.topics))
+    return stringResource(R.string.exam_status, distance, stringResource(R.string.exam_open_topics, status.open, status.topics))
 }
 
 /** The dialogs of the tab, one at a time, kept past a turn. */
 private sealed interface TopicsDialog : Serializable {
-    data object NewTopic : TopicsDialog
+    /** A new topic, for the exam [examId] if given. */
+    data class NewTopic(val examId: Long? = null) : TopicsDialog
 
     data object NewExam : TopicsDialog
 
@@ -146,7 +147,7 @@ internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: Topic
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    OutlinedButton(onClick = { dialog = TopicsDialog.NewTopic }) { Text(stringResource(R.string.topic_create)) }
+                    OutlinedButton(onClick = { dialog = TopicsDialog.NewTopic() }) { Text(stringResource(R.string.topic_create)) }
                     OutlinedButton(onClick = { dialog = TopicsDialog.NewExam }) { Text(stringResource(R.string.exam_create)) }
                 }
             }
@@ -188,12 +189,12 @@ internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: Topic
 
     when (val shown = dialog) {
         null -> Unit
-        TopicsDialog.NewTopic -> TopicNameDialog(
+        is TopicsDialog.NewTopic -> TopicNameDialog(
             title = R.string.topic_create, confirm = R.string.language_create_confirm, initial = "",
             taken = topics.values.map { it.topic.name },
             onConfirm = { name ->
                 dialog = null
-                scope.launchNow { languages.createTopic(languageId, name) }
+                scope.launchNow { languages.createTopic(languageId, name, shown.examId) }
             },
             onDismiss = { dialog = null },
         )
@@ -393,6 +394,7 @@ private fun ExamMenu(exam: Exam, hasOpen: Boolean, onTakeBack: () -> Unit, onDia
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val entries = buildList {
+                if (!exam.taken) add(R.string.topic_create to TopicsDialog.NewTopic(exam.id))
                 add(R.string.exam_edit to TopicsDialog.EditExam(exam.id))
                 if (exam.taken) {
                     add(R.string.exam_change_result to TopicsDialog.TakeExam(exam.id))

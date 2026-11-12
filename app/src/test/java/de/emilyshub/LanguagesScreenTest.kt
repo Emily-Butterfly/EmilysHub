@@ -188,7 +188,7 @@ class LanguagesScreenTest {
     }
 
     @Test
-    fun `an exam is made with its date, shows on the card, and is taken with its result`() {
+    fun `an exam is made with its date, shows on the card, and is taken with its result, which takes it off the card`() {
         runBlocking { app.languages.createLanguage("Arabisch") }
         launchApp().use {
             openLanguages()
@@ -202,6 +202,10 @@ class LanguagesScreenTest {
 
             compose.onNodeWithText("Nächste Prüfung: A2").assertIsDisplayed()
             compose.onAllNodesWithText("heute · 0 von 0 offen").assertCountEquals(2)
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Nächste Prüfung: A2 · heute · 0 von 0 offen").assertIsDisplayed()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNode(hasText("Themen") and isSelectable()).performClick()
 
             compose.onNodeWithContentDescription("Menü für A2").performClick()
             compose.onNodeWithText("Als abgelegt markieren").performClick()
@@ -210,6 +214,8 @@ class LanguagesScreenTest {
 
             compose.onNodeWithText("Abgelegt · bestanden").assertIsDisplayed()
             compose.onNodeWithText("Nächste Prüfung: A2").assertDoesNotExist()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Nächste Prüfung", substring = true).assertDoesNotExist()
         }
         val exam = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).topics.taken.single().exam?.exam }
         assertEquals("A2", exam?.name)

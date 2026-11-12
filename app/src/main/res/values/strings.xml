@@ -1251,11 +1251,9 @@
     <string name="exam_delete_text">„%1$s“ wird gelöscht; ihre Themen bleiben, ohne Prüfung.</string>
     <string name="exam_show">%1$s aufklappen</string>
     <string name="exam_hide">%1$s zuklappen</string>
-    <string name="exam_topic">Prüfung</string>
     <string name="lesson_topics">Themen</string>
     <string name="lesson_topic_new">Thema</string>
     <string name="lesson_topic_add">Hinzufügen</string>
-    <string name="lesson_topic_remove">%1$s entfernen</string>
     <string name="lesson_topics_lost">Die Themen der bisherigen Sprache sind entfernt.</string>
     <string name="lesson_topic_not_offered">Ein Thema gehört nicht zu dieser Sprache, ist gelöscht oder gehört zu einer abgelegten Prüfung.</string>
     <string name="lesson_topic_closed">Dieses Thema gehört zu einer abgelegten Prüfung.</string>
