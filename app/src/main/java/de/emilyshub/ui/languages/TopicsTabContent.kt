@@ -115,6 +115,7 @@ private sealed interface TopicsDialog : Serializable {
  * A topic is done by its box, except of an exam taken; tapped, it lists the lessons that treated it, which open in their
  * editor ([onOpenLesson]). Topics and exams are made, changed, moved and deleted here, deleting asking first.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: TopicsTab, onOpenLesson: (Long) -> Unit) {
     var dialog by rememberSaveable { mutableStateOf<TopicsDialog?>(null) }
@@ -142,7 +143,6 @@ internal fun TopicsTabContent(languages: Languages, languageId: Long, tab: Topic
                         }
                     }
                 }
-                @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
