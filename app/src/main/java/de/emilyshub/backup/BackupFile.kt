@@ -154,14 +154,14 @@ object BackupFile {
     fun reader(input: InputStream, password: String): Reader {
         val stream = DataInputStream(input)
         val magic = ByteArray(MAGIC.size)
-        val read = stream.readNBytes(magic, 0, magic.size)
+        val read = readUpTo(stream, magic)
         if (read < MAGIC.size || !magic.contentEquals(MAGIC)) throw BackupException(BackupProblem.NotABackup)
         val format = stream.read()
         if (format > FORMAT) throw BackupException(BackupProblem.NewerVersion)
         return when (format) {
             FORMAT -> {
                 val rest = ByteArray(KEY_HEADER_BYTES - MAGIC.size - 1)
-                if (stream.readNBytes(rest, 0, rest.size) < rest.size) damaged()
+                if (readUpTo(stream, rest) < rest.size) damaged()
                 val header = MAGIC + byteArrayOf(FORMAT.toByte()) + rest
                 Reader(stream, header, keyOf(header, password), content = null)
             }
@@ -224,6 +224,17 @@ object BackupFile {
             all.write(buffer, 0, read)
             if (all.size() > max) throw BackupException(BackupProblem.TooLarge)
         }
+    }
+
+    /** Fills [into] from [input] as far as it goes; how much it filled. */
+    private fun readUpTo(input: InputStream, into: ByteArray): Int {
+        var filled = 0
+        while (filled < into.size) {
+            val read = input.read(into, filled, into.size - filled)
+            if (read < 0) break
+            filled += read
+        }
+        return filled
     }
 
     private fun keyHeader(format: Int, key: BackupKey): ByteArray = ByteBuffer.allocate(KEY_HEADER_BYTES)

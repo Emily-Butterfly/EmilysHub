@@ -68,6 +68,7 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
+import de.emilyshub.ui.languages.AttachmentViewerScreen
 import de.emilyshub.ui.languages.LanguageListScreen
 import de.emilyshub.ui.languages.LanguagePageScreen
 import de.emilyshub.ui.languages.LanguagesHomeScreen
@@ -287,7 +288,11 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                 onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
                 onBack = back,
             )
-            is Destination.LessonEditor -> LessonEditorScreen(hub.languages, top.target, onClose = back)
+            is Destination.LessonEditor -> LessonEditorScreen(
+                hub.languages, hub.lessonFiles, top.target, onClose = back,
+                onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
+            )
+            is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
             Destination.LanguageList ->
                 LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
             Destination.TeacherList ->

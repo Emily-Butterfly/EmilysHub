@@ -100,6 +100,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Lends the camera app the one file it writes the photo it takes for a lesson to (SPEC.md §15), so that the
+             app needs no camera permission (SPEC.md §11). Not exported: only the app grants access, for that one file. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.camera"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/camera_paths" />
+        </provider>
+
         <!-- Exported by androidx.profileinstaller for adb/Play-triggered profile installs.
              Only the launcher may be exported (SPEC.md §9), and a sideloaded app does not need it. -->
         <receiver

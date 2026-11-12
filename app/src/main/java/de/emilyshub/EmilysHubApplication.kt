@@ -25,6 +25,7 @@ import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.languages.AttachmentStore
+import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments
 import de.emilyshub.languages.LessonFiles
@@ -272,7 +273,10 @@ open class EmilysHubApplication : Application(), Hub {
         // The fixed bookings of the days the app did not run on (SPEC.md §13).
         background.launch { ledger.enterDue() }
         // What a crash or an editor left without saving left behind of the lessons' attachments (SPEC.md §15).
-        background.launch { languages.clearUpAttachments() }
+        background.launch {
+            languages.clearUpAttachments()
+            CameraShot.clear(this@EmilysHubApplication)
+        }
     }
 
     /**

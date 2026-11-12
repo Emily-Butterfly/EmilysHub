@@ -1,5 +1,6 @@
 package de.emilyshub.ui.navigation
 
+import de.emilyshub.languages.AttachmentRef
 import de.emilyshub.search.SearchArea
 import de.emilyshub.ui.languages.LessonEditorTarget
 import de.emilyshub.ui.languages.TeacherEditorTarget
@@ -127,6 +128,9 @@ sealed interface Destination : Serializable {
 
     /** A lesson's editor (SPEC.md §15). */
     data class LessonEditor(override val target: LessonEditorTarget) : Editor
+
+    /** A lesson's photo or PDF in full (SPEC.md §15). */
+    data class AttachmentViewer(val attachment: AttachmentRef) : Destination
 
     /** The languages, to manage (SPEC.md §15). */
     data object LanguageList : Destination

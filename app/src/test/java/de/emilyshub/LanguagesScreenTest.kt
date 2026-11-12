@@ -1,5 +1,8 @@
 package de.emilyshub
 
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -31,6 +34,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.GraphicsMode
+import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 
 /**
@@ -220,6 +225,57 @@ class LanguagesScreenTest {
         val exam = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).topics.taken.single().exam?.exam }
         assertEquals("A2", exam?.name)
         assertEquals("bestanden", exam?.result)
+    }
+
+    @Test
+    fun `a text file is imported into a lesson's note`() {
+        runBlocking { teacher("Amal", (app.languages.createLanguage("Arabisch") as Saving.Saved).id) }
+        val file = app.lessonDocuments.put("Stunde.txt", "Vokabeln: كتاب".toByteArray())
+        launchApp().use { scenario ->
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Session eintragen").performClick()
+            compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("Textdatei") and hasClickAction()).performScrollTo().performClick()
+            scenario.pickFile(Uri.parse(file))
+
+            compose.onNodeWithText("Der Text steht jetzt am Ende der Notiz.").assertExists()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Arabisch").assertIsDisplayed()
+        }
+        val lesson = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).lessons.single() }
+        assertEquals("Vokabeln: كتاب", lesson.lesson.note)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `a photo is attached to a lesson, shown small, and opened in full`() {
+        runBlocking { teacher("Amal", (app.languages.createLanguage("Arabisch") as Saving.Saved).id) }
+        val out = ByteArrayOutputStream()
+        Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }.compress(Bitmap.CompressFormat.PNG, 100, out)
+        val file = app.lessonDocuments.put("Tafel.png", out.toByteArray())
+        launchApp().use { scenario ->
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Session eintragen").performClick()
+            compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("Foto wählen") and hasClickAction()).performScrollTo().performClick()
+            scenario.pickFile(Uri.parse(file))
+
+            compose.onNodeWithContentDescription("Foto Tafel.jpg").performScrollTo().performClick()
+            heading("Tafel.jpg").assertIsDisplayed()
+            compose.onNodeWithText("Exportieren").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            heading("Neue Session").assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Arabisch").assertIsDisplayed()
+        }
+        val lesson = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).lessons.single() }
+        val attachments = runBlocking { app.languages.editing(lesson.lesson.id)?.original?.attachments.orEmpty() }
+        assertEquals(listOf("Tafel.jpg"), attachments.map { it.name })
     }
 
     private fun arabicId() = runBlocking { app.languages.languages().first() }.single { it.language.name == "Arabisch" }.language.id

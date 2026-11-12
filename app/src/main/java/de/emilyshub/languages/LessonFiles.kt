@@ -186,7 +186,7 @@ class LessonFiles(
             Charsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT)
-                .decode(ByteBuffer.wrap(bytes)).toString().removePrefix("﻿")
+                .decode(ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF")
         } catch (e: CharacterCodingException) {
             null
         }

@@ -1,5 +1,6 @@
 package de.emilyshub.ui.languages
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,11 +52,13 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
+import de.emilyshub.languages.AttachmentRef
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonChoices
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.LessonProblem
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherDraft
@@ -86,12 +89,19 @@ sealed interface LessonEditorTarget : Serializable {
  * A lesson held (SPEC.md §15), new or saved: its date, today for a new one; how long, at a tap or typed; its language and
  * its teacher, of those who teach it, either made on the spot ("Neue Sprache", "Neuer Lehrer", the latter teaching it
  * then) or another teacher given it ("Anderen Lehrer wählen"); the topics treated, chosen from its language's or typed
- * anew, gone with a language changed, which it says; a price for the evaluation, and a note in Markdown, with
+ * anew, gone with a language changed, which it says; text, photos and PDFs imported ([LessonAttachments]), what was
+ * imported let go of when it is left unsaved; a price for the evaluation, and a note in Markdown, with
  * its preview. Loaded and saved through its editing session; refused, it says why at the field. Deleting asks first.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose: () -> Unit) {
+fun LessonEditorScreen(
+    languages: Languages,
+    files: LessonFiles,
+    target: LessonEditorTarget,
+    onClose: () -> Unit,
+    onOpenAttachment: (AttachmentRef) -> Unit,
+) {
     val lessonId = (target as? LessonEditorTarget.Edit)?.lessonId
     var editing by rememberSaveable { mutableStateOf(if (lessonId == null) LessonEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(languages.newLesson((target as? LessonEditorTarget.New)?.languageId)) }
@@ -124,6 +134,13 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
 
     val problems = draft.problems + refused
     val closeWith = rememberClosing(onClose)
+    // Left without saving: what was imported for it is let go of.
+    val leave = {
+        val left = draft
+        scope.launchNow { files.discard(left, opened.original) }
+        onClose()
+    }
+    BackHandler(onBack = leave)
     val save = {
         if (draft.problems.isNotEmpty()) {
             showProblems = true
@@ -160,7 +177,7 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -242,6 +259,13 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
             NoteField(draft.note, previewing, onPreviewingChange = { previewing = it }, tooLong = LessonProblem.NoteTooLong in problems) {
                 draft = draft.copy(note = it)
             }
+            LessonAttachments(
+                files = files,
+                draft = draft,
+                tooMany = LessonProblem.TooManyAttachments in problems,
+                onChange = { change -> draft = change(draft) },
+                onOpen = onOpenAttachment,
+            )
         }
     }
 
@@ -262,7 +286,15 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
             title = { Text(stringResource(R.string.lesson_delete_title)) },
             text = { Text(stringResource(R.string.lesson_delete_text, (draft.date ?: languages.today()).numericDate())) },
             confirmButton = {
-                TextButton(onClick = { closeWith { languages.delete(checkNotNull(lessonId)) } }) { Text(stringResource(R.string.delete)) }
+                TextButton(
+                    onClick = {
+                        val left = draft
+                        closeWith {
+                            languages.delete(checkNotNull(lessonId))
+                            files.discard(left, saved = null)
+                        }
+                    },
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.cancel)) } },
         )

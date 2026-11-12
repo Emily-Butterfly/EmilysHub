@@ -1,3 +1,6 @@
+// Android's own ExifInterface reads the orientation well from Android 7 on, and the app needs Android 11.
+@file:Suppress("ExifInterface")
+
 package de.emilyshub.languages
 
 import android.graphics.Bitmap
@@ -42,7 +45,19 @@ object Photos {
         return out.toByteArray()
     }
 
-    /** How far the camera says the picture in [bytes] is to be turned clockwise, in degrees; 0 if it says nothing. */
+    /** [bytes] read as a picture no longer than about [edge] at its long edge, to be shown; none if they are none. */
+    fun preview(bytes: ByteArray, edge: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= edge) sample *= 2
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
+    /**
+     * How far the camera says the picture in [bytes] is to be turned clockwise, in degrees; 0 if it says nothing.
+     */
     private fun rotationOf(bytes: ByteArray): Int = runCatching {
         when (ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
             ExifInterface.ORIENTATION_ROTATE_90 -> 90
