@@ -24,7 +24,11 @@ import de.emilyshub.doku.Patients
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonDocuments
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.PhoneLessonDocuments
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -68,6 +72,7 @@ import java.io.File
 import java.security.SecureRandom
 import java.time.Clock
 import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -112,6 +117,18 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Where audio files of one's own are kept as tones. */
     open val toneFiles: ToneFiles by lazy { PhoneToneFiles(this) }
+
+    /** Files read from Android's file dialog for the lessons, and written to it; PDFs as Android opens them. */
+    open val lessonDocuments: LessonDocuments by lazy { PhoneLessonDocuments(this) }
+
+    /**
+     * The key the lessons' attachments are encrypted with: random, kept in a file only sealed with the Keystore key of
+     * the database, like the database's own. Touches the Keystore and disk: never on the main thread.
+     */
+    protected open val attachmentKey: () -> SecretKey = {
+        val wrappingKey = KeystoreKeys.getOrCreateAesGcmKey("database-key")
+        SecretKeySpec(DatabaseKeyFile(File(noBackupFilesDir, "attachments.key"), wrappingKey).readOrCreate(), "AES")
+    }
 
     /** The WLAN connected to, by which the places are recognised. */
     override val wifi: CurrentWifi by lazy { SystemWifi(this) }
@@ -178,7 +195,12 @@ open class EmilysHubApplication : Application(), Hub {
     final override val subscriptions: Subscriptions by lazy { Subscriptions({ database }, clock, io, onChange = ::updateReminders) }
 
     /** Sprachen (SPEC.md §15). */
-    final override val languages: Languages by lazy { Languages({ database }, clock, io) }
+    final override val lessonFiles: LessonFiles by lazy {
+        val key by lazy { attachmentKey() }
+        LessonFiles(AttachmentStore({ File(filesDir, "attachments") }, { key }), lessonDocuments, io)
+    }
+
+    final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 
@@ -248,6 +270,8 @@ open class EmilysHubApplication : Application(), Hub {
         background.launch { nightlyBackups.schedule() }
         // The fixed bookings of the days the app did not run on (SPEC.md §13).
         background.launch { ledger.enterDue() }
+        // What a crash or an editor left without saving left behind of the lessons' attachments (SPEC.md §15).
+        background.launch { languages.clearUpAttachments() }
     }
 
     /**

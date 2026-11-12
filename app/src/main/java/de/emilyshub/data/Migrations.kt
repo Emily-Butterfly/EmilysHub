@@ -717,3 +717,20 @@ val MIGRATION_45_46 = object : Migration(45, 46) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_lesson_topics_topic_id` ON `lesson_topics` (`topic_id`)")
     }
 }
+
+/**
+ * Version 47: the photos and PDFs attached to the lessons of Sprachen (SPEC.md §15, #83), each kept encrypted in a file
+ * of its own, gone with its lesson. None is there yet.
+ */
+val MIGRATION_46_47 = object : Migration(46, 47) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lesson_attachments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`lesson_id` INTEGER NOT NULL, `kind` TEXT NOT NULL, `file` TEXT NOT NULL, `bytes` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `position` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`lesson_id`) REFERENCES `lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lesson_attachments_lesson_id` ON `lesson_attachments` (`lesson_id`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_lesson_attachments_file` ON `lesson_attachments` (`file`)")
+    }
+}

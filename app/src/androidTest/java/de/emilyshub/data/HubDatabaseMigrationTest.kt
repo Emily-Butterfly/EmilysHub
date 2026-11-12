@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
 import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
@@ -1009,6 +1011,24 @@ class HubDatabaseMigrationTest {
             assertEquals(null, dao.topic(verbs)?.examId)
             dao.deleteLesson(lesson)
             assertEquals(emptyList<Long>(), dao.topicsOfLesson(lesson))
+        }
+    }
+
+    @Test
+    fun `version 46 moves to version 47 without attachments, and then a lesson has one, gone with it`() {
+        createAtVersion(46) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            val file = "0f8fad5b-d9cb-469f-a165-70867728950e.att"
+            dao.insertAttachments(listOf(LessonAttachment(lessonId = lesson, kind = AttachmentKind.Pdf, file = file, bytes = 10, name = "a.pdf", position = 0)))
+            assertEquals(listOf(file), dao.attachmentFiles())
+
+            dao.deleteLesson(lesson)
+            assertEquals(emptyList<String>(), dao.attachmentFiles())
         }
     }
 

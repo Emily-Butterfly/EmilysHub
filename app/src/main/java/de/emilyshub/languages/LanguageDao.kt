@@ -132,4 +132,22 @@ interface LanguageDao {
 
     @Query("DELETE FROM lesson_topics WHERE lesson_id = :lessonId")
     suspend fun deleteTopicsOfLesson(lessonId: Long)
+
+    @Query("SELECT * FROM lesson_attachments WHERE lesson_id = :lessonId ORDER BY position")
+    suspend fun attachmentsOf(lessonId: Long): List<LessonAttachment>
+
+    @Query("SELECT file FROM lesson_attachments")
+    suspend fun attachmentFiles(): List<String>
+
+    @Query("SELECT * FROM lesson_attachments")
+    fun observeAttachments(): Flow<List<LessonAttachment>>
+
+    @Insert
+    suspend fun insertAttachments(attachments: List<LessonAttachment>)
+
+    @Update
+    suspend fun updateAttachments(attachments: List<LessonAttachment>)
+
+    @Query("DELETE FROM lesson_attachments WHERE id IN (:ids)")
+    suspend fun deleteAttachments(ids: List<Long>)
 }

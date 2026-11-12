@@ -14,6 +14,7 @@ import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
+import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.security.FakeAuthenticator
@@ -52,6 +53,11 @@ class TestApplication : EmilysHubApplication() {
     override val ringer = FakeRinger()
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)
+    override val lessonDocuments = FakeLessonDocuments()
+
+    /** Stands in for the key sealed with the Android Keystore key, which only exists on a device. */
+    private val attachmentKeyForTests = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    override val attachmentKey = { attachmentKeyForTests }
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val background = CoroutineScope(Dispatchers.Unconfined)

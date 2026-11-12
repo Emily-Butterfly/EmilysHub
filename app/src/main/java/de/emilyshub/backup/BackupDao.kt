@@ -10,6 +10,7 @@ import de.emilyshub.ledger.StandardTotalBudget
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
 import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
@@ -173,4 +174,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM lesson_topics")
     fun lessonTopics(): List<LessonTopic>
+
+    @Query("SELECT * FROM lesson_attachments")
+    fun lessonAttachments(): List<LessonAttachment>
 }

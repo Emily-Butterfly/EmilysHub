@@ -11,6 +11,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Saving
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.languages.AttachmentImport
 import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
@@ -632,6 +633,10 @@ class BackupsTest {
                 LessonDraft(
                     LocalDate.parse("2026-11-02"), "45", arabicLessons, amal.id, price = "12,50", note = "## Verben",
                     topicIds = setOf(numbers.id), newTopics = listOf("Verben"),
+                    attachments = listOf(
+                        (app.lessonFiles.importPdf(app.lessonDocuments.put("Blatt.pdf", "%PDF-1.7 Arbeitsblatt".toByteArray()), 0) as AttachmentImport.Added)
+                            .attachment,
+                    ),
                 ),
             )
             app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")

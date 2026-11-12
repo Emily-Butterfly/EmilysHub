@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.LocalDate
@@ -86,14 +88,19 @@ private data class Studies(val topics: List<Topic>, val exams: List<Exam>, val l
  * Sprachen (SPEC.md §15): the languages, the teachers with the languages they teach, and the lessons held, each of one
  * language with one teacher; what they come to for the month, the year and in all. Each language has its topics, done
  * by hand only, and its exams, which group them; a lesson keeps which topics it treated. Languages and teachers are
- * archived rather than deleted while anything hangs on them. [database] is only called on [io]; writes run to the end once started.
+ * archived rather than deleted while anything hangs on them. A lesson's photos and PDFs lie encrypted in the store of
+ * [files], taken in when it is saved and deleted with it. [database] is only called on [io]; writes run to the end once started.
  */
 class Languages(
     private val database: () -> HubDatabase,
     private val clock: Clock,
+    private val files: LessonFiles,
     private val io: CoroutineContext = Dispatchers.IO,
 ) {
     private val dao get() = database().languages()
+
+    /** Saving a lesson and clearing up attachments one after the other, so that the latter sees what the former took in. */
+    private val attachmentsLock = Mutex()
 
     /** Today, by which the month and year are counted, and on which a new lesson is held. */
     fun today(): LocalDate = LocalDate.now(clock)
@@ -271,9 +278,11 @@ class Languages(
     /** A new lesson, held today, of the language [languageId] if given. */
     fun newLesson(languageId: Long? = null) = LessonDraft(date = today(), languageId = languageId)
 
-    /** The lesson [id] as its editor opens it, with the topics it treated; none once it is deleted. */
+    /** The lesson [id] as its editor opens it, with the topics it treated and its attachments; none once it is deleted. */
     suspend fun editing(id: Long): LessonEditing? = withContext(io) {
-        dao.lesson(id)?.let { LessonEditing(id, LessonDraft.of(it, dao.topicsOfLesson(id).toSet())) }
+        dao.lesson(id)?.let { lesson ->
+            LessonEditing(id, LessonDraft.of(lesson, dao.topicsOfLesson(id).toSet(), dao.attachmentsOf(id).map(AttachmentRef::of)))
+        }
     }
 
     /**
@@ -284,9 +293,17 @@ class Languages(
      * Its topics are those of its language: one chosen is refused if it is of another language, gone, or of an exam taken,
      * unless it was saved with it; one typed is that of the language which reads the same, else a new one, open and without
      * an exam. A lesson that treats a topic does not make it done.
+     *
+     * Its attachments are those of [draft], in its order: those it had and still has stay, those imported for it are
+     * taken in, if they are still there, and those it had and has no more are deleted, files and all.
      */
     suspend fun save(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> = write {
-        database().withTransaction {
+        attachmentsLock.withLock { saveLocked(editing, draft) }
+    }
+
+    private suspend fun saveLocked(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> {
+        val gone = mutableListOf<String>()
+        val saving = database().withTransaction {
             val id = editing.id
             val before = id?.let { dao.lesson(it) }
             if (id != null && before == null) return@withTransaction Saving.Saved(id)
@@ -315,8 +332,40 @@ class Languages(
             val (chosen, typed) = checkNotNull(topics)
             val made = typed.map { dao.insertTopic(Topic(languageId = checkNotNull(languageId), name = it)) }
             dao.insertLessonTopics((chosen + made).map { LessonTopic(saved, it) })
+            gone += saveAttachments(saved, draft.attachments)
             Saving.Saved(saved)
         }
+        if (saving is Saving.Saved) {
+            files.taken(draft.attachments.map { it.file })
+            gone.forEach(files.attachments::delete)
+        }
+        return saving
+    }
+
+    /**
+     * Makes the attachments of the lesson [lessonId] those [wanted], in order; the files of those it no longer has, to be
+     * deleted once this is done.
+     */
+    private suspend fun saveAttachments(lessonId: Long, wanted: List<AttachmentRef>): List<String> {
+        val had = dao.attachmentsOf(lessonId)
+        val byFile = had.associateBy { it.file }
+        val kept = mutableListOf<LessonAttachment>()
+        val added = mutableListOf<LessonAttachment>()
+        wanted.distinctBy { it.file }.forEach { ref ->
+            val old = byFile[ref.file]
+            when {
+                old != null -> kept += old.copy(position = kept.size + added.size)
+                files.isStaged(ref.file) && files.attachments.has(ref.file) -> added += LessonAttachment(
+                    lessonId = lessonId, kind = ref.kind, file = ref.file, bytes = ref.bytes, name = ref.name,
+                    position = kept.size + added.size,
+                )
+            }
+        }
+        val dropped = had.filter { old -> kept.none { it.id == old.id } }
+        dao.deleteAttachments(dropped.map { it.id })
+        dao.updateAttachments(kept)
+        dao.insertAttachments(added)
+        return dropped.map { it.file }
     }
 
     /**
@@ -461,8 +510,16 @@ class Languages(
     private suspend fun topicNameProblem(languageId: Long, name: String, except: Long?): NameProblem? =
         InputText.nameProblem(name, Topic.NAME_MAX, dao.topicsOf(languageId).filter { it.id != except }.map { it.name })
 
-    /** Deletes the lesson [id]. The screen asks first. */
-    suspend fun delete(id: Long) = write { dao.deleteLesson(id) }
+    /** Deletes the lesson [id], with its attachments. The screen asks first. */
+    suspend fun delete(id: Long) = write {
+        val gone = database().withTransaction {
+            dao.attachmentsOf(id).map { it.file }.also { dao.deleteLesson(id) }
+        }
+        gone.forEach(files.attachments::delete)
+    }
+
+    /** Deletes the files of attachments that no lesson has and none is importing: what a crash or an editor lost left. */
+    suspend fun clearUpAttachments() = write { attachmentsLock.withLock { files.clearUp(dao.attachmentFiles().toSet()) } }
 
     /** The languages some teacher teaches alone, as their only one. */
     private fun onlyLanguages(teaching: List<TeacherLanguage>): Set<Long> =

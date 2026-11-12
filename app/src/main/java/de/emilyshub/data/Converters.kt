@@ -1,6 +1,7 @@
 package de.emilyshub.data
 
 import androidx.room.TypeConverter
+import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.NoticeUnit
@@ -33,6 +34,12 @@ class Converters {
 
     @TypeConverter
     fun toTone(text: String): Tone = Tone.of(text)
+
+    @TypeConverter
+    fun fromAttachmentKind(kind: AttachmentKind): String = kind.stored
+
+    @TypeConverter
+    fun toAttachmentKind(text: String): AttachmentKind = AttachmentKind.entries.first { it.stored == text }
 
     @TypeConverter
     fun fromDate(date: LocalDate): String = date.toString()

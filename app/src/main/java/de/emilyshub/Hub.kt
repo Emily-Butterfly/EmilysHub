@@ -10,6 +10,7 @@ import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonFiles
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -53,6 +54,9 @@ interface Hub {
 
     /** Sprachen: languages, teachers and the lessons held (SPEC.md §15). */
     val languages: Languages
+
+    /** What is imported into the lessons: text into their notes, photos and PDFs as attachments (SPEC.md §15). */
+    val lessonFiles: LessonFiles
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute

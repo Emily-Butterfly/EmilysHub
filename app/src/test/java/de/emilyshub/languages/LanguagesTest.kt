@@ -30,7 +30,7 @@ class LanguagesTest {
 
     /** Thursday, 12 November 2026, 10:00 in Berlin. */
     private val clock = TestClock(Instant.parse("2026-11-12T09:00:00Z"), ZoneId.of("Europe/Berlin"))
-    private val languages = Languages({ database }, clock, Dispatchers.Unconfined)
+    private val languages = Languages({ database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined)
 
     @After
     fun closeDatabase() {

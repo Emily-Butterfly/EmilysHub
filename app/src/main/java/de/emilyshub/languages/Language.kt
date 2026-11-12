@@ -108,13 +108,16 @@ enum class LessonProblem {
      * only when saving.
      */
     TopicNotOffered,
+
+    /** More attachments than a lesson may have ([LessonFiles.MAX_ATTACHMENTS]). */
+    TooManyAttachments,
 }
 
 /**
  * A lesson as typed into its editor (SPEC.md §15): its [date], its [minutes] as typed, its language and teacher, a
  * [price] in euros with a comma, none if left empty, its [note], and the topics it treated: those of its language
- * chosen ([topicIds]) and those typed anew ([newTopics]), which saving puts on the language's list. Serializable, so that
- * the editor keeps it.
+ * chosen ([topicIds]) and those typed anew ([newTopics]), which saving puts on the language's list; and its photos and
+ * PDFs ([attachments]), in order. Serializable, so that the editor keeps it.
  */
 data class LessonDraft(
     val date: LocalDate?,
@@ -125,6 +128,7 @@ data class LessonDraft(
     val note: String = "",
     val topicIds: Set<Long> = emptySet(),
     val newTopics: List<String> = emptyList(),
+    val attachments: List<AttachmentRef> = emptyList(),
 ) : Serializable {
 
     /** Whether it has topics, chosen or typed. */
@@ -152,6 +156,7 @@ data class LessonDraft(
             if (price.isNotBlank() && Money.parse(price) == null) add(LessonProblem.PriceInvalid)
             if (InputText.lengthOf(cleanedNote) > NOTE_MAX) add(LessonProblem.NoteTooLong)
             if (newTopics.any { InputText.nameProblem(it, Topic.NAME_MAX, emptyList()) != null }) add(LessonProblem.TopicInvalid)
+            if (attachments.size > LessonFiles.MAX_ATTACHMENTS) add(LessonProblem.TooManyAttachments)
         }
 
     /** The lesson it saves as, under [id]; only without [problems]. */
@@ -173,10 +178,11 @@ data class LessonDraft(
         /** The longest a lesson's note may be, in characters (SPEC.md §15). */
         const val NOTE_MAX = 100_000
 
-        /** [lesson] as its editor opens it, with the topics [topicIds] it treated. */
-        fun of(lesson: Lesson, topicIds: Set<Long> = emptySet()) = LessonDraft(
+        /** [lesson] as its editor opens it, with the topics [topicIds] it treated and its [attachments]. */
+        fun of(lesson: Lesson, topicIds: Set<Long> = emptySet(), attachments: List<AttachmentRef> = emptyList()) = LessonDraft(
             date = lesson.date, minutes = lesson.minutes.toString(), languageId = lesson.languageId, teacherId = lesson.teacherId,
             price = lesson.priceCents?.let(Money::typed).orEmpty(), note = lesson.note, topicIds = topicIds,
+            attachments = attachments,
         )
     }
 }
