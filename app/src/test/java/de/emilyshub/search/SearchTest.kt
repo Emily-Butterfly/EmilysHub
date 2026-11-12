@@ -171,6 +171,11 @@ class SearchTest {
         assertEquals(listOf(older), search.find("präsens").lessonIds())
         assertEquals(listOf(newer), search.find("ZAHLEN").lessonIds())
         assertEquals("by the teacher, ß as ss, the newest first", listOf(newer, older), search.find("strasse").lessonIds())
+        val pasted = lesson(languages, arabic, amal, "2026-10-21", note = "Mor\u200Bgen\u00ADstunde")
+        assertEquals("what prints nothing is left out", listOf(pasted), search.find("morgenstunde").lessonIds())
+        repeat(51) { lesson(languages, arabic, amal, "2026-09-01", note = "Wiederholung") }
+        val many = search.find("wiederholung").single { it.area == SearchArea.Lessons }
+        assertEquals(50 to 1, many.hits.size to many.more)
         val hit = search.find("zahlen").single().hits.single()
         assertEquals(SearchHit(newer, "Arabisch · Amal Straße", LocalDate.parse("2026-10-20")), hit)
     }

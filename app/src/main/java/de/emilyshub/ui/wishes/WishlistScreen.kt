@@ -76,7 +76,7 @@ fun WishlistScreen(
     onOpen: (Long) -> Unit,
     onOpenTodo: (Long) -> Unit,
     onOpenRoutine: (Long) -> Unit,
-    onOpenExam: (Long) -> Unit,
+    onOpenExam: (GoalExam) -> Unit,
     onCreate: () -> Unit,
     onOpenReview: () -> Unit,
 ) {
@@ -146,7 +146,7 @@ fun WishlistScreen(
                             )
                             is TreeLine.OfRoutine ->
                                 RoutinePartRow(line.routine, line.depth, onClick = { onOpenRoutine(line.routine.id) })
-                            is TreeLine.OfExam -> ExamPartRow(line.exam, line.depth, onClick = { onOpenExam(line.exam.languageId) })
+                            is TreeLine.OfExam -> ExamPartRow(line.exam, line.depth, onClick = { onOpenExam(line.exam) })
                         }
                     }
                 }
@@ -261,22 +261,18 @@ private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit
 }
 
 /**
- * An exam of Sprachen that is part of a goal (SPEC.md §15), "Prüfung: Arabisch A2", with how many of its topics are
- * done, or that it is taken; tapped, its language's topics.
+ * An exam of Sprachen that is part of a goal (SPEC.md §15), on a line of its own: "Prüfung: Arabisch A2 · 18 von 30
+ * Themen", or that it is taken; tapped, its topics.
  */
 @Composable
 private fun ExamPartRow(exam: GoalExam, depth: Int, onClick: () -> Unit) {
+    val state = if (exam.taken) {
+        stringResource(R.string.goal_exam_taken)
+    } else {
+        stringResource(R.string.goal_exam_topics, exam.ticked, exam.topics)
+    }
     ListItem(
-        headlineContent = { Text(stringResource(R.string.goal_exam, exam.title)) },
-        supportingContent = {
-            Text(
-                if (exam.taken) {
-                    stringResource(R.string.goal_exam_taken)
-                } else {
-                    stringResource(R.string.goal_exam_topics, exam.ticked, exam.topics)
-                },
-            )
-        },
+        headlineContent = { Text(stringResource(R.string.goal_exam, exam.title, state)) },
         modifier = Modifier
             .clickable(onClick = onClick)
             .padding(start = treeIndent(depth, INDENT)),

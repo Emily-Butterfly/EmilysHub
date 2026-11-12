@@ -328,12 +328,12 @@ class LanguagesScreenTest {
             compose.onNode(hasText("Ziele") and hasClickAction()).performClick()
             compose.onNodeWithText("Fortschritt: 50 %").assertIsDisplayed()
             compose.onNodeWithContentDescription("„Arabisch lernen“ aufklappen").performClick()
-            compose.onNodeWithText("Prüfung: Arabisch A2").assertIsDisplayed()
-            compose.onNodeWithText("1 von 2 Themen").assertIsDisplayed()
+            compose.onNodeWithText("Prüfung: Arabisch A2 · 1 von 2 Themen").assertIsDisplayed()
 
-            compose.onNodeWithText("Prüfung: Arabisch A2").performClick()
+            compose.onNodeWithText("Prüfung: Arabisch A2 · 1 von 2 Themen").performClick()
             heading("Arabisch").assertIsDisplayed()
             compose.onNode(hasText("Themen") and isSelectable()).assertIsSelected()
+            compose.onNode(isHeading() and hasText("A2", substring = true)).assertIsDisplayed()
         }
     }
 

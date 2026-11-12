@@ -4,7 +4,7 @@ import de.emilyshub.data.HubDatabase
 import java.time.LocalDate
 
 /**
- * A to-do, subgoal or routine as a part of the goal [goalId], if any: whether it [counts] towards the goal, as all do but
+ * A to-do, subgoal, routine or exam as a part of the goal [goalId], if any: whether it [counts] towards the goal, as all do but
  * a routine without a target and a to-do whose next came in its place, and whether it is [open]: counting and not done.
  */
 internal data class GoalPart(val goalId: Long?, val open: Boolean, val counts: Boolean = true) {
@@ -71,10 +71,10 @@ private suspend fun HubDatabase.allPartsDone(goalId: Long): Boolean =
     partsDoneOf(goalId).let { it.isNotEmpty() && it.all { done -> done } }
 
 /**
- * Whether each part of the goal that counts is done (SPEC.md §6): its subgoals, its to-dos, and its routines with a
- * target, done once they reached it; routines without one only show.
+ * Whether each part of the goal that counts is done (SPEC.md §6): its subgoals, its to-dos, its exams, done once
+ * taken, and its routines with a target, done once they reached it; routines without one only show.
  */
 internal suspend fun HubDatabase.partsDoneOf(goalId: Long): List<Boolean> {
     val routinesDone = routines().withGoal(goalId).mapNotNull { GoalRoutine.of(it)?.takeIf { part -> part.target != null }?.reached }
-    return wishes().subgoalsAndTodosDone(goalId) + routinesDone
+    return wishes().partsBesideRoutinesDone(goalId) + routinesDone
 }

@@ -10,8 +10,8 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Watches the parts of goals (SPEC.md §6) through a change, so that their goals are settled once it is over: what
- * changes a to-do, routine or subgoal names it here before it does ([todo], [routine], [goal]), or once it made it
- * ([todoAdded], [routineAdded], [goalAdded]), and the watch takes how it was then. At the end of [watchingGoals], it
+ * changes a to-do, routine, subgoal or exam names it here before it does ([todo], [routine], [goal], [exam]), or once
+ * it made it ([todoAdded], [routineAdded], [goalAdded], [examAdded]), and the watch takes how it was then. At the end of [watchingGoals], it
  * settles the goal of each, as [settleGoals] has it, from how it was to how it is: no caller holds on to a part.
  *
  * A watch started within another, in the same change, joins it: the goals are settled once, at the end of the outer

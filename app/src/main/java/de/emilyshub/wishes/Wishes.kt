@@ -123,7 +123,10 @@ class Wishes(
         }
     }
 
-    /** Deletes the wish for good, with its tags and its subgoals; the to-dos and routines of all of them stay, at no goal. */
+    /**
+     * Deletes the wish for good, with its tags and its subgoals; the to-dos, routines and exams of all of them stay, at no
+     * goal.
+     */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             if (dao.get(id) == null) return@withTransaction
@@ -135,8 +138,8 @@ class Wishes(
     }
 
     /**
-     * Deletes the wish for good, with its tags, but not its parts: its subgoals, to-dos and routines move up a level, to
-     * the goal it was part of, or to the top and to no goal.
+     * Deletes the wish for good, with its tags, but not its parts: its subgoals, to-dos, routines and exams move up a
+     * level, to the goal it was part of, or to the top and to no goal.
      */
     suspend fun deleteMovingPartsUp(id: Long) = write {
         database().withTransaction {

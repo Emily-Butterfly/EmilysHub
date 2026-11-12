@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -119,9 +121,25 @@ private sealed interface TopicsDialog : Serializable {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun TopicsTabContent(languages: Languages, wishes: Wishes, languageId: Long, tab: TopicsTab, onOpenLesson: (Long) -> Unit) {
+internal fun TopicsTabContent(
+    languages: Languages,
+    wishes: Wishes,
+    languageId: Long,
+    tab: TopicsTab,
+    onOpenLesson: (Long) -> Unit,
+    focusExam: Long? = null,
+) {
     var dialog by rememberSaveable { mutableStateOf<TopicsDialog?>(null) }
-    var unfolded by rememberSaveable { mutableStateOf(emptySet<Long>()) }
+    var unfolded by rememberSaveable { mutableStateOf(setOfNotNull(focusExam)) }
+    val listState = rememberLazyListState()
+    // At the exam it was opened for, once: then where the user scrolls.
+    var focused by rememberSaveable { mutableStateOf(focusExam == null) }
+    LaunchedEffect(focusExam, tab) {
+        if (!focused) {
+            focused = true
+            indexOfExam(tab, checkNotNull(focusExam), unfolded)?.let { listState.scrollToItem(it) }
+        }
+    }
     val scope = rememberCoroutineScope()
     val exams = tab.exams
     val groups = tab.upcoming + tab.withoutExam + tab.taken
@@ -129,7 +147,7 @@ internal fun TopicsTabContent(languages: Languages, wishes: Wishes, languageId: 
     // An exam not taken, to move to.
     val openExams = tab.upcoming.mapNotNull { it.exam?.exam }
 
-    LazyColumn(contentPadding = PaddingValues(vertical = 8.dp).plusFabSpace()) {
+    LazyColumn(state = listState, contentPadding = PaddingValues(vertical = 8.dp).plusFabSpace()) {
         // One item, so that the next exam coming or going does not scroll the list away from it.
         item(key = "top") {
             Column {
@@ -295,6 +313,27 @@ internal fun TopicsTabContent(languages: Languages, wishes: Wishes, languageId: 
             )
         }
     }
+}
+
+/**
+ * Where the heading of the exam [examId] is among the items of the tab, as [TopicsTabContent] lays them out with those
+ * taken in [unfolded] open; none if it is not there.
+ */
+private fun indexOfExam(tab: TopicsTab, examId: Long, unfolded: Set<Long>): Int? {
+    fun rows(group: TopicGroup) = maxOf(group.topics.size, 1)
+    // After the next exam and the buttons; with an exam there, never the line saying there is nothing.
+    var index = 1
+    for (group in tab.upcoming) {
+        if (group.exam?.exam?.id == examId) return index
+        index += 1 + rows(group)
+    }
+    index += 1 + rows(tab.withoutExam)
+    for (group in tab.taken) {
+        val id = checkNotNull(group.exam).exam.id
+        if (id == examId) return index
+        index += 1 + if (id in unfolded) rows(group) else 0
+    }
+    return null
 }
 
 /** What a topic's line does: done or open, its lessons, renamed, moved, deleted. */
@@ -511,7 +550,7 @@ internal fun topicNameProblem(name: String, taken: List<String>): String? =
         null -> null
     }
 
-/** An exam's name and date, new or changed; told at the field what is missing once tried. */
+/** An exam's name, date and goal, if any, new or changed; told at the field what is missing once tried. */
 @Composable
 private fun ExamDialog(title: Int, initial: ExamDraft, today: LocalDate, wishes: Wishes, onConfirm: (ExamDraft) -> Unit, onDismiss: () -> Unit) {
     var draft by rememberSaveable { mutableStateOf(initial) }

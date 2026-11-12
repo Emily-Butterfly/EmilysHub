@@ -42,6 +42,6 @@ Abgestimmt im Interview vom 11.11.2026.
 Bei der Umsetzung festgelegt (12.11.2026):
 
 - Treffer der Sprachen stehen nach Datum, die neueste oben, nicht nach Titel.
-- Am Ziel heißt die Prüfung nach Sprache und Name („Arabisch A2“); steht die Sprache schon im Namen, nur nach dem Namen. Eine abgelegte zeigt „Abgelegt“ statt der Themen und zählt voll.
-- Antippen öffnet die Seite der Sprache auf dem Reiter Themen.
+- Am Ziel heißt die Prüfung nach Sprache und Name („Arabisch A2“); steht die Sprache schon im Namen, nur nach dem Namen. Eine abgelegte zeigt „Prüfung: Arabisch A2 · Abgelegt“ statt der Themen und zählt voll.
+- Antippen öffnet die Seite der Sprache auf dem Reiter Themen, bei den Themen dieser Prüfung (eine abgelegte aufgeklappt).
 - Das Ziel wählt man im Dialog der Prüfung wie beim To-do, auch ein schon erledigtes.

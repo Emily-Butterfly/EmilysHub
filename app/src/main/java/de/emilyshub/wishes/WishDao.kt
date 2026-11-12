@@ -55,7 +55,7 @@ interface WishDao {
             "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL " +
             "UNION ALL SELECT taken FROM exams WHERE goal_id = :goalId",
     )
-    suspend fun subgoalsAndTodosDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
+    suspend fun partsBesideRoutinesDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
 
     @Query("UPDATE wishes SET status = :status, done_on = :doneOn WHERE id = :id")
     suspend fun setStatus(id: Long, status: WishStatus, doneOn: LocalDate?)

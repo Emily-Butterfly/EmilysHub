@@ -60,7 +60,7 @@ import kotlinx.coroutines.flow.map
  * ([onOpenLesson]) and can be shown for one teacher only; "Themen", its topics by exam, to do by hand
  * ([TopicsTabContent]); and "Auswertung", what each teacher's lessons of it come to for
  * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]).
- * Gone meanwhile, it closes. It opens on "Themen" if [showTopics], as an exam at a goal does.
+ * Gone meanwhile, it closes. Opened from an exam at a goal ([examId]), it opens on "Themen" at that exam's topics.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,14 +68,14 @@ fun LanguagePageScreen(
     languages: Languages,
     wishes: Wishes,
     languageId: Long,
-    showTopics: Boolean,
+    examId: Long?,
     onOpenLesson: (Long) -> Unit,
     onCreateLesson: () -> Unit,
     onBack: () -> Unit,
 ) {
     val page by remember(languages, languageId) { languages.page(languageId).map<LanguagePage?, PageState?> { it?.let(::Shown) } }
         .collectAsState(initial = Loading)
-    var tab by rememberSaveable { mutableIntStateOf(if (showTopics) TOPICS_TAB else 0) }
+    var tab by rememberSaveable { mutableIntStateOf(if (examId != null) TOPICS_TAB else LESSONS_TAB) }
     var teacherFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     val shown = page
     if (shown == null) {
@@ -118,8 +118,8 @@ fun LanguagePageScreen(
                 }
             }
             when (tab) {
-                0 -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
-                TOPICS_TAB -> TopicsTabContent(languages, wishes, languageId, loaded.topics, onOpenLesson)
+                LESSONS_TAB -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
+                TOPICS_TAB -> TopicsTabContent(languages, wishes, languageId, loaded.topics, onOpenLesson, focusExam = examId)
                 else -> EvaluationTab(loaded)
             }
         }
@@ -200,7 +200,8 @@ private fun EvaluationTab(page: LanguagePage) {
     }
 }
 
-/** Where "Themen" is among the tabs. */
+/** Where "Sessions" and "Themen" are among the tabs, "Auswertung" after them. */
+private const val LESSONS_TAB = 0
 private const val TOPICS_TAB = 1
 
 /** The page as it is read: not yet, or as it is; none once its language is gone. */
