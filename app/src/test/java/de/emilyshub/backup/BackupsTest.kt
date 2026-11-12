@@ -138,10 +138,11 @@ class BackupsTest {
     @Test
     fun `a backup of a newer app version, or of one before any the app knows, is refused as such`() {
         someOfEverything()
-        val content = contentOf(exported())
+        val file = exported()
+        val content = contentOf(file)
 
         assertProblem(BackupProblem.NewerVersion) { open(sealed(content.put("schema", HubDatabase.VERSION + 1))) }
-        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", 0))) }
+        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", 0), attachmentsOf(file))) }
     }
 
     @Test
@@ -536,7 +537,8 @@ class BackupsTest {
     fun `restoring keeps the backup password set on this device`() {
         someOfEverything()
         val other = BackupKey.derive("das Passwort vom alten Handy", iterations = FEW_ITERATIONS)
-        val file = BackupFile.seal(contentOf(exported()).toString().toByteArray(), other)
+        val made = exported()
+        val file = BackupFile.seal(contentOf(made).toString().toByteArray(), other, attachmentsOf(made))
 
         restore(file, password = "das Passwort vom alten Handy")
 
@@ -700,7 +702,12 @@ class BackupsTest {
 
     private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
 
-    private fun sealed(content: JSONObject) = BackupFile.seal(content.toString().toByteArray(), key())
+    /** [content] sealed as a backup, with the [attachments] it lists following it. */
+    private fun sealed(content: JSONObject, attachments: List<ByteArray> = emptyList()) =
+        BackupFile.seal(content.toString().toByteArray(), key(), attachments)
+
+    /** The attachments [file] carries after its content. */
+    private fun attachmentsOf(file: ByteArray) = BackupFile.open(file, PASSWORD).attachments
 
     private fun key() = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
 
@@ -716,6 +723,8 @@ class BackupsTest {
             val names = content.table(table).getJSONArray("columns").let { all -> List(all.length(), all::getString) }
             content.withoutColumns(table, *(names - columns.toSet()).toTypedArray())
         }
+        // The attachments came with the version that made them files of their own.
+        if (version < 47) content.remove("attachments")
         return content.put("schema", version)
     }
 

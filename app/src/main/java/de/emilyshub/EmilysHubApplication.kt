@@ -215,6 +215,7 @@ open class EmilysHubApplication : Application(), Hub {
             clock = clock,
             migration = backupMigration,
             doku = doku,
+            attachments = lessonFiles,
             io = io,
             iterations = backupIterations,
             onRestore = ::updateReminders,

@@ -3,6 +3,7 @@ package de.emilyshub.languages
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.security.GeneralSecurityException
 import java.security.SecureRandom
@@ -75,10 +76,20 @@ class AttachmentStore(private val folder: () -> File, private val key: () -> Sec
         return files.map { it.name }.filter(::isName).toSet()
     }
 
+    /** Takes what [other], under the same key, keeps under [name] in place of what is kept here under it. */
+    fun moveFrom(other: AttachmentStore, name: String) {
+        require(isName(name)) { "Not an attachment's name: $name" }
+        val dir = folder().apply { mkdirs() }
+        Files.move(File(other.folder(), name).toPath(), File(dir, name).toPath(), StandardCopyOption.REPLACE_EXISTING, ATOMIC_MOVE)
+    }
+
     /** Deletes all that is kept but under [kept]. */
     fun keepOnly(kept: Set<String>) {
         (names() - kept).forEach(::delete)
     }
+
+    /** A store under the same key in a folder of its own beside this one's, for what is kept apart from it. */
+    fun besideIt(): AttachmentStore = AttachmentStore({ File(folder().path + "-aside") }, key)
 
     companion object {
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

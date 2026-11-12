@@ -1,8 +1,11 @@
 package de.emilyshub.languages
 
+import de.emilyshub.backup.AttachmentVault
 import de.emilyshub.data.InputText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
@@ -56,13 +59,39 @@ sealed interface AttachmentImport {
  * ([Photos]), or a PDF becomes an attachment, kept encrypted in [store] at once but belonging to no lesson until the
  * lesson is saved. Until then it is staged: [Languages.save] takes it in, [discard] lets it go, and clearing up spares
  * it. Shown and exported decrypted, never as a file in plain text. [documents] is only called on [io].
+ *
+ * The backups reach the attachments through it, as an [AttachmentVault]: those of a backup being opened lie [aside],
+ * encrypted the same way, until it is restored.
  */
 class LessonFiles(
     private val store: AttachmentStore,
     private val documents: LessonDocuments,
     private val io: CoroutineContext = Dispatchers.IO,
-) {
+    private val aside: AttachmentStore = store.besideIt(),
+) : AttachmentVault {
     private val staged = mutableSetOf<String>()
+
+    /** Held while attachments are taken in, deleted or cleared up, and while a backup reads or replaces them. */
+    internal val lock = Mutex()
+
+    override suspend fun <T> steady(block: suspend () -> T): T = lock.withLock { block() }
+
+    override fun read(file: String): ByteArray? = store.read(file)
+
+    override fun isName(file: String): Boolean = AttachmentStore.isName(file)
+
+    override fun clearAside() = aside.keepOnly(emptySet())
+
+    override fun putAside(file: String, bytes: ByteArray) = aside.write(file, bytes)
+
+    override fun takeAside(files: Set<String>) {
+        check(lock.isLocked) { "Only while steady" }
+        synchronized(staged) {
+            (store.names() - files - staged).forEach(store::delete)
+            files.forEach { store.moveFrom(aside, it) }
+        }
+        clearAside()
+    }
 
     /** [note] with the text of the file at [address] added, on a line of its own after a blank one. */
     suspend fun importText(address: String, note: String): TextImport = withContext(io) {

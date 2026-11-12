@@ -144,6 +144,7 @@ class BackupsOnDeviceTest {
         clock = Clock.systemUTC(),
         migration = BackupMigration(context) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
         doku = NoDoku,
+        attachments = NoAttachments,
         iterations = iterations,
     )
 
@@ -152,6 +153,21 @@ class BackupsOnDeviceTest {
         override suspend fun snapshot(): DokuSnapshot? = null
 
         override suspend fun <T> replacedBy(snapshot: DokuSnapshot, during: suspend () -> T): T = during()
+    }
+
+    /** No lesson has attachments here. */
+    private object NoAttachments : AttachmentVault {
+        override suspend fun <T> steady(block: suspend () -> T): T = block()
+
+        override fun read(file: String): ByteArray? = null
+
+        override fun isName(file: String) = false
+
+        override fun clearAside() = Unit
+
+        override fun putAside(file: String, bytes: ByteArray) = Unit
+
+        override fun takeAside(files: Set<String>) = Unit
     }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */

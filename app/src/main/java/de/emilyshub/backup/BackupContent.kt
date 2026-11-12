@@ -11,14 +11,24 @@ import java.util.Base64
 /** The [rows] of a table under its [columns], each value a Long, a Double, a String or null, as SQLite keeps them. */
 class TableRows(val columns: List<String>, val rows: List<List<Any?>>)
 
+/** An attachment a backup carries after its content: kept under [file], [bytes] large. */
+data class BackupAttachment(val file: String, val bytes: Long)
+
 /**
  * All data of the app as a backup holds it (SPEC.md §10): the rows of each of the [tables], from a database of the
  * [schema] version given, as they were when [created]; and the [doku] in its own encryption, if it has a password. As
  * JSON: {"schema": 16, "created": "2026-10-23T05:00:00Z", "tables": {"routines": {"columns": ["id", ...], "rows":
  * [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": "<Base64>", "wal": "<Base64>"}}, the
- * Doku's write-ahead log only if it has one, the Doku only if there is one.
+ * Doku's write-ahead log only if it has one, the Doku only if there is one; and, if there are any, the [attachments]
+ * that follow the content in the file, in their order: "attachments": [["<file>", 1234], ...].
  */
-class BackupContent(val schema: Int, val created: Instant, val tables: Map<String, TableRows>, val doku: DokuSnapshot? = null) {
+class BackupContent(
+    val schema: Int,
+    val created: Instant,
+    val tables: Map<String, TableRows>,
+    val doku: DokuSnapshot? = null,
+    val attachments: List<BackupAttachment> = emptyList(),
+) {
 
     fun toJson(): ByteArray {
         val json = JSONObject()
@@ -29,6 +39,9 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         }
         val root = JSONObject().put(SCHEMA, schema).put(CREATED, created.toString()).put(TABLES, json)
         doku?.let { root.put(DOKU, dokuJson(it)) }
+        if (attachments.isNotEmpty()) {
+            root.put(ATTACHMENTS, JSONArray(attachments.map { JSONArray(listOf(it.file, it.bytes)) }))
+        }
         return root.toString().toByteArray()
     }
 
@@ -51,6 +64,7 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         private const val KEYS = "keys"
         private const val DATABASE = "database"
         private const val WAL = "wal"
+        private const val ATTACHMENTS = "attachments"
 
         /**
          * Read strictly: a key missing or unknown, or a value of another type, counts as damage, as does nesting deeper
@@ -59,14 +73,15 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
         fun fromJson(json: ByteArray): BackupContent = try {
             if (depthOf(json) > MAX_DEPTH) damaged()
             val root = JSONObject(String(json, Charsets.UTF_8))
-            // Older backups, and those made without a Doku, have none.
-            if (root.keySet() - DOKU != setOf(SCHEMA, CREATED, TABLES)) damaged()
+            // Older backups, and those made without a Doku or attachments, have none.
+            if (root.keySet() - DOKU - ATTACHMENTS != setOf(SCHEMA, CREATED, TABLES)) damaged()
             val tables = root.getJSONObject(TABLES)
             BackupContent(
                 schema = root.get(SCHEMA) as? Int ?: damaged(),
                 created = Instant.parse(root.get(CREATED) as? String ?: damaged()),
                 tables = tables.keySet().associateWith { tableRows(tables.getJSONObject(it)) },
                 doku = if (root.has(DOKU)) doku(root.getJSONObject(DOKU)) else null,
+                attachments = if (root.has(ATTACHMENTS)) attachments(root.getJSONArray(ATTACHMENTS)) else emptyList(),
             )
         } catch (e: JSONException) {
             throw BackupException(BackupProblem.Damaged, e)
@@ -88,6 +103,17 @@ class BackupContent(val schema: Int, val created: Instant, val tables: Map<Strin
                 database = bytes(DATABASE),
                 wal = if (doku.has(WAL)) bytes(WAL) else null,
             ) ?: damaged()
+        }
+
+        private fun attachments(list: JSONArray): List<BackupAttachment> = List(list.length()) { index ->
+            val entry = list.getJSONArray(index)
+            if (entry.length() != 2) damaged()
+            val bytes = when (val value = entry.get(1)) {
+                is Int -> value.toLong()
+                is Long -> value
+                else -> damaged()
+            }
+            BackupAttachment(entry.get(0) as? String ?: damaged(), bytes)
         }
 
         private fun tableRows(table: JSONObject): TableRows {

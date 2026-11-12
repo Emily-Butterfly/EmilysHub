@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Clock
@@ -98,9 +97,6 @@ class Languages(
     private val io: CoroutineContext = Dispatchers.IO,
 ) {
     private val dao get() = database().languages()
-
-    /** Saving a lesson and clearing up attachments one after the other, so that the latter sees what the former took in. */
-    private val attachmentsLock = Mutex()
 
     /** Today, by which the month and year are counted, and on which a new lesson is held. */
     fun today(): LocalDate = LocalDate.now(clock)
@@ -298,7 +294,7 @@ class Languages(
      * taken in, if they are still there, and those it had and has no more are deleted, files and all.
      */
     suspend fun save(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> = write {
-        attachmentsLock.withLock { saveLocked(editing, draft) }
+        files.lock.withLock { saveLocked(editing, draft) }
     }
 
     private suspend fun saveLocked(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> {
@@ -512,14 +508,16 @@ class Languages(
 
     /** Deletes the lesson [id], with its attachments. The screen asks first. */
     suspend fun delete(id: Long) = write {
-        val gone = database().withTransaction {
-            dao.attachmentsOf(id).map { it.file }.also { dao.deleteLesson(id) }
+        files.lock.withLock {
+            val gone = database().withTransaction {
+                dao.attachmentsOf(id).map { it.file }.also { dao.deleteLesson(id) }
+            }
+            gone.forEach(files.attachments::delete)
         }
-        gone.forEach(files.attachments::delete)
     }
 
     /** Deletes the files of attachments that no lesson has and none is importing: what a crash or an editor lost left. */
-    suspend fun clearUpAttachments() = write { attachmentsLock.withLock { files.clearUp(dao.attachmentFiles().toSet()) } }
+    suspend fun clearUpAttachments() = write { files.lock.withLock { files.clearUp(dao.attachmentFiles().toSet()) } }
 
     /** The languages some teacher teaches alone, as their only one. */
     private fun onlyLanguages(teaching: List<TeacherLanguage>): Set<Long> =
