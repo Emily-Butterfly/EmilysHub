@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11** und #85 **Etappe 12**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12** und #86 **Etappe 13**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -153,3 +153,32 @@ Abgestimmt im Interview vom 11.11.2026; Sammel-Issue #85. Gebaut wird in der Rei
 | 82 | [Sprachen: Themen & Prüfungen](82-sprachen-themen-pruefungen.md) | 🤖 | 81 |
 | 83 | [Sprachen: Session-Notizen importieren – Textdatei, Foto, PDF](83-sprachen-import-anhaenge.md) | 🤖 | 81 |
 | 84 | [Sprachen: Suche & Prüfungen an Zielen](84-sprachen-suche-ziele.md) | 🤖 | 82 |
+
+## Etappe 13 – Absichern, Eingang, Heute, Ablauf-Modus & Vokabeltrainer
+
+Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und zwei Entscheidungen (#95, #96) sind am 12.11.2026 bestätigt; die Einzelheiten der Slices sind nicht in einem Interview abgestimmt. Gebaut wird in der Reihenfolge der Tabelle. #91 und #92 sind der Rest von „UX 1“ und können auch später gebaut werden; #108 ist dran, sobald Heute merklich zäh wird.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 87 | [Editoren: Rückfrage statt stillem Verwerfen](87-editoren-rueckfrage.md) | 🤖 | – |
+| 88 | [Notizen & Sessions: beim Verlassen von selbst speichern](88-notizen-sessions-selbstspeichern.md) | 🤖 | 87 |
+| 89 | [Backups: ans Auslagern erinnern](89-backups-auslagern-erinnern.md) | 🤖 | – |
+| 90 | [Versionsnummer aus dem Build, sichtbar in den Einstellungen](90-versionsnummer.md) | 🤖 | – |
+| 91 | [Editoren: Titel im Fokus & „Speichern“ unten](91-editoren-fokus-speichern-unten.md) | 🤖 | – |
+| 92 | [Routine & To-do: das Nötige zuerst, der Rest unter „Mehr Optionen“](92-editoren-das-noetige-zuerst.md) | 🤖 | 91 |
+| 93 | [Eingang: Gedanken festhalten & einsortieren](93-eingang.md) | 🤖 | – |
+| 94 | [Eingang: Kurzbefehl am App-Symbol](94-eingang-kurzbefehl.md) | 🤖 | 93 |
+| 95 | [Eingang: Benachrichtigung mit Antwortfeld](95-eingang-benachrichtigung.md) | 🤖 | 93 |
+| 96 | [Heute: Kopfzeile & drei Blöcke](96-heute-drei-bloecke.md) | 🤖 | – |
+| 97 | [Heute: Menü je Eintrag – verschieben, öffnen, überspringen](97-heute-menue-je-eintrag.md) | 🤖 | 96 |
+| 98 | [Erinnerungen: „Später“ für To-dos bis heute Abend und morgen früh](98-spaeter-fuer-todos.md) | 🤖 | – |
+| 99 | [Flamme: bei null stehen bleiben, letzter Streak in der Statistik](99-flamme-bei-null.md) | 🤖 | – |
+| 100 | [Rettungsbildschirm, wenn sich die Daten nicht öffnen lassen](100-rettungsbildschirm.md) | 🤖 | – |
+| 101 | [Ablauf-Modus: eine Routine Schritt für Schritt](101-ablauf-modus.md) | 🤖 | 97 |
+| 102 | [Ablauf-Modus: Minuten je Schritt, Restzeit & laufende Benachrichtigung](102-ablauf-modus-zeit.md) | 🤖 | 101 |
+| 103 | [Ablauf-Modus: Start aus Erinnerung und Vollbild-Alarm](103-ablauf-modus-start-aus-erinnerung.md) | 🤖 | 101 |
+| 104 | [Vokabeltrainer: Karten, Fächer & Abfrage](104-vokabeltrainer-karten.md) | 🤖 | – |
+| 105 | [Vokabeltrainer: Karten aus Session-Notiz und Textdatei](105-vokabeltrainer-karten-anlegen.md) | 🤖 | 104 |
+| 106 | [Vokabeltrainer: Routine und Ziel zählen mit](106-vokabeltrainer-routine-und-ziel.md) | 🤖 | 104 |
+| 107 | [Vokabeltrainer: Zahlen an Themen, Thema üben & Suche](107-vokabeltrainer-themen-suche.md) | 🤖 | 104 |
+| 108 | [Heute & To-dos: nur laden, was gebraucht wird](108-nur-laden-was-gebraucht-wird.md) | 🤖 | – |
