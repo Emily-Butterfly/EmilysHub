@@ -22,6 +22,7 @@ interface SubscriptionDao {
     @Query("SELECT * FROM subscriptions WHERE ends_on IS NULL")
     suspend fun running(): List<Subscription>
 
+    /** Those not cancelled, as they change. */
     @Query("SELECT * FROM subscriptions WHERE ends_on IS NULL")
     fun observeRunning(): Flow<List<Subscription>>
 

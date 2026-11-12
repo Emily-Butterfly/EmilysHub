@@ -64,12 +64,14 @@ class SubscriptionTodayTest {
     }
 
     @Test
-    fun `its reminder's Gekuendigt opens the Abo once unlocked, asking until when, and cancels it`() {
+    fun `its reminder's Gekuendigt opens the Abo once unlocked, also after a turn, asking until when, and cancels it`() {
         val streaming = abo("Streaming", cancelBy = "2026-11-06")
         app.authenticator.deviceSecure = true
 
-        ActivityScenario.launch<MainActivity>(MainActivity.openSubscription(app, streaming, cancel = true)).use {
+        ActivityScenario.launch<MainActivity>(MainActivity.openSubscription(app, streaming, cancel = true)).use { scenario ->
             compose.onNodeWithText("„Streaming“ gekündigt").assertDoesNotExist()
+            // Turned while still locked: what is to open stays to open.
+            scenario.recreate()
             compose.unlockWithFingerprint(app.authenticator)
 
             compose.onNodeWithText("„Streaming“ gekündigt").assertIsDisplayed()

@@ -30,4 +30,3 @@ Abgestimmt im Interview vom 11.11.2026.
 - 21:00 Uhr, fest; Benachrichtigung statt Vollbild-Alarm; zweimal je Laufzeit.
 - Kein Name auf dem Sperrbildschirm.
 - „Gekündigt“ in der Benachrichtigung öffnet das Abo mit der Frage nach dem Enddatum (und ggf. nach dem Ende der Fixbuchung), damit es sich wie in der App verhält (#79); „Läuft weiter“ wirkt direkt.
-- Ein Abo, das erst innerhalb seines Vorlaufs angelegt oder dorthin geändert wird, benachrichtigt erst am letzten Kündigungstag; in Heute steht es sofort.

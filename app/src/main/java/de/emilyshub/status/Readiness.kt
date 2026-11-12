@@ -58,7 +58,7 @@ data class Readiness(val standings: Map<Need, Standing>, val putsAppsToSleep: Bo
 
 /**
  * What the reminders use: whether anything [reminds], an active routine, an open to-do at its time or places, or an Abo
- * with a last day to come (#80); whether
- * any is bound to a place, a routine, or a to-do waiting for one; and whether any of them has a full-screen alarm.
+ * with a last day to come (#80); whether any is bound to a place, a routine, or a to-do waiting for one; and whether any
+ * of them has a full-screen alarm.
  */
 data class Use(val reminds: Boolean, val boundToPlaces: Boolean, val fullScreen: Boolean)

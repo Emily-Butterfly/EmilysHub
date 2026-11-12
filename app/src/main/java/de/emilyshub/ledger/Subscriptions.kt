@@ -76,19 +76,11 @@ class Subscriptions(
 
     /** Of the Abos [ids], the reminders still due now: come by now, and their last day not over. */
     suspend fun stillDue(ids: Collection<Long>): List<SubscriptionReminder> = withContext(io) {
-        val now = clock.instant()
-        val today = today()
-        ids.mapNotNull { dao.get(it)?.reminderOn(today, clock.zone) }.filter { it.dueAt(now, clock.zone) }
+        ids.mapNotNull { dao.get(it)?.dueNow() }
     }
 
     /** The reminder of the Abo [id] as it changes while it is still due; none once it is not. */
-    fun reminder(id: Long): Flow<SubscriptionReminder?> = flow {
-        emitAll(
-            dao.observeRunning().map { running ->
-                running.find { it.id == id }?.reminderOn(today(), clock.zone)?.takeIf { it.dueAt(clock.instant(), clock.zone) }
-            },
-        )
-    }.flowOn(io)
+    fun reminder(id: Long): Flow<SubscriptionReminder?> = observeRunning { running -> running.find { it.id == id }?.dueNow() }
 
     /** When an Abo is to notify, or its reminder to go, next after [after]; none while none reminds. */
     suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
@@ -99,20 +91,23 @@ class Subscriptions(
      * The Abos under "Demnächst" on Heute of [date] (#80): from the first day of their lead to their last day, the
      * soonest first.
      */
-    fun upcoming(date: LocalDate): Flow<List<SubscriptionReminder>> = flow {
-        emitAll(
-            dao.observeRunning().map { running ->
-                running.mapNotNull { it.reminderOn(date, clock.zone) }
-                    .filter { it.showsOn(date) }
-                    .sortedWith(compareBy<SubscriptionReminder> { it.lastDay }.thenBy(InputText.byName) { it.name })
-            },
-        )
-    }.flowOn(io)
+    fun upcoming(date: LocalDate): Flow<List<SubscriptionReminder>> = observeRunning { running ->
+        running.mapNotNull { it.reminderOn(date, clock.zone) }
+            .filter { it.showsOn(date) }
+            .sortedWith(compareBy<SubscriptionReminder> { it.lastDay }.thenBy(InputText.byName) { it.name })
+    }
 
     /** Whether any Abo reminds, one running with a last day to come, as it changes (SPEC.md §11). */
-    fun anyReminds(): Flow<Boolean> = flow {
-        emitAll(dao.observeRunning().map { running -> running.any { it.reminderOn(today(), clock.zone) != null } })
+    fun anyReminds(): Flow<Boolean> = observeRunning { running -> running.any { it.reminderOn(today(), clock.zone) != null } }
+
+    /** The Abos not cancelled, as they change, made into what [transform] makes of them, on [io]. */
+    private fun <T> observeRunning(transform: (List<Subscription>) -> T): Flow<T> = flow {
+        emitAll(dao.observeRunning().map(transform))
     }.flowOn(io)
+
+    /** Its reminder of today's term, if that has come by now and is not over. */
+    private fun Subscription.dueNow(): SubscriptionReminder? =
+        reminderOn(today(), clock.zone)?.takeIf { it.dueAt(clock.instant(), clock.zone) }
 
     /** The Abos as their list shows them today; looked at anew by the screen when the day changes. */
     fun overview(): Flow<SubscriptionOverview> = flow {

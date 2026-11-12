@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
+import androidx.core.os.BundleCompat
 import de.emilyshub.ui.EmilysHubApp
 import de.emilyshub.ui.ledger.SubscriptionEditorTarget
 import de.emilyshub.ui.navigation.Destination
@@ -20,11 +21,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val app = application as EmilysHubApplication
-        // Not again when Android makes the activity anew, as on a rotation: it was opened then already.
-        if (savedInstanceState == null) opening.value = intent.opening()
+        // Made anew, as on a rotation or after the process was gone, it keeps what was still to open, as while locked;
+        // what was opened already is not opened again.
+        opening.value = if (savedInstanceState == null) {
+            intent.opening()
+        } else {
+            BundleCompat.getSerializable(savedInstanceState, OPENING, Destination::class.java)
+        }
         setContent {
             EmilysHubApp(app, opening = opening.value, onOpened = { opening.value = null })
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        opening.value?.let { outState.putSerializable(OPENING, it) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -35,6 +46,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val EXTRA_SUBSCRIPTION = "de.emilyshub.extra.OPEN_SUBSCRIPTION"
         private const val EXTRA_CANCEL = "de.emilyshub.extra.CANCEL"
+
+        /** Under what what is still to open is kept while the activity is made anew. */
+        private const val OPENING = "opening"
 
         /** Opens the Abo [id] (#80), asking until when it was cancelled if [cancel], as its reminder does. */
         fun openSubscription(context: Context, id: Long, cancel: Boolean): Intent = Intent(context, MainActivity::class.java)

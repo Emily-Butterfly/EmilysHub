@@ -58,10 +58,10 @@ private fun standing(allowed: Boolean, on: Boolean = true) = when {
 @Composable
 fun rememberUse(routines: Routines, todos: Todos, subscriptions: Subscriptions): Use? {
     val use = remember(routines, todos, subscriptions) {
-        combine(routines.inUse(), routines.boundToPlaces(), todos.open(), subscriptions.anyReminds()) { all, boundToPlaces, open, abos ->
+        combine(routines.inUse(), routines.boundToPlaces(), todos.open(), subscriptions.anyReminds()) { all, boundToPlaces, open, anAboReminds ->
             val active = all.filter { it.status == RoutineStatus.Active }
             Use(
-                reminds = active.isNotEmpty() || open.any { it.reminds } || abos,
+                reminds = active.isNotEmpty() || open.any { it.reminds } || anAboReminds,
                 boundToPlaces = boundToPlaces || open.any { it.waitsForPlaces },
                 fullScreen = active.any { it.style.fullScreen } || open.any { it.todo.style.fullScreen && it.reminds },
             )
