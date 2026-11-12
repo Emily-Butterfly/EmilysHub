@@ -18,6 +18,13 @@ interface SubscriptionDao {
     @Query("SELECT * FROM subscriptions WHERE id = :id")
     suspend fun get(id: Long): Subscription?
 
+    /** Those not cancelled, the ones that may remind (#80). */
+    @Query("SELECT * FROM subscriptions WHERE ends_on IS NULL")
+    suspend fun running(): List<Subscription>
+
+    @Query("SELECT * FROM subscriptions WHERE ends_on IS NULL")
+    fun observeRunning(): Flow<List<Subscription>>
+
     @Query("SELECT * FROM subscriptions WHERE recurring_id = :recurringId")
     suspend fun ofRecurring(recurringId: Long): Subscription?
 

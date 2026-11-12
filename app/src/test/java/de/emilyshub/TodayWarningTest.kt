@@ -9,7 +9,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.data.Saving
+import de.emilyshub.ledger.SubscriptionDraft
+import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.routines.Repetition
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -18,6 +22,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 import org.robolectric.shadows.ShadowBuild
 import java.time.DayOfWeek
+import java.time.LocalDate
 
 /** Heute warns while something the routines in use need from Android is lacking (SPEC.md §11). */
 @RunWith(AndroidJUnit4::class)
@@ -58,6 +63,21 @@ class TodayWarningTest {
 
         launchApp().use {
             compose.onNodeWithText("Tabletten").assertIsDisplayed()
+            compose.onNodeWithText("Erinnerungen kommen vielleicht nicht an").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `with an Abo to cancel, Heute warns of notifications lacking too, but not once it is cancelled`() {
+        val streaming = runBlocking {
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Streaming", cancelBy = LocalDate.parse("2026-12-31")))
+        } as Saving.Saved
+
+        launchApp().use {
+            compose.onNodeWithText("Zu prüfen: Benachrichtigungen.").assertIsDisplayed()
+
+            runBlocking { app.subscriptions.cancel(streaming.id, LocalDate.parse("2026-12-31")) }
+
             compose.onNodeWithText("Erinnerungen kommen vielleicht nicht an").assertDoesNotExist()
         }
     }

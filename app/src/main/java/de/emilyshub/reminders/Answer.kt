@@ -24,4 +24,7 @@ sealed interface Answer {
 
     /** "Heute nicht", for all a joint reminder reminds of; a to-do has none. */
     data object Drop : Answer
+
+    /** "Läuft weiter", on an Abo's (#80): it runs on, and reminds no more of this term. */
+    data object RunOn : Answer
 }

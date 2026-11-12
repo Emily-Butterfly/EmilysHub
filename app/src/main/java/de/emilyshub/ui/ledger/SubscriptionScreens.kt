@@ -85,8 +85,8 @@ sealed interface SubscriptionEditorTarget : Serializable {
     /** A new Abo, linked to the fixed booking [recurringId] if given. */
     data class New(val recurringId: Long? = null) : SubscriptionEditorTarget
 
-    /** The Abo saved under [subscriptionId]. */
-    data class Edit(val subscriptionId: Long) : SubscriptionEditorTarget
+    /** The Abo saved under [subscriptionId]; asking at once until when it was cancelled if [cancelling], as from its reminder (#80). */
+    data class Edit(val subscriptionId: Long, val cancelling: Boolean = false) : SubscriptionEditorTarget
 }
 
 /**
@@ -190,7 +190,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
     var refused by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf<DateChoice?>(null) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    var cancelling by rememberSaveable { mutableStateOf(false) }
+    var cancelling by rememberSaveable { mutableStateOf((target as? SubscriptionEditorTarget.Edit)?.cancelling == true) }
     // The day it was cancelled to end on, while asking whether its fixed booking ends then too.
     var endingRecurring by rememberSaveable { mutableStateOf<LocalDate?>(null) }
     val overview by remember(subscriptions) { subscriptions.overview() }.collectAsState(initial = null)
@@ -356,7 +356,8 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
         }
     }
     if (cancelling && choosingDate == null) {
-        item?.let { saved ->
+        // Not for one cancelled meanwhile, as its reminder may still have been up.
+        item?.takeIf { it.status !is SubscriptionStatus.Cancelled }?.let { saved ->
             CancelDialog(
                 saved,
                 onCancel = { date ->

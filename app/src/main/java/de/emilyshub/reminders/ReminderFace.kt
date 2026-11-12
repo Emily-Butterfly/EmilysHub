@@ -6,6 +6,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.todos.TodoReminder
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.placesLabel
+import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.todos.dueText
 import java.time.LocalDate
 import java.time.ZonedDateTime
@@ -14,7 +15,8 @@ import java.time.ZonedDateTime
  * How a due reminder shows (SPEC.md §3, §5, §9), in its notification and in its full-screen alarm alike: its [title] and
  * [text]; what the lock screen shows of it, where it allows that ([onLockScreen]), else only that one is due; for a
  * joint reminder of coupled routines, each of them by name ([each]), to say which one was done; and whether it can be
- * skipped, as a routine's can and a to-do's cannot ([skippable]). The one place that decides it; the notification and
+ * skipped, as a routine's can and a to-do's and an Abo's cannot ([skippable]). An Abo's says until when to cancel it,
+ * and on the lock screen only that one is to be cancelled (#80). The one place that decides it; the notification and
  * the alarm only render it.
  */
 data class ReminderFace(
@@ -48,6 +50,13 @@ data class ReminderFace(
                     },
                 )
             }
+            is DueReminder.OfSubscription -> ReminderFace(
+                title = due.reminder.name,
+                text = words.cancelBy(due.reminder.lastDay),
+                skippable = false,
+                // Never its name there, only that one is to be cancelled.
+                onLockScreen = OnLockScreen(words.subscriptionOnLockScreen(), null),
+            )
             is DueReminder.OfTodo -> {
                 val reminder = due.reminder
                 val whenDue = words.todoDue(reminder, today)
@@ -74,6 +83,12 @@ interface ReminderWords {
 
     /** The places a to-do reminds at; none without any. */
     fun places(places: List<String>): String?
+
+    /** "Kündigen bis 30.11.2026". */
+    fun cancelBy(lastDay: LocalDate): String
+
+    /** "Ein Abo ist zu kündigen", all the lock screen shows of an Abo's reminder. */
+    fun subscriptionOnLockScreen(): String
 }
 
 /** The app's own words for a reminder's face. */
@@ -84,4 +99,8 @@ class ResourceWords(private val resources: Resources) : ReminderWords {
         resources.dueText(reminder.due, today)?.let { resources.getString(R.string.todo_due_label, it) }
 
     override fun places(places: List<String>): String? = resources.placesLabel(places)
+
+    override fun cancelBy(lastDay: LocalDate): String = resources.getString(R.string.subscription_reminder_text, lastDay.numericDate())
+
+    override fun subscriptionOnLockScreen(): String = resources.getString(R.string.subscription_reminder_public)
 }

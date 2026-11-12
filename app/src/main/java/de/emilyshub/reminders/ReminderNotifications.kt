@@ -14,6 +14,7 @@ import android.os.Bundle
 import androidx.core.net.toUri
 import de.emilyshub.MainActivity
 import de.emilyshub.R
+import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
 import java.time.Clock
@@ -31,6 +32,8 @@ import java.util.UUID
  * more of it. A routine with a full-screen alarm fills the screen when its reminder pops up ([AlarmActivity]), where Android allows it.
  * One notification per occurrence, tagged with its id. A to-do's reminder offers "Erledigt · Später" only, as a to-do
  * is never skipped (SPEC.md §5), and is tagged with the to-do's id; one with a full-screen alarm fills the screen too.
+ * An Abo's offers "Gekündigt · Läuft weiter" (#80), tagged with the Abo's id, and shows "Ein Abo ist zu kündigen" on the
+ * lock screen, never its name.
  *
  * Each reminder plays its tone once (SPEC.md §3), as [Sounds] has it, on the channel of that tone: the phone's own
  * notification tone on the usual one, any other tone on one of its own, as Android fixes a channel's sound once it is
@@ -53,6 +56,7 @@ class ReminderNotifications(
         when (reminder) {
             is DueReminder.OfOccurrence -> post(reminder.reminder, face, alert, offering)
             is DueReminder.OfTodo -> post(reminder.reminder, face, alert, offeringPutOff = offering == Offering.PutOff)
+            is DueReminder.OfSubscription -> post(reminder.reminder, face, alert)
         }
     }
 
@@ -81,7 +85,8 @@ class ReminderNotifications(
 
     /** What the reminders on the screen are about, by their tags. */
     override fun shown(): List<Alarmed> =
-        shownTagged(TAG_PREFIX).map(Alarmed::Occurrence) + shownTagged(TODO_TAG_PREFIX).map(Alarmed::Todo)
+        shownTagged(TAG_PREFIX).map(Alarmed::Occurrence) + shownTagged(TODO_TAG_PREFIX).map(Alarmed::Todo) +
+            shownTagged(SUBSCRIPTION_TAG_PREFIX).map(Alarmed::Subscription)
 
     /** The ids in the tags starting with [prefix] of the reminders on the screen. */
     private fun shownTagged(prefix: String): List<Long> = manager.activeNotifications.mapNotNull { shown ->
@@ -97,6 +102,13 @@ class ReminderNotifications(
     private suspend fun post(reminder: TodoReminder, face: ReminderFace, alert: Boolean, offeringPutOff: Boolean) {
         val channel = channelFor(reminder.style.fullScreen, reminder.style.tone)
         notify(todoTagOf(reminder.todoId), notification(reminder, face, alert, offeringPutOff, channel), Alarmed.Todo(reminder.todoId))
+    }
+
+    /** An Abo's, on the usual channel with the standard tone for notifications, never on the full screen (#80). */
+    private suspend fun post(reminder: SubscriptionReminder, face: ReminderFace, alert: Boolean) {
+        val channel = channelFor(fullScreen = false, Tone.Standard)
+        val id = reminder.subscriptionId
+        notify(subscriptionTagOf(id), notification(reminder, face, alert, channel), Alarmed.Subscription(id))
     }
 
     /** Shows [notification] under [tag]; as a full-screen alarm, posted anew and ringing for what it is [about]. */
@@ -245,6 +257,34 @@ class ReminderNotifications(
     }
 
     /**
+     * An Abo's reminder (#80): until when to cancel it, with "Gekündigt", which opens the Abo to choose the day it ends on,
+     * and "Läuft weiter"; tapped, it opens the Abo, behind the app's lock if that is on. It stays up until answered, or
+     * until its last day is over.
+     */
+    private fun notification(reminder: SubscriptionReminder, face: ReminderFace, alert: Boolean, channel: String): Notification {
+        val id = reminder.subscriptionId
+        val about = ReminderOf(subscriptionTagOf(id), EXTRA_SUBSCRIPTION, id)
+        val cancel = Notification.Action.Builder(null, context.getString(R.string.subscription_cancel), openSubscription(id, cancel = true))
+            .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true) }
+            .build()
+        return builder(channel, face.title, face.text, alert, Offering.Actions, publicVersion(face.onLockScreen))
+            .setCategory(Notification.CATEGORY_REMINDER)
+            .setContentIntent(openSubscription(id, cancel = false))
+            .setAutoCancel(false)
+            .addAction(cancel)
+            .addAction(action(context.getString(R.string.subscription_run_on), ReminderReceiver.ACTION_RUN_ON, about))
+            .build()
+    }
+
+    /** Opens the Abo [id] in the app, behind its lock if that is on; asking until when it was cancelled, if [cancel]. */
+    private fun openSubscription(id: Long, cancel: Boolean): PendingIntent {
+        val intent = MainActivity.openSubscription(context, id, cancel)
+            // Tells the intents of different Abos and of tapping and "Gekündigt" apart, so that each keeps its own extras.
+            .setIdentifier("${subscriptionTagOf(id)}:$cancel")
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    /**
      * With a [fullScreen] alarm, where Android allows it, the reminder is an alarm about [about]: one "Nicht stören" lets
      * through where it lets alarms through, as it does the ringing, which fills the screen as it pops up ([alert]) and opens
      * the alarm when tapped, as the reminder is all Android shows of it while in use. Otherwise a reminder opening [otherwise].
@@ -327,9 +367,12 @@ class ReminderNotifications(
 
     private fun todoTagOf(todoId: Long) = TODO_TAG_PREFIX + todoId
 
+    private fun subscriptionTagOf(subscriptionId: Long) = SUBSCRIPTION_TAG_PREFIX + subscriptionId
+
     private fun tagOf(about: Alarmed) = when (about) {
         is Alarmed.Occurrence -> tagOf(about.id)
         is Alarmed.Todo -> todoTagOf(about.id)
+        is Alarmed.Subscription -> subscriptionTagOf(about.id)
     }
 
     /**
@@ -341,6 +384,7 @@ class ReminderNotifications(
     private companion object {
         const val TAG_PREFIX = "occurrence:"
         const val TODO_TAG_PREFIX = "todo:"
+        const val SUBSCRIPTION_TAG_PREFIX = "subscription:"
 
         /** Not an occurrence's, so that tidying the reminders leaves it. */
         const val PROBE_TAG = "probe"

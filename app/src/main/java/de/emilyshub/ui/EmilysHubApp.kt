@@ -56,6 +56,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
 import de.emilyshub.routines.Routines
@@ -69,17 +70,18 @@ import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
 import de.emilyshub.ui.ledger.BookingEditorScreen
 import de.emilyshub.ui.ledger.BookingEditorTarget
+import de.emilyshub.ui.ledger.BudgetCalculatorScreen
 import de.emilyshub.ui.ledger.LedgerArchiveScreen
 import de.emilyshub.ui.ledger.LedgerButton
-import de.emilyshub.ui.ledger.BudgetCalculatorScreen
 import de.emilyshub.ui.ledger.LedgerCategoriesScreen
-import de.emilyshub.ui.ledger.SubscriptionEditorScreen
-import de.emilyshub.ui.ledger.SubscriptionListScreen
 import de.emilyshub.ui.ledger.LedgerIconButton
 import de.emilyshub.ui.ledger.LedgerScreen
 import de.emilyshub.ui.ledger.LedgerYearScreen
 import de.emilyshub.ui.ledger.RecurringEditorScreen
 import de.emilyshub.ui.ledger.RecurringListScreen
+import de.emilyshub.ui.ledger.SubscriptionEditorScreen
+import de.emilyshub.ui.ledger.SubscriptionEditorTarget
+import de.emilyshub.ui.ledger.SubscriptionListScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.navigation.BackStack
 import de.emilyshub.ui.navigation.Destination
@@ -122,10 +124,11 @@ import kotlin.math.roundToInt
 
 /**
  * The whole UI. Nothing is drawn before the settings are known, not even the theme, and nothing but
- * the lock screen while the app is locked (SPEC.md §9).
+ * the lock screen while the app is locked (SPEC.md §9). What a reminder tapped asks to open ([opening]) opens once the
+ * app is unlocked, over what was open, and [onOpened] says so.
  */
 @Composable
-fun EmilysHubApp(hub: Hub) {
+fun EmilysHubApp(hub: Hub, opening: Destination? = null, onOpened: () -> Unit = {}) {
     val settings = hub.settings
     val lock = hub.appLock
     val authenticator = hub.authenticator
@@ -143,7 +146,7 @@ fun EmilysHubApp(hub: Hub) {
             LockScreen(onUnlock = { authenticator.authenticate(activity, lock::unlock) })
         } else {
             lockedAwayState.SaveableStateProvider("content") {
-                AppShell(hub, current)
+                AppShell(hub, current, opening, onOpened)
             }
         }
     }
@@ -175,7 +178,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 }
 
 @Composable
-private fun AppShell(hub: Hub, settings: Settings) {
+private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpened: () -> Unit) {
     // Saves to its end by itself, though the shell is gone meanwhile behind the lock (AppSettings).
     val scope = rememberCoroutineScope()
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
@@ -183,6 +186,12 @@ private fun AppShell(hub: Hub, settings: Settings) {
     var stack by rememberSaveable { mutableStateOf(BackStack()) }
     val open = { destination: Destination -> stack = stack.push(destination) }
     val back = { stack = stack.pop() }
+    LaunchedEffect(opening) {
+        if (opening != null) {
+            stack = stack.push(opening)
+            onOpened()
+        }
+    }
     // Here, so that they stay while an entry is open and while another tab shows.
     var tabs by rememberSaveable { mutableStateOf(TabViews()) }
     // Whether Heute shows yesterday, to catch up on (SPEC.md §1): kept while a screen is open over it, but not past
@@ -223,7 +232,7 @@ private fun AppShell(hub: Hub, settings: Settings) {
             open = open,
         )
         if (!settings.remindersAsked) {
-            AskOnceSomethingReminds(hub.routines, hub.todos) { scope.launchNow { hub.settings.setRemindersAsked() } }
+            AskOnceSomethingReminds(hub.routines, hub.todos, hub.subscriptions) { scope.launchNow { hub.settings.setRemindersAsked() } }
         }
         return
     }
@@ -303,7 +312,7 @@ private fun AppShell(hub: Hub, settings: Settings) {
                 onCreate = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) },
                 onBack = back,
             )
-            Destination.Status -> StatusScreen(hub.routines, hub.todos, hub::probe, onBack = back)
+            Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)
             Destination.Tags -> TagsScreen(hub.tags, onBack = back)
             Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, onBack = back)
             Destination.Settings -> SettingsScreen(
@@ -336,10 +345,13 @@ private fun AppShell(hub: Hub, settings: Settings) {
     }
 }
 
-/** Asks for what reminders need (SPEC.md §11) once something reminds, an active routine or a to-do that does, not before. */
+/**
+ * Asks for what reminders need (SPEC.md §11) once something reminds, an active routine, a to-do or an Abo that does, not
+ * before.
+ */
 @Composable
-private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, onAsked: () -> Unit) {
-    if (rememberUse(routines, todos)?.reminds == true) ReminderPermissions(onFinished = onAsked)
+private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, subscriptions: Subscriptions, onAsked: () -> Unit) {
+    if (rememberUse(routines, todos, subscriptions)?.reminds == true) ReminderPermissions(onFinished = onAsked)
 }
 
 /**
@@ -460,11 +472,12 @@ private fun TopLevelScaffold(
                     heute = hub.heute,
                     contentPadding = contentPadding,
                     warnings = {
-                        SetupWarning(hub.routines, hub.todos, onCheck = { open(Destination.Status) })
+                        SetupWarning(hub.routines, hub.todos, hub.subscriptions, onCheck = { open(Destination.Status) })
                         BackupWarningCard(hub.nightlyBackups, onOpen = { open(Destination.Backups) })
                     },
                     onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
                     onOpenYesterday = { onYesterdayChange(true) },
+                    onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

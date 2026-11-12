@@ -48,7 +48,7 @@ class CatchUpTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val clockChanges = MutableSharedFlow<Unit>()
-    private val heute = Heute(app.routines, app.todos, app.notes, Day(app.clock, clockChanges))
+    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges))
 
     @Test
     fun `yesterday shows its routines by time, with their status, and its to-dos, but nothing of today`() = runTest {

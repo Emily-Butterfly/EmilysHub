@@ -1,6 +1,7 @@
 package de.emilyshub.ui.today
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.emilyshub.R
+import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.today.Heute
@@ -60,8 +62,9 @@ import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.endText
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
-import de.emilyshub.ui.shortWeekdayDayAndMonth
 import de.emilyshub.ui.notes.PinnedNotes
+import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.shortWeekdayDayAndMonth
 import de.emilyshub.ui.todos.dueText
 import de.emilyshub.ui.todos.recurrenceText
 import de.emilyshub.ui.todos.upcomingText
@@ -71,7 +74,8 @@ import java.time.LocalDate
  * Heute as [day] has it (SPEC.md §1, Heute-Übersicht): the day's routines and to-dos in their order, to tick off, or
  * skip a routine, through [heute]; above them the [warnings], while something the reminders need from Android is
  * lacking or the backups are amiss; the notes pinned here, which open with a tap ([onOpenNote]); the to-dos shown
- * before their day under "Demnächst"; and under it all, what was done each day of the last six months
+ * before their day under "Demnächst", and there too the Abos to cancel soon, which open with a tap ([onOpenSubscription],
+ * #80); and under it all, what was done each day of the last six months
  * ([TodayHeatmap]). Nothing until all of it is there, so that Heute does not say there is nothing before it comes. Above
  * it all, the way to yesterday, to catch up on it ([onOpenYesterday], [YesterdayScreen]).
  */
@@ -83,12 +87,14 @@ fun TodayScreen(
     warnings: @Composable () -> Unit,
     onOpenNote: (Long) -> Unit,
     onOpenYesterday: () -> Unit,
+    onOpenSubscription: (Long) -> Unit = {},
 ) {
     day ?: return
     val scope = rememberCoroutineScope()
     val act: Act = remember(heute, scope) { { action -> scope.launchNow { heute.action() } } }
     val (today, list, upcoming, pinned) = day
-    if (list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty()) {
+    val subscriptions = day.subscriptions
+    if (list.isEmpty() && pinned.isEmpty() && upcoming.isEmpty() && subscriptions.isEmpty()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -125,9 +131,13 @@ fun TodayScreen(
             }
         }
         // Under the day's own entries, those due some days on that are to show before (SPEC.md §1).
-        if (upcoming.isNotEmpty()) {
+        if (upcoming.isNotEmpty() || subscriptions.isNotEmpty()) {
             item(key = "upcoming") { SectionTitle(stringResource(R.string.today_upcoming)) }
             items(upcoming, key = { "upcoming:${it.todo.todoId}" }) { entry -> TodoEntry(entry, today, act, upcoming = true) }
+            // The Abos to cancel soon (#80), from the first day of their lead to their last day.
+            items(subscriptions, key = { "subscription:${it.subscriptionId}" }) { reminder ->
+                SubscriptionRow(reminder, onOpen = { onOpenSubscription(reminder.subscriptionId) })
+            }
         }
         // Under all of the day's entries and those to come, what was done in the last six months (SPEC.md §1).
         item(key = "heatmap") { TodayHeatmap(day.heatmap) }
@@ -250,6 +260,24 @@ private fun TodoEntry(entry: TodayEntry.OfTodo, today: LocalDate, act: Act, upco
                 act { ticking(catchingUp).tick(entry, item.itemId, ticked) }
             }
         }
+    }
+}
+
+/** An Abo under "Demnächst" (#80): until when to cancel it, and its name; tapped, it opens. */
+@Composable
+private fun SubscriptionRow(reminder: SubscriptionReminder, onOpen: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            stringResource(R.string.today_subscription_cancel_by, reminder.lastDay.numericDate()),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(reminder.name, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

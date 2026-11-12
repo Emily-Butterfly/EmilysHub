@@ -1,5 +1,6 @@
 package de.emilyshub.reminders
 
+import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.JointOccurrence
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.Due
@@ -16,8 +17,8 @@ import java.time.ZonedDateTime
 
 /**
  * How a due reminder shows (SPEC.md §3, §5, §9), the same in its notification and its alarm: a routine's with its time,
- * joint ones by name to say which was done, a to-do's with when it is due or else where, and on the lock screen only
- * what each allows there.
+ * joint ones by name to say which was done, a to-do's with when it is due or else where, an Abo's with until when to
+ * cancel it, and on the lock screen only what each allows there.
  */
 class ReminderFaceTest {
 
@@ -29,6 +30,8 @@ class ReminderFaceTest {
         override fun dueAt(time: ZonedDateTime) = "at ${time.toLocalTime()}"
         override fun todoDue(reminder: TodoReminder, today: LocalDate) = reminder.due.date?.let { "due $it" }
         override fun places(places: List<String>) = places.takeIf { it.isNotEmpty() }?.joinToString(prefix = "at ")
+        override fun cancelBy(lastDay: LocalDate) = "cancel by $lastDay"
+        override fun subscriptionOnLockScreen() = "an Abo to cancel"
     }
 
     private fun routine(name: String = "Yoga", onLockScreen: Boolean = false, together: List<JointOccurrence> = emptyList()) =
@@ -38,6 +41,18 @@ class ReminderFaceTest {
 
     private fun todo(due: Due = Due.On(today), places: List<String> = emptyList(), onLockScreen: Boolean = false) =
         DueReminder.OfTodo(TodoReminder(7, "Steuer", due, places, RemindingStyle(nameOnLockScreen = onLockScreen)))
+
+    @Test
+    fun `an Abo's says until when to cancel it, is never skipped, and keeps its name off the lock screen`() {
+        val lastDay = LocalDate.parse("2026-11-30")
+        val abo = DueReminder.OfSubscription(SubscriptionReminder(3, "Streaming", lastDay, lastDay.minusDays(14), dueAt.toInstant()))
+
+        val face = ReminderFace.of(abo, today, words)
+
+        assertEquals(ReminderFace("Streaming", "cancel by 2026-11-30", skippable = false, ReminderFace.OnLockScreen("an Abo to cancel", null)), face)
+        assertFalse(abo.fullScreen)
+        assertEquals(Tone.Standard, abo.tone)
+    }
 
     @Test
     fun `a routine's shows its time, can be skipped, and keeps its name off the lock screen unless allowed`() {

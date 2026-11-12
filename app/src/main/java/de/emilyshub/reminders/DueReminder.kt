@@ -1,13 +1,15 @@
 package de.emilyshub.reminders
 
+import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
 import java.time.Duration
 import java.time.Instant
 
 /**
- * A reminder due to be on the screen (SPEC.md §3, §5): of a routine's occurrence, alone or the joint one of coupled
- * routines, or of a to-do; and what it is [about], which tells it apart on the screen and in the answers to it.
+ * A reminder due to be on the screen (SPEC.md §3, §5, §13): of a routine's occurrence, alone or the joint one of coupled
+ * routines, of a to-do, or of an Abo to cancel; and what it is [about], which tells it apart on the screen and in the
+ * answers to it.
  */
 sealed interface DueReminder {
     /** What it is about: the occurrence it is posted for, or the to-do. */
@@ -47,6 +49,18 @@ sealed interface DueReminder {
         override val style get() = reminder.style
         override val joint get() = false
         override val windowEnd: Instant? get() = null
+    }
+
+    /**
+     * An Abo's, to cancel it (#80): a plain notification with the standard tone, never on the full screen, and nothing of
+     * it on the lock screen; it goes once its last day is over.
+     */
+    data class OfSubscription(val reminder: SubscriptionReminder) : DueReminder {
+        override val about get() = Alarmed.Subscription(reminder.subscriptionId)
+        override val title get() = reminder.name
+        override val style get() = RemindingStyle()
+        override val joint get() = false
+        override val windowEnd: Instant get() = reminder.ends
     }
 }
 

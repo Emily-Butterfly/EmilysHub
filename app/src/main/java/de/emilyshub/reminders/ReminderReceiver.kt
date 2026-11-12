@@ -42,6 +42,9 @@ class ReminderReceiver : BroadcastReceiver() {
         /** "Heute nicht": the routine is dropped for the rest of the day. */
         const val ACTION_DROP = "de.emilyshub.action.DROP"
 
+        /** "Läuft weiter" on an Abo's reminder (#80). */
+        const val ACTION_RUN_ON = "de.emilyshub.action.RUN_ON"
+
         /** "Stumm" while an alarm rings: it stops ringing, its reminders stay. */
         const val ACTION_SILENCE = "de.emilyshub.action.SILENCE"
 
@@ -63,7 +66,7 @@ class ReminderReceiver : BroadcastReceiver() {
  * does not offer.
  */
 private fun Intent.answer(): Pair<Alarmed, Answer>? {
-    val about = occurrenceId()?.let(Alarmed::Occurrence) ?: todoId()?.let(Alarmed::Todo) ?: return null
+    val about = alarmed() ?: return null
     val minutes = getLongExtra(ReminderReceiver.EXTRA_MINUTES, 0)
     val answer = when (action) {
         ReminderReceiver.ACTION_DONE -> Answer.Done
@@ -72,6 +75,7 @@ private fun Intent.answer(): Pair<Alarmed, Answer>? {
         ReminderReceiver.ACTION_PUT_OFF -> Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }?.let(Answer::PutOff)
         ReminderReceiver.ACTION_SKIP -> Answer.Skip
         ReminderReceiver.ACTION_DROP -> Answer.Drop
+        ReminderReceiver.ACTION_RUN_ON -> Answer.RunOn
         else -> null
     }
     return answer?.let { about to it }
@@ -88,6 +92,12 @@ const val EXTRA_TODO = "todo"
 
 /** The to-do an intent is about; none without a valid one. */
 internal fun Intent.todoId(): Long? = getLongExtra(EXTRA_TODO, 0).takeIf { it > 0 }
+
+/** The Abo that the intents of its reminder are about (#80). */
+const val EXTRA_SUBSCRIPTION = "subscription"
+
+/** The Abo an intent is about; none without a valid one. */
+internal fun Intent.subscriptionId(): Long? = getLongExtra(EXTRA_SUBSCRIPTION, 0).takeIf { it > 0 }
 
 /** Does [work] after onReceive has returned, in the app's background scope, and tells Android once it is done. */
 internal fun BroadcastReceiver.finishInBackground(app: EmilysHubApplication, work: suspend () -> Unit) {

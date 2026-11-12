@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.routines.Routines
 import de.emilyshub.status.Need
@@ -57,9 +58,9 @@ import de.emilyshub.ui.rememberChecked
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatusScreen(routines: Routines, todos: Todos, onProbe: () -> Unit, onBack: () -> Unit) {
+fun StatusScreen(routines: Routines, todos: Todos, subscriptions: Subscriptions, onProbe: () -> Unit, onBack: () -> Unit) {
     val readiness = rememberChecked { readiness() }
-    val use = rememberUse(routines, todos)
+    val use = rememberUse(routines, todos, subscriptions)
     Scaffold(
         topBar = {
             TopAppBar(

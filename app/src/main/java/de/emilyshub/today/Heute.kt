@@ -1,6 +1,8 @@
 package de.emilyshub.today
 
 import de.emilyshub.Day
+import de.emilyshub.ledger.SubscriptionReminder
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.Notes
 import de.emilyshub.routines.DueRoutine
@@ -26,8 +28,9 @@ import java.time.LocalDate
 
 /**
  * Heute as it stands on [date] (SPEC.md §1): its [entries] in their order ([todayList]), the to-dos shown before their
- * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without one, and
- * the [heatmap] of the last six months.
+ * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without one, the
+ * [heatmap] of the last six months, and under Demnächst too the Abos to cancel soon ([subscriptions], #80), from the first
+ * day of their lead to their last day.
  */
 data class HeuteDay(
     val date: LocalDate,
@@ -36,6 +39,7 @@ data class HeuteDay(
     val pinned: List<Note>,
     val flame: StreakFlame?,
     val heatmap: Heatmap,
+    val subscriptions: List<SubscriptionReminder> = emptyList(),
 )
 
 /**
@@ -45,13 +49,14 @@ data class HeuteDay(
 data class Yesterday(val date: LocalDate, val entries: List<TodayEntry>)
 
 /**
- * Heute (SPEC.md §1), from the routines, the to-dos and the notes, for the day it is by [day]: what is on it, and what
- * is done with it. A screen only draws a [HeuteDay] and says what was tapped.
+ * Heute (SPEC.md §1), from the routines, the to-dos, the notes and the Abos, for the day it is by [day]: what is on it,
+ * and what is done with it. A screen only draws a [HeuteDay] and says what was tapped.
  */
 class Heute(
     private val routines: Routines,
     private val todos: Todos,
     private val notes: Notes,
+    private val subscriptions: Subscriptions,
     private val day: Day,
 ) {
 
@@ -70,10 +75,13 @@ class Heute(
         val todosDue = moments.flatMapLatest { (now, date) ->
             combine(todos.dueOn(date, now), todos.upcoming(date, now)) { due, upcoming -> TodosDue(date, due, upcoming) }
         }
+        val subscriptionsDue = moments.map { it.date }.distinctUntilChanged()
+            .flatMapLatest { date -> subscriptions.upcoming(date).map { date to it } }
         val done = combine(routines.history(), todos.archived()) { history, archived -> history to archived }
-        combine(routinesDue, todosDue, notes.onToday(), done) { (date, dueRoutines), dueTodos, pinned, (history, archived) ->
-            // Until both are of the same day, as one of them may not have followed the clock yet.
-            if (dueTodos.date != date) return@combine null
+        combine(routinesDue, todosDue, notes.onToday(), done, subscriptionsDue) {
+                (date, dueRoutines), dueTodos, pinned, (history, archived), (subscriptionsDate, dueSubscriptions) ->
+            // Until all are of the same day, as one of them may not have followed the clock yet.
+            if (dueTodos.date != date || subscriptionsDate != date) return@combine null
             HeuteDay(
                 date = date,
                 entries = todayList(dueRoutines, dueTodos.due, date),
@@ -87,6 +95,7 @@ class Heute(
                     // The zone now, so that the to-dos move to their days in a new one.
                     zone = day.zone(),
                 ),
+                subscriptions = dueSubscriptions,
             )
         }.filterNotNull().collect { send(it) }
     }

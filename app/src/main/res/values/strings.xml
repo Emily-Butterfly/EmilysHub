@@ -861,6 +861,9 @@
     <string name="subscription_delete_text">Das Abo wird gelöscht. Eine verknüpfte Fixbuchung bleibt.</string>
     <string name="subscription_as_abo">Als Abo führen</string>
     <string name="subscription_open">Abo öffnen</string>
+    <string name="subscription_reminder_text">Kündigen bis %1$s</string>
+    <string name="subscription_reminder_public">Ein Abo ist zu kündigen</string>
+    <string name="today_subscription_cancel_by">kündigen bis %1$s</string>
     <string name="booking_over_total_budget">Der %2$s liegt damit %1$s über dem Gesamtbudget.</string>
     <string name="total_budget">Gesamtbudget</string>
     <string name="total_budget_of">%1$s von %2$s</string>

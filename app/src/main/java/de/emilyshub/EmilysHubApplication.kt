@@ -21,9 +21,9 @@ import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.Fingerprint
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
-import de.emilyshub.doku.TestCatalog
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
+import de.emilyshub.doku.TestCatalog
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -40,6 +40,7 @@ import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.reminders.RoutineReminding
 import de.emilyshub.reminders.Sounds
+import de.emilyshub.reminders.SubscriptionReminding
 import de.emilyshub.reminders.TodoReminding
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.reminders.ToneFiles
@@ -138,8 +139,8 @@ open class EmilysHubApplication : Application(), Hub {
     )
 
     // Modules, built from the ports. What changes what the reminders remind of tells them ([updateReminders]): the
-    // routines, to-dos, places, looking around, the tones, and a backup restored; goals, notes, tags and the household
-    // book never remind of anything (SPEC.md §6, §13).
+    // routines, to-dos, Abos, places, looking around, the tones, and a backup restored; goals, notes, tags and the rest of
+    // the household book never remind of anything (SPEC.md §6, §13).
 
     final override val settings: AppSettings by lazy {
         AppSettings(settingsStore, io, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
@@ -155,7 +156,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val day: Day by lazy { Day(clock, clockChanges(this)) }
 
     /** Heute (SPEC.md §1), from the routines, to-dos and notes, for the day it is. */
-    final override val heute: Heute by lazy { Heute(routines, todos, notes, day) }
+    final override val heute: Heute by lazy { Heute(routines, todos, notes, subscriptions, day) }
 
     final override val routines: Routines by lazy { Routines({ database }, clock, io, onChange = ::updateReminders) }
 
@@ -173,7 +174,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val ledger: Ledger by lazy { Ledger({ database }, clock, io) }
 
     /** The Abos of the household book (SPEC.md §13). */
-    final override val subscriptions: Subscriptions by lazy { Subscriptions({ database }, clock, io) }
+    final override val subscriptions: Subscriptions by lazy { Subscriptions({ database }, clock, io, onChange = ::updateReminders) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 
@@ -200,7 +201,7 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     val reminders: Reminders by lazy {
-        val sources = listOf(RoutineReminding(routines), TodoReminding(todos))
+        val sources = listOf(RoutineReminding(routines), TodoReminding(todos), SubscriptionReminding(subscriptions))
         Reminders(this, sources, clock, locator::whereabouts, settings::mayLookAround, sounds, settings = settingsStore)
     }
 
@@ -246,7 +247,7 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     /**
-     * After every change to the routines, to-dos, places or to looking around, and after a backup is restored. The change
+     * After every change to the routines, to-dos, Abos, places or to looking around, and after a backup is restored. The change
      * stands even if this fails; the next one tries again.
      */
     protected suspend fun updateReminders() {

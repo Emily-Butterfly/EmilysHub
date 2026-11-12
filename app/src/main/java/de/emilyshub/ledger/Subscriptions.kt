@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.Serializable
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
@@ -53,18 +54,65 @@ data class SubscriptionEditing(val id: Long?, val original: SubscriptionDraft?) 
 /**
  * The Abos of the household book (SPEC.md §13): contracts to cancel before they renew, each with its last day to cancel,
  * a single date or reckoned from the end of its term, which moves on to the next term by itself once gone by; linked to
- * a fixed booking if wanted, at most one Abo to each. [database] is only called on [io]; writes run to the end once
- * started.
+ * a fixed booking if wanted, at most one Abo to each. Each reminds to cancel it in time (#80), as its
+ * [SubscriptionReminder] has it. [database] is only called on [io]; writes run to the end once started, and [onChange]
+ * runs after each, as it changes what reminds.
  */
 class Subscriptions(
     private val database: () -> HubDatabase,
     private val clock: Clock,
     private val io: CoroutineContext = Dispatchers.IO,
+    private val onChange: suspend () -> Unit = {},
 ) {
     private val dao get() = database().subscriptions()
 
     /** Today, by which each Abo stands. */
     fun today(): LocalDate = LocalDate.now(clock)
+
+    /** The reminders that come due after [after] and up to [until] (#80), also those missed while the phone was off. */
+    suspend fun remindersDue(after: Instant, until: Instant): List<SubscriptionReminder> = withContext(io) {
+        dao.running().mapNotNull { it.reminderDue(after, until, clock.zone) }
+    }
+
+    /** Of the Abos [ids], the reminders still due now: come by now, and their last day not over. */
+    suspend fun stillDue(ids: Collection<Long>): List<SubscriptionReminder> = withContext(io) {
+        val now = clock.instant()
+        val today = today()
+        ids.mapNotNull { dao.get(it)?.reminderOn(today, clock.zone) }.filter { it.dueAt(now, clock.zone) }
+    }
+
+    /** The reminder of the Abo [id] as it changes while it is still due; none once it is not. */
+    fun reminder(id: Long): Flow<SubscriptionReminder?> = flow {
+        emitAll(
+            dao.observeRunning().map { running ->
+                running.find { it.id == id }?.reminderOn(today(), clock.zone)?.takeIf { it.dueAt(clock.instant(), clock.zone) }
+            },
+        )
+    }.flowOn(io)
+
+    /** When an Abo is to notify, or its reminder to go, next after [after]; none while none reminds. */
+    suspend fun nextAlarm(after: Instant): Instant? = withContext(io) {
+        dao.running().mapNotNull { it.nextAlarm(after, clock.zone) }.minOrNull()
+    }
+
+    /**
+     * The Abos under "Demnächst" on Heute of [date] (#80): from the first day of their lead to their last day, the
+     * soonest first.
+     */
+    fun upcoming(date: LocalDate): Flow<List<SubscriptionReminder>> = flow {
+        emitAll(
+            dao.observeRunning().map { running ->
+                running.mapNotNull { it.reminderOn(date, clock.zone) }
+                    .filter { it.showsOn(date) }
+                    .sortedWith(compareBy<SubscriptionReminder> { it.lastDay }.thenBy(InputText.byName) { it.name })
+            },
+        )
+    }.flowOn(io)
+
+    /** Whether any Abo reminds, one running with a last day to come, as it changes (SPEC.md §11). */
+    fun anyReminds(): Flow<Boolean> = flow {
+        emitAll(dao.observeRunning().map { running -> running.any { it.reminderOn(today(), clock.zone) != null } })
+    }.flowOn(io)
 
     /** The Abos as their list shows them today; looked at anew by the screen when the day changes. */
     fun overview(): Flow<SubscriptionOverview> = flow {
@@ -232,5 +280,5 @@ class Subscriptions(
         is SubscriptionStatus.Cancelled -> status.endsOn
     }
 
-    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
+    private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block().also { onChange() } }
 }

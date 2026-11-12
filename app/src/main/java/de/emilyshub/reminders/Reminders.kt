@@ -35,8 +35,12 @@ import java.time.Instant
  * waits elsewhere; while a routine is bound or a to-do waits, Android wakes the app on joining a WLAN ([arrived]), also
  * while it is closed. What pops up on arrival, or once bound to no place any more, pops up by the alarm, as at its time.
  *
- * Routines and to-dos are reminded of alike: each is a [ReminderSource], which says what of its own is due and does what
- * an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own there.
+ * Abos remind to cancel them (#80): at 21:00 on the first day of their lead and on their last day, made up for while
+ * that is not over, with "Gekündigt · Läuft weiter".
+ *
+ * Routines, to-dos and Abos are reminded of alike: each is a [ReminderSource], which says what of its own is due and
+ * does what an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own
+ * there.
  */
 class Reminders internal constructor(
     context: Context,
@@ -113,7 +117,8 @@ class Reminders internal constructor(
      * - "Erledigt" marks it done; on a joint reminder, the one chosen, after it asked which one it was;
      * - "Später" asks when to come back, and the choice puts it off then, and its follow-ups after that: only one that has
      *   come due and is still open, and only by a choice it offers now, else it stays as it is;
-     * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do.
+     * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do;
+     * - "Läuft weiter" lets an Abo run on, and is nothing for anything else.
      *
      * Asking anything of one answered meanwhile takes it down. What writes to the routines or to-dos runs outside the
      * lock, as their change brings the reminders up to date, which takes it.
@@ -127,6 +132,7 @@ class Reminders internal constructor(
             is Answer.PutOff -> putOff(about, answer.by)
             Answer.Skip -> source.skip(about.id)
             Answer.Drop -> source.drop(about.id)
+            Answer.RunOn -> source.runOn(about.id)
         }
     }
 

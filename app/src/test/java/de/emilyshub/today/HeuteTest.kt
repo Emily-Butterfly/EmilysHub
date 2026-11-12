@@ -4,6 +4,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.Day
 import de.emilyshub.TestApplication
+import de.emilyshub.data.Saving
+import de.emilyshub.ledger.SubscriptionDraft
+import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.routine
 import de.emilyshub.routines.DueRoutine
@@ -43,7 +46,7 @@ class HeuteTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val clockChanges = MutableSharedFlow<Unit>()
-    private val heute = Heute(app.routines, app.todos, app.notes, Day(app.clock, clockChanges))
+    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges))
 
     @Test
     fun `the day's routines and to-dos come in their order, with those shown before their day and the notes pinned`() = runTest {
@@ -191,6 +194,29 @@ class HeuteTest {
         assertTrue(covered.covered)
         assertFalse(covered.tickable)
         assertEquals(RoutineOffer.None, covered.offer)
+    }
+
+    @Test
+    fun `an Abo is under Demnaechst from the first day of its lead to its last day, the soonest first`() = runTest {
+        runBlocking {
+            // Last day the 30th: on Heute from the 16th on, with 14 days of lead.
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Zeitung", cancelBy = FRIDAY.plusDays(14)))
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Streaming", cancelBy = FRIDAY.plusDays(3), lead = "3"))
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Später", cancelBy = FRIDAY.plusDays(15)))
+            val cancelled = app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Gekündigt", cancelBy = FRIDAY.plusDays(2)))
+            app.subscriptions.cancel((cancelled as Saving.Saved).id, FRIDAY.plusDays(2))
+        }
+        val seen = collect()
+        assertEquals(listOf("Streaming", "Zeitung"), seen.last().subscriptions.map { it.name })
+
+        // The day after the Streaming one's last day.
+        app.clock.now = Instant.parse("2026-10-26T23:00:01Z") // 00:00:01 on the 27th, in winter time
+        // Past the next minute's turn, which the clock starting at 07:00:00 has a minute on.
+        advanceTimeBy(61_000)
+        runCurrent()
+
+        assertEquals(listOf("Zeitung", "Später"), seen.last().subscriptions.map { it.name })
+        assertEquals(FRIDAY.plusDays(14), seen.last().subscriptions.first().lastDay)
     }
 
     /** Heute as [Heute.day] gives it, collected for the rest of the test. */

@@ -1,5 +1,6 @@
 package de.emilyshub.reminders
 
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Routines
 import de.emilyshub.todos.Todos
@@ -9,8 +10,8 @@ import java.time.Instant
 
 /**
  * One kind of thing that reminds, the seam between [Reminders] and what it reminds of: the routines' occurrences
- * ([RoutineReminding]) and the to-dos ([TodoReminding]). Each says what of its own is due, waits or was answered, and
- * does what an answer to its reminder asks; [Reminders] does the rest alike for both.
+ * ([RoutineReminding]), the to-dos ([TodoReminding]) and the Abos ([SubscriptionReminding]). Each says what of its own
+ * is due, waits or was answered, and does what an answer to its reminder asks; [Reminders] does the rest alike for all.
  */
 internal interface ReminderSource {
 
@@ -61,6 +62,9 @@ internal interface ReminderSource {
 
     /** "Heute nicht" on the reminder with [id]; nothing for what has none. */
     suspend fun drop(id: Long)
+
+    /** "Läuft weiter" on the reminder with [id]; nothing for what has none, all but an Abo. */
+    suspend fun runOn(id: Long)
 }
 
 /** The routines' occurrences as a [ReminderSource]: they run out, are missed, and come in joint reminders. */
@@ -102,6 +106,8 @@ internal class RoutineReminding(private val routines: Routines) : ReminderSource
     override suspend fun skip(id: Long) = routines.skipTogether(id)
 
     override suspend fun drop(id: Long) = routines.dropTogether(id)
+
+    override suspend fun runOn(id: Long) = Unit
 }
 
 /** The to-dos as a [ReminderSource]: they never run out, so any time to put off by, and wait until done. */
@@ -143,4 +149,49 @@ internal class TodoReminding(private val todos: Todos) : ReminderSource {
     override suspend fun skip(id: Long) = Unit
 
     override suspend fun drop(id: Long) = Unit
+
+    override suspend fun runOn(id: Long) = Unit
+}
+
+/**
+ * The Abos as a [ReminderSource] (#80): each reminds at its own times, set by its last day to cancel, wherever the
+ * device is, until that day is over; answered with "Läuft weiter" ([runOn]), or cancelled in the app, it reminds no more
+ * of that term. Never put off, skipped or dropped; "Gekündigt" opens the Abo, to choose the day it ends on.
+ */
+internal class SubscriptionReminding(private val subscriptions: Subscriptions) : ReminderSource {
+    override fun owns(about: Alarmed) = about is Alarmed.Subscription
+
+    override suspend fun markMissed(since: Instant) = Unit
+
+    override suspend fun due(after: Instant, until: Instant, locate: Locate) =
+        subscriptions.remindersDue(after, until).map(DueReminder::OfSubscription)
+
+    override suspend fun arrive(locate: Locate) = emptyList<DueReminder>()
+
+    override suspend fun release() = Unit
+
+    override fun reminder(id: Long) = subscriptions.reminder(id).map { it?.let(DueReminder::OfSubscription) }
+
+    override suspend fun stillDue(shown: Collection<Alarmed>) =
+        subscriptions.stillDue(shown.filter(::owns).map { it.id }).map(DueReminder::OfSubscription)
+
+    override suspend fun nextAlarm(after: Instant) = subscriptions.nextAlarm(after)
+
+    override suspend fun tones() = setOf<Tone>(Tone.Standard)
+
+    override suspend fun watchesPlaces() = false
+
+    override suspend fun needsLookingAround() = false
+
+    override suspend fun lookAround(locate: Locate) = Unit
+
+    override suspend fun done(id: Long) = Unit
+
+    override suspend fun putOff(id: Long, until: Instant) = Unit
+
+    override suspend fun skip(id: Long) = Unit
+
+    override suspend fun drop(id: Long) = Unit
+
+    override suspend fun runOn(id: Long) = subscriptions.runOn(id)
 }

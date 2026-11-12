@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import de.emilyshub.R
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.reminders.REMINDER_CHANNEL
 import de.emilyshub.reminders.exactAlarmsAllowed
 import de.emilyshub.reminders.fullScreenAlarmsAllowed
@@ -50,14 +51,17 @@ private fun standing(allowed: Boolean, on: Boolean = true) = when {
     else -> Standing.Allowed
 }
 
-/** What the reminders of the active routines and the open to-dos use, as it changes; none until it is known. */
+/**
+ * What the reminders of the active routines, the open to-dos and the Abos with a last day to come use, as it changes;
+ * none until it is known. An Abo needs notifications and exact alarms, but never a place or the full screen (#80).
+ */
 @Composable
-fun rememberUse(routines: Routines, todos: Todos): Use? {
-    val use = remember(routines, todos) {
-        combine(routines.inUse(), routines.boundToPlaces(), todos.open()) { all, boundToPlaces, open ->
+fun rememberUse(routines: Routines, todos: Todos, subscriptions: Subscriptions): Use? {
+    val use = remember(routines, todos, subscriptions) {
+        combine(routines.inUse(), routines.boundToPlaces(), todos.open(), subscriptions.anyReminds()) { all, boundToPlaces, open, abos ->
             val active = all.filter { it.status == RoutineStatus.Active }
             Use(
-                reminds = active.isNotEmpty() || open.any { it.reminds },
+                reminds = active.isNotEmpty() || open.any { it.reminds } || abos,
                 boundToPlaces = boundToPlaces || open.any { it.waitsForPlaces },
                 fullScreen = active.any { it.style.fullScreen } || open.any { it.todo.style.fullScreen && it.reminds },
             )
