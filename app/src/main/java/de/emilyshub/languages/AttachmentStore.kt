@@ -64,12 +64,15 @@ class AttachmentStore(private val folder: () -> File, private val key: () -> Sec
     /** Whether something is kept under [name]. */
     fun has(name: String) = isName(name) && File(folder(), name).isFile
 
+    /** When what is kept under [name] was written, in milliseconds since 1970; 0 if there is nothing. */
+    fun modified(name: String): Long = if (isName(name)) File(folder(), name).lastModified() else 0
+
     /** Deletes what is kept under [name], if anything. */
     fun delete(name: String) {
         if (isName(name)) File(folder(), name).delete()
     }
 
-    /** The names of all that is kept, and deletes what a write broke off left behind. */
+    /** The names of all that is kept, and deletes what a write broke off left behind: call it only while none is written. */
     fun names(): Set<String> {
         val files = folder().listFiles().orEmpty()
         files.filter { it.name.endsWith(TEMP) }.forEach(File::delete)

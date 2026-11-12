@@ -275,7 +275,7 @@ open class EmilysHubApplication : Application(), Hub {
         // What a crash or an editor left without saving left behind of the lessons' attachments (SPEC.md §15).
         background.launch {
             languages.clearUpAttachments()
-            CameraShot.clear(this@EmilysHubApplication)
+            CameraShot.clearStale(this@EmilysHubApplication)
         }
     }
 

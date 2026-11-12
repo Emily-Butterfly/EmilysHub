@@ -52,6 +52,9 @@ Bei der Umsetzung festgelegt (12.11.2026):
 - Backups haben ein neues Format 2, das als Strom geschrieben und gelesen wird: erst der Inhalt (wie bisher höchstens 20 MB), dann je Anhang ein eigener verschlüsselter Abschnitt (bis 16 MB), dann ein Abschluss; jeder Abschnitt ist an seine Stelle gebunden, keiner lässt sich weglassen, tauschen oder anfügen. Eine Gesamtgrenze gibt es nicht. Backups im Format 1 laden weiter.
 - Der Schlüssel der Anhänge ist zufällig und liegt, mit dem Keystore-Schlüssel der Datenbank versiegelt, neben deren Schlüssel.
 - Ein Foto wird bis 40 MB eingelesen und als JPEG mit Qualität 85 gespeichert.
-- Hinzufügen und Entfernen von Anhängen wirkt erst beim Speichern der Session; vorher Importiertes bleibt bis dahin verschlüsselt liegen und wird beim Verlassen ohne Speichern oder spätestens beim nächsten Start gelöscht.
-- Das Foto der Kamera-App liegt nur bis zum Einlesen im Cache der App und wird gleich danach gelöscht, Reste beim nächsten Start.
+- Ein gespeicherter Anhang wird erst beim Speichern der Session gelöscht; ein noch nicht gespeicherter, wieder entfernter sofort. Importiertes bleibt bis zum Speichern verschlüsselt liegen und wird beim Verlassen ohne Speichern gelöscht; was ein Absturz hinterlässt, räumt ein Start auf, sobald es älter als ein Tag ist, damit ein Editor, den Android wiederherstellt, seine Importe behält.
+- Ein Anhang, der sich nicht lesen lässt, bleibt samt seiner Zeile aus dem Backup heraus, statt jedes Backup zu verhindern.
+- Ein Backup, das vor einem anderen geöffnet wurde, wird beim Einspielen abgelehnt (neu öffnen). Bricht ein Einspielen ab, holt der nächste Start die beiseitegelegten Anhänge an ihren Platz.
+- Das Foto der Kamera-App liegt als einzige Ausnahme von §9 unverschlüsselt im Cache der App, nur bis zum Einlesen, und wird gleich danach gelöscht; Reste löscht ein Start, sobald sie älter als eine Stunde sind (in SPEC.md §15 festgehalten).
+- PDFs zeigen als Vorschaubild ihre erste Seite; gespiegelte Fotos (Frontkamera) werden zurückgespiegelt.
 - Der Geräte-Test bedient die Kamera-App nicht selbst; er schreibt wie sie in die geliehene Datei.

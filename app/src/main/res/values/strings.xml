@@ -1269,6 +1269,7 @@
     <string name="lesson_import_not_text">Diese Datei ist kein lesbarer Text (UTF-8).</string>
     <string name="lesson_import_too_many">Eine Session hat höchstens 10 Anhänge.</string>
     <string name="lesson_import_too_large">Das PDF ist größer als 10 MB.</string>
+    <string name="lesson_import_photo_too_large">Das Foto ist größer als 40 MB.</string>
     <string name="lesson_import_not_photo">Dieses Foto lässt sich nicht lesen.</string>
     <string name="lesson_import_not_pdf">Diese Datei lässt sich nicht als PDF öffnen.</string>
     <string name="lesson_import_busy">Wird importiert …</string>

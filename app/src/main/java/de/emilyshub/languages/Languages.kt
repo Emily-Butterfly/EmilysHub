@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
@@ -351,7 +352,8 @@ class Languages(
             val old = byFile[ref.file]
             when {
                 old != null -> kept += old.copy(position = kept.size + added.size)
-                files.isStaged(ref.file) && files.attachments.has(ref.file) -> added += LessonAttachment(
+                // Imported for it, though perhaps before Android ended the app and brought the editor back.
+                ref.file !in dao.attachmentFiles() && files.attachments.has(ref.file) -> added += LessonAttachment(
                     lessonId = lessonId, kind = ref.kind, file = ref.file, bytes = ref.bytes, name = ref.name,
                     position = kept.size + added.size,
                 )
@@ -516,8 +518,13 @@ class Languages(
         }
     }
 
-    /** Deletes the files of attachments that no lesson has and none is importing: what a crash or an editor lost left. */
-    suspend fun clearUpAttachments() = write { files.lock.withLock { files.clearUp(dao.attachmentFiles().toSet()) } }
+    /**
+     * Deletes the files of attachments that no lesson has, none is importing, and that are older than [olderThan]: what a
+     * crash or an editor lost left. Puts back those a restore that broke off left aside.
+     */
+    suspend fun clearUpAttachments(olderThan: Duration = Duration.ofDays(1)) = write {
+        files.lock.withLock { files.clearUp(dao.attachmentFiles().toSet(), olderThan.toMillis()) }
+    }
 
     /** The languages some teacher teaches alone, as their only one. */
     private fun onlyLanguages(teaching: List<TeacherLanguage>): Set<Long> =

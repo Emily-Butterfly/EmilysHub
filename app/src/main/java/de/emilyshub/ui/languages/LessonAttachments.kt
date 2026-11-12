@@ -1,6 +1,7 @@
 package de.emilyshub.ui.languages
 
 import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -43,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.createBitmap
 import de.emilyshub.R
 import de.emilyshub.languages.AttachmentImport
 import de.emilyshub.languages.AttachmentKind
@@ -50,6 +52,7 @@ import de.emilyshub.languages.AttachmentRef
 import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.PdfInMemory
 import de.emilyshub.languages.Photos
 import de.emilyshub.languages.TextImport
 import de.emilyshub.ui.fields.Problem
@@ -63,6 +66,7 @@ private enum class ImportNote(val text: Int, val problem: Boolean) {
     NotText(R.string.lesson_import_not_text, true),
     TooMany(R.string.lesson_import_too_many, true),
     TooLarge(R.string.lesson_import_too_large, true),
+    PhotoTooLarge(R.string.lesson_import_photo_too_large, true),
     NotPhoto(R.string.lesson_import_not_photo, true),
     NotPdf(R.string.lesson_import_not_pdf, true),
 }
@@ -88,14 +92,14 @@ internal fun LessonAttachments(
     var removing by rememberSaveable { mutableStateOf<AttachmentRef?>(null) }
     val current by rememberUpdatedState(draft)
 
-    fun attached(result: AttachmentImport, notReadable: ImportNote) {
+    fun attached(result: AttachmentImport, notReadable: ImportNote, tooLarge: ImportNote) {
         note = when (result) {
             is AttachmentImport.Added -> {
                 onChange { it.copy(attachments = it.attachments + result.attachment) }
                 null
             }
             AttachmentImport.TooMany -> ImportNote.TooMany
-            AttachmentImport.TooLarge -> ImportNote.TooLarge
+            AttachmentImport.TooLarge -> tooLarge
             AttachmentImport.Unreadable -> notReadable
         }
     }
@@ -117,7 +121,9 @@ internal fun LessonAttachments(
     val photo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         note = ImportNote.Busy
-        scope.launchNow { attached(files.importPhoto(uri.toString(), current.attachments.size), ImportNote.NotPhoto) }
+        scope.launchNow {
+            attached(files.importPhoto(uri.toString(), current.attachments.size), ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
+        }
     }
     var shot by rememberSaveable { mutableStateOf<String?>(null) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
@@ -130,7 +136,7 @@ internal fun LessonAttachments(
         note = ImportNote.Busy
         scope.launchNow {
             try {
-                attached(files.importPhoto(address, current.attachments.size), ImportNote.NotPhoto)
+                attached(files.importPhoto(address, current.attachments.size), ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
             } finally {
                 // The photo lay there in plain text only until read.
                 CameraShot.clear(context)
@@ -140,7 +146,7 @@ internal fun LessonAttachments(
     val pdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         note = ImportNote.Busy
-        scope.launchNow { attached(files.importPdf(uri.toString(), current.attachments.size), ImportNote.NotPdf) }
+        scope.launchNow { attached(files.importPdf(uri.toString(), current.attachments.size), ImportNote.NotPdf, ImportNote.TooLarge) }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -187,6 +193,8 @@ internal fun LessonAttachments(
                     onClick = {
                         removing = null
                         onChange { it.copy(attachments = it.attachments - attachment) }
+                        // One imported and not saved yet goes at once; one saved goes when the lesson is saved.
+                        scope.launchNow { files.drop(attachment) }
                     },
                 ) { Text(stringResource(R.string.attachment_remove_confirm)) }
             },
@@ -203,7 +211,11 @@ private fun AttachmentTile(files: LessonFiles, attachment: AttachmentRef, onOpen
         attachment.name,
     )
     val preview by produceState<Bitmap?>(null, attachment.file) {
-        if (attachment.kind == AttachmentKind.Photo) value = files.content(attachment)?.let { Photos.preview(it, PREVIEW_EDGE) }
+        val content = files.content(attachment) ?: return@produceState
+        value = when (attachment.kind) {
+            AttachmentKind.Photo -> Photos.preview(content, PREVIEW_EDGE)
+            AttachmentKind.Pdf -> firstPage(content)
+        }
     }
     Box(Modifier.size(TILE.dp)) {
         Surface(
@@ -234,6 +246,19 @@ private fun AttachmentTile(files: LessonFiles, attachment: AttachmentRef, onOpen
         }
     }
 }
+
+/** The first page of [pdf], drawn [PREVIEW_EDGE] pixels wide; none if Android cannot draw it. */
+private fun firstPage(pdf: ByteArray): Bitmap? = runCatching {
+    PdfInMemory.open(pdf).use { renderer ->
+        renderer.openPage(0).use { page ->
+            val height = (PREVIEW_EDGE.toFloat() * page.height / page.width).toInt().coerceAtLeast(1)
+            createBitmap(PREVIEW_EDGE, height).also { bitmap ->
+                bitmap.eraseColor(android.graphics.Color.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            }
+        }
+    }
+}.getOrNull()
 
 private const val TILE = 96
 private const val PREVIEW_EDGE = 256

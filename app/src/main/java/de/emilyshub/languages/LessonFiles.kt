@@ -84,11 +84,14 @@ class LessonFiles(
 
     override fun putAside(file: String, bytes: ByteArray) = aside.write(file, bytes)
 
+    override fun hasAside(files: Set<String>): Boolean = files.all(aside::has)
+
     override fun takeAside(files: Set<String>) {
         check(lock.isLocked) { "Only while steady" }
         synchronized(staged) {
-            (store.names() - files - staged).forEach(store::delete)
+            // Those of the backup in first, then the app's own out: so that the tables never lack a file for long.
             files.forEach { store.moveFrom(aside, it) }
+            (store.names() - files - staged).forEach(store::delete)
         }
         clearAside()
     }
@@ -155,8 +158,26 @@ class LessonFiles(
     /** The store the attachments lie in. */
     internal val attachments: AttachmentStore get() = store
 
-    /** Deletes every file in the store but those of [saved] and those staged: what a crash or a lost editor left. */
-    internal fun clearUp(saved: Set<String>) = synchronized(staged) { store.keepOnly(saved + staged) }
+    /** Lets go of [attachment] if it was imported and is not saved yet: taken off again in the editor. */
+    suspend fun drop(attachment: AttachmentRef) = withContext(io + NonCancellable) {
+        synchronized(staged) {
+            if (attachment.file in staged) {
+                store.delete(attachment.file)
+                staged -= attachment.file
+            }
+        }
+    }
+
+    /**
+     * Clears up what a crash or a lost editor left: the files of [saved] attachments still laid aside by a restore that
+     * broke off are put in place; every other file but those staged, and older than [olderThanMillis], is deleted. Those
+     * younger may belong to an editor the app is bringing back after Android ended it.
+     */
+    internal fun clearUp(saved: Set<String>, olderThanMillis: Long) = synchronized(staged) {
+        saved.filter { !store.has(it) && aside.has(it) }.forEach { store.moveFrom(aside, it) }
+        val now = System.currentTimeMillis()
+        (store.names() - saved - staged).filter { now - store.modified(it) >= olderThanMillis }.forEach(store::delete)
+    }
 
     private fun keep(kind: AttachmentKind, bytes: ByteArray, name: String): AttachmentImport {
         // Staged as it is written, so that clearing up meanwhile spares it.

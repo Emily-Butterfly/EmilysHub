@@ -24,6 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.ByteBuffer
 import java.time.LocalDate
 
@@ -125,6 +126,49 @@ class AttachmentBackupsTest {
 
         assertEquals(listOf(first, second), runBlocking { app.languages.editing(lesson)?.original?.attachments })
         assertArrayEquals(pdfBytes("Blatt", 40), content(first))
+    }
+
+    @Test
+    fun `an attachment that cannot be read is left out with its row, and the backup is made all the same`() {
+        val (lesson, first, second) = lessonWithTwo()
+        File(File(app.filesDir, "attachments"), first.file).delete()
+
+        val file = exported()
+        restore(file)
+
+        assertEquals(listOf(second), runBlocking { app.languages.editing(lesson)?.original?.attachments })
+    }
+
+    @Test
+    fun `a backup opened before another is refused on restoring, and nothing changes`() {
+        val (lesson, first, second) = lessonWithTwo()
+        val file = exported()
+        val earlier = open(file)
+        runBlocking { app.languages.delete(lesson) }
+        open(exported())
+
+        try {
+            runBlocking { backups.restore(earlier) }
+            fail("restored")
+        } catch (e: BackupException) {
+            assertEquals(BackupProblem.Damaged, e.problem)
+        }
+        assertEquals(emptyList<Long>(), lessonIds())
+        restore(file)
+        assertEquals(listOf(first, second), runBlocking { app.languages.editing(lesson)?.original?.attachments })
+    }
+
+    @Test
+    fun `files a restore broke off left aside are put in place on the next start`() {
+        val (lesson, first) = lessonWithTwo()
+        val file = exported()
+        open(file)
+        File(File(app.filesDir, "attachments"), first.file).delete()
+
+        runBlocking { app.languages.clearUpAttachments() }
+
+        assertArrayEquals(pdfBytes("Blatt", 40), content(first))
+        assertEquals(2, runBlocking { app.languages.editing(lesson)?.original?.attachments?.size })
     }
 
     /** A lesson with two PDFs, "Blatt" of 40 bytes and "Tafel" of 50. */

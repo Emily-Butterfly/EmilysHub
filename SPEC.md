@@ -437,7 +437,7 @@ Nur gehaltene Sessions; geplant wird mit To-dos und Routinen.
 ### Import & Anhänge
 
 - **Textdatei**: Ihr Text wird an die Notiz der Session angehängt und ist danach wie getippter Text. Was die Notiz über 100 000 Zeichen brächte, wird abgelehnt.
-- **Foto und PDF** werden Anhänge: über den Dateiwähler des Handys gewählt, ein Foto auch mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung (§11). Fotos werden auf höchstens 2000 px an der langen Kante verkleinert; ein PDF darf höchstens 10 MB haben.
+- **Foto und PDF** werden Anhänge: über den Dateiwähler des Handys gewählt, ein Foto auch mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung (§11). Das so aufgenommene Foto liegt als einzige Ausnahme von §9 unverschlüsselt im Speicher der App, und nur bis die App es eingelesen hat; gleich danach wird es gelöscht. Fotos werden auf höchstens 2000 px an der langen Kante verkleinert; ein PDF darf höchstens 10 MB haben.
 - Anhänge liegen verschlüsselt im Speicher der App (§9) und werden in der App angezeigt: Fotos mit Zoom, PDFs seitenweise. Einzeln löschbar; „Exportieren“ speichert eine Kopie über den Dateiwähler. Kein Teilen an andere Apps, keine Texterkennung.
 - Anhänge stehen im Backup (§10).
 

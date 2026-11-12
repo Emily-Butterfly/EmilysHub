@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -90,6 +91,45 @@ class AttachmentsTest {
     }
 
     @Test
+    fun `a photo a front camera saved mirrored is mirrored back`() = runBlocking {
+        val out = ByteArrayOutputStream()
+        Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+            for (x in 200 until 400) for (y in 0 until 200) setPixel(x, y, Color.BLUE)
+        }.compress(Bitmap.CompressFormat.JPEG, 95, out)
+        val file = File.createTempFile("mirrored", ".jpg").apply { writeBytes(out.toByteArray()) }
+        ExifInterface(file.path).apply {
+            setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_FLIP_HORIZONTAL.toString())
+            saveAttributes()
+        }
+
+        val added = files.importPhoto(documents.put("selfie.jpg", file.readBytes().also { file.delete() }), 0) as AttachmentImport.Added
+
+        val kept = checkNotNull(store.read(added.attachment.file))
+        val bitmap = BitmapFactory.decodeByteArray(kept, 0, kept.size)
+        assertTrue("blue now on the left", Color.blue(bitmap.getPixel(20, 100)) > Color.red(bitmap.getPixel(20, 100)))
+        assertTrue("red now on the right", Color.red(bitmap.getPixel(380, 100)) > Color.blue(bitmap.getPixel(380, 100)))
+    }
+
+    @Test
+    fun `what an editor imported is taken in though Android ended the app meanwhile, and one taken off goes at once`() = runBlocking {
+        val (language, teacher) = languageAndTeacher()
+        val imported = import(files.importPdf(documents.put("vorher.pdf", pdf(50)), 0))
+        // The app comes back with the editor as it was, but nothing staged in memory.
+        val again = LessonFiles(store, documents, Dispatchers.Unconfined)
+        val languagesAgain = Languages({ database }, clock, again, Dispatchers.Unconfined)
+
+        val id = (languagesAgain.save(LessonEditing.New, draft(language, teacher).copy(attachments = listOf(imported))) as Saving.Saved).id
+        assertEquals(listOf(imported), languagesAgain.editing(id)?.original?.attachments)
+
+        val dropped = import(again.importPdf(documents.put("weg.pdf", pdf(50)), 0))
+        again.drop(dropped)
+        again.drop(imported)
+        assertFalse(store.has(dropped.file))
+        assertTrue("a saved one stays until the lesson is saved without it", store.has(imported.file))
+    }
+
+    @Test
     fun `a PDF is taken up to 10 MB and only if it opens, and an eleventh attachment of any kind is not`() = runBlocking {
         val pdf = pdf(1000)
         val added = files.importPdf(documents.put("Arbeitsblatt.pdf", pdf), count = 9) as AttachmentImport.Added
@@ -154,6 +194,8 @@ class AttachmentsTest {
         val stray = store.write("übrig".toByteArray())
 
         languages.clearUpAttachments()
+        assertTrue("young, it may be an editor's Android brings back", store.has(stray))
+        languages.clearUpAttachments(olderThan = Duration.ZERO)
 
         assertTrue(store.has(saved.file))
         assertTrue(store.has(importing.file))

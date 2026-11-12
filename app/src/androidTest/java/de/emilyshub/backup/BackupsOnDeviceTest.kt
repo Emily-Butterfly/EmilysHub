@@ -167,6 +167,8 @@ class BackupsOnDeviceTest {
 
         override fun putAside(file: String, bytes: ByteArray) = Unit
 
+        override fun hasAside(files: Set<String>) = files.isEmpty()
+
         override fun takeAside(files: Set<String>) = Unit
     }
 

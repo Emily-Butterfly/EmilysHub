@@ -21,6 +21,9 @@ interface AttachmentVault {
     /** Lays [bytes] aside as the attachment [file] of a backup being opened, apart from the app's own; encrypted. */
     fun putAside(file: String, bytes: ByteArray)
 
+    /** Whether all of [files] are laid aside, as a restore needs them. */
+    fun hasAside(files: Set<String>): Boolean
+
     /**
      * Makes the attachments those laid aside under [files]: the app's own given up, but for those still being imported,
      * and those laid aside put in their place. Only within [steady].

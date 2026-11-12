@@ -23,20 +23,9 @@ object Photos {
 
     /** [bytes] as a photo is kept; none if they are no picture Android can read. */
     fun shrink(bytes: ByteArray): ByteArray? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        val longEdge = max(bounds.outWidth, bounds.outHeight)
-        // Read no larger than needed: halved while it stays at least as long as it is to be.
-        var sample = 1
-        while (longEdge / (sample * 2) >= MAX_EDGE) sample *= 2
-        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-            ?: return null
+        val decoded = decode(bytes, MAX_EDGE) ?: return null
         val scale = minOf(1f, MAX_EDGE.toFloat() / max(decoded.width, decoded.height))
-        val matrix = Matrix().apply {
-            postScale(scale, scale)
-            postRotate(rotationOf(bytes).toFloat())
-        }
+        val matrix = orientationOf(bytes).apply { postScale(scale, scale) }
         val turned = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
         val out = ByteArrayOutputStream()
         turned.compress(Bitmap.CompressFormat.JPEG, QUALITY, out)
@@ -46,7 +35,13 @@ object Photos {
     }
 
     /** [bytes] read as a picture no longer than about [edge] at its long edge, to be shown; none if they are none. */
-    fun preview(bytes: ByteArray, edge: Int): Bitmap? {
+    fun preview(bytes: ByteArray, edge: Int): Bitmap? = decode(bytes, edge)
+
+    /**
+     * [bytes] read as a picture no smaller than needed for [edge] at its long edge: halved while it stays at least as
+     * long as that; none if they are no picture.
+     */
+    private fun decode(bytes: ByteArray, edge: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -56,14 +51,21 @@ object Photos {
     }
 
     /**
-     * How far the camera says the picture in [bytes] is to be turned clockwise, in degrees; 0 if it says nothing.
+     * How the camera says the picture in [bytes] is to be turned, and mirrored as front cameras may, to be the right way
+     * round; as it is if it says nothing.
      */
-    private fun rotationOf(bytes: ByteArray): Int = runCatching {
-        when (ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270
-            else -> 0
+    private fun orientationOf(bytes: ByteArray): Matrix = Matrix().apply {
+        val orientation = runCatching {
+            ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> setScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> setRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> setScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> setRotate(90f).also { postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_90 -> setRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> setRotate(-90f).also { postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_270 -> setRotate(-90f)
         }
-    }.getOrDefault(0)
+    }
 }

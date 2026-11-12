@@ -92,17 +92,17 @@ class Backups(
         val now = clock.instant()
         val snapshot = doku.snapshot()
         attachments.steady {
-            val tables = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
-            val files = attachmentFilesOf(tables)
-            val carried = files.map { file ->
-                val bytes = checkNotNull(attachments.read(file)) { "An attachment cannot be read" }
-                BackupAttachment(file, bytes.size.toLong())
+            val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
+            // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
+            val carried = attachmentFilesOf(read).mapNotNull { file ->
+                attachments.read(file)?.let { BackupAttachment(file, it.size.toLong()) }
             }
+            // One that cannot be read is left out with its row, rather than keeping every backup from being made.
+            val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
             val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, carried).toJson()
-            if (content.size > BackupFile.MAX_BYTES) throw BackupException(BackupProblem.TooLarge)
             output().use { out ->
                 val writer = BackupFile.writer(out, key, content)
-                files.forEach { writer.attachment(checkNotNull(attachments.read(it)) { "An attachment cannot be read" }) }
+                carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
                 writer.finish()
             }
         }
@@ -118,6 +118,11 @@ class Backups(
      * cannot be restored.
      */
     suspend fun open(input: () -> InputStream, password: String): Backup = withContext(io) {
+        // So that no other backup is laid aside or restored meanwhile.
+        attachments.steady { openSteady(input, password) }
+    }
+
+    private suspend fun openSteady(input: () -> InputStream, password: String): Backup {
         attachments.clearAside()
         try {
             val (found, key) = input().use { stream ->
@@ -138,7 +143,7 @@ class Backups(
             }
             val content = if (found.schema < HubDatabase.VERSION) migration.upToDate(found) else found
             replaceAllWith(content, keep = false)
-            Backup(content, key, clock.zone)
+            return Backup(content, key, clock.zone)
         } catch (e: Exception) {
             attachments.clearAside()
             throw e
@@ -162,8 +167,11 @@ class Backups(
         val replace = suspend {
             withContext(io) {
                 attachments.steady {
+                    val files = backup.content.attachments.map { it.file }.toSet()
+                    // Another backup opened since has taken their place: this one is to be opened again.
+                    if (!attachments.hasAside(files)) damaged()
                     replaceAllWith(backup.content, keep = true)
-                    attachments.takeAside(backup.content.attachments.map { it.file }.toSet())
+                    attachments.takeAside(files)
                 }
             }
         }
@@ -251,6 +259,13 @@ class Backups(
         val sizes = carried.associate { it.file to it.bytes }
         if (rows.size != carried.size || rows.any { sizes[it.file] != it.bytes }) damaged()
         if (rows.groupBy { it.lessonId }.values.any { it.size > LessonFiles.MAX_ATTACHMENTS }) damaged()
+    }
+
+    /** [tables] with only the rows of the lessons' attachments whose files are [kept]. */
+    private fun withAttachmentsOnly(tables: Map<String, TableRows>, kept: Set<String>): Map<String, TableRows> {
+        val table = tables[ATTACHMENTS_TABLE] ?: return tables
+        val column = table.columns.indexOf("file")
+        return tables + (ATTACHMENTS_TABLE to TableRows(table.columns, table.rows.filter { it[column] in kept }))
     }
 
     /** The files of the lessons' attachments in [tables], in the order of their rows. */
