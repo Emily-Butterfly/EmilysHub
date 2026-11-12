@@ -49,3 +49,9 @@ Abgestimmt im Interview vom 11.11.2026.
 - Nur gehaltene Sessions; keine Stoppuhr; Preis in Euro nur für die Auswertung.
 - Lehrer haben ihre Sprachen hinterlegt.
 - Keine Tags, nichts in Heute, keine eigene Sperre.
+
+Bei der Umsetzung festgelegt (12.11.2026):
+
+- Löschen geht nur, woran nichts hängt: eine Sprache weder mit Sessions noch als einzige Sprache eines Lehrers, ein Lehrer nicht mit Sessions; sonst nur archivieren.
+- Die Sessions einer archivierten Sprache öffnen sich über „Sprachen verwalten“ → „Sessions ansehen“.
+- Grenzen der Eingabeprüfung: Name einer Sprache bis 50 Zeichen, eines Lehrers bis 80, Notiz eines Lehrers bis 1000; Dauer 1 bis 1440 Minuten.

@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+/** The languages, teachers, who teaches what, and the lessons (SPEC.md §15), as [Languages] reads and writes them. */
 @Dao
 interface LanguageDao {
     @Query("SELECT * FROM languages")
@@ -44,6 +45,9 @@ interface LanguageDao {
 
     @Query("SELECT * FROM teacher_languages")
     fun observeTeaching(): Flow<List<TeacherLanguage>>
+
+    @Query("SELECT * FROM teacher_languages")
+    suspend fun teaching(): List<TeacherLanguage>
 
     @Query("SELECT language_id FROM teacher_languages WHERE teacher_id = :teacherId")
     suspend fun languagesOf(teacherId: Long): List<Long>

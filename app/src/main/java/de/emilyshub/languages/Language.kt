@@ -21,6 +21,7 @@ data class Language(
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
 ) {
     companion object {
+        /** The longest a language's name may be, in characters. */
         const val NAME_MAX = 50
     }
 }
@@ -37,7 +38,10 @@ data class Teacher(
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
 ) {
     companion object {
+        /** The longest a teacher's name may be, in characters. */
         const val NAME_MAX = 80
+
+        /** The longest a teacher's note may be, in characters. */
         const val NOTE_MAX = 1000
     }
 }
@@ -145,6 +149,7 @@ data class LessonDraft(
         /** The lengths offered at a tap (SPEC.md §15). */
         val QUICK_MINUTES = listOf(30, 45, 60, 90)
 
+        /** The longest a lesson's note may be, in characters (SPEC.md §15). */
         const val NOTE_MAX = 100_000
 
         /** [lesson] as its editor opens it. */
@@ -165,7 +170,7 @@ data class LessonEditing(val id: Long?, val original: LessonDraft?) : Serializab
     }
 }
 
-/** What keeps a [TeacherDraft] from being saved. */
+/** What keeps a [TeacherDraft] from being saved (SPEC.md §15), each shown at its field in the editor. */
 enum class TeacherProblem {
     NameMissing,
     NameTooLong,
@@ -175,15 +180,24 @@ enum class TeacherProblem {
 
 /** A teacher as typed into their editor: [name], [note] and the languages they teach. Serializable, so the editor keeps it. */
 data class TeacherDraft(val name: String = "", val note: String = "", val languageIds: Set<Long> = emptySet()) : Serializable {
+    /** Their name on a single line, as it is saved. */
     val cleanedName: String get() = InputText.singleLine(name)
+
+    /** Their note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
 
+    /** What keeps their name from being saved; none if it can be. */
+    val nameProblem: TeacherProblem?
+        get() = when {
+            !InputText.isVisible(cleanedName) -> TeacherProblem.NameMissing
+            InputText.lengthOf(cleanedName) > Teacher.NAME_MAX -> TeacherProblem.NameTooLong
+            else -> null
+        }
+
+    /** What keeps them from being saved; none if they can be. */
     val problems: Set<TeacherProblem>
         get() = buildSet {
-            when {
-                !InputText.isVisible(cleanedName) -> add(TeacherProblem.NameMissing)
-                InputText.lengthOf(cleanedName) > Teacher.NAME_MAX -> add(TeacherProblem.NameTooLong)
-            }
+            nameProblem?.let(::add)
             if (InputText.lengthOf(cleanedNote) > Teacher.NOTE_MAX) add(TeacherProblem.NoteTooLong)
             if (languageIds.isEmpty()) add(TeacherProblem.LanguagesMissing)
         }

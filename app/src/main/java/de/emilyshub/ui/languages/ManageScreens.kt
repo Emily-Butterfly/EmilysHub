@@ -53,6 +53,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.Language
+import de.emilyshub.languages.LanguageItem
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherDraft
@@ -68,12 +69,13 @@ import de.emilyshub.ui.rememberClosing
 import java.io.Serializable
 
 /**
- * The languages (SPEC.md §15), from the menu of Sprachen: "+" adds one, tapping one renames it, its menu archives it or
- * takes it back, and deletes one without lessons, after asking; those archived after the others.
+ * The languages (SPEC.md §15), from the menu of Sprachen: "+" adds one, tapping one renames it, its menu opens its
+ * lessons ([onOpen]), also of one archived, archives it or takes it back, and deletes one nothing hangs on, after asking;
+ * those archived after the others.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LanguageListScreen(languages: Languages, onBack: () -> Unit) {
+fun LanguageListScreen(languages: Languages, onOpen: (Long) -> Unit, onBack: () -> Unit) {
     val all by remember(languages) { languages.languages() }.collectAsState(initial = null)
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -91,12 +93,13 @@ fun LanguageListScreen(languages: Languages, onBack: () -> Unit) {
                     ManagedRow(
                         name = language.name,
                         details = listOfNotNull(
-                            stringResource(R.string.archived).takeIf { language.archived },
-                            stringResource(R.string.language_has_lessons).takeIf { item.hasLessons },
+                            stringResource(R.string.languages_archived).takeIf { language.archived },
+                            stringResource(R.string.language_kept).takeIf { !item.deletable },
                         ).joinToString(" · ").ifEmpty { null },
                         archived = language.archived,
-                        deletable = !item.hasLessons,
+                        deletable = item.deletable,
                         onClick = { renaming = language.id },
+                        onOpen = { onOpen(language.id) },
                         onArchive = { archived -> scope.launchNow { languages.setLanguageArchived(language.id, archived) } },
                         onDelete = { deleting = language.id },
                     )
@@ -172,7 +175,7 @@ fun TeacherListScreen(languages: Languages, onOpen: (TeacherEditorTarget) -> Uni
                     ManagedRow(
                         name = teacher.name,
                         details = listOfNotNull(
-                            stringResource(R.string.archived).takeIf { teacher.archived },
+                            stringResource(R.string.languages_archived).takeIf { teacher.archived },
                             item.languages.joinToString(", ") { it.name }.ifEmpty { null },
                         ).joinToString(" · ").ifEmpty { null },
                         archived = teacher.archived,
@@ -242,13 +245,16 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
             closeWith.leaveThrough {
                 when (languages.saveTeacher(opened, saved)) {
                     is Saving.Saved -> onClose()
-                    // A language deleted meanwhile left none: it says so.
-                    is Saving.Refused -> showProblems = true
+                    // A language deleted or archived meanwhile left none: it is taken from the draft, which says so.
+                    is Saving.Refused -> {
+                        draft = draft.copy(languageIds = draft.languageIds intersect offeredIds(all, opened))
+                        showProblems = true
+                    }
                 }
             }
         }
     }
-    val offered = all.map { it.language }.filter { !it.archived || it.id in draft.languageIds }
+    val offered = all.map { it.language }.filter { !it.archived || it.id in opened.original?.languageIds.orEmpty() }
 
     Scaffold(
         topBar = {
@@ -320,6 +326,10 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
     }
 }
 
+/** The languages a teacher being [editing] may teach: those not archived, and those they taught already. */
+private fun offeredIds(all: List<LanguageItem>, editing: TeacherEditing): Set<Long> =
+    all.map { it.language }.filter { !it.archived || it.id in editing.original?.languageIds.orEmpty() }.map { it.id }.toSet()
+
 /** A screen of things to manage, by its [title], with "+" to add one ([create] its label). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -347,7 +357,10 @@ private fun ManageScaffold(
     ) { content(it) }
 }
 
-/** A language or teacher in its list: tapped, it opens; its menu archives it or takes it back, and deletes it if [deletable]. */
+/**
+ * A language or teacher in its list: tapped, it opens; its menu opens its lessons if it has [onOpen], archives it or takes
+ * it back, and deletes it if [deletable].
+ */
 @Composable
 private fun ManagedRow(
     name: String,
@@ -355,6 +368,7 @@ private fun ManagedRow(
     archived: Boolean,
     deletable: Boolean,
     onClick: () -> Unit,
+    onOpen: (() -> Unit)? = null,
     onArchive: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -365,11 +379,20 @@ private fun ManagedRow(
         trailingContent = {
             Box {
                 IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.entry_menu, name))
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.languages_entry_menu, name))
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    onOpen?.let { open ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.language_open)) },
+                            onClick = {
+                                expanded = false
+                                open()
+                            },
+                        )
+                    }
                     DropdownMenuItem(
-                        text = { Text(stringResource(if (archived) R.string.unarchive else R.string.archive)) },
+                        text = { Text(stringResource(if (archived) R.string.languages_unarchive else R.string.languages_archive)) },
                         onClick = {
                             expanded = false
                             onArchive(!archived)

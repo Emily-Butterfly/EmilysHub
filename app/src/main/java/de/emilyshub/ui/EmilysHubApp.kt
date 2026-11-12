@@ -288,7 +288,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                 onBack = back,
             )
             is Destination.LessonEditor -> LessonEditorScreen(hub.languages, top.target, onClose = back)
-            Destination.LanguageList -> LanguageListScreen(hub.languages, onBack = back)
+            Destination.LanguageList ->
+                LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
             Destination.TeacherList ->
                 TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
             is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)

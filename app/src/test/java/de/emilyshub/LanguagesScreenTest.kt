@@ -138,7 +138,13 @@ class LanguagesScreenTest {
             compose.onNodeWithContentDescription("Menü für Arabisch").performClick()
             compose.onNodeWithText("Löschen").assertDoesNotExist()
             compose.onNodeWithText("Archivieren").performClick()
-            compose.onNodeWithText("Archiviert · Hat Sessions: nur archivierbar.").assertIsDisplayed()
+            compose.onNodeWithText("Archiviert · Sessions oder Lehrer hängen daran: nur archivierbar.").assertIsDisplayed()
+            // Archived, its lessons still open from here.
+            compose.onNodeWithContentDescription("Menü für Arabisch").performClick()
+            compose.onNodeWithText("Sessions ansehen").performClick()
+            heading("Arabisch").assertIsDisplayed()
+            compose.onNodeWithText("20.10.2026 · 1 Std.").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
 
             compose.onNodeWithContentDescription("Zurück").performClick()
             compose.onNodeWithContentDescription("Menü der Sprachen").performClick()

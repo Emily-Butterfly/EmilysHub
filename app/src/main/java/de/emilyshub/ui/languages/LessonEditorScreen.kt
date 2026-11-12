@@ -189,8 +189,10 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
                 },
                 onChoose = { id ->
                     refused = emptySet()
-                    // A teacher who does not teach the new one does not fit any more.
-                    val keepsTeacher = choices.teachers.any { it.teacher.id == draft.teacherId && it.teaches(id) }
+                    // A teacher who does not teach the new one does not fit any more, unless it is the one saved with it.
+                    val teacherId = draft.teacherId
+                    val keepsTeacher = choices.teachers.any { it.teacher.id == teacherId && it.teaches(id) } ||
+                        (teacherId == savedDraft?.teacherId && id == savedDraft?.languageId)
                     draft = draft.copy(languageId = id, teacherId = draft.teacherId.takeIf { keepsTeacher })
                 },
                 onCreate = { dialog = EditorDialog.NewLanguage },
@@ -260,7 +262,7 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
             val language = checkNotNull(languageId)
             NameDialog(
                 title = R.string.lesson_teacher_new,
-                confirm = R.string.language_create_confirm,
+                confirm = R.string.teacher_create_confirm,
                 initial = "",
                 max = Teacher.NAME_MAX,
                 problemOf = { teacherNameProblem(it) },
@@ -465,7 +467,7 @@ internal fun languageNameProblem(name: String, taken: List<String>): String? =
 
 /** What keeps [name] from naming a teacher, in words; none if it can. */
 @Composable
-internal fun teacherNameProblem(name: String): String? = when (TeacherDraft(name, languageIds = setOf(0)).problems.firstOrNull()) {
+internal fun teacherNameProblem(name: String): String? = when (TeacherDraft(name).nameProblem) {
     TeacherProblem.NameMissing -> stringResource(R.string.teacher_name_missing)
     TeacherProblem.NameTooLong -> stringResource(R.string.text_too_long, Teacher.NAME_MAX)
     else -> null

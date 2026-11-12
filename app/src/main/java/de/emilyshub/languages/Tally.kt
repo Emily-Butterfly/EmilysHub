@@ -8,6 +8,7 @@ import java.time.YearMonth
  * cost ([costCents]); none if none had one.
  */
 data class Tally(val minutes: Long = 0, val count: Int = 0, val costCents: Long? = null) {
+    /** With [lesson] counted too. */
     operator fun plus(lesson: Lesson) = Tally(
         minutes = minutes + lesson.minutes,
         count = count + 1,

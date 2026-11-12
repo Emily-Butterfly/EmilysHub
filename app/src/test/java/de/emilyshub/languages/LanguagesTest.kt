@@ -148,6 +148,8 @@ class LanguagesTest {
 
         assertFalse(languages.deleteLanguage(arabic))
         assertFalse(languages.deleteTeacher(amal))
+        assertFalse("Bilal's only language", languages.deleteLanguage(italian))
+        assertEquals(listOf(false, false), languages.languages().first().map { it.deletable })
         assertTrue(languages.deleteTeacher(bilal))
         assertTrue(languages.deleteLanguage(italian))
 
@@ -173,6 +175,27 @@ class LanguagesTest {
             "a new one of it is refused",
             setOf(LessonProblem.TeacherNotOffered),
             (languages.save(LessonEditing.New, draft(arabic, amal)) as Saving.Refused).problems,
+        )
+    }
+
+    @Test
+    fun `an old lesson keeps its archived language when saved again, and a teacher gets an archived one only if they had it`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val amal = teacher("Amal", arabic)
+        val old = lesson(arabic, amal, "2026-11-01", 60)
+        languages.setLanguageArchived(arabic, archived = true)
+        languages.setLanguageArchived(italian, archived = true)
+
+        val editing = checkNotNull(languages.editing(old))
+        assertEquals(Saving.Saved(old), languages.save(editing, checkNotNull(editing.original).copy(note = "Wiederholung")))
+
+        val amalEditing = checkNotNull(languages.teacherEditing(amal))
+        languages.saveTeacher(amalEditing, TeacherDraft("Amal", languageIds = setOf(arabic, italian)))
+        assertEquals(listOf(listOf("Arabisch")), languages.teachers().first().map { items -> items.languages.map { it.name } })
+        assertEquals(
+            setOf(TeacherProblem.LanguagesMissing),
+            (languages.saveTeacher(TeacherEditing.New, TeacherDraft("Bilal", languageIds = setOf(italian))) as Saving.Refused).problems,
         )
     }
 

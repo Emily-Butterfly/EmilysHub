@@ -18,8 +18,11 @@ import java.time.Clock
 import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
-/** A language as its list shows it: and whether it has lessons, which keep it from being deleted. */
-data class LanguageItem(val language: Language, val hasLessons: Boolean)
+/**
+ * A language as its list shows it: and whether it can be deleted, which neither one with lessons can, nor one that is
+ * the only language of a teacher, who needs one at least.
+ */
+data class LanguageItem(val language: Language, val deletable: Boolean)
 
 /** A teacher as their list shows them: the [languages] they teach, and whether they have lessons. */
 data class TeacherItem(val teacher: Teacher, val languages: List<Language>, val hasLessons: Boolean) {
@@ -79,7 +82,8 @@ class Languages(
         val language = languages.find { it.id == languageId } ?: return@observe null
         val today = today()
         val byId = teachers.associateBy { it.id }
-        val own = lessons.filter { it.languageId == languageId }
+        // The tables are read one by one: a teacher just made may not be among them yet, for a moment.
+        val own = lessons.filter { it.languageId == languageId && it.teacherId in byId }
         LanguagePage(
             language = language,
             lessons = own.sortedWith(compareByDescending<Lesson> { it.date }.thenByDescending { it.id })
@@ -91,10 +95,10 @@ class Languages(
     }
 
     /** All languages, by name, those archived after the others. */
-    fun languages(): Flow<List<LanguageItem>> = observe { languages, _, _, lessons ->
-        val used = lessons.map { it.languageId }.toSet()
+    fun languages(): Flow<List<LanguageItem>> = observe { languages, _, teaching, lessons ->
+        val kept = lessons.map { it.languageId }.toSet() + onlyLanguages(teaching)
         languages.sortedWith(compareBy<Language> { it.archived }.thenBy(InputText.byName) { it.name })
-            .map { LanguageItem(it, it.id in used) }
+            .map { LanguageItem(it, deletable = it.id !in kept) }
     }
 
     /** All teachers, by name, those archived after the others. */
@@ -141,10 +145,13 @@ class Languages(
         database().withTransaction { dao.language(id)?.let { dao.updateLanguage(it.copy(archived = archived)) } }
     }
 
-    /** Deletes the language [id], and who teaches it no more; refused, with nothing deleted, while it has lessons. */
+    /**
+     * Deletes the language [id], and who teaches it no more; refused, with nothing deleted, while it has lessons or is the
+     * only language of a teacher.
+     */
     suspend fun deleteLanguage(id: Long): Boolean = write {
         database().withTransaction {
-            if (dao.languageHasLessons(id)) return@withTransaction false
+            if (dao.languageHasLessons(id) || id in onlyLanguages(dao.teaching())) return@withTransaction false
             dao.deleteLanguage(id)
             true
         }
@@ -158,12 +165,14 @@ class Languages(
 
     /**
      * Saves [draft] as [editing] has it: a new teacher, or the changes to the one opened; refused, with nothing saved, for
-     * its problems. Languages deleted meanwhile are left out. A language taken away leaves their lessons of it as they are.
+     * its problems. Languages deleted meanwhile are left out, as are those archived that they did not teach already. A
+     * language taken away leaves their lessons of it as they are.
      */
     suspend fun saveTeacher(editing: TeacherEditing, draft: TeacherDraft): Saving<TeacherProblem> = write {
         database().withTransaction {
-            val existing = dao.languages().map { it.id }.toSet()
-            val checked = draft.copy(languageIds = draft.languageIds intersect existing)
+            val had = editing.id?.let { dao.languagesOf(it) }.orEmpty().toSet()
+            val offered = dao.languages().filter { !it.archived || it.id in had }.map { it.id }.toSet()
+            val checked = draft.copy(languageIds = draft.languageIds intersect offered)
             if (checked.problems.isNotEmpty()) return@withTransaction Saving.Refused(checked.problems)
             val id = editing.id
             val saved = if (id == null) {
@@ -245,6 +254,10 @@ class Languages(
     /** Deletes the lesson [id]. The screen asks first. */
     suspend fun delete(id: Long) = write { dao.deleteLesson(id) }
 
+    /** The languages some teacher teaches alone, as their only one. */
+    private fun onlyLanguages(teaching: List<TeacherLanguage>): Set<Long> =
+        teaching.groupBy { it.teacherId }.values.mapNotNull { it.singleOrNull()?.languageId }.toSet()
+
     private suspend fun nameProblem(name: String, except: Long?): NameProblem? =
         InputText.nameProblem(name, Language.NAME_MAX, dao.languages().filter { it.id != except }.map { it.name })
 
@@ -255,7 +268,8 @@ class Languages(
         lessons: List<Lesson>,
     ): List<TeacherItem> {
         val byId = languages.associateBy { it.id }
-        val taught = teaching.groupBy({ it.teacherId }, { byId.getValue(it.languageId) })
+        // The tables are read one by one: a language just deleted may still be taught here, for a moment.
+        val taught = teaching.filter { it.languageId in byId }.groupBy({ it.teacherId }, { byId.getValue(it.languageId) })
         val used = lessons.map { it.teacherId }.toSet()
         return teachers.map { teacher ->
             TeacherItem(teacher, taught[teacher.id].orEmpty().sortedWith(compareBy(InputText.byName) { it.name }), teacher.id in used)
