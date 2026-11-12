@@ -178,7 +178,8 @@ class Backups(
             "ledger_opening_balances" to dao::openingBalances, "ledger_month_budgets" to dao::monthBudgets,
             "ledger_total_budget" to dao::standardTotalBudget, "ledger_month_total_budgets" to dao::monthTotalBudgets,
             "subscriptions" to dao::subscriptions, "languages" to dao::languages, "teachers" to dao::teachers,
-            "teacher_languages" to dao::teacherLanguages, "lessons" to dao::lessons,
+            "teacher_languages" to dao::teacherLanguages, "lessons" to dao::lessons, "exams" to dao::exams,
+            "topics" to dao::topics, "lesson_topics" to dao::lessonTopics,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {

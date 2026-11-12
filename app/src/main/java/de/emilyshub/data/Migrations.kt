@@ -687,3 +687,33 @@ val MIGRATION_44_45 = object : Migration(44, 45) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_lessons_teacher_id` ON `lessons` (`teacher_id`)")
     }
 }
+
+/**
+ * Version 46: the topics and exams of Sprachen (SPEC.md §15, #82): each of a language, a topic for an exam or none, and
+ * which lessons treated which topic. None is there yet.
+ */
+val MIGRATION_45_46 = object : Migration(45, 46) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `exams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `date` TEXT NOT NULL, `taken` INTEGER NOT NULL DEFAULT 0, `result` TEXT NOT NULL, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_exams_language_id` ON `exams` (`language_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `topics` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `exam_id` INTEGER, `done` INTEGER NOT NULL DEFAULT 0, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`exam_id`) REFERENCES `exams`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_topics_language_id` ON `topics` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_topics_exam_id` ON `topics` (`exam_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lesson_topics` (`lesson_id` INTEGER NOT NULL, `topic_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`lesson_id`, `topic_id`), " +
+                "FOREIGN KEY(`lesson_id`) REFERENCES `lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`topic_id`) REFERENCES `topics`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lesson_topics_topic_id` ON `lesson_topics` (`topic_id`)")
+    }
+}

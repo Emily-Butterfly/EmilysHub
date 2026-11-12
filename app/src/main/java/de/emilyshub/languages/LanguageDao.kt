@@ -7,7 +7,10 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
-/** The languages, teachers, who teaches what, and the lessons (SPEC.md §15), as [Languages] reads and writes them. */
+/**
+ * The languages, teachers, who teaches what, the lessons, and the topics and exams with what lessons treated which
+ * (SPEC.md §15), as [Languages] reads and writes them.
+ */
 @Dao
 interface LanguageDao {
     @Query("SELECT * FROM languages")
@@ -78,4 +81,55 @@ interface LanguageDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM lessons WHERE teacher_id = :teacherId)")
     suspend fun teacherHasLessons(teacherId: Long): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM topics WHERE language_id = :languageId UNION ALL SELECT 1 FROM exams WHERE language_id = :languageId)")
+    suspend fun languageHasStudies(languageId: Long): Boolean
+
+    @Query("SELECT * FROM topics")
+    fun observeTopics(): Flow<List<Topic>>
+
+    @Query("SELECT * FROM topics WHERE language_id = :languageId")
+    suspend fun topicsOf(languageId: Long): List<Topic>
+
+    @Query("SELECT * FROM topics WHERE id = :id")
+    suspend fun topic(id: Long): Topic?
+
+    @Insert
+    suspend fun insertTopic(topic: Topic): Long
+
+    @Update
+    suspend fun updateTopic(topic: Topic)
+
+    @Update
+    suspend fun updateTopics(topics: List<Topic>)
+
+    @Query("DELETE FROM topics WHERE id = :id")
+    suspend fun deleteTopic(id: Long)
+
+    @Query("SELECT * FROM exams")
+    fun observeExams(): Flow<List<Exam>>
+
+    @Query("SELECT * FROM exams WHERE id = :id")
+    suspend fun exam(id: Long): Exam?
+
+    @Insert
+    suspend fun insertExam(exam: Exam): Long
+
+    @Update
+    suspend fun updateExam(exam: Exam)
+
+    @Query("DELETE FROM exams WHERE id = :id")
+    suspend fun deleteExam(id: Long)
+
+    @Query("SELECT * FROM lesson_topics")
+    fun observeLessonTopics(): Flow<List<LessonTopic>>
+
+    @Query("SELECT topic_id FROM lesson_topics WHERE lesson_id = :lessonId")
+    suspend fun topicsOfLesson(lessonId: Long): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLessonTopics(lessonTopics: List<LessonTopic>)
+
+    @Query("DELETE FROM lesson_topics WHERE lesson_id = :lessonId")
+    suspend fun deleteTopicsOfLesson(lessonId: Long)
 }

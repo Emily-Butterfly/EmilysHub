@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.languages.ExamStatus
 import de.emilyshub.languages.LanguageCard
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.Periods
@@ -68,9 +69,9 @@ fun LanguagesHomeScreen(
                 contentPadding = PaddingValues(16.dp).plusFabSpace(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "all") { PeriodsCard(stringResource(R.string.languages_all), shown.all, onClick = null) }
+                item(key = "all") { PeriodsCard(stringResource(R.string.languages_all), shown.all, nextExam = null, onClick = null) }
                 items(shown.cards, key = { it.language.id }) { card: LanguageCard ->
-                    PeriodsCard(card.language.name, card.periods, onClick = { onOpenLanguage(card.language.id) })
+                    PeriodsCard(card.language.name, card.periods, card.nextExam, onClick = { onOpenLanguage(card.language.id) })
                 }
             }
         }
@@ -85,13 +86,23 @@ fun LanguagesHomeScreen(
     }
 }
 
-/** A card of [title] with what [periods] come to; one that opens something with [onClick], else only to read. */
+/**
+ * A card of [title] with what [periods] come to and the [nextExam] if any; one that opens something with [onClick], else
+ * only to read.
+ */
 @Composable
-private fun PeriodsCard(title: String, periods: Periods, onClick: (() -> Unit)?) {
+private fun PeriodsCard(title: String, periods: Periods, nextExam: ExamStatus?, onClick: (() -> Unit)?) {
     val content: @Composable () -> Unit = {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             PeriodLines(periods)
+            nextExam?.let {
+                Text(
+                    "${stringResource(R.string.exam_next, it.exam.name)} · ${examStatusText(it)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
     if (onClick == null) {

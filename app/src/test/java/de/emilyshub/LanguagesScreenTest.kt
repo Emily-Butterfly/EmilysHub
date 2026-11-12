@@ -27,6 +27,7 @@ import de.emilyshub.languages.TeacherEditing
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -138,7 +139,7 @@ class LanguagesScreenTest {
             compose.onNodeWithContentDescription("Menü für Arabisch").performClick()
             compose.onNodeWithText("Löschen").assertDoesNotExist()
             compose.onNodeWithText("Archivieren").performClick()
-            compose.onNodeWithText("Archiviert · Sessions oder Lehrer hängen daran: nur archivierbar.").assertIsDisplayed()
+            compose.onNodeWithText("Archiviert · Sessions, Themen oder Lehrer hängen daran: nur archivierbar.").assertIsDisplayed()
             // Archived, its lessons still open from here.
             compose.onNodeWithContentDescription("Menü für Arabisch").performClick()
             compose.onNodeWithText("Sessions ansehen").performClick()
@@ -157,6 +158,65 @@ class LanguagesScreenTest {
         }
         assertEquals(listOf("Italienisch"), runBlocking { app.languages.overview().first() }.cards.map { it.language.name })
     }
+
+    @Test
+    fun `a topic typed in a lesson lands on the language's list, where it is done by hand`() {
+        runBlocking {
+            val arabic = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            teacher("Amal", arabic)
+        }
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Session eintragen").performClick()
+            compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasSetTextAction() and hasText("Thema")).performScrollTo().performTextInput("Verben im Präsens")
+            compose.onNode(hasText("Hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasText("Verben im Präsens") and isSelectable()).assertIsDisplayed()
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Arabisch").assertIsDisplayed()
+            compose.onNode(hasText("Themen") and isSelectable()).performClick()
+            compose.onNodeWithText("Verben im Präsens").assertIsDisplayed()
+            compose.onNodeWithText("1 Session · zuletzt", substring = true).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Verben im Präsens abgehakt").performClick()
+        }
+        val topic = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).topics.withoutExam.topics.single() }
+        assertEquals("Verben im Präsens", topic.topic.name)
+        assertTrue(topic.topic.done)
+    }
+
+    @Test
+    fun `an exam is made with its date, shows on the card, and is taken with its result`() {
+        runBlocking { app.languages.createLanguage("Arabisch") }
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNode(hasText("Themen") and isSelectable()).performClick()
+            compose.onNode(hasText("Neue Prüfung") and hasClickAction()).performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("A2")
+            compose.onNode(hasText("Datum wählen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithText("OK").performClick()
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("Nächste Prüfung: A2").assertIsDisplayed()
+            compose.onAllNodesWithText("heute · 0 von 0 offen").assertCountEquals(2)
+
+            compose.onNodeWithContentDescription("Menü für A2").performClick()
+            compose.onNodeWithText("Als abgelegt markieren").performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("bestanden")
+            compose.onNode(hasText("Als abgelegt markieren") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("Abgelegt · bestanden").assertIsDisplayed()
+            compose.onNodeWithText("Nächste Prüfung: A2").assertDoesNotExist()
+        }
+        val exam = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).topics.taken.single().exam?.exam }
+        assertEquals("A2", exam?.name)
+        assertEquals("bestanden", exam?.result)
+    }
+
+    private fun arabicId() = runBlocking { app.languages.languages().first() }.single { it.language.name == "Arabisch" }.language.id
 
     private fun openLanguages() {
         tab("Sonstiges").performClick()

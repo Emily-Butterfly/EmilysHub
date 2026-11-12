@@ -99,11 +99,22 @@ enum class LessonProblem {
 
     /** Its teacher is archived, gone or does not teach its language, and was not the one saved: only when saving. */
     TeacherNotOffered,
+
+    /** A topic typed is missing or too long as a name. */
+    TopicInvalid,
+
+    /**
+     * A topic chosen or typed is not of its language, or is gone, or is of an exam taken, and it was not saved with it:
+     * only when saving.
+     */
+    TopicNotOffered,
 }
 
 /**
  * A lesson as typed into its editor (SPEC.md §15): its [date], its [minutes] as typed, its language and teacher, a
- * [price] in euros with a comma, none if left empty, and its [note]. Serializable, so that the editor keeps it.
+ * [price] in euros with a comma, none if left empty, its [note], and the topics it treated: those of its language
+ * chosen ([topicIds]) and those typed anew ([newTopics]), which saving puts on the language's list. Serializable, so that
+ * the editor keeps it.
  */
 data class LessonDraft(
     val date: LocalDate?,
@@ -112,7 +123,16 @@ data class LessonDraft(
     val teacherId: Long? = null,
     val price: String = "",
     val note: String = "",
+    val topicIds: Set<Long> = emptySet(),
+    val newTopics: List<String> = emptyList(),
 ) : Serializable {
+
+    /** Whether it has topics, chosen or typed. */
+    val hasTopics: Boolean get() = topicIds.isNotEmpty() || newTopics.isNotEmpty()
+
+    /** Of the language [id]: another loses its topics, which are those of the language it had. */
+    fun withLanguage(id: Long): LessonDraft =
+        if (id == languageId) this else copy(languageId = id, topicIds = emptySet(), newTopics = emptyList())
 
     /** Its note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
@@ -131,6 +151,7 @@ data class LessonDraft(
             if (teacherId == null) add(LessonProblem.TeacherMissing)
             if (price.isNotBlank() && Money.parse(price) == null) add(LessonProblem.PriceInvalid)
             if (InputText.lengthOf(cleanedNote) > NOTE_MAX) add(LessonProblem.NoteTooLong)
+            if (newTopics.any { InputText.nameProblem(it, Topic.NAME_MAX, emptyList()) != null }) add(LessonProblem.TopicInvalid)
         }
 
     /** The lesson it saves as, under [id]; only without [problems]. */
@@ -152,10 +173,10 @@ data class LessonDraft(
         /** The longest a lesson's note may be, in characters (SPEC.md §15). */
         const val NOTE_MAX = 100_000
 
-        /** [lesson] as its editor opens it. */
-        fun of(lesson: Lesson) = LessonDraft(
+        /** [lesson] as its editor opens it, with the topics [topicIds] it treated. */
+        fun of(lesson: Lesson, topicIds: Set<Long> = emptySet()) = LessonDraft(
             date = lesson.date, minutes = lesson.minutes.toString(), languageId = lesson.languageId, teacherId = lesson.teacherId,
-            price = lesson.priceCents?.let(Money::typed).orEmpty(), note = lesson.note,
+            price = lesson.priceCents?.let(Money::typed).orEmpty(), note = lesson.note, topicIds = topicIds,
         )
     }
 }

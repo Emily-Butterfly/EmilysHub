@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -59,6 +61,7 @@ import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.languages.TeacherProblem
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Money
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.ChoiceChip
@@ -82,7 +85,8 @@ sealed interface LessonEditorTarget : Serializable {
 /**
  * A lesson held (SPEC.md §15), new or saved: its date, today for a new one; how long, at a tap or typed; its language and
  * its teacher, of those who teach it, either made on the spot ("Neue Sprache", "Neuer Lehrer", the latter teaching it
- * then) or another teacher given it ("Anderen Lehrer wählen"); a price for the evaluation, and a note in Markdown, with
+ * then) or another teacher given it ("Anderen Lehrer wählen"); the topics treated, chosen from its language's or typed
+ * anew, gone with a language changed, which it says; a price for the evaluation, and a note in Markdown, with
  * its preview. Loaded and saved through its editing session; refused, it says why at the field. Deleting asks first.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +101,8 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
     var previewing by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
     var dialog by rememberSaveable { mutableStateOf<EditorDialog?>(null) }
+    // Whether the topics went with a language changed, to say so.
+    var topicsLost by rememberSaveable { mutableStateOf(false) }
     val choices by remember(languages) { languages.choices() }.collectAsState(initial = LessonChoices(emptyList(), emptyList()))
     val allLanguages by remember(languages) { languages.languages() }.collectAsState(initial = emptyList())
     val allTeachers by remember(languages) { languages.teachers() }.collectAsState(initial = emptyList())
@@ -193,7 +199,8 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
                     val teacherId = draft.teacherId
                     val keepsTeacher = choices.teachers.any { it.teacher.id == teacherId && it.teaches(id) } ||
                         (teacherId == savedDraft?.teacherId && id == savedDraft?.languageId)
-                    draft = draft.copy(languageId = id, teacherId = draft.teacherId.takeIf { keepsTeacher })
+                    if (id != draft.languageId && draft.hasTopics) topicsLost = true
+                    draft = draft.withLanguage(id).copy(teacherId = draft.teacherId.takeIf { keepsTeacher })
                 },
                 onCreate = { dialog = EditorDialog.NewLanguage },
             )
@@ -213,6 +220,24 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
                 onCreate = { dialog = EditorDialog.NewTeacher },
                 onChooseOther = { dialog = EditorDialog.OtherTeacher },
             )
+            if (languageId != null) {
+                val kept = savedDraft?.topicIds.orEmpty().takeIf { savedDraft?.languageId == languageId }.orEmpty()
+                TopicsField(
+                    offered = choices.topicsOf(languageId, kept),
+                    all = choices.topics.filter { it.languageId == languageId },
+                    draft = draft,
+                    problem = when {
+                        LessonProblem.TopicNotOffered in problems -> stringResource(R.string.lesson_topic_not_offered)
+                        topicsLost -> stringResource(R.string.lesson_topics_lost)
+                        else -> null
+                    },
+                    onChange = {
+                        refused = refused - LessonProblem.TopicNotOffered
+                        topicsLost = false
+                        draft = it
+                    },
+                )
+            }
             PriceField(draft.price, draft.priceCents, LessonProblem.PriceInvalid in problems) { draft = draft.copy(price = it) }
             NoteField(draft.note, previewing, onPreviewingChange = { previewing = it }, tooLong = LessonProblem.NoteTooLong in problems) {
                 draft = draft.copy(note = it)
@@ -252,7 +277,10 @@ fun LessonEditorScreen(languages: Languages, target: LessonEditorTarget, onClose
                 onConfirm = { name ->
                     dialog = null
                     scope.launchNow {
-                        (languages.createLanguage(name) as? Saving.Saved)?.let { draft = draft.copy(languageId = it.id, teacherId = null) }
+                        (languages.createLanguage(name) as? Saving.Saved)?.let {
+                            if (draft.hasTopics) topicsLost = true
+                            draft = draft.withLanguage(it.id).copy(teacherId = null)
+                        }
                     }
                 },
                 onDismiss = { dialog = null },
@@ -363,6 +391,72 @@ private fun TeacherChoice(
                 OutlinedButton(onClick = onChooseOther) { Text(stringResource(R.string.lesson_teacher_other)) }
             }
         }
+        problem?.let { Problem(it) }
+    }
+}
+
+/**
+ * The topics treated (SPEC.md §15): those of the language [offered], a chip each to choose, narrowed by what is typed, and
+ * those typed anew, which saving puts on the list; one typed that reads as one of [all] is that one, unless it is of an
+ * exam taken. [problem] told under them.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TopicsField(offered: List<Topic>, all: List<Topic>, draft: LessonDraft, problem: String?, onChange: (LessonDraft) -> Unit) {
+    var typed by rememberSaveable { mutableStateOf("") }
+    var typedProblem by rememberSaveable { mutableStateOf<String?>(null) }
+    val missing = stringResource(R.string.language_name_missing)
+    val tooLong = stringResource(R.string.text_too_long, Topic.NAME_MAX)
+    val closed = stringResource(R.string.lesson_topic_closed)
+    val add = {
+        val name = InputText.singleLine(typed)
+        val same = all.find { InputText.readTheSame(it.name, name) }
+        typedProblem = when {
+            !InputText.isVisible(name) -> missing
+            InputText.lengthOf(name) > Topic.NAME_MAX -> tooLong
+            same != null && offered.none { it.id == same.id } -> closed
+            else -> null
+        }
+        if (typedProblem == null) {
+            when {
+                same != null -> onChange(draft.copy(topicIds = draft.topicIds + same.id))
+                draft.newTopics.none { InputText.readTheSame(it, name) } -> onChange(draft.copy(newTopics = draft.newTopics + name))
+            }
+            typed = ""
+        }
+    }
+    val search = InputText.searchable(InputText.singleLine(typed))
+    val shown = offered.filter { it.id in draft.topicIds || search.isEmpty() || search in InputText.searchable(it.name) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.lesson_topics), style = MaterialTheme.typography.titleSmall)
+        if (shown.isNotEmpty() || draft.newTopics.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                shown.forEach { topic ->
+                    val chosen = topic.id in draft.topicIds
+                    ChoiceChip(topic.name, chosen = chosen) {
+                        onChange(draft.copy(topicIds = if (chosen) draft.topicIds - topic.id else draft.topicIds + topic.id))
+                    }
+                }
+                draft.newTopics.forEach { name ->
+                    ChoiceChip(name, chosen = true) { onChange(draft.copy(newTopics = draft.newTopics - name)) }
+                }
+            }
+        }
+        OutlinedTextField(
+            value = typed,
+            onValueChange = {
+                typed = it
+                typedProblem = null
+            },
+            label = { Text(stringResource(R.string.lesson_topic_new)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { add() }),
+            isError = typedProblem != null,
+            supportingText = { Text(typedProblem ?: stringResource(R.string.lesson_topics_hint)) },
+            trailingIcon = { TextButton(onClick = add) { Text(stringResource(R.string.lesson_topic_add)) } },
+            modifier = Modifier.fillMaxWidth(),
+        )
         problem?.let { Problem(it) }
     }
 }

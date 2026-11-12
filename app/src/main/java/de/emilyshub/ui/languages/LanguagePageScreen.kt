@@ -55,8 +55,9 @@ import de.emilyshub.ui.plusFabSpace
 import kotlinx.coroutines.flow.map
 
 /**
- * A language's page (SPEC.md §15), with two tabs: "Sessions", its lessons, the newest first, which open in their editor
- * ([onOpenLesson]) and can be shown for one teacher only; and "Auswertung", what each teacher's lessons of it come to for
+ * A language's page (SPEC.md §15), with three tabs: "Sessions", its lessons, the newest first, which open in their editor
+ * ([onOpenLesson]) and can be shown for one teacher only; "Themen", its topics by exam, to do by hand
+ * ([TopicsTabContent]); and "Auswertung", what each teacher's lessons of it come to for
  * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]).
  * Gone meanwhile, it closes.
  */
@@ -109,12 +110,13 @@ fun LanguagePageScreen(
                 .padding(contentPadding),
         ) {
             PrimaryTabRow(selectedTabIndex = tab) {
-                listOf(R.string.language_tab_lessons, R.string.language_tab_evaluation).forEachIndexed { index, label ->
+                listOf(R.string.language_tab_lessons, R.string.language_tab_topics, R.string.language_tab_evaluation).forEachIndexed { index, label ->
                     Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) })
                 }
             }
             when (tab) {
                 0 -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
+                1 -> TopicsTabContent(languages, languageId, loaded.topics, onOpenLesson)
                 else -> EvaluationTab(loaded)
             }
         }

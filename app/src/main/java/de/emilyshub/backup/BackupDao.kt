@@ -7,10 +7,13 @@ import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Subscription
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.ClosedMonth
@@ -161,4 +164,13 @@ interface BackupDao {
 
     @Query("SELECT * FROM lessons")
     fun lessons(): List<Lesson>
+
+    @Query("SELECT * FROM exams")
+    fun exams(): List<Exam>
+
+    @Query("SELECT * FROM topics")
+    fun topics(): List<Topic>
+
+    @Query("SELECT * FROM lesson_topics")
+    fun lessonTopics(): List<LessonTopic>
 }

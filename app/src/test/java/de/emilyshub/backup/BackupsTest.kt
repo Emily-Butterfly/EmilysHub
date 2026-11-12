@@ -11,6 +11,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Saving
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
 import de.emilyshub.languages.TeacherDraft
@@ -264,6 +265,27 @@ class BackupsTest {
             assertEquals(table, emptyList<Any>(), restored.getValue(table))
         }
         assertEquals(made.getValue("notes"), restored.getValue("notes"))
+    }
+
+    @Test
+    fun `a backup keeps the topics, exams and the topics of the lessons, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(45, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        for (table in listOf("exams", "topics", "lesson_topics")) {
+            assertEquals(table, made.getValue(table), everything().getValue(table))
+        }
+        assertEquals(2, made.getValue("topics").size)
+
+        restore(older)
+        val restored = everything()
+        for (table in listOf("exams", "topics", "lesson_topics")) {
+            assertEquals(table, emptyList<Any>(), restored.getValue(table))
+        }
+        assertEquals(made.getValue("lessons"), restored.getValue("lessons"))
     }
 
     @Test
@@ -602,10 +624,17 @@ class BackupsTest {
             )
             val arabicLessons = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
             val amal = app.languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal", "italki", setOf(arabicLessons))) as Saving.Saved
+            val a2 = app.languages.createExam(arabicLessons, ExamDraft("A2", LocalDate.parse("2026-12-25"))) as Saving.Saved
+            val numbers = app.languages.createTopic(arabicLessons, "Zahlen", a2.id) as Saving.Saved
+            app.languages.setTopicDone(numbers.id, done = true)
             app.languages.save(
                 LessonEditing.New,
-                LessonDraft(LocalDate.parse("2026-11-02"), "45", arabicLessons, amal.id, price = "12,50", note = "## Verben"),
+                LessonDraft(
+                    LocalDate.parse("2026-11-02"), "45", arabicLessons, amal.id, price = "12,50", note = "## Verben",
+                    topicIds = setOf(numbers.id), newTopics = listOf("Verben"),
+                ),
             )
+            app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(

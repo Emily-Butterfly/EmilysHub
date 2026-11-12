@@ -4,10 +4,13 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingEditing
 import de.emilyshub.ledger.BookingInterval
@@ -985,6 +988,27 @@ class HubDatabaseMigrationTest {
             assertEquals(45, dao.lesson(lesson)?.minutes)
             assertEquals(listOf(arabic), dao.languagesOf(amal))
             assertTrue(runCatching { dao.deleteLanguage(arabic) }.isFailure)
+        }
+    }
+
+    @Test
+    fun `version 45 moves to version 46 without topics, and then a lesson treats one, which an exam deleted leaves without it`() {
+        createAtVersion(45) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            val exam = dao.insertExam(Exam(languageId = arabic, name = "A2", date = LocalDate.parse("2026-12-25")))
+            val verbs = dao.insertTopic(Topic(languageId = arabic, name = "Verben", examId = exam))
+            dao.insertLessonTopics(listOf(LessonTopic(lesson, verbs)))
+            assertEquals(listOf(verbs), dao.topicsOfLesson(lesson))
+
+            dao.deleteExam(exam)
+            assertEquals(null, dao.topic(verbs)?.examId)
+            dao.deleteLesson(lesson)
+            assertEquals(emptyList<Long>(), dao.topicsOfLesson(lesson))
         }
     }
 
