@@ -654,3 +654,36 @@ val MIGRATION_43_44 = object : Migration(43, 44) {
         db.execSQL("ALTER TABLE `subscriptions` ADD COLUMN `reminds_from` TEXT")
     }
 }
+
+/**
+ * Version 45: Sprachen (SPEC.md §15, #81): the languages, the teachers with the languages they teach, and the lessons
+ * held, none of whose language or teacher can be deleted while it is there. None is there yet.
+ */
+val MIGRATION_44_45 = object : Migration(44, 45) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `languages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`archived` INTEGER NOT NULL DEFAULT 0)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `teachers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`note` TEXT NOT NULL, `archived` INTEGER NOT NULL DEFAULT 0)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `teacher_languages` (`teacher_id` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`teacher_id`, `language_id`), " +
+                "FOREIGN KEY(`teacher_id`) REFERENCES `teachers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_teacher_languages_language_id` ON `teacher_languages` (`language_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lessons` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, " +
+                "`minutes` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, `teacher_id` INTEGER NOT NULL, `price_cents` INTEGER, " +
+                "`note` TEXT NOT NULL, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`teacher_id`) REFERENCES `teachers`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lessons_language_id` ON `lessons` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lessons_teacher_id` ON `lessons` (`teacher_id`)")
+    }
+}

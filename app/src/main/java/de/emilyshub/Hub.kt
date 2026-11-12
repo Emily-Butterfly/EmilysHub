@@ -9,6 +9,7 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.languages.Languages
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -49,6 +50,9 @@ interface Hub {
 
     /** The Abos of the household book (SPEC.md §13). */
     val subscriptions: Subscriptions
+
+    /** Sprachen: languages, teachers and the lessons held (SPEC.md §15). */
+    val languages: Languages
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute

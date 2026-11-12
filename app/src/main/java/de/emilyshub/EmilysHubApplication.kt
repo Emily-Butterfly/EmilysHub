@@ -24,6 +24,7 @@ import de.emilyshub.doku.Patients
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.languages.Languages
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -175,6 +176,9 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** The Abos of the household book (SPEC.md §13). */
     final override val subscriptions: Subscriptions by lazy { Subscriptions({ database }, clock, io, onChange = ::updateReminders) }
+
+    /** Sprachen (SPEC.md §15). */
+    final override val languages: Languages by lazy { Languages({ database }, clock, io) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 

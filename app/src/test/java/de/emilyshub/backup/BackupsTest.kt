@@ -8,8 +8,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
 import de.emilyshub.alarmsFor
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.data.Saving
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
@@ -239,6 +244,26 @@ class BackupsTest {
         val restored = everything()
         assertEquals(emptyList<Any>(), restored.getValue("subscriptions"))
         assertEquals(made.getValue("recurring_bookings"), restored.getValue("recurring_bookings"))
+    }
+
+    @Test
+    fun `a backup keeps the languages, teachers and lessons, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(44, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        for (table in listOf("languages", "teachers", "teacher_languages", "lessons")) {
+            assertEquals(table, made.getValue(table), everything().getValue(table))
+        }
+
+        restore(older)
+        val restored = everything()
+        for (table in listOf("languages", "teachers", "teacher_languages", "lessons")) {
+            assertEquals(table, emptyList<Any>(), restored.getValue(table))
+        }
+        assertEquals(made.getValue("notes"), restored.getValue("notes"))
     }
 
     @Test
@@ -574,6 +599,12 @@ class BackupsTest {
             app.subscriptions.save(
                 SubscriptionEditing.New,
                 SubscriptionDraft("Miete", recurringId = rentId, note = "Kündigung schriftlich", cancelBy = LocalDate.parse("2027-01-31")),
+            )
+            val arabicLessons = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            val amal = app.languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal", "italki", setOf(arabicLessons))) as Saving.Saved
+            app.languages.save(
+                LessonEditing.New,
+                LessonDraft(LocalDate.parse("2026-11-02"), "45", arabicLessons, amal.id, price = "12,50", note = "## Verben"),
             )
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)

@@ -4,21 +4,25 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.Teacher
+import de.emilyshub.languages.TeacherLanguage
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingEditing
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
-import de.emilyshub.ledger.MonthTotalBudget
-import de.emilyshub.ledger.StandardTotalBudget
-import de.emilyshub.ledger.Subscription
-import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -54,9 +58,11 @@ import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
@@ -66,7 +72,6 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
-import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
 
 /**
  * Each migration on an encrypted database. Opening it runs the migrations, and Room then checks every
@@ -962,6 +967,24 @@ class HubDatabaseMigrationTest {
 
             dao.update(checkNotNull(dao.get(1)).copy(remindsFrom = Instant.parse("2026-11-12T10:00:00Z")))
             assertEquals(Instant.parse("2026-11-12T10:00:00Z"), dao.get(1)?.remindsFrom)
+        }
+    }
+
+    @Test
+    fun `version 44 moves to version 45 without languages, and then a lesson can be held, its language kept while it is there`() {
+        createAtVersion(44) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            assertEquals(emptyList<Language>(), dao.languages())
+
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            dao.insertTeaching(listOf(TeacherLanguage(amal, arabic)))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            assertEquals(45, dao.lesson(lesson)?.minutes)
+            assertEquals(listOf(arabic), dao.languagesOf(amal))
+            assertTrue(runCatching { dao.deleteLanguage(arabic) }.isFailure)
         }
     }
 
