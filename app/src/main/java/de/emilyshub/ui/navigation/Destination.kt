@@ -150,6 +150,7 @@ sealed interface Destination : Serializable {
             SearchArea.Notes -> NoteEditor(NoteEditorTarget.Edit(id))
             SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
             SearchArea.Subscriptions -> SubscriptionEditor(SubscriptionEditorTarget.Edit(id))
+            SearchArea.Lessons -> LessonEditor(LessonEditorTarget.Edit(id))
         }
     }
 }

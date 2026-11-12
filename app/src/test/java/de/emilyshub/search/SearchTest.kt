@@ -22,6 +22,15 @@ import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import de.emilyshub.data.Saving
+import de.emilyshub.languages.FakeLessonDocuments
+import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
+import de.emilyshub.languages.testAttachmentStore
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -148,6 +157,28 @@ class SearchTest {
 
         assertEquals(todos.get(rent)?.nextId, found.id)
     }
+
+    @Test
+    fun `lessons are found by their note, their topics and their teacher, newest first, by language and teacher`() = runBlocking {
+        val languages = Languages(
+            { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+        )
+        val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
+        val amal = (languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal Straße", languageIds = setOf(arabic))) as Saving.Saved).id
+        val older = lesson(languages, arabic, amal, "2026-10-01", note = "Wir übten das Präsens")
+        val newer = lesson(languages, arabic, amal, "2026-10-20", topics = listOf("Zahlen bis 100"))
+
+        assertEquals(listOf(older), search.find("präsens").lessonIds())
+        assertEquals(listOf(newer), search.find("ZAHLEN").lessonIds())
+        assertEquals("by the teacher, ß as ss, the newest first", listOf(newer, older), search.find("strasse").lessonIds())
+        val hit = search.find("zahlen").single().hits.single()
+        assertEquals(SearchHit(newer, "Arabisch · Amal Straße", LocalDate.parse("2026-10-20")), hit)
+    }
+
+    private fun List<SearchGroup>.lessonIds() = single { it.area == SearchArea.Lessons }.hits.map { it.id }
+
+    private suspend fun lesson(languages: Languages, language: Long, teacher: Long, date: String, note: String = "", topics: List<String> = emptyList()) =
+        (languages.save(LessonEditing.New, LessonDraft(LocalDate.parse(date), "60", language, teacher, note = note, newTopics = topics)) as Saving.Saved).id
 
     private fun titles(found: List<SearchGroup>, area: SearchArea) = found.find { it.area == area }?.hits.orEmpty().map { it.title }
 

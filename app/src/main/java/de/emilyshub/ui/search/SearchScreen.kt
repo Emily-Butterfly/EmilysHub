@@ -41,6 +41,7 @@ import de.emilyshub.search.SearchArea
 import de.emilyshub.search.SearchGroup
 import de.emilyshub.search.SearchHit
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.numericDate
 import kotlinx.coroutines.delay
 
 /**
@@ -129,7 +130,9 @@ fun SearchScreen(
 
 @Composable
 private fun HitRow(hit: SearchHit, onClick: () -> Unit) {
-    ListItem(headlineContent = { Text(hit.title) }, modifier = Modifier.clickable(onClick = onClick))
+    // One with a date, such as a lesson, goes by it first: "20.10.2026 · Arabisch · Amal".
+    val title = hit.date?.let { "${it.numericDate()} · ${hit.title}" } ?: hit.title
+    ListItem(headlineContent = { Text(title) }, modifier = Modifier.clickable(onClick = onClick))
 }
 
 @Composable
@@ -151,6 +154,7 @@ private val SearchArea.label: Int
         SearchArea.Notes -> R.string.destination_notes
         SearchArea.Bookings -> R.string.ledger_title
         SearchArea.Subscriptions -> R.string.subscriptions_title
+        SearchArea.Lessons -> R.string.destination_languages
     }
 
 /** How long typing has to pause before the search looks again. */

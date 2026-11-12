@@ -3,6 +3,7 @@ package de.emilyshub.search
 import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.notes.Note
+import java.time.LocalDate
 
 /**
  * What the search looks through, in the database: each entry with all its text in one, its [Candidate.text], kept only
@@ -53,7 +54,19 @@ interface SearchDao {
             "WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun subscriptions(pattern: String): List<Candidate>
+
+    /** The lessons of Sprachen, by their notes, the topics they treated and the names of their teachers (SPEC.md §15). */
+    @Query(
+        "SELECT * FROM (SELECT s.id, s.date, l.name AS language, t.name AS teacher, s.note || ' ' || t.name || ' ' || " +
+            "IFNULL((SELECT group_concat(p.name, ' ') FROM lesson_topics lt JOIN topics p ON p.id = lt.topic_id " +
+            "WHERE lt.lesson_id = s.id), '') AS text FROM lessons s JOIN languages l ON l.id = s.language_id " +
+            "JOIN teachers t ON t.id = s.teacher_id) WHERE text LIKE :pattern ESCAPE '\\'",
+    )
+    suspend fun lessons(pattern: String): List<LessonCandidate>
 }
+
+/** A lesson of Sprachen the database found (SPEC.md §15): its [date], [language] and [teacher], and all its text in one. */
+data class LessonCandidate(val id: Long, val date: LocalDate, val language: String, val teacher: String, val text: String)
 
 /** An entry the database found, with all its text in one, for [Search] to look at more closely. */
 data class Candidate(val id: Long, val title: String, val text: String)

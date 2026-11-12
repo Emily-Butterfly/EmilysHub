@@ -4,13 +4,14 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
 /** The areas the search looks through, in the order their results show in. */
-enum class SearchArea { Routines, Todos, Wishes, Notes, Bookings, Subscriptions }
+enum class SearchArea { Routines, Todos, Wishes, Notes, Bookings, Subscriptions, Lessons }
 
-/** An entry found, by its [title]: [id] opens it in its area. */
-data class SearchHit(val id: Long, val title: String)
+/** An entry found, by its [title], and its [date] where it has one, such as a lesson: [id] opens it in its area. */
+data class SearchHit(val id: Long, val title: String, val date: LocalDate? = null)
 
 /** What was found in one [area], by title, and how many [more] there are beyond those shown. */
 data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more: Int = 0)
@@ -18,7 +19,8 @@ data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more
 /**
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
  * notes and their tags; the bookings of the household book (SPEC.md §13), by their descriptions and categories; and its
- * Abos, by their names and notes.
+ * Abos, by their names and notes; and the lessons of Sprachen (SPEC.md §15), by their notes, topics and teachers,
+ * each by its language and teacher, the newest first.
  * Every word typed has to be there, in whatever case, and however its letters were typed, as [InputText.searchable]
  * compares. The database looks for the longest word, as a value of the query, its wildcards
  * escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those stand for anything
@@ -43,10 +45,14 @@ class Search(
             SearchArea.Bookings to dao.bookings(pattern),
             SearchArea.Subscriptions to dao.subscriptions(pattern),
         )
-        found.mapNotNull { (area, candidates) ->
-            val hits = candidates.filter { candidate -> InputText.searchable(candidate.text).let { text -> words.all { it in text } } }
-                .map { SearchHit(it.id, it.title) }
-                .sortedWith(compareBy(InputText.byName) { it.title })
+        fun matches(text: String) = InputText.searchable(text).let { searchable -> words.all { it in searchable } }
+        val byTitle = found.map { (area, candidates) ->
+            area to candidates.filter { matches(it.text) }.map { SearchHit(it.id, it.title) }.sortedWith(compareBy(InputText.byName) { it.title })
+        }
+        val lessons = SearchArea.Lessons to dao.lessons(pattern).filter { matches(it.text) }
+            .map { SearchHit(it.id, "${it.language} · ${it.teacher}", it.date) }
+            .sortedWith(compareByDescending<SearchHit> { it.date }.thenByDescending { it.id })
+        (byTitle + lessons).mapNotNull { (area, hits) ->
             if (hits.isEmpty()) null else SearchGroup(area, hits.take(MAX_HITS), more = maxOf(hits.size - MAX_HITS, 0))
         }
     }
