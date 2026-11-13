@@ -103,7 +103,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                     onDone = { answer(Answer.Done) },
                     // One of a joint alarm: that one done skips the others (SPEC.md §2).
                     onDoneOf = { id -> answer(Answer.Done, about = Alarmed.Occurrence(id)) },
-                    onPutOff = { by: Duration -> answer(Answer.PutOff(by)) },
+                    onPutOff = { choice -> answer(Answer.PutOff(choice)) },
                     // For all a joint alarm rings for (SPEC.md §3).
                     onSkip = { answer(Answer.Skip) },
                     onDrop = { answer(Answer.Drop) },
@@ -245,7 +245,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
     }
 
     /** What the alarm shows of [alarmed]: its [screen], and what "Später" offers now. */
-    private class Showing(val alarmed: Alarmed, val screen: AlarmShown, val putOffChoices: () -> List<Duration>)
+    private class Showing(val alarmed: Alarmed, val screen: AlarmShown, val putOffChoices: () -> List<PutOffChoice>)
 
     private fun Intent.rings() = getBooleanExtra(EXTRA_RING, true)
 

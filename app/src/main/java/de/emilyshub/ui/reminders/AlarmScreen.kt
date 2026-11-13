@@ -26,9 +26,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.reminders.putOffLabel
+import de.emilyshub.reminders.PutOffChoice
 import de.emilyshub.reminders.ReminderFace
-import java.time.Duration
+import de.emilyshub.reminders.putOffLabel
 
 /** What the full-screen alarm shows of what it rings for, a routine or a to-do, as its notification does ([face]); [key] tells them apart. */
 data class AlarmShown(val key: String, val face: ReminderFace)
@@ -43,12 +43,12 @@ data class AlarmShown(val key: String, val face: ReminderFace)
 @Composable
 fun AlarmScreen(
     shown: AlarmShown?,
-    putOffChoices: List<Duration>,
+    putOffChoices: List<PutOffChoice>,
     locked: Boolean,
     onUnlock: () -> Unit,
     onDone: () -> Unit,
     onDoneOf: (Long) -> Unit,
-    onPutOff: (Duration) -> Unit,
+    onPutOff: (PutOffChoice) -> Unit,
     onSkip: () -> Unit,
     onDrop: () -> Unit,
     onClose: () -> Unit,

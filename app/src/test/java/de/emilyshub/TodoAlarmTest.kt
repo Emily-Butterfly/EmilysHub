@@ -104,6 +104,37 @@ class TodoAlarmTest {
     }
 
     @Test
+    fun `later in the alarm offers all the times, tonight until 19 00, and tomorrow morning rings at 08 00 the next day`() {
+        app.todo("Arzt anrufen", Due.At(today, LocalTime.of(9, 0)), fullScreen = true)
+        goOffAt("2026-10-23T09:00")
+        openAlarm("Arzt anrufen").use { scenario ->
+            compose.onNodeWithText("Später").performClick()
+            listOf("10 Min.", "30 Min.", "1 Std.", "Heute Abend", "Morgen früh").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            compose.onNodeWithText("Morgen früh").performClick()
+            idle()
+            scenario.onActivity { assertTrue("closed", it.isFinishing) }
+        }
+        assertEquals(emptyList<String>(), titles())
+        shadowOf(app).clearStartedServices()
+
+        goOffAt("2026-10-24T08:00")
+
+        assertNotNull("full-screen", reminder("Arzt anrufen").fullScreenIntent)
+        assertRings()
+    }
+
+    @Test
+    fun `from 19 00 on, later in the alarm no longer offers tonight`() {
+        app.todo("Arzt anrufen", Due.At(today, LocalTime.of(19, 0)), fullScreen = true)
+        goOffAt("2026-10-23T19:00")
+        openAlarm("Arzt anrufen").use {
+            compose.onNodeWithText("Später").performClick()
+            listOf("10 Min.", "30 Min.", "1 Std.", "Morgen früh").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            compose.onNodeWithText("Heute Abend").assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun `on arriving at one of its places, it rings, also without a time`() {
         val connectivity = shadowOf(app.getSystemService(ConnectivityManager::class.java))
         val home = app.place("Zuhause", "FritzBox")

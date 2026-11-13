@@ -18,13 +18,12 @@ import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
 import java.time.Clock
-import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
 
 /**
  * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen", and after
- * "Später" the choice when to come back, "10 Min. · 30 Min. · 1 Std.", in the same place. On a
+ * "Später" the choice when to come back, "10 Min. · 30 Min. · Heute nicht", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
  * the content of notifications there; an app cannot make that choice for the user. A routine or to-do that
@@ -199,7 +198,7 @@ class ReminderNotifications(
         val about = ReminderOf(tagOf(reminder.occurrenceId), EXTRA_OCCURRENCE, reminder.occurrenceId)
         // Only what comes back before the time window ends, and "Heute nicht" after it: Android shows three actions at most,
         // so two times at most. With no time left, "Später" still offers "Heute nicht".
-        val choices = reminder.putOffChoices(clock.instant()).take(2)
+        val choices = reminder.putOffChoices(clock.instant(), clock.zone).take(2)
         val joint = face.each.isNotEmpty()
         val text: String?
         val actions: List<Notification.Action>
@@ -232,14 +231,17 @@ class ReminderNotifications(
             .build()
     }
 
-    /** A to-do's reminder: when it is due, or where it reminds without a time; any time to put it off by, as it never ends. */
+    /**
+     * A to-do's reminder: when it is due, or where it reminds without a time; any time to put it off by, as it never ends:
+     * "30 Min. · Heute Abend · Morgen früh", from 19:00 on "1 Std." instead of "Heute Abend" (#98).
+     */
     private fun notification(reminder: TodoReminder, face: ReminderFace, alert: Boolean, offeringPutOff: Boolean, channel: String): Notification {
         val about = ReminderOf(todoTagOf(reminder.todoId), EXTRA_TODO, reminder.todoId)
         val text: String?
         val actions: List<Notification.Action>
         if (offeringPutOff) {
             text = context.getString(R.string.reminder_put_off_when)
-            actions = putOffActions(Reminders.PUT_OFF_CHOICES, about)
+            actions = putOffActions(PutOffChoice.forTodoNotification(clock.instant(), clock.zone), about)
         } else {
             text = face.text
             actions = listOf(
@@ -330,17 +332,17 @@ class ReminderNotifications(
                 },
             )
 
-    private fun putOffActions(choices: List<Duration>, about: ReminderOf) = choices.map { choice ->
-        action(context.putOffLabel(choice), ReminderReceiver.ACTION_PUT_OFF, about, putOffBy = choice)
+    private fun putOffActions(choices: List<PutOffChoice>, about: ReminderOf) = choices.map { choice ->
+        action(context.putOffLabel(choice), ReminderReceiver.ACTION_PUT_OFF, about, putOff = choice)
     }
 
-    private fun action(title: String, action: String, about: ReminderOf, putOffBy: Duration? = null): Notification.Action {
+    private fun action(title: String, action: String, about: ReminderOf, putOff: PutOffChoice? = null): Notification.Action {
         val intent = Intent(context, ReminderReceiver::class.java)
             .setAction(action)
             // Tells the intents of different reminders and choices apart, so that each keeps its own extras.
-            .setIdentifier(listOfNotNull(about.tag, about.id, putOffBy?.toMinutes()).joinToString(":"))
+            .setIdentifier(listOfNotNull(about.tag, about.id, putOff?.key).joinToString(":"))
             .putExtra(about.idExtra, about.id)
-        putOffBy?.let { intent.putExtra(ReminderReceiver.EXTRA_MINUTES, it.toMinutes()) }
+        putOff?.let { intent.putExtra(ReminderReceiver.EXTRA_PUT_OFF, it.key) }
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val operation = PendingIntent.getBroadcast(context, 0, intent, flags)
         return Notification.Action.Builder(null, title, operation)
@@ -406,10 +408,14 @@ class ReminderNotifications(
     }
 }
 
-/** One of the choices "Später" offers: "10 Min.", or "1 Std." for whole hours. */
-fun Context.putOffLabel(choice: Duration): String = when (choice.toMinutes() % 60) {
-    0L -> getString(R.string.reminder_put_off_hours, choice.toHours())
-    else -> getString(R.string.reminder_put_off_minutes, choice.toMinutes())
+/** One of the choices "Später" offers: "10 Min.", "1 Std." for whole hours, "Heute Abend" or "Morgen früh". */
+fun Context.putOffLabel(choice: PutOffChoice): String = when (choice) {
+    is PutOffChoice.By -> when (choice.duration.toMinutes() % 60) {
+        0L -> getString(R.string.reminder_put_off_hours, choice.duration.toHours())
+        else -> getString(R.string.reminder_put_off_minutes, choice.duration.toMinutes())
+    }
+    PutOffChoice.Tonight -> getString(R.string.reminder_put_off_tonight)
+    PutOffChoice.TomorrowMorning -> getString(R.string.reminder_put_off_morning)
 }
 
 /** The channel of the reminders, which the user may turn down on its own in Android's settings. */

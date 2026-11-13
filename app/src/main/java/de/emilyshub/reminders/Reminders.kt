@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.withLock
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Reminds of routines on time (SPEC.md §3), and again at their follow-ups while they stay open: one alarm
@@ -129,7 +130,7 @@ class Reminders internal constructor(
             Answer.Done -> source.done(about.id)
             Answer.OfferDone -> offer(about, Offering.Done, onlyIf = DueReminder::joint)
             Answer.OfferPutOff -> offer(about, Offering.PutOff)
-            is Answer.PutOff -> putOff(about, answer.by)
+            is Answer.PutOff -> putOff(about, answer.choice)
             Answer.Skip -> source.skip(about.id)
             Answer.Drop -> source.drop(about.id)
             Answer.RunOn -> source.runOn(about.id)
@@ -148,16 +149,17 @@ class Reminders internal constructor(
     }
 
     /**
-     * Puts the reminder about [about] off [by] one of the choices its source offers now; anything else, or one no longer
-     * due, leaves it as it is, and brings the screen up to date.
+     * Puts the reminder about [about] off as [choice] says, if its source offers that now; anything else, such as "Heute
+     * Abend" from a notification still up after 19:00, or one no longer due, leaves it as it is, and brings the screen up
+     * to date. What is kept is the moment it comes back.
      */
-    private suspend fun putOff(about: Alarmed, by: Duration) {
+    private suspend fun putOff(about: Alarmed, choice: PutOffChoice) {
         val source = sourceOf(about)
         val reminder = stillDue(about)
         val now = clock.instant()
         when {
-            reminder == null || by !in reminder.putOffChoices(now) -> update()
-            else -> source.putOff(about.id, until = now + by)
+            reminder == null || choice !in reminder.putOffChoices(now, clock.zone) -> update()
+            else -> source.putOff(about.id, until = choice.until(now, clock.zone))
         }
     }
 
@@ -177,8 +179,11 @@ class Reminders internal constructor(
     /** The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is not. */
     fun reminder(about: Alarmed): Flow<DueReminder?> = sourceOf(about).reminder(about.id)
 
-    /** What "Später" offers for [reminder] now: before its time window ends, for a routine's; any time, for a to-do's. */
-    fun putOffChoices(reminder: DueReminder): List<Duration> = reminder.putOffChoices(clock.instant())
+    /**
+     * What "Später" offers for [reminder] now, all of it, as its full-screen alarm shows it: before its time window ends,
+     * for a routine's; any time, and tonight and tomorrow morning too, for a to-do's.
+     */
+    fun putOffChoices(reminder: DueReminder): List<PutOffChoice> = reminder.putOffChoices(clock.instant(), clock.zone)
 
     /**
      * Shows the reminders on the screen as they are now, takes down those no longer due, sets the alarm for what comes
@@ -243,9 +248,6 @@ class Reminders internal constructor(
     private suspend fun stored(name: String): Instant? = settings().get(name)?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
     companion object {
-        /** What "Später" offers (SPEC.md §3). */
-        val PUT_OFF_CHOICES: List<Duration> = listOf(10L, 30L, 60L).map(Duration::ofMinutes)
-
         /** How long until the reminder to try out comes (SPEC.md §11). */
         val PROBE_DELAY: Duration = Duration.ofSeconds(10)
 
@@ -259,5 +261,5 @@ class Reminders internal constructor(
     }
 }
 
-/** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before the time window ends. */
-fun Reminder.putOffChoices(now: Instant): List<Duration> = DueReminder.OfOccurrence(this).putOffChoices(now)
+/** What "Später" offers at [now] in [zone]: those of the [PutOffChoice.MINUTES] that come back before the time window ends. */
+fun Reminder.putOffChoices(now: Instant, zone: ZoneId): List<PutOffChoice> = DueReminder.OfOccurrence(this).putOffChoices(now, zone)

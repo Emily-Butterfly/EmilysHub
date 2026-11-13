@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -136,7 +137,7 @@ class RemindingTest {
         reminders.remind()
         val vitamins = occurrenceOf("Vitamine")
 
-        reminders.answer(Alarmed.Occurrence(vitamins), Answer.PutOff(Duration.ofMinutes(30)))
+        reminders.answer(Alarmed.Occurrence(vitamins), Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(30))))
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
 
         clock.now = berlin("08:20")
@@ -227,10 +228,81 @@ class RemindingTest {
         reminders.remind()
         val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
 
-        reminders.answer(vitamins, Answer.PutOff(Duration.ofMinutes(7)))
-        reminders.answer(Alarmed.Todo(call), Answer.PutOff(Duration.ofMinutes(7)))
+        reminders.answer(vitamins, Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(7))))
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(7))))
+        reminders.answer(vitamins, Answer.PutOff(PutOffChoice.Tonight))
 
         assertEquals(setOf(vitamins, Alarmed.Todo(call)), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `a to-do put off till tonight comes back at 20 00, its due staying as it was`() = runBlocking {
+        reminders.update()
+        val due = Due.At(today, LocalTime.parse("07:45"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = due))
+        clock.now = berlin("07:50")
+        reminders.remind()
+
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.Tonight))
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+        clock.now = berlin("19:59")
+        reminders.remind()
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+
+        clock.now = berlin("20:00")
+        reminders.remind()
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+        assertEquals(due, todos.get(call)?.due)
+    }
+
+    @Test
+    fun `a to-do put off till tonight after 19 00, from a choice offered earlier, stays as it is`() = runBlocking {
+        reminders.update()
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("18:30"))))
+        clock.now = berlin("18:30")
+        reminders.remind()
+        reminders.answer(Alarmed.Todo(call), Answer.OfferPutOff)
+
+        clock.now = berlin("19:00")
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.Tonight))
+
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+        assertEquals(Offering.PutOff, screen.offering(Alarmed.Todo(call)))
+    }
+
+    @Test
+    fun `after a change of time zone, a to-do put off comes back at the moment kept, not at the new zone's 08 00`() = runBlocking {
+        reminders.update()
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.TomorrowMorning))
+        val kept = LocalDateTime.of(today.plusDays(1), LocalTime.parse("08:00")).atZone(clock.zone).toInstant()
+
+        clock.timeZone = ZoneId.of("Europe/London")
+        clock.now = kept.minusSeconds(60)
+        reminders.update()
+        reminders.remind()
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+
+        clock.now = kept
+        reminders.remind()
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `a routine's reminder is offered only the minutes, never tonight or tomorrow morning`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+
+        val shown = screen.onScreen.values.map { it.reminder }
+        val vitamins = shown.single { it is DueReminder.OfOccurrence }
+        val todo = shown.single { it.about == Alarmed.Todo(call) }
+        assertTrue(reminders.putOffChoices(vitamins).all { it is PutOffChoice.By })
+        assertEquals(PutOffChoice.MINUTES + PutOffChoice.Tonight + PutOffChoice.TomorrowMorning, reminders.putOffChoices(todo))
     }
 
     private suspend fun occurrenceOf(name: String) = routines.dueOn(today).first().single { it.name == name }.occurrenceId

@@ -175,7 +175,7 @@ class RemindersTest {
 
         val choice = reminders().single()
         assertEquals("Vitamine", choice.extras.getString(Notification.EXTRA_TITLE))
-        assertEquals("Erneut erinnern in …", choice.extras.getString(Notification.EXTRA_TEXT))
+        assertEquals("Wann erneut erinnern?", choice.extras.getString(Notification.EXTRA_TEXT))
         assertEquals(listOf("10 Min.", "30 Min.", "Heute nicht"), choice.actions.map { it.title.toString() })
         choice.actions.forEach { assertSentOnlyTo(ReminderReceiver::class.java.name, it.actionIntent) }
         assertTrue(choice.actions.all { it.isAuthenticationRequired })

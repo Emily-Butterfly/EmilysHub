@@ -271,9 +271,11 @@
     <string name="reminder_put_off">Später</string>
     <string name="alarm_done_of">%1$s erledigt</string>
     <string name="reminder_which_done">Welche war es?</string>
-    <string name="reminder_put_off_when">Erneut erinnern in …</string>
+    <string name="reminder_put_off_when">Wann erneut erinnern?</string>
     <string name="reminder_put_off_minutes">%1$d Min.</string>
     <string name="reminder_put_off_hours">%1$d Std.</string>
+    <string name="reminder_put_off_tonight">Heute Abend</string>
+    <string name="reminder_put_off_morning">Morgen früh</string>
     <string name="reminder_skip">Überspringen</string>
     <string name="reminder_drop">Heute nicht</string>
     <string name="todo_reminder_places">Ort: %1$s</string>

@@ -76,20 +76,68 @@ class TodoRemindersTest {
     }
 
     @Test
-    fun `later offers 10 min, 30 min and 1 h at any time, and the reminder comes back after the time chosen`() {
+    fun `before 19 00 later offers 30 min, tonight and tomorrow morning, and tonight comes back at 20 00`() {
+        val call = app.todo("Arzt anrufen", due = Due.At(today, LocalTime.of(9, 0)))
+        goOffAt("2026-10-23T09:00")
+
+        tap("Später")
+        val choice = reminders().single()
+        assertEquals("Wann erneut erinnern?", choice.extras.getString(Notification.EXTRA_TEXT))
+        assertEquals(listOf("30 Min.", "Heute Abend", "Morgen früh"), choice.actions.map { it.title.toString() })
+        tap("Heute Abend")
+        assertEquals(emptyList<Notification>(), reminders())
+        assertEquals(berlin("2026-10-23T20:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+
+        goOffAt("2026-10-23T20:00")
+        assertEquals(listOf("Arzt anrufen"), titles())
+        assertEquals("only the reminder moved", Due.At(today, LocalTime.of(9, 0)), runBlocking { app.todos.get(call) }?.due)
+    }
+
+    @Test
+    fun `from 19 00 on later offers 1 h instead of tonight, and the reminder comes back after the time chosen`() {
         app.todo("Arzt anrufen", due = Due.At(today, LocalTime.of(23, 0)))
         goOffAt("2026-10-23T23:00")
 
         tap("Später")
-        val choice = reminders().single()
-        assertEquals("Erneut erinnern in …", choice.extras.getString(Notification.EXTRA_TEXT))
-        assertEquals(listOf("10 Min.", "30 Min.", "1 Std."), choice.actions.map { it.title.toString() })
+        assertEquals(listOf("30 Min.", "1 Std.", "Morgen früh"), reminders().single().actions.map { it.title.toString() })
         tap("1 Std.")
         assertEquals(emptyList<Notification>(), reminders())
 
         goOffAt("2026-10-24T00:00")
         assertEquals(listOf("Arzt anrufen"), titles())
         assertEquals("Fällig: gestern, 23:00", reminders().single().extras.getString(Notification.EXTRA_TEXT))
+    }
+
+    @Test
+    fun `tomorrow morning comes back at 08 00 the next day, and still does after a restart`() {
+        app.todo("Arzt anrufen", due = Due.At(today, LocalTime.of(18, 0)))
+        goOffAt("2026-10-23T18:00")
+
+        tap("Später")
+        tap("Morgen früh")
+        assertEquals(emptyList<Notification>(), reminders())
+        // The phone restarts overnight; the restart took the alarm with it.
+        app.getSystemService(AlarmManager::class.java).cancel(checkNotNull(nextAlarm().operation))
+        app.clock.now = berlin("2026-10-24T06:00")
+        app.sendBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+        idle()
+
+        assertEquals(berlin("2026-10-24T08:00"), Instant.ofEpochMilli(nextAlarm().triggerAtMs))
+        goOffAt("2026-10-24T08:00")
+        assertEquals(listOf("Arzt anrufen"), titles())
+    }
+
+    @Test
+    fun `tonight from a notification still up after 19 00 leaves the reminder as it is`() {
+        app.todo("Arzt anrufen", due = Due.At(today, LocalTime.of(18, 30)))
+        goOffAt("2026-10-23T18:30")
+        tap("Später")
+
+        app.clock.now = berlin("2026-10-23T19:05")
+        tap("Heute Abend")
+
+        assertEquals(listOf("Arzt anrufen"), titles())
+        assertEquals(listOf("30 Min.", "1 Std.", "Morgen früh"), reminders().single().actions.map { it.title.toString() })
     }
 
     @Test
@@ -195,7 +243,8 @@ class TodoRemindersTest {
             goOffAt("2026-10-23T09:00")
 
             listOf(0L, -1L, id + 1).forEach { other -> app.sendBroadcast(receiverIntent(ReminderReceiver.ACTION_DONE, other)) }
-            app.sendBroadcast(receiverIntent(ReminderReceiver.ACTION_PUT_OFF, id).putExtra(ReminderReceiver.EXTRA_MINUTES, 5L))
+            app.sendBroadcast(receiverIntent(ReminderReceiver.ACTION_PUT_OFF, id).putExtra(ReminderReceiver.EXTRA_PUT_OFF, "5"))
+            app.sendBroadcast(receiverIntent(ReminderReceiver.ACTION_PUT_OFF, id).putExtra(ReminderReceiver.EXTRA_PUT_OFF, "never"))
             idle()
 
             assertEquals(listOf("Arzt"), titles())

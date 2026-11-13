@@ -13,16 +13,16 @@ Die Erinnerung eines To-dos lässt sich auf heute Abend oder morgen früh legen.
 
 ## Akzeptanzkriterien
 
-- [ ] Die Erinnerung eines To-dos bietet nach „Später“ zusätzlich **Heute Abend** (20:00) und **Morgen früh** (08:00), in der Zeitzone des Handys
-- [ ] Vollbild-Alarm, entsperrt: 10 min, 30 min, 1 h, Heute Abend, Morgen früh
-- [ ] Benachrichtigung, mit höchstens drei Knöpfen: 30 min, Heute Abend, Morgen früh; ab 19:00 steht statt „Heute Abend“ 1 h
-- [ ] „Heute Abend“ wird nur bis 19:00 angeboten. „Morgen früh“ ist 08:00 am nächsten Kalendertag, nachts vor 04:00 das 08:00 desselben Tages
-- [ ] Die Wahl verschiebt nur die Erinnerung: Die Fälligkeit bleibt, das To-do steht weiter in Heute, und das Nachfassen zählt ab dem neuen Zeitpunkt, wie bei „Später“ sonst
-- [ ] Das gilt überall, wo ein To-do erinnert: zur Uhrzeit, zur Weckzeit und beim Ankommen an einem Ort
-- [ ] Routinen und Abos behalten ihre Auswahl
-- [ ] Der gewählte Zeitpunkt übersteht einen Neustart des Handys; nach einem Wechsel der Zeitzone gilt der gespeicherte Moment
-- [ ] Eine Antwort, die jetzt nicht mehr angeboten wird (etwa „Heute Abend“ aus einer alten Benachrichtigung nach 19:00), lässt die Erinnerung, wie sie ist
-- [ ] Unit-Tests: Auswahl vor und nach 19:00, beide Zeitpunkte, kurz vor und nach Mitternacht, Sommerzeitwechsel, Nachfassen ab dem neuen Zeitpunkt, veraltete Antwort; Tests für die Knöpfe der Benachrichtigung und des Alarms
+- [x] Die Erinnerung eines To-dos bietet nach „Später“ zusätzlich **Heute Abend** (20:00) und **Morgen früh** (08:00), in der Zeitzone des Handys
+- [x] Vollbild-Alarm, entsperrt: 10 min, 30 min, 1 h, Heute Abend, Morgen früh
+- [x] Benachrichtigung, mit höchstens drei Knöpfen: 30 min, Heute Abend, Morgen früh; ab 19:00 steht statt „Heute Abend“ 1 h
+- [x] „Heute Abend“ wird nur bis 19:00 angeboten. „Morgen früh“ ist 08:00 am nächsten Kalendertag, nachts vor 04:00 das 08:00 desselben Tages
+- [x] Die Wahl verschiebt nur die Erinnerung: Die Fälligkeit bleibt, das To-do steht weiter in Heute, und das Nachfassen zählt ab dem neuen Zeitpunkt, wie bei „Später“ sonst
+- [x] Das gilt überall, wo ein To-do erinnert: zur Uhrzeit, zur Weckzeit und beim Ankommen an einem Ort
+- [x] Routinen und Abos behalten ihre Auswahl
+- [x] Der gewählte Zeitpunkt übersteht einen Neustart des Handys; nach einem Wechsel der Zeitzone gilt der gespeicherte Moment
+- [x] Eine Antwort, die jetzt nicht mehr angeboten wird (etwa „Heute Abend“ aus einer alten Benachrichtigung nach 19:00), lässt die Erinnerung, wie sie ist
+- [x] Unit-Tests: Auswahl vor und nach 19:00, beide Zeitpunkte, kurz vor und nach Mitternacht, Sommerzeitwechsel, Nachfassen ab dem neuen Zeitpunkt, veraltete Antwort; Tests für die Knöpfe der Benachrichtigung und des Alarms
 
 ## Entscheidungen
 

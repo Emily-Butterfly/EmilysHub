@@ -35,7 +35,7 @@ class ReminderReceiver : BroadcastReceiver() {
         /** "Später": asks when to come back. */
         const val ACTION_OFFER_PUT_OFF = "de.emilyshub.action.OFFER_PUT_OFF"
 
-        /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
+        /** One of the choices "Später" offers, by its key in [EXTRA_PUT_OFF]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"
         const val ACTION_SKIP = "de.emilyshub.action.SKIP"
 
@@ -56,7 +56,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** The reminder to try out is due. */
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"
-        const val EXTRA_MINUTES = "minutes"
+        
+        /** The key of a choice "Später" offers ([PutOffChoice.key]). */
+        const val EXTRA_PUT_OFF = "put-off"
     }
 }
 
@@ -67,12 +69,11 @@ class ReminderReceiver : BroadcastReceiver() {
  */
 private fun Intent.answer(): Pair<Alarmed, Answer>? {
     val about = alarmed() ?: return null
-    val minutes = getLongExtra(ReminderReceiver.EXTRA_MINUTES, 0)
     val answer = when (action) {
         ReminderReceiver.ACTION_DONE -> Answer.Done
         ReminderReceiver.ACTION_OFFER_PUT_OFF -> Answer.OfferPutOff
         ReminderReceiver.ACTION_OFFER_DONE -> Answer.OfferDone
-        ReminderReceiver.ACTION_PUT_OFF -> Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }?.let(Answer::PutOff)
+        ReminderReceiver.ACTION_PUT_OFF -> getStringExtra(ReminderReceiver.EXTRA_PUT_OFF)?.let(PutOffChoice::of)?.let(Answer::PutOff)
         ReminderReceiver.ACTION_SKIP -> Answer.Skip
         ReminderReceiver.ACTION_DROP -> Answer.Drop
         ReminderReceiver.ACTION_RUN_ON -> Answer.RunOn

@@ -3,8 +3,8 @@ package de.emilyshub.reminders
 import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
-import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * A reminder due to be on the screen (SPEC.md §3, §5, §13): of a routine's occurrence, alone or the joint one of coupled
@@ -64,6 +64,11 @@ sealed interface DueReminder {
     }
 }
 
-/** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before it runs out, if it does. */
-fun DueReminder.putOffChoices(now: Instant): List<Duration> =
-    Reminders.PUT_OFF_CHOICES.filter { choice -> windowEnd?.let { (now + choice).isBefore(it) } ?: true }
+/**
+ * What "Später" offers at [now] in [zone], the phone's: for a to-do, the minutes, "Heute Abend" and "Morgen früh", as it
+ * never runs out (#98); for anything else, those of the [PutOffChoice.MINUTES] that come back before it runs out.
+ */
+fun DueReminder.putOffChoices(now: Instant, zone: ZoneId): List<PutOffChoice> = when (this) {
+    is DueReminder.OfTodo -> PutOffChoice.forTodo(now, zone)
+    else -> PutOffChoice.MINUTES.filter { choice -> windowEnd?.let { choice.until(now, zone).isBefore(it) } ?: true }
+}
