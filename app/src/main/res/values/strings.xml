@@ -70,6 +70,13 @@
     <string name="today_expand">aufklappen</string>
     <string name="today_collapse">zuklappen</string>
     <string name="today_ticked">„%1$s“ abgehakt</string>
+    <string name="move_tomorrow">Morgen</string>
+    <string name="move_weekend">Am Wochenende</string>
+    <string name="move_next_week">Nächste Woche</string>
+    <string name="move_pick">Datum wählen</string>
+    <string name="move_done">Auf %1$s verschoben</string>
+    <string name="entry_open">Öffnen</string>
+    <string name="entry_menu">Menü</string>
     <string name="status_covered">durch %1$s erledigt</string>
     <string name="status_skipped">Übersprungen</string>
     <string name="status_missed">Verpasst</string>

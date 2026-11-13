@@ -13,6 +13,7 @@ import de.emilyshub.stats.RoutineHistory
 import de.emilyshub.stats.StreakFlame
 import de.emilyshub.stats.flame
 import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.TodoMove
 import de.emilyshub.todos.Todos
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -145,6 +146,15 @@ class Heute(
 
     /** Undoes a skip or "Heute nicht". */
     suspend fun undo(routine: DueRoutine) = routines.reopen(routine.occurrenceId)
+
+    /**
+     * Moves the to-do to [date] (SPEC.md §1, Menü je Eintrag), as [Todos.moveTo] has it; tells how it moved, to
+     * [undoMove] it, and nothing for one done or gone.
+     */
+    suspend fun move(todo: DueTodo, date: LocalDate): TodoMove? = todos.moveTo(todo.todoId, date)
+
+    /** Undoes the [move], as [Todos.undo] has it. */
+    suspend fun undoMove(move: TodoMove) = todos.undo(move)
 
     /** Takes the note off Heute. */
     suspend fun unpin(noteId: Long) = notes.pinOnToday(noteId, pinned = false)

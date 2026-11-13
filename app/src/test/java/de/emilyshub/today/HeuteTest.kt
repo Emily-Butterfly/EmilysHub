@@ -156,6 +156,21 @@ class HeuteTest {
     }
 
     @Test
+    fun `an overdue to-do moved to tomorrow leaves Heute, and undoing brings it back`() = runTest {
+        app.todo("Steuer", due = Due.On(FRIDAY.minusDays(3)))
+        val seen = collect()
+        val steuer = seen.last().blocks.overdue.single().todo
+
+        val move = checkNotNull(heute.move(steuer, FRIDAY.plusDays(1)))
+        runCurrent()
+        assertEquals(emptyList<String>(), seen.last().entries.map { it.name })
+
+        heute.undoMove(move)
+        runCurrent()
+        assertEquals(listOf("Steuer"), seen.last().blocks.overdue.map { it.name })
+    }
+
+    @Test
     fun `a to-do ticked off on Heute stays there, done, for the rest of the day`() = runTest {
         app.todo("Müll", due = Due.On(FRIDAY))
         val seen = collect()

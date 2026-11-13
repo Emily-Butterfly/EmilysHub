@@ -244,6 +244,32 @@ class Todos(
         }
     }
 
+    /**
+     * Moves the open to-do to [date] (SPEC.md §1, Menü je Eintrag): only the day it is due changes, its time stays, and
+     * waking some days before comes along. Its reminder is set anew, as after a change of its due in the editor; one
+     * coming again moves alone, as there. Tells how it moved, to [undo] it; nothing for one done or gone.
+     */
+    suspend fun moveTo(id: Long, date: LocalDate): TodoMove? = write {
+        database().withTransaction {
+            val todo = dao.get(id)?.takeIf { it.doneAt == null } ?: return@withTransaction null
+            TodoMove(id, from = todo.due, to = todo.due.movedTo(date)).also { setDue(todo, it.to) }
+        }
+    }
+
+    /** Undoes the [move]: the to-do is due as it was before, unless it is done or its due was changed again meanwhile. */
+    suspend fun undo(move: TodoMove) = write {
+        database().withTransaction {
+            val todo = dao.get(move.todoId)?.takeIf { it.doneAt == null && it.due == move.to } ?: return@withTransaction
+            setDue(todo, move.from)
+        }
+    }
+
+    /** Sets the to-do due as [due] says, all else as it is, and its reminder anew. */
+    private suspend fun setDue(todo: Todo, due: Due) {
+        dao.update(todo.copy(dueDate = due.date, dueTime = (due as? Due.At)?.time))
+        rearm(todo.id, due, todo.wake)
+    }
+
     /** Puts the to-do's reminder off ("Später"): it pops up again at [until], anywhere. */
     suspend fun putOff(id: Long, until: Instant) = write { dao.putOff(id, until) }
 

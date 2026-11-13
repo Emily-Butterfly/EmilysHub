@@ -551,6 +551,8 @@ private fun TopLevelScaffold(
                         InboxLine(hub.inbox, onOpen = { open(Destination.Inbox) })
                     },
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
+                    onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
+                    onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

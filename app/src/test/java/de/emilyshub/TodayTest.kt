@@ -13,6 +13,7 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -173,6 +174,7 @@ class TodayTest {
         app.routine("Joggen", "18:00")
 
         launchApp().use {
+            compose.onNodeWithContentDescription("Mehr zu „Joggen“").performClick()
             compose.onNodeWithText("Überspringen").performClick()
             compose.openPast()
             assertEquals(listOf("18:00 Joggen Übersprungen"), rows())
@@ -215,7 +217,6 @@ class TodayTest {
             compose.openPast()
             assertEquals(listOf("18:00 Wasser trinken Ausgelassen", "21:00 Wasser trinken Ausgelassen"), rows())
             assertEquals(listOf(OccurrenceStatus.Dropped, OccurrenceStatus.Dropped), statuses())
-            compose.onAllNodesWithContentDescription("Mehr zu „Wasser trinken“").assertCountEquals(0)
 
             compose.onAllNodesWithText("Rückgängig")[0].performClick()
             assertEquals(listOf("18:00 Wasser trinken", "21:00 Wasser trinken"), rows())

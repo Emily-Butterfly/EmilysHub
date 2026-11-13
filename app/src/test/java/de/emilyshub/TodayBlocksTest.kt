@@ -111,6 +111,7 @@ class TodayBlocksTest {
 
         launchApp().use {
             row("Vitamine").performClick()
+            compose.onNodeWithContentDescription("Mehr zu „Joggen“").performClick()
             compose.onNodeWithText("Überspringen").performClick()
             compose.onNodeWithText("Für heute ist alles erledigt").assertIsDisplayed()
             compose.onNodeWithText("1 erledigt · 1 übersprungen").assertIsDisplayed()
