@@ -61,7 +61,7 @@ import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.languages.TeacherProblem
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.launchNow
@@ -259,7 +259,8 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, TeacherDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, TeacherDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

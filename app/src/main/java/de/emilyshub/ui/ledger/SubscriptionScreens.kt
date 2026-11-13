@@ -67,7 +67,7 @@ import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
@@ -256,7 +256,8 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, SubscriptionDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, SubscriptionDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

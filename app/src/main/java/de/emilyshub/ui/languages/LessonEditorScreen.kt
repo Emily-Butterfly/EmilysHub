@@ -67,7 +67,7 @@ import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Money
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.ChoiceChip
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
@@ -160,7 +160,8 @@ fun LessonEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, LessonDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, LessonDraft::cleaned) },
         onSave = save,
         onDiscard = discard,
     )

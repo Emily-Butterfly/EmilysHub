@@ -22,14 +22,14 @@ class LeavingTest {
     fun `spaces at the edges are no change`() {
         val saved = TodoDraft(title = "Milch kaufen", description = "Im Laden")
 
-        assertFalse(changed(saved.copy(title = "  Milch kaufen ", description = "Im Laden  "), saved, TodoDraft::cleaned))
+        assertFalse(differsAsSaved(saved.copy(title = "  Milch kaufen ", description = "Im Laden  "), saved, TodoDraft::cleaned))
     }
 
     @Test
     fun `what would be saved otherwise is a change`() {
         val saved = TodoDraft(title = "Milch kaufen")
 
-        assertTrue(changed(saved.copy(title = "Brot kaufen"), saved, TodoDraft::cleaned))
+        assertTrue(differsAsSaved(saved.copy(title = "Brot kaufen"), saved, TodoDraft::cleaned))
     }
 
     @Test
@@ -42,16 +42,16 @@ class LeavingTest {
         val teacher = TeacherDraft(name = "Samira", note = "dienstags")
         val plan = PlanTyped(budgets = mapOf(1L to "200"), choice = TotalChoice.Fixed, amount = "1500", saving = "0")
 
-        assertFalse(changed(booking.copy(amount = " 12,50 ", description = "Brot "), booking, BookingDraft::cleaned))
-        assertFalse(changed(recurring.copy(amount = "9,99 ", description = " Netflix"), recurring, RecurringDraft::cleaned))
+        assertFalse(differsAsSaved(booking.copy(amount = " 12,50 ", description = "Brot "), booking, BookingDraft::cleaned))
+        assertFalse(differsAsSaved(recurring.copy(amount = "9,99 ", description = " Netflix"), recurring, RecurringDraft::cleaned))
         assertFalse(
-            changed(
+            differsAsSaved(
                 subscription.copy(name = "Netflix ", amount = " 9,99", note = "Familie ", notice = " 1", renewal = "12 ", lead = " 7 "),
                 subscription, SubscriptionDraft::cleaned,
             ),
         )
-        assertFalse(changed(lesson.copy(minutes = "45 ", price = " 30", note = "Präpositionen  "), lesson, LessonDraft::cleaned))
-        assertFalse(changed(teacher.copy(name = " Samira", note = "dienstags "), teacher, TeacherDraft::cleaned))
-        assertFalse(changed(plan.copy(budgets = mapOf(1L to "200 "), amount = " 1500", saving = "0 "), plan, PlanTyped::cleaned))
+        assertFalse(differsAsSaved(lesson.copy(minutes = "45 ", price = " 30", note = "Präpositionen  "), lesson, LessonDraft::cleaned))
+        assertFalse(differsAsSaved(teacher.copy(name = " Samira", note = "dienstags "), teacher, TeacherDraft::cleaned))
+        assertFalse(differsAsSaved(plan.copy(budgets = mapOf(1L to "200 "), amount = " 1500", saving = "0 "), plan, PlanTyped::cleaned))
     }
 }

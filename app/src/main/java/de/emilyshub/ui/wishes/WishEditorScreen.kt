@@ -51,7 +51,7 @@ import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.GoalField
@@ -141,7 +141,8 @@ fun WishEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, WishDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, WishDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

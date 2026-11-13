@@ -41,7 +41,7 @@ import de.emilyshub.ledger.PlanTyped
 import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.TotalChoice
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
@@ -76,10 +76,11 @@ fun BudgetCalculatorScreen(ledger: Ledger, month: YearMonth?, onClose: () -> Uni
     val check = if (shown != null && now != null) PlanCheck(shown, now) else null
     val save = { if (check != null && check.canSave) closeWith { ledger.saveBudgetPlan(check) } }
     val leave = rememberLeaving(
+        closing = closeWith,
         changed = {
             val saved = plan
             val typedNow = typed
-            saved != null && typedNow != null && changed(typedNow, PlanTyped.of(saved), PlanTyped::cleaned)
+            saved != null && typedNow != null && differsAsSaved(typedNow, PlanTyped.of(saved), PlanTyped::cleaned)
         },
         onSave = save,
         onDiscard = onClose,

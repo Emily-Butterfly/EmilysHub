@@ -40,3 +40,5 @@ Bei der Umsetzung festgelegt (13.11.2026):
 - Ob geändert ist, wird im Moment des Zurück geprüft, damit auch der letzte Tastendruck zählt.
 - Im Dialog stehen „Verwerfen“ und „Weiter bearbeiten“ links, „Speichern“ rechts, wie die anderen Dialoge der App ihre Bestätigung rechts haben.
 - Eine Buchung in einem abgeschlossenen Monat fragt bei Änderungen auch; „Speichern“ schließt dann nur den Dialog, wie der Knopf dort nichts speichert.
+- Hat das Speichern schon begonnen (Lehrer, Session und Abo bleiben offen, bis es fertig ist), tut Zurück nichts mehr: Der Editor ist schon auf dem Weg hinaus, und „Verwerfen“ könnte ihn sonst zweimal schließen oder die Anhänge einer gerade gespeicherten Session freigeben.
+- Was in einem Feld getippt, aber noch nicht hinzugefügt ist (ein WLAN-Name am Ort, ein neues Thema an der Session), gehört nicht zum Entwurf und zählt nicht als Änderung.

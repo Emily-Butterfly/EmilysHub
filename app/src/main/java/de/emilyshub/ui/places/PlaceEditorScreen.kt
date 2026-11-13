@@ -62,7 +62,7 @@ import de.emilyshub.places.Wifi
 import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
 import kotlinx.coroutines.launch
@@ -127,7 +127,8 @@ fun PlaceEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, PlaceDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, PlaceDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

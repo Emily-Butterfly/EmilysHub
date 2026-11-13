@@ -52,7 +52,7 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.RecurrenceEnd
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
@@ -139,7 +139,8 @@ fun RoutineEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, RoutineDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, RoutineDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

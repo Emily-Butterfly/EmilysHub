@@ -23,7 +23,9 @@ import kotlinx.coroutines.withContext
  * the first time, so that a second tap in the same frame neither does it again nor leaves twice.
  */
 class Closing internal constructor(private val scope: CoroutineScope, private val onClose: () -> Unit) {
-    private var started = false
+    /** Whether the work has begun: the editor is on its way out and is not left another way meanwhile. */
+    var begun = false
+        private set
 
     /** Does [work] and closes the editor at once. */
     operator fun invoke(work: suspend () -> Unit) {
@@ -36,8 +38,8 @@ class Closing internal constructor(private val scope: CoroutineScope, private va
     }
 
     private fun start(work: suspend () -> Unit): Boolean {
-        if (started) return false
-        started = true
+        if (begun) return false
+        begun = true
         scope.launchNow { withContext(NonCancellable) { work() } }
         return true
     }
@@ -52,24 +54,32 @@ fun rememberClosing(onClose: () -> Unit): Closing {
 }
 
 /** Whether [draft] differs from [saved] as both would be saved ([cleaned]): spaces at the edges are no change. */
-fun <D> changed(draft: D, saved: D, cleaned: (D) -> D): Boolean = cleaned(draft) != cleaned(saved)
+fun <D> differsAsSaved(draft: D, saved: D, cleaned: (D) -> D): Boolean = cleaned(draft) != cleaned(saved)
 
 /**
  * How an editor is left by its back arrow, the back key or the back gesture (SPEC.md §8): with its draft [changed] at that
  * moment, which may be before the editor shows the last keystroke, it asks "Änderungen speichern?" first, else it leaves
- * at once by [onDiscard]. "Speichern" does [onSave], as the editor's
- * button does, which leaves it if the draft can be saved and else shows why at its field; "Verwerfen" does [onDiscard];
- * "Weiter bearbeiten" and a tap beside the question leave all as it is. The question stays through rotation and the lock.
- * Returns what the back arrow does; back and the gesture do the same by themselves. An editor covered by another is not
- * shown, so it does not ask.
+ * at once by [onDiscard]. "Speichern" does [onSave], as the editor's button does, which leaves it if the draft can be
+ * saved and else shows why at its field; "Verwerfen" does [onDiscard]; "Weiter bearbeiten" and a tap beside the question
+ * leave all as it is. Once the editor's [closing] has begun, as while a save is still under way, back does nothing: the
+ * editor is on its way out already. The question stays through rotation and the lock. Returns what the back arrow does;
+ * back and the gesture do the same by themselves. An editor covered by another is not shown, so it does not ask.
  */
 @Composable
-fun rememberLeaving(changed: () -> Boolean, onSave: () -> Unit, onDiscard: () -> Unit): () -> Unit {
+fun rememberLeaving(closing: Closing, changed: () -> Boolean, onSave: () -> Unit, onDiscard: () -> Unit): () -> Unit {
     var asking by rememberSaveable { mutableStateOf(false) }
-    val isChanged by rememberUpdatedState(changed)
+    val hasChanges by rememberUpdatedState(changed)
     val save by rememberUpdatedState(onSave)
     val discard by rememberUpdatedState(onDiscard)
-    val leave = remember { { if (isChanged()) asking = true else discard() } }
+    val leave = remember(closing) {
+        {
+            when {
+                closing.begun -> Unit
+                hasChanges() -> asking = true
+                else -> discard()
+            }
+        }
+    }
     BackHandler(onBack = leave)
     if (asking) {
         AlertDialog(
@@ -87,7 +97,7 @@ fun rememberLeaving(changed: () -> Boolean, onSave: () -> Unit, onDiscard: () ->
                 TextButton(
                     onClick = {
                         asking = false
-                        discard()
+                        if (!closing.begun) discard()
                     },
                 ) { Text(stringResource(R.string.leaving_discard)) }
                 TextButton(onClick = { asking = false }) { Text(stringResource(R.string.leaving_keep_editing)) }

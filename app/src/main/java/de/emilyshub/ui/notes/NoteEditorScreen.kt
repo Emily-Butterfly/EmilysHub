@@ -55,7 +55,7 @@ import de.emilyshub.notes.NoteEditing
 import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
@@ -132,7 +132,8 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         return
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, NoteDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, NoteDraft::cleaned) },
         onSave = { save() },
         onDiscard = onClose,
     )

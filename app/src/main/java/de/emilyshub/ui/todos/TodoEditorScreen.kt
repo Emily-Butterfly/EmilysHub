@@ -53,8 +53,8 @@ import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.TodoProblem
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
@@ -140,7 +140,8 @@ fun TodoEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, TodoDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, TodoDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

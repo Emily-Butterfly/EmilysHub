@@ -1,6 +1,7 @@
 package de.emilyshub
 
 import android.net.Uri
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -20,6 +21,9 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.ledger.BookingInterval
+import de.emilyshub.ledger.BookingKind
+import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.notes.NoteLink
 import kotlinx.coroutines.flow.first
@@ -31,6 +35,7 @@ import org.junit.runner.RunWith
 import org.robolectric.shadows.ShadowSystemClock
 import java.io.File
 import java.time.Duration
+import java.time.YearMonth
 
 /**
  * Leaving an editor with its input changed asks first (SPEC.md §8, #87): by the back arrow, the back key or the gesture,
@@ -211,6 +216,29 @@ class LeavingEditorsTest {
         openLedger()
         compose.onNodeWithContentDescription("Abos").performClick()
         compose.onNodeWithContentDescription("Abo anlegen").performClick()
+    }
+
+    @Test
+    fun `an Abo made from a fixed booking is no change as it opens with its name and amount`() {
+        runBlocking {
+            val leisure = app.ledger.categories().first().single { it.kind == BookingKind.Expense && it.name == "Freizeit" }.id
+            app.ledger.createTemplate(
+                RecurringDraft(BookingKind.Expense, "12,99", leisure, "Streaming", BookingInterval.Monthly, day = 1, firstMonth = YearMonth.of(2026, 10)),
+            )
+        }
+
+        launchApp().use { scenario ->
+            openLedger()
+            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.onNodeWithText("Streaming").performClick()
+            compose.onNodeWithText("Als Abo führen").performScrollTo().performClick()
+            field("Name").assert(hasText("Streaming"))
+
+            scenario.pressBack()
+
+            question().assertDoesNotExist()
+            heading("Neues Abo").assertDoesNotExist()
+        }
     }
 
     @Test

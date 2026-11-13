@@ -61,7 +61,7 @@ import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
-import de.emilyshub.ui.changed
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
@@ -192,7 +192,8 @@ fun RecurringEditorScreen(
         }
     }
     val leave = rememberLeaving(
-        changed = { changed(draft, opened.original ?: fresh, RecurringDraft::cleaned) },
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, RecurringDraft::cleaned) },
         onSave = save,
         onDiscard = onClose,
     )

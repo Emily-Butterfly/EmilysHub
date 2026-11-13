@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,5 +43,15 @@ class ClosingTest {
         advanceUntilIdle()
 
         assertTrue(saved)
+    }
+
+    @Test
+    fun `it says when it has begun, so that the editor is not left another way meanwhile`() = runTest {
+        val closing = Closing(this) {}
+        assertFalse(closing.begun)
+
+        closing.leaveThrough { delay(100) }
+
+        assertTrue(closing.begun)
     }
 }
