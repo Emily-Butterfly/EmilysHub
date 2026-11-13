@@ -84,7 +84,7 @@ class LanguagesScreenTest {
             compose.onNode(hasText("Neuer Lehrer") and hasClickAction()).performScrollTo().performClick()
             compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("Amal")
             compose.onNode(hasText("Anlegen") and hasAnyAncestor(isDialog())).performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
             compose.onNode(hasSetTextAction() and hasText("Preis in Euro (optional)")).performScrollTo().performTextInput("12,50")
             compose.onNodeWithText("Speichern").performClick()
 
@@ -157,7 +157,7 @@ class LanguagesScreenTest {
             compose.onNodeWithText("Lehrer verwalten").performClick()
             compose.onNodeWithText("Amal").performClick()
             heading("Lehrer bearbeiten").assertIsDisplayed()
-            compose.onNode(hasText("Italienisch") and isSelectable()).performClick()
+            compose.onNode(hasText("Italienisch") and isSelectable()).performScrollTo().performClick()
             compose.onNodeWithText("Speichern").performClick()
             compose.onNodeWithText("Arabisch, Italienisch").assertIsDisplayed()
         }
@@ -175,7 +175,7 @@ class LanguagesScreenTest {
             compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Session eintragen").performClick()
             compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
             compose.onNode(hasSetTextAction() and hasText("Thema")).performScrollTo().performTextInput("Verben im Präsens")
             compose.onNode(hasText("Hinzufügen") and hasClickAction()).performClick()
             compose.onNode(hasText("Verben im Präsens") and isSelectable()).assertIsDisplayed()
@@ -236,7 +236,7 @@ class LanguagesScreenTest {
             compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Session eintragen").performClick()
             compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
             compose.onNode(hasText("Textdatei") and hasClickAction()).performScrollTo().performClick()
             scenario.pickFile(Uri.parse(file))
 
@@ -260,7 +260,7 @@ class LanguagesScreenTest {
             compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Session eintragen").performClick()
             compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
             compose.onNode(hasText("Foto wählen") and hasClickAction()).performScrollTo().performClick()
             scenario.pickFile(Uri.parse(file))
 

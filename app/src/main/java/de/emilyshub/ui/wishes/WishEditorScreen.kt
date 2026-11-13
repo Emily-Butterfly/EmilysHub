@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,10 +37,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
@@ -57,7 +60,9 @@ import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -132,9 +137,11 @@ fun WishEditorScreen(
     val problems = draft.problems
     val cleaned = draft.cleaned()
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = wishId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
+            if (WishProblem.TitleMissing in problems || WishProblem.TitleTooLong in problems) firstField.show()
         } else {
             val saved = draft
             closeWith { wishes.save(opened, saved) }
@@ -187,10 +194,10 @@ fun WishEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -206,7 +213,12 @@ fun WishEditorScreen(
                 onValueChange = { draft = draft.copy(title = it) },
                 label = { Text(stringResource(R.string.wish_title)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                // A new one needs no more than its title: "Fertig" saves it (SPEC.md §8).
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = if (wishId == null) ImeAction.Done else ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(onDone = { save() }),
                 isError = WishProblem.TitleTooLong in problems || titleMissing,
                 supportingText = {
                     when {
@@ -214,7 +226,9 @@ fun WishEditorScreen(
                         else -> LengthHint(InputText.lengthOf(cleaned.title), WishDraft.TITLE_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.focus),
             )
             OutlinedTextField(
                 value = draft.description,

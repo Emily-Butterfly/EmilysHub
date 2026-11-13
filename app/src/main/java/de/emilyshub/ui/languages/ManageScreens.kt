@@ -44,9 +44,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -64,6 +66,8 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
@@ -241,9 +245,11 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
     }
     val problems = draft.problems
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = teacherId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
+            if (draft.nameProblem != null) firstField.show()
         } else {
             val saved = draft
             closeWith.leaveThrough {
@@ -281,9 +287,9 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
-                actions = { TextButton(onClick = save) { Text(stringResource(R.string.save)) } },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -299,7 +305,7 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.teacher_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 isError = nameMissing || TeacherProblem.NameTooLong in problems,
                 supportingText = {
                     if (nameMissing) {
@@ -308,7 +314,9 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                         LengthHint(InputText.lengthOf(draft.cleanedName), Teacher.NAME_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.focus),
             )
             OutlinedTextField(
                 value = draft.note,

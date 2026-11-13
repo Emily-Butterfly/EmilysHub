@@ -40,11 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -63,6 +65,8 @@ import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.differsAsSaved
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
 import kotlinx.coroutines.launch
@@ -118,9 +122,11 @@ fun PlaceEditorScreen(
     val others = all?.filter { it.id != placeId } ?: return
     val problems = draft.problems(others)
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = placeId == null)
     val save = {
         if (problems.isNotEmpty()) {
             triedToSave = true
+            if (problems.any { it in NAME_PROBLEMS }) firstField.show()
         } else {
             val saved = draft
             closeWith { places.save(opened, saved) }
@@ -153,10 +159,10 @@ fun PlaceEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -177,10 +183,12 @@ fun PlaceEditorScreen(
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.place_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 isError = nameProblem != null,
                 supportingText = nameProblem?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.focus),
             )
             // Both the WLAN connected to and the position now need the location allowed and on.
             if (access.current != LocationAccess.Granted) LocationAccessNotice(access)
@@ -403,3 +411,6 @@ private fun DegreesField(value: String, label: String, hint: String, problem: St
 
 /** The radius goes in steps of 10 m. */
 private const val RADIUS_STEP = 10
+
+/** What keeps a place's name from being saved, shown at it. */
+private val NAME_PROBLEMS = setOf(PlaceProblem.NameMissing, PlaceProblem.NameTaken, PlaceProblem.NameTooLong)

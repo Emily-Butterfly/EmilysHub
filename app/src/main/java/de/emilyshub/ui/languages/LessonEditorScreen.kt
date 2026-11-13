@@ -72,6 +72,7 @@ import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
@@ -206,10 +207,10 @@ fun LessonEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier

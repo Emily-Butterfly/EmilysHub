@@ -43,6 +43,7 @@ import de.emilyshub.ledger.TotalChoice
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -95,11 +96,9 @@ fun BudgetCalculatorScreen(ledger: Ledger, month: YearMonth?, onClose: () -> Uni
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
-                actions = {
-                    TextButton(onClick = save, enabled = check?.canSave == true) { Text(stringResource(R.string.save)) }
-                },
             )
         },
+        bottomBar = { SaveBar(onSave = save, enabled = check?.canSave == true) },
     ) { contentPadding ->
         if (check == null) return@Scaffold
         LazyColumn(contentPadding = contentPadding) {

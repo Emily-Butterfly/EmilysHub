@@ -729,7 +729,8 @@ class LedgerScreenTest {
 
             calculatorField("Lebensmittel").performTextReplacement("450")
             ledgerList().performScrollToNode(hasText("Fester Betrag"))
-            option("Fester Betrag").performClick()
+            // Its action, not a touch: scrolled to the edge, the save bar may lie over it.
+            option("Fester Betrag").performSemanticsAction(SemanticsActions.OnClick)
             calculatorField("Gesamtbudget im Monat").performTextReplacement("1.200")
             ledgerList().performScrollToNode(hasText("750,00 € frei"))
             compose.onNodeWithText("Speichern").performClick()

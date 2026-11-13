@@ -13,15 +13,15 @@ Ein neuer Eintrag lässt sich sofort tippen und mit dem Daumen speichern: Die Ta
 
 ## Akzeptanzkriterien
 
-- [ ] Gilt für die Editoren von To-do, Routine, Ziel, Notiz, Ort, Buchung, Fixbuchung, Abo, Session und Lehrer und für den Budget-Rechner; die Seiten der Dokumentation bleiben, wie sie sind
-- [ ] Bei einem neuen Eintrag hat das erste Pflichtfeld (Titel, Name, bei der Buchung der Betrag) beim Öffnen den Fokus, und die Tastatur ist offen; beim Bearbeiten eines gespeicherten Eintrags nicht
-- [ ] „Speichern“ ist ein gefüllter Knopf über die Breite am unteren Rand; ist die Tastatur offen, sitzt er direkt über ihr. Der Textknopf oben rechts entfällt
-- [ ] „Löschen“ und, bei Notizen, „Archivieren“ bleiben oben in der Leiste
-- [ ] Der Knopf verdeckt kein Feld: Der Inhalt lässt sich bis über ihn scrollen
-- [ ] Bei einem neuen To-do und einem neuen Ziel speichert „Fertig“ auf der Tastatur im Titelfeld direkt; in den anderen Editoren führt es ins nächste Feld
-- [ ] Lässt sich nicht speichern, zeigt der Editor das Problem wie bisher an seinem Feld und holt es in den sichtbaren Bereich
-- [ ] Bei Schriftgröße 150 % bleibt der Knopf einzeilig und lesbar
-- [ ] UI-Tests: Fokus beim neuen Eintrag und keiner beim Bearbeiten; „Speichern“ unten speichert; „Fertig“ im Titel eines neuen To-dos speichert; ein fehlender Titel hält den Editor offen
+- [x] Gilt für die Editoren von To-do, Routine, Ziel, Notiz, Ort, Buchung, Fixbuchung, Abo, Session und Lehrer und für den Budget-Rechner; die Seiten der Dokumentation bleiben, wie sie sind
+- [x] Bei einem neuen Eintrag hat das erste Pflichtfeld (Titel, Name, bei der Buchung der Betrag) beim Öffnen den Fokus, und die Tastatur ist offen; beim Bearbeiten eines gespeicherten Eintrags nicht
+- [x] „Speichern“ ist ein gefüllter Knopf über die Breite am unteren Rand; ist die Tastatur offen, sitzt er direkt über ihr. Der Textknopf oben rechts entfällt
+- [x] „Löschen“ und, bei Notizen, „Archivieren“ bleiben oben in der Leiste
+- [x] Der Knopf verdeckt kein Feld: Der Inhalt lässt sich bis über ihn scrollen
+- [x] Bei einem neuen To-do und einem neuen Ziel speichert „Fertig“ auf der Tastatur im Titelfeld direkt; in den anderen Editoren führt es ins nächste Feld
+- [x] Lässt sich nicht speichern, zeigt der Editor das Problem wie bisher an seinem Feld und holt es in den sichtbaren Bereich
+- [x] Bei Schriftgröße 150 % bleibt der Knopf einzeilig und lesbar
+- [x] UI-Tests: Fokus beim neuen Eintrag und keiner beim Bearbeiten; „Speichern“ unten speichert; „Fertig“ im Titel eines neuen To-dos speichert; ein fehlender Titel hält den Editor offen
 
 ## Entscheidungen
 
@@ -29,3 +29,10 @@ Aus dem Gutachten vom 12.11.2026 (Befund U1, Vorschlag UX 1, Punkt 4); die Einze
 
 - Ein Knopf unten in allen Editoren, damit „Speichern“ überall an derselben Stelle liegt.
 - „Fertig“ speichert nur bei To-do und Ziel direkt: Dort genügt der Titel. Eine Routine mit der voreingestellten Uhrzeit soll nicht aus Versehen entstehen.
+
+Bei der Umsetzung festgelegt (13.11.2026):
+
+- Der Fokus kommt einmal beim Öffnen, nicht wieder nach Drehen oder Sperre; scheitert das Speichern am Titel (Name, Betrag), geht er wieder dorthin.
+- Die Session hat kein Feld, das zuerst getippt werden muss (Datum steht, die Dauer geht per Tipp), und öffnet ohne Tastatur; der Budget-Rechner ist kein neuer Eintrag.
+- Ein Hinweis zu einem Problem, das kein Textfeld betrifft (etwa „Bitte wähle eine Kategorie“), scrollt sich beim Erscheinen selbst in den sichtbaren Bereich.
+- Bei einem Ziel speichert „Fertig“ wie beim To-do nur bei einem neuen; beim Bearbeiten führt es ins nächste Feld.

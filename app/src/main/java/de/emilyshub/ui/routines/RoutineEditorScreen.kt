@@ -32,9 +32,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
@@ -59,7 +61,9 @@ import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -130,9 +134,11 @@ fun RoutineEditorScreen(
     val status = opened.status
     // Does [work] and closes the editor, once.
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = routineId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingName = true
+            if (DraftProblem.NameMissing in problems || DraftProblem.NameTooLong in problems) firstField.show()
         } else {
             val saved = draft
             closeWith { routines.save(opened, saved) }
@@ -165,7 +171,6 @@ fun RoutineEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                     if (routineId != null) {
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
@@ -193,6 +198,7 @@ fun RoutineEditorScreen(
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -207,7 +213,7 @@ fun RoutineEditorScreen(
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.routine_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 isError = DraftProblem.NameTooLong in problems || (showMissingName && DraftProblem.NameMissing in problems),
                 supportingText = {
                     when {
@@ -215,7 +221,9 @@ fun RoutineEditorScreen(
                         else -> LengthHint(InputText.lengthOf(cleaned.name), RoutineDraft.NAME_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.focus),
             )
             OutlinedTextField(
                 value = draft.description,

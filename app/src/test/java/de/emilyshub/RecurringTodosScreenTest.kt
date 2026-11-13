@@ -51,7 +51,7 @@ class RecurringTodosScreenTest {
             field("Titel").performTextReplacement("Miete überweisen")
             compose.onNodeWithText("Wiederholung").assertDoesNotExist()
 
-            option("Datum").performClick()
+            option("Datum").tap()
             option("Monatlich am 23.").tap()
             compose.onNodeWithText("Speichern").performClick()
 
@@ -101,7 +101,7 @@ class RecurringTodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextReplacement("Miete überweisen")
-            option("Datum").performClick()
+            option("Datum").tap()
             option("Monatlich am 23.").tap()
             pickDay("28")
 

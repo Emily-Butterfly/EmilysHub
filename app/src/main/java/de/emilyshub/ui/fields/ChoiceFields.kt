@@ -80,7 +80,8 @@ internal fun WeekdayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Un
 /** What keeps the routine or to-do from being saved, under the field it is about. */
 @Composable
 internal fun Problem(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    // Scrolled to as it comes up, so that a problem found on saving is seen (SPEC.md §8).
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.revealedWhenShown())
 }
 
 private const val NUMBER_DIGITS = 3

@@ -41,11 +41,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
@@ -73,6 +75,8 @@ import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
@@ -241,9 +245,11 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
             endingRecurring = endsOn
         }
     }
+    val firstField = rememberFirstField(new = subscriptionId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
+            if (SubscriptionProblem.NameMissing in problems || SubscriptionProblem.NameTooLong in problems) firstField.show()
         } else {
             val saved = draft
             closeWith.leaveThrough {
@@ -285,10 +291,10 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -304,6 +310,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.subscription_name)) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 isError = (showProblems && SubscriptionProblem.NameMissing in problems) || SubscriptionProblem.NameTooLong in problems,
                 supportingText = {
                     if (showProblems && SubscriptionProblem.NameMissing in problems) {
@@ -312,7 +319,9 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                         LengthHint(InputText.lengthOf(draft.cleanedName), SubscriptionDraft.NAME_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.focus),
             )
             RecurringChoice(draft, choices.map { it.id to it.name }, refused) { draft = draft.copy(recurringId = it) }
             val linked = choices.find { it.id == draft.recurringId }

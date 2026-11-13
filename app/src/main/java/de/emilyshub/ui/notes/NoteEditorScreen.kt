@@ -38,13 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -60,7 +60,9 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
@@ -177,10 +179,10 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                         }
                         TextButton(onClick = { save(after = notes::archiveNote) }) { Text(stringResource(R.string.note_archive)) }
                     }
-                    TextButton(onClick = { save() }) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = { save() }) },
     ) { contentPadding ->
         Column(
             Modifier
@@ -191,7 +193,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
             if (previewing) {
                 Preview(notes, draft)
             } else {
-                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, onChange = { draft = it })
+                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, new = noteId == null, onChange = { draft = it })
             }
         }
     }
@@ -265,11 +267,13 @@ private fun Writing(
     problems: Set<NoteProblem>,
     showMissingTitle: Boolean,
     titleAsked: Int,
+    new: Boolean,
     onChange: (NoteDraft) -> Unit,
 ) {
     val cleaned = draft.cleaned()
-    val titleFocus = remember { FocusRequester() }
-    LaunchedEffect(titleAsked) { if (titleAsked > 0) titleFocus.requestFocus() }
+    // A new one opens with the keyboard in its title (SPEC.md §8).
+    val title = rememberFirstField(new)
+    LaunchedEffect(titleAsked) { if (titleAsked > 0) title.show() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -283,7 +287,7 @@ private fun Writing(
             onValueChange = { onChange(draft.copy(title = it)) },
             label = { Text(stringResource(R.string.note_title)) },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
             isError = NoteProblem.TitleTooLong in problems || titleMissing,
             supportingText = {
                 when {
@@ -293,7 +297,7 @@ private fun Writing(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(titleFocus),
+                .focusRequester(title.focus),
         )
         LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
         TagsField(tags, draft.tagIds, onChange = { onChange(draft.copy(tagIds = it)) })

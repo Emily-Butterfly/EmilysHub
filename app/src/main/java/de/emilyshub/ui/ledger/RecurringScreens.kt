@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -66,6 +67,8 @@ import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.fields.withEnd
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
@@ -183,9 +186,11 @@ fun RecurringEditorScreen(
     val problems = ledger.problems(opened, draft)
     val bookingProblems = draft.asBooking.problems
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = recurringId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
+            if (bookingProblems.any { it in AMOUNT_PROBLEMS }) firstField.show()
         } else {
             val saved = draft
             closeWith { ledger.saveTemplate(opened, saved) }
@@ -218,10 +223,10 @@ fun RecurringEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -243,7 +248,9 @@ fun RecurringEditorScreen(
                 ) { Text(stringResource(if (abo == null) R.string.subscription_as_abo else R.string.subscription_open)) }
             }
             KindChips(draft.kind) { draft = draft.copy(kind = it, categoryId = null) }
-            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems) { draft = draft.copy(amount = it) }
+            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems, Modifier.focusRequester(firstField.focus)) {
+                draft = draft.copy(amount = it)
+            }
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && RecurringProblem.CategoryMissing in problems) {
                 draft = draft.copy(categoryId = it)
             }

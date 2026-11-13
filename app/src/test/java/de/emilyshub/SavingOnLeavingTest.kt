@@ -116,7 +116,7 @@ class SavingOnLeavingTest {
             compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Session eintragen").performClick()
             compose.onNode(hasText("Amal") and isSelectable()).performScrollTo().performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
 
             scenario.pressBack()
 
@@ -135,7 +135,7 @@ class SavingOnLeavingTest {
             openLanguages()
             compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Session eintragen").performClick()
-            compose.onNode(hasText("45 Min.") and isSelectable()).performClick()
+            compose.onNode(hasText("45 Min.") and isSelectable()).performScrollTo().performClick()
 
             scenario.pressBack()
 

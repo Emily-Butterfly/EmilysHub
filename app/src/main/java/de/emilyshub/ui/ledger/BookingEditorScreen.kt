@@ -32,10 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -56,6 +58,8 @@ import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -112,10 +116,12 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val locked = known == null || closedMonth != null
     val context = LocalContext.current.applicationContext
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = bookingId == null)
     val save = save@{
         if (locked) return@save
         if (problems.isNotEmpty()) {
             showProblems = true
+            if (problems.any { it in AMOUNT_PROBLEMS }) firstField.show()
         } else {
             val saved = draft
             val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
@@ -164,10 +170,10 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save, enabled = !locked) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save, enabled = !locked) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -182,7 +188,9 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 // A category of the other kind does not fit any more.
                 draft = draft.copy(kind = kind, categoryId = null)
             }
-            AmountField(draft.amount, draft.cents, problems, showProblems) { draft = draft.copy(amount = it) }
+            AmountField(draft.amount, draft.cents, problems, showProblems, Modifier.focusRequester(firstField.focus)) {
+                draft = draft.copy(amount = it)
+            }
             DateValue(stringResource(R.string.booking_date), draft.date, onClick = { choosingDate = true })
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && BookingProblem.CategoryMissing in problems) {
                 draft = draft.copy(categoryId = it)
@@ -239,7 +247,14 @@ internal fun KindChips(kind: BookingKind, onChange: (BookingKind) -> Unit) {
  * ([showProblems]); while it is right, how it is read, "1.234,56 €".
  */
 @Composable
-internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProblem>, showProblems: Boolean, onChange: (String) -> Unit) {
+internal fun AmountField(
+    amount: String,
+    cents: Long?,
+    problems: Set<BookingProblem>,
+    showProblems: Boolean,
+    modifier: Modifier = Modifier,
+    onChange: (String) -> Unit,
+) {
     val problem = problems.firstOrNull {
         it in setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
     }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
@@ -249,7 +264,7 @@ internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProb
         label = { Text(stringResource(R.string.booking_amount)) },
         singleLine = true,
         suffix = { Text("€") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
         isError = problem != null,
         supportingText = {
             Text(
@@ -261,7 +276,7 @@ internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProb
                 },
             )
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
@@ -290,3 +305,6 @@ internal fun kindLabel(kind: BookingKind): String = stringResource(
         BookingKind.Income -> R.string.booking_kind_income
     },
 )
+
+/** What keeps an amount from being saved, shown at it. */
+internal val AMOUNT_PROBLEMS = setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
