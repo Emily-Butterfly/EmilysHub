@@ -16,7 +16,8 @@ import de.emilyshub.ui.WarningCard
 
 /**
  * The warning on Heute (SPEC.md §10) while the last backup is over 30 days old or failed, there has been none for as
- * long, or the backups were not copied away from the phone for as long, only the first of them, read again on every return to the app; [onOpen] opens the backups. Nothing while the backups are fine.
+ * long, or the backups were not copied away from the phone for as long; one card only, for the first of these that
+ * holds. Read again on every return to the app; [onOpen] opens the backups. Nothing while the backups are fine.
  */
 @Composable
 fun BackupWarningCard(nightly: NightlyBackups, onOpen: () -> Unit) {
@@ -27,14 +28,15 @@ fun BackupWarningCard(nightly: NightlyBackups, onOpen: () -> Unit) {
         onPauseOrDispose {}
     }
     LaunchedEffect(nightly, resumes) { warning = nightly.warning() }
+    val shown = warning ?: return
     WarningCard(
-        title = when (warning ?: return) {
+        title = when (shown) {
             BackupWarning.Failed -> stringResource(R.string.today_backup_failed)
             BackupWarning.Old -> stringResource(R.string.today_backup_old, NightlyBackups.WARN_AFTER_DAYS.toInt())
             BackupWarning.None -> stringResource(R.string.today_backup_none)
             BackupWarning.NotCopiedAway -> stringResource(R.string.today_backup_not_copied_away)
         },
-        text = stringResource(R.string.today_backup_text),
+        text = stringResource(if (shown == BackupWarning.NotCopiedAway) R.string.today_backup_copy_text else R.string.today_backup_text),
         action = stringResource(R.string.today_backup_open),
         onAction = onOpen,
     )

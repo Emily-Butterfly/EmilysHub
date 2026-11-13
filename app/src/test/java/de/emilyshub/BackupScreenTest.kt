@@ -33,6 +33,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.time.LocalDate
 
 /**
  * The backups in the settings (SPEC.md §10): the backup password set once, a backup saved to a file chosen in Android's
@@ -298,7 +299,20 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `without a backup there is nothing to confirm as copied away`() {
+        launchApp().use {
+            openBackups()
+
+            compose.onNodeWithText("Heute weggekopiert").performScrollTo().assertIsNotEnabled()
+        }
+    }
+
+    @Test
     fun `copying away is confirmed for today, which can be taken back right away`() {
+        runBlocking {
+            app.backups.setPassword("Flieder und Lila")
+            app.backups.export { ByteArrayOutputStream() }
+        }
         launchApp().use {
             openBackups()
             compose.onNodeWithText("Noch nie ausgelagert.").performScrollTo().assertIsDisplayed()
@@ -306,7 +320,9 @@ class BackupScreenTest {
             compose.onNodeWithText("Heute weggekopiert").performScrollTo().performClick()
 
             compose.onNodeWithText("Zuletzt ausgelagert am 23.10.2026.").performScrollTo().assertIsDisplayed()
-            assertEquals(java.time.LocalDate.parse("2026-10-23"), runBlocking { app.nightlyBackups.state() }.copiedAway)
+            // Only one bar to take back at a time.
+            compose.onNodeWithText("Heute weggekopiert").assertIsNotEnabled()
+            assertEquals(LocalDate.parse("2026-10-23"), runBlocking { app.nightlyBackups.state() }.copiedAway)
 
             compose.onNodeWithText("Rückgängig").performClick()
 

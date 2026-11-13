@@ -41,7 +41,7 @@ interface BackupFolder {
 }
 
 /**
- * Why Heute tells of the backups, the first first: the last one failed, is over 30 days old, there has been none for 30
+ * Why Heute tells of the backups, in the order one goes before another: the last one failed, is over 30 days old, there has been none for 30
  * days, or they lie only on the phone, not copied away for over 30 days (SPEC.md §10).
  */
 enum class BackupWarning { Failed, Old, None, NotCopiedAway }
@@ -54,7 +54,7 @@ data class ChosenFolder(val name: String?)
  * or by hand; whether the last nightly one [failed] after that; and the day the backups were last [copiedAway] from
  * the phone, as the user confirmed it, none if never.
  */
-data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?, val failed: Boolean, val copiedAway: LocalDate? = null)
+data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?, val failed: Boolean, val copiedAway: LocalDate?)
 
 /**
  * The backups made each night (SPEC.md §10) into a folder chosen once, whose access is kept: at [NIGHT], with the key
@@ -166,21 +166,25 @@ class NightlyBackups(
             lastMade = lastMade?.atZone(clock.zone),
             // Until a backup is made after it, by night or by hand.
             failed = failed != null && (lastMade == null || !failed.isBefore(lastMade)),
-            copiedAway = stored(COPIED_AWAY)?.let(LocalDate::parse),
+            copiedAway = copiedAway(),
         )
     }
 
     /** The backups are copied away from the phone as of today; the day it said before, none if never, to take it back with. */
     suspend fun confirmCopiedAway(): LocalDate? = withContext(io + NonCancellable) {
-        val before = stored(COPIED_AWAY)?.let(LocalDate::parse)
-        put(COPIED_AWAY, LocalDate.now(clock).toString())
-        before
+        lock.withLock {
+            val before = copiedAway()
+            put(COPIED_AWAY, LocalDate.now(clock).toString())
+            before
+        }
     }
 
     /** Copying away taken back: the day before stands again, [previous], none if never. */
     suspend fun undoCopiedAway(previous: LocalDate?) = withContext(io + NonCancellable) {
-        put(COPIED_AWAY, previous?.toString().orEmpty())
+        lock.withLock { put(COPIED_AWAY, previous?.toString().orEmpty()) }
     }
+
+    private suspend fun copiedAway(): LocalDate? = stored(COPIED_AWAY)?.let(LocalDate::parse)
 
     /** What Heute is to tell of the backups, if anything. */
     suspend fun warning(): BackupWarning? {

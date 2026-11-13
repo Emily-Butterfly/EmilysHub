@@ -34,4 +34,5 @@ Bei der Umsetzung festgelegt (13.11.2026):
 
 - Der Tag des ersten Backups wird ab dieser Version vermerkt; gibt es schon Backups, gilt der erste Start nach dem Update als dieser Tag.
 - „Über 30 Tage her“ heißt bei der Bestätigung: ab dem 31. Kalendertag danach; beim ersten Backup: mehr als 30 Tage nach seinem Zeitpunkt, wie bei der Warnung vor einem veralteten Backup.
-- Der Abschnitt „Auslagern“ steht zwischen „Jede Nacht“ und „Laden“; der Knopf braucht kein Backup-Passwort.
+- Der Abschnitt „Auslagern“ steht zwischen „Jede Nacht“ und „Laden“; der Knopf braucht kein Backup-Passwort, aber ein Backup: Vorher gibt es nichts wegzukopieren. Solange die Leiste mit „Rückgängig“ steht, ist er gesperrt, damit Rückgängig immer den Stand davor zurückholt.
+- Die Karte hat einen eigenen Text: auf einen PC oder USB-Stick kopieren, sonst sind mit dem Handy auch die Backups weg.

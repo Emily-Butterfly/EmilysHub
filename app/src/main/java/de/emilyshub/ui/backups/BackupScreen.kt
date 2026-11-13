@@ -134,8 +134,11 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
     val snackbar = remember { SnackbarHostState() }
     val confirmedMessage = stringResource(R.string.backup_confirmed_copied_away)
     val undoLabel = stringResource(R.string.undo)
-    // Confirmed for today, with a bar to take it back at once to what held before.
+    // Confirmed for today, with a bar to take it back at once to what held before; one bar at a time, so that taking it
+    // back cannot bring back a day confirmed in between.
+    var confirming by remember { mutableStateOf(false) }
     val confirmCopiedAway = {
+        confirming = true
         scope.launch {
             val before = nightly.confirmCopiedAway()
             nightlyState = nightly.state()
@@ -144,6 +147,7 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
                 nightly.undoCopiedAway(before)
                 nightlyState = nightly.state()
             }
+            confirming = false
         }
     }
 
@@ -211,7 +215,11 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
                 )
             }
 
-            nightlyState?.let { state -> CopyAwaySection(state.copiedAway, enabled = !busy, onConfirm = { confirmCopiedAway() }) }
+            nightlyState?.let { state ->
+                // Nothing to copy away before the first backup.
+                val enabled = state.lastMade != null && !busy && !confirming
+                CopyAwaySection(state.copiedAway, enabled = enabled, onConfirm = { confirmCopiedAway() })
+            }
 
             SectionTitle(stringResource(R.string.backup_load_title))
             Text(stringResource(R.string.backup_load_summary))

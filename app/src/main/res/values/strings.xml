@@ -657,6 +657,7 @@
     <string name="backup_confirm_copied_away">Heute weggekopiert</string>
     <string name="backup_confirmed_copied_away">Als heute ausgelagert vermerkt.</string>
     <string name="today_backup_not_copied_away">Deine Backups liegen nur auf dem Handy</string>
+    <string name="today_backup_copy_text">Kopiere sie auf einen PC oder einen USB-Stick. Geht das Handy verloren oder kaputt, sind sonst auch die Backups weg.</string>
     <string name="backup_copy_hint">Kopiere deine Backups regelmäßig vom Handy weg, auch die aus dem Ordner für jede Nacht, etwa auf einen PC oder einen USB-Stick. Geht das Handy verloren oder kaputt, sind sonst auch die Backups weg.</string>
     <plurals name="search_more">
         <item quantity="one">Und ein weiterer Treffer – genauer suchen, um ihn zu sehen.</item>

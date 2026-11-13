@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -177,7 +178,7 @@ class NightlyBackupsTest {
     @Test
     fun `Heute is told once the last backup, made by hand too, is over 30 days old`() {
         setPassword()
-        runBlocking { app.backups.export { java.io.ByteArrayOutputStream() } }
+        runBlocking { app.backups.export { ByteArrayOutputStream() } }
         assertEquals(app.clock.now, runBlocking { nightly.state() }.lastMade?.toInstant())
 
         app.clock.now = berlin("2026-11-22T07:00")
@@ -350,7 +351,7 @@ class NightlyBackupsTest {
 
     private fun setPassword() = runBlocking { app.backups.setPassword(PASSWORD) }
 
-    private fun exportByHand() = runBlocking { app.backups.export { java.io.ByteArrayOutputStream() } }
+    private fun exportByHand() = runBlocking { app.backups.export { ByteArrayOutputStream() } }
 
     /** The clock at [localDateTime] in Berlin, and the alarm for the night's backup going off then. */
     /**
