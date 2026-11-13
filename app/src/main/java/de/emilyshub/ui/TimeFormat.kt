@@ -40,6 +40,11 @@ private val SHORT_WEEKDAY_DAY_AND_MONTH: DateTimeFormatter = DateTimeFormatter.o
 /** A day of the year with its weekday, in short, as Germans write it: Fr. 6. Nov. */
 fun LocalDate.shortWeekdayDayAndMonth(): String = SHORT_WEEKDAY_DAY_AND_MONTH.format(this)
 
+private val SHORT_WEEKDAY_COMMA_DAY_AND_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, d. MMM", Locale.GERMAN)
+
+/** A day of the year with its weekday, in short, as a date line has it: Fr., 23. Okt. */
+fun LocalDate.dateLine(): String = SHORT_WEEKDAY_COMMA_DAY_AND_MONTH.format(this)
+
 private val MONTH_AND_YEAR: DateTimeFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.GERMAN)
 
 /** A month, as a calendar names it: Oktober 2026. */

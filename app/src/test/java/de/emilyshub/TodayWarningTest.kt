@@ -19,6 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import org.robolectric.shadows.ShadowBuild
 import java.time.DayOfWeek
@@ -41,6 +42,7 @@ class TodayWarningTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `with notifications not allowed, Heute warns of it and leads to "Funktioniert alles?"`() {
         app.routine("Tabletten", "08:00")
 

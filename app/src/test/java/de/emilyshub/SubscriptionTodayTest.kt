@@ -24,6 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.LocalDate
 
@@ -47,6 +48,7 @@ class SubscriptionTodayTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `an Abo in its lead is under Demnaechst with its last day, and opens with a tap`() {
         // The test app's clock: 23 October 2026; 14 days of lead.
         abo("Streaming", cancelBy = "2026-11-06")

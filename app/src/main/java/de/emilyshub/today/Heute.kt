@@ -27,20 +27,23 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Heute as it stands on [date] (SPEC.md §1): its [entries] in their order ([todayList]), the to-dos shown before their
+ * Heute as it stands on [date] (SPEC.md §1): its entries in their [blocks] ([todayBlocks]), with how far the day is, the to-dos shown before their
  * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without one, the
  * [heatmap] of the last six months, and under Demnächst too the Abos to cancel soon ([subscriptions], #80), from the first
  * day of their lead to their last day.
  */
 data class HeuteDay(
     val date: LocalDate,
-    val entries: List<TodayEntry>,
+    val blocks: TodayBlocks,
     val upcoming: List<TodayEntry.OfTodo>,
     val pinned: List<Note>,
     val flame: StreakFlame?,
     val heatmap: Heatmap,
     val subscriptions: List<SubscriptionReminder> = emptyList(),
-)
+) {
+    /** All of its entries, block by block. */
+    val entries: List<TodayEntry> get() = blocks.all
+}
 
 /**
  * The day before Heute's [date], to catch up on (SPEC.md §1, Gestern nachtragen): its routines' occurrences and to-dos
@@ -84,7 +87,7 @@ class Heute(
             if (dueTodos.date != date || subscriptionsDate != date) return@combine null
             HeuteDay(
                 date = date,
-                entries = todayList(dueRoutines, dueTodos.due, date),
+                blocks = todayBlocks(dueRoutines, dueTodos.due, date),
                 upcoming = dueTodos.upcoming.map { TodayEntry.OfTodo(it) },
                 pinned = pinned,
                 flame = RoutineHistory(history).flame(date),

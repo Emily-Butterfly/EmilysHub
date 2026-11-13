@@ -21,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Instant
 import java.time.LocalDateTime
@@ -58,6 +59,7 @@ class PlaceRemindersTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `elsewhere at its time, it waits, Heute says so, and it pops up on arriving home`() {
         app.wifi.ssid = "Firma"
         goOffAt("2026-10-23T08:00")

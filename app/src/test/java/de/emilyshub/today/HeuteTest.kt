@@ -127,6 +127,35 @@ class HeuteTest {
     }
 
     @Test
+    fun `ticking off moves an entry from up next to what is over, and the stand counts it`() = runTest {
+        app.routine("Vitamine", "07:30")
+        app.todo("Müll", due = Due.On(FRIDAY))
+        val seen = collect()
+        assertEquals(listOf("Müll", "Vitamine"), seen.last().blocks.upNext.map { it.name })
+        assertEquals(DayStand(done = 0, of = 2), seen.last().blocks.stand)
+
+        heute.onToday.setDone(seen.last().entries.first { it.name == "Vitamine" }, done = true)
+        runCurrent()
+
+        assertEquals(listOf("Müll"), seen.last().blocks.upNext.map { it.name })
+        assertEquals(listOf("Vitamine"), seen.last().blocks.past.map { it.name })
+        assertEquals(DayStand(done = 1, of = 2), seen.last().blocks.stand)
+    }
+
+    @Test
+    fun `the day before's routine still in its time window is up next`() = runTest {
+        app.routine("Lesen", "23:00")
+        app.clock.now = Instant.parse("2026-10-23T22:30:00Z") // 00:30 on Saturday in Berlin
+
+        val day = collect().last()
+
+        assertEquals(
+            listOf(FRIDAY.atTime(23, 0), FRIDAY.plusDays(1).atTime(23, 0)),
+            day.blocks.upNext.map { (it as TodayEntry.OfRoutine).routine.dueAt.toLocalDateTime() },
+        )
+    }
+
+    @Test
     fun `a to-do ticked off on Heute stays there, done, for the rest of the day`() = runTest {
         app.todo("Müll", due = Due.On(FRIDAY))
         val seen = collect()

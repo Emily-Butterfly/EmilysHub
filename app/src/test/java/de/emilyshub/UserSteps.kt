@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithText
@@ -172,6 +173,16 @@ fun ComposeTestRule.openGoals() {
 /** Unfolds "Mehr Optionen" in the editor of a routine or to-do (SPEC.md §8), where all but what is needed lies. */
 fun ComposeTestRule.openMoreOptions() {
     onNode(hasText("Mehr Optionen") and hasClickAction()).performScrollTo().performClick()
+}
+
+/** Unfolds "Schon vorbei" on Heute (SPEC.md §1, Drei Blöcke), where what is done, skipped, missed or dropped lies. */
+fun ComposeTestRule.openPast() {
+    onNode(isHeading() and hasText("Schon vorbei", substring = true)).performScrollTo().performClick()
+}
+
+/** Unfolds "Überfällig" on Heute (SPEC.md §1, Drei Blöcke), where the overdue to-dos lie. */
+fun ComposeTestRule.openOverdue() {
+    onNode(isHeading() and hasText("Überfällig", substring = true)).performScrollTo().performClick()
 }
 
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */

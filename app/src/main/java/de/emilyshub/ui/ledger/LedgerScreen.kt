@@ -235,7 +235,7 @@ fun LedgerScreen(
                     }
                 }
             }
-            item(key = "bookings-title") { SectionTitle(stringResource(R.string.ledger_bookings)) }
+            item(key = "bookings-title") { Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.ledger_bookings)) } }
             if (summary.bookings.isEmpty()) {
                 item(key = "empty") {
                     Text(

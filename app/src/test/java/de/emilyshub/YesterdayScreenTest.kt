@@ -103,7 +103,7 @@ class YesterdayScreenTest {
         val rubbish = app.todo("Müll", due = Due.On(LocalDate.parse("2026-10-22")))
 
         launchApp().use {
-            compose.onNode(isToggleable() and hasText("Müll")).assertIsDisplayed()
+            compose.onNodeWithText("Überfällig (1)").assertIsDisplayed()
             compose.onNodeWithText("‹ Gestern").performClick()
             compose.onNode(isToggleable() and hasText("Müll")).performClick()
             compose.onNode(isToggleable() and hasText("Müll")).assertIsOn()

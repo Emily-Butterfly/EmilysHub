@@ -126,6 +126,7 @@ import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.StreakFlameButton
+import de.emilyshub.ui.today.HeuteFolds
 import de.emilyshub.ui.today.TodayScreen
 import de.emilyshub.ui.today.YesterdayScreen
 import de.emilyshub.ui.today.rememberHeute
@@ -215,6 +216,9 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
     // Whether Heute shows yesterday, to catch up on (SPEC.md §1): kept while a screen is open over it, but not past
     // another tab, a new start or the lock, after which Heute shows the day it is again.
     var yesterday by remember { mutableStateOf(false) }
+    // Which of Heute's blocks are open (SPEC.md §1): likewise kept while a screen is open over it, but folded again past
+    // another tab, a new start or the lock, so that the first look at Heute is always the same.
+    var folds by remember { mutableStateOf(HeuteFolds()) }
 
     // What a screen over the tabs keeps while one opened from it covers it: what was typed in an editor a note was
     // opened from, say. The tabs keep only what is kept here above.
@@ -234,6 +238,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
             current = current,
             onSelect = {
                 yesterday = false
+                folds = HeuteFolds()
                 // Sonstiges tapped again leads to its list, as the back arrow does. Left for another tab, the Doku locks
                 // and Sonstiges shows its list again on return.
                 if (it == TopLevelDestination.More && current == it) {
@@ -245,6 +250,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
             },
             yesterday = yesterday,
             onYesterdayChange = { yesterday = it },
+            folds = folds,
+            onFoldsChange = { folds = it },
             tabs = tabs,
             onTabsChange = { tabs = it },
             open = open,
@@ -404,7 +411,8 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, subscripti
 /**
  * The tabs ([current], [onSelect]) with the bar above them, each tab shown as [tabs] has it ([onTabsChange]); what is
  * tapped there opens over them ([open]). What is open in Sonstiges shows its name in the bar, with the arrow back to the
- * list, back within it as [TabViews.backInMore] has it. Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it.
+ * list, back within it as [TabViews.backInMore] has it. Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it,
+ * and its blocks open as [folds] has it ([onFoldsChange]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -414,6 +422,8 @@ private fun TopLevelScaffold(
     onSelect: (TopLevelDestination) -> Unit,
     yesterday: Boolean,
     onYesterdayChange: (Boolean) -> Unit,
+    folds: HeuteFolds,
+    onFoldsChange: (HeuteFolds) -> Unit,
     tabs: TabViews,
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
@@ -528,6 +538,8 @@ private fun TopLevelScaffold(
                     day = heuteDay,
                     heute = hub.heute,
                     contentPadding = contentPadding,
+                    folds = folds,
+                    onFoldsChange = onFoldsChange,
                     warnings = {
                         SetupWarning(hub.routines, hub.todos, hub.subscriptions, onCheck = { open(Destination.Status) })
                         BackupWarningCard(hub.nightlyBackups, onOpen = { open(Destination.Backups) })

@@ -48,6 +48,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -62,6 +63,7 @@ class RoutineEditingTest {
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `a routine created in the Routinen tab is listed there and due on Heute`() {
         launchApp().use {
             tab("Routinen").performClick()
@@ -749,6 +751,7 @@ class RoutineEditingTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `a routine ending on a day, picked from today on, says until when in the list`() {
         launchApp().use {
             newRoutine("Kur")

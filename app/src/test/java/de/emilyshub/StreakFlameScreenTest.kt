@@ -18,6 +18,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlarmManager
 
@@ -37,6 +38,7 @@ class StreakFlameScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `the flame shows the streak, grey while today is open, and follows what is done and undone`() {
         val vitamins = app.routine("Vitamine", "07:30")
         app.history(vitamins, "2026-10-21" to Done, "2026-10-22" to Done)
@@ -47,6 +49,7 @@ class StreakFlameScreenTest {
             compose.onNode(isToggleable() and hasText("Vitamine")).performClick()
             compose.onNodeWithContentDescription("Streak 3 Tage").assertIsDisplayed()
 
+            compose.openPast()
             compose.onNode(isToggleable() and hasText("Vitamine")).performClick()
             compose.onNodeWithContentDescription("Streak 2 Tage, heute noch offen").assertIsDisplayed()
         }
