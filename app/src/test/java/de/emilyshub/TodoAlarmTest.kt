@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import de.emilyshub.data.Unopenable
 import android.app.AlarmManager
 import android.app.KeyguardManager
 import android.app.Notification
@@ -131,6 +132,20 @@ class TodoAlarmTest {
             compose.onNodeWithText("Später").performClick()
             listOf("10 Min.", "30 Min.", "1 Std.", "Morgen früh").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
             compose.onNodeWithText("Heute Abend").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `while the data cannot be opened, its alarm does not ring`() {
+        app.todo("Arzt anrufen", Due.At(today, LocalTime.of(9, 0)), fullScreen = true)
+        goOffAt("2026-10-23T09:00")
+        val intent = alarmIntent("Arzt anrufen")
+        app.ringer.stop()
+        app.openFails = Unopenable.FileBroken
+        runBlocking { app.data.retry() }
+
+        ActivityScenario.launch<AlarmActivity>(intent).use {
+            assertFalse("rings", app.ringer.ringing)
         }
     }
 

@@ -63,9 +63,13 @@ class DataRescueTest {
             attachments = app.lessonFiles,
             io = Dispatchers.Unconfined,
             iterations = 1_000,
+            onRestore = { check(!restoreFails) { "The reminders could not follow" } },
         )
     }
     private var startedOver = 0
+
+    /** Whether restoring fails at its very end, once the data are replaced. */
+    private var restoreFails = false
     private val rescue by lazy { DataRescue(data, backups) { startedOver++ } }
     private val routines by lazy { Routines({ data.database }, app.clock, Dispatchers.Unconfined) }
 
@@ -140,6 +144,24 @@ class DataRescueTest {
 
         rescue.open({ ByteArrayInputStream(file) }, PASSWORD)
         rescue.cancel()
+
+        assertEquals("old data", databaseFile.readText())
+        assertEquals(emptyList<SetAside>(), data.setAside())
+        assertStillUnopenable()
+    }
+
+    @Test
+    fun `a backup that fails to be restored leaves everything as it was`() = runBlocking {
+        val file = aBackupThenBroken()
+        val backup = rescue.open({ ByteArrayInputStream(file) }, PASSWORD)
+        restoreFails = true
+
+        try {
+            rescue.restore(backup)
+            fail("restored")
+        } catch (e: IllegalStateException) {
+            // Failed at its end.
+        }
 
         assertEquals("old data", databaseFile.readText())
         assertEquals(emptyList<SetAside>(), data.setAside())

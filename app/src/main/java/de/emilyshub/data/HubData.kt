@@ -85,14 +85,19 @@ class HubData(
         synchronized(lock) {
             check(pending == null) { "Already begun anew" }
             close()
-            val folder = File(setAsideFolder, clock.millis().toString()).apply { mkdirs() }
+            // A folder of its own, also when laid aside within the same millisecond.
+            val folder = generateSequence(clock.millis()) { it + 1 }.map { File(setAsideFolder, it.toString()) }.first { !it.exists() }
+            folder.mkdirs()
             File(folder, PENDING).createNewFile()
             pending = folder
-            files.forEachIndexed { index, file -> if (file.exists()) move(file, File(folder, nameOf(index, file))) }
-            onReplaced()
             try {
+                files.forEachIndexed { index, file -> if (file.exists()) move(file, File(folder, nameOf(index, file))) }
+                // All moved: from here on, what lies in the place of one is new.
+                File(folder, FRESH).createNewFile()
+                onReplaced()
                 openNow()
-            } catch (e: DataUnavailable) {
+            } catch (e: Exception) {
+                // Half moved or not opening: all as it was.
                 undoNow()
                 throw e
             }
@@ -104,6 +109,7 @@ class HubData(
         synchronized(lock) {
             val folder = checkNotNull(pending) { "Nothing begun anew" }
             File(folder, PENDING).delete()
+            File(folder, FRESH).delete()
             pending = null
         }
     }
@@ -155,12 +161,22 @@ class HubData(
         failed = null
     }
 
-    /** Deletes what took the place of what lies in [folder], and puts that back. */
+    /**
+     * Puts back what lies in [folder], in place of what took its place. Where nothing lies there, as the app may have ended
+     * before moving it, only what was made anew in its place goes: one that was never moved stays as it is.
+     */
     private fun putBack(folder: File) {
-        files.forEach { it.deleteRecursively() }
+        val fresh = File(folder, FRESH).exists()
         files.forEachIndexed { index, file ->
             val laid = File(folder, nameOf(index, file))
-            if (laid.exists()) move(laid, file)
+            when {
+                laid.exists() -> {
+                    file.deleteRecursively()
+                    move(laid, file)
+                }
+                // Made anew in its place; without the mark, it was never moved and stays.
+                fresh -> file.deleteRecursively()
+            }
         }
         folder.deleteRecursively()
         onReplaced()
@@ -186,5 +202,8 @@ class HubData(
 
         /** The mark of data laid aside that were neither kept nor undone. */
         const val PENDING = "pending"
+
+        /** The mark that all was laid aside, and anything in the places of the files was made anew. */
+        const val FRESH = "fresh"
     }
 }

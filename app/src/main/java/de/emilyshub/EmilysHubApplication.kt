@@ -147,9 +147,9 @@ open class EmilysHubApplication : Application(), Hub {
         SecretKeySpec(DatabaseKeyFile(attachmentKeyFile, wrappingKey).readOrCreate(), "AES")
     }
 
-    /** The key of the attachments once read, until other data take the place of these (#100). */
-    @Volatile
+    /** The key of the attachments once read, until other data take the place of these (#100); read and dropped under its lock. */
     private var attachmentKeyRead: SecretKey? = null
+    private val attachmentKeyLock = Any()
 
     /** The WLAN connected to, by which the places are recognised. */
     override val wifi: CurrentWifi by lazy { SystemWifi(this) }
@@ -188,7 +188,7 @@ open class EmilysHubApplication : Application(), Hub {
             setAsideFolder = File(noBackupFilesDir, "set-aside"),
             clock = clock,
             io = io,
-            onReplaced = { attachmentKeyRead = null },
+            onReplaced = { synchronized(attachmentKeyLock) { attachmentKeyRead = null } },
         )
     }
 
@@ -247,7 +247,7 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Sprachen (SPEC.md §15). */
     final override val lessonFiles: LessonFiles by lazy {
-        val key = { attachmentKeyRead ?: attachmentKey().also { attachmentKeyRead = it } }
+        val key = { synchronized(attachmentKeyLock) { attachmentKeyRead ?: attachmentKey().also { attachmentKeyRead = it } } }
         LessonFiles(AttachmentStore({ attachmentsFolder }, key), lessonDocuments, io)
     }
 

@@ -56,7 +56,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** The reminder to try out is due. */
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"
-        
+
         /** The key of a choice "Später" offers ([PutOffChoice.key]). */
         const val EXTRA_PUT_OFF = "put-off"
     }

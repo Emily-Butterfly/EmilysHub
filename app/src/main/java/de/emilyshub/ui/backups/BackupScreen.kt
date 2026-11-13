@@ -566,5 +566,5 @@ internal val BackupProblem.message: Int
     }
 
 /** Android knows no type for a backup of EmilysHub. */
-internal const val MIME_TYPE = "application/octet-stream"
+private const val MIME_TYPE = "application/octet-stream"
 private const val TAG = "EmilysHub"

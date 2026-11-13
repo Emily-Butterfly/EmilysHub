@@ -176,6 +176,32 @@ class HubDataTest {
     }
 
     @Test
+    fun `ended while laying aside, what was not moved yet stays, and what was is put back`() = runBlocking {
+        broken()
+        // As the app left it: the mark set and the database moved, but not yet the key or the attachments.
+        val folder = setAsideFolder.resolve("1").apply { mkdirs() }
+        folder.resolve("pending").createNewFile()
+        databaseFile.renameTo(folder.resolve("0-emilyshub.db"))
+
+        assertNull(data.check())
+
+        assertEquals("old data", databaseFile.readText())
+        assertEquals("old key", keyFile.readText())
+        assertEquals("old attachment", attachments.resolve("a.enc").readText())
+    }
+
+    @Test
+    fun `laid aside twice within the same millisecond, each lies aside on its own`() = runBlocking {
+        broken()
+        data.beginAnew()
+        data.keep()
+        data.beginAnew()
+        data.keep()
+
+        assertEquals(2, data.setAside().size)
+    }
+
+    @Test
     fun `deleted for good, data laid aside are gone, and the others stay`() = runBlocking {
         broken()
         data.beginAnew()

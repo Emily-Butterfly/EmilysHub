@@ -47,8 +47,12 @@ sealed interface PutOffChoice {
     }
 
     companion object {
+        private val TEN_MINUTES = By(Duration.ofMinutes(10))
+        private val HALF_AN_HOUR = By(Duration.ofMinutes(30))
+        private val AN_HOUR = By(Duration.ofMinutes(60))
+
         /** What "Später" offers a routine's reminder: 10, 30 and 60 minutes, as long as its time window lasts. */
-        val MINUTES: List<By> = listOf(10L, 30L, 60L).map { By(Duration.ofMinutes(it)) }
+        val MINUTES: List<By> = listOf(TEN_MINUTES, HALF_AN_HOUR, AN_HOUR)
 
         /** When "Heute Abend" comes back. */
         val EVENING: LocalTime = LocalTime.of(20, 0)
@@ -71,14 +75,17 @@ sealed interface PutOffChoice {
          * "Heute Abend", or 1 hour once that is no longer offered, and "Morgen früh".
          */
         fun forTodoNotification(now: Instant, zone: ZoneId): List<PutOffChoice> =
-            listOf(MINUTES[1], if (stillOffered(now, zone)) Tonight else MINUTES[2], TomorrowMorning)
+            listOf(HALF_AN_HOUR, if (stillOffered(now, zone)) Tonight else AN_HOUR, TomorrowMorning)
 
         /** The choice [key] stands for; none for anything else. Whether it is offered is another question. */
         fun of(key: String): PutOffChoice? = when (key) {
             Tonight.key -> Tonight
             TomorrowMorning.key -> TomorrowMorning
-            else -> key.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }?.toLongOrNull()?.let { By(Duration.ofMinutes(it)) }
+            else -> key.takeIf { it.length in 1..MAX_DIGITS && it.all(Char::isDigit) }?.toLong()?.let { By(Duration.ofMinutes(it)) }
         }
+
+        /** More than any choice has, and few enough to be read as minutes. */
+        private const val MAX_DIGITS = 4
 
         private fun stillOffered(now: Instant, zone: ZoneId) = now.atZone(zone).toLocalTime().isBefore(EVENING_OFFERED_UNTIL)
 

@@ -17,7 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
-import de.emilyshub.data.DataUnavailable
 import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
@@ -169,13 +168,12 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         val first = queue.firstOrNull()
         ringStart?.cancel()
         ringStart = lifecycleScope.launch {
-            val sound = try {
-                first?.let { app.sounds.alarmOf(app.reminders.reminder(it).first()) }
-            } catch (e: DataUnavailable) {
-                // Rings all the same, with the phone's own tone, while the data cannot be opened (#100).
-                null
+            val sound = when (first) {
+                null -> Sound.PhoneDefault
+                // Gone, or the data cannot be opened (#100), as no reminders come then: it does not ring.
+                else -> app.reminders.reminder(first).first()?.let { app.sounds.alarmOf(it) } ?: return@launch
             }
-            app.ringer.start(sound ?: Sound.PhoneDefault)
+            app.ringer.start(sound)
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ringLimit = lifecycleScope.launch {
