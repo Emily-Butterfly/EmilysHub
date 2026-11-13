@@ -463,6 +463,7 @@
     <string name="note_text_hint">Zum Beispiel # Überschrift, **fett**, *kursiv*, `Code`, - Liste, - [ ] Aufgabe, &gt; Zitat</string>
     <string name="note_writing">Bearbeiten</string>
     <string name="note_preview">Vorschau</string>
+    <string name="note_saved_itself">Gespeichert</string>
     <string name="note_preview_empty">Noch kein Text.</string>
     <string name="note_delete_title">Notiz löschen?</string>
     <string name="note_delete_text">„%1$s“ wird endgültig gelöscht.</string>

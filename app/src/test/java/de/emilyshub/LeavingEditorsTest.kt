@@ -39,7 +39,8 @@ import java.time.YearMonth
 
 /**
  * Leaving an editor with its input changed asks first (SPEC.md §8, #87): by the back arrow, the back key or the gesture,
- * "Änderungen speichern?" with Speichern, Verwerfen and Weiter bearbeiten; unchanged, it closes at once.
+ * "Änderungen speichern?" with Speichern, Verwerfen and Weiter bearbeiten; unchanged, it closes at once. Notes and
+ * sessions that can be saved save themselves instead (SavingOnLeavingTest).
  */
 @RunWith(AndroidJUnit4::class)
 class LeavingEditorsTest {
@@ -181,12 +182,6 @@ class LeavingEditorsTest {
     fun `the goal editor asks only when changed`() = asksOnlyWhenChanged("Neues Ziel", change = { field("Titel").performTextReplacement("Arabisch A2") }) {
         compose.openGoals()
         compose.onNodeWithContentDescription("Ziel anlegen").performClick()
-    }
-
-    @Test
-    fun `the note editor asks only when changed`() = asksOnlyWhenChanged("Neue Notiz", change = { field("Titel").performTextReplacement("Brot") }) {
-        compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
-        compose.onNodeWithContentDescription("Notiz anlegen").performClick()
     }
 
     @Test

@@ -61,21 +61,30 @@ fun <D> differsAsSaved(draft: D, saved: D, cleaned: (D) -> D): Boolean = cleaned
  * moment, which may be before the editor shows the last keystroke, it asks "Änderungen speichern?" first, else it leaves
  * at once by [onDiscard]. "Speichern" does [onSave], as the editor's button does, which leaves it if the draft can be
  * saved and else shows why at its field; "Verwerfen" does [onDiscard]; "Weiter bearbeiten" and a tap beside the question
- * leave all as it is. Once the editor's [closing] has begun, as while a save is still under way, back does nothing: the
+ * leave all as it is. An editor that saves itself (SPEC.md §8: notes and sessions) leaves a changed draft by
+ * [leavesItself] instead, which saves it if it can and then says true; only if it says false is there the question.
+ * Once the editor's [closing] has begun, as while a save is still under way, back does nothing: the
  * editor is on its way out already. The question stays through rotation and the lock. Returns what the back arrow does;
  * back and the gesture do the same by themselves. An editor covered by another is not shown, so it does not ask.
  */
 @Composable
-fun rememberLeaving(closing: Closing, changed: () -> Boolean, onSave: () -> Unit, onDiscard: () -> Unit): () -> Unit {
+fun rememberLeaving(
+    closing: Closing,
+    changed: () -> Boolean,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    leavesItself: () -> Boolean = { false },
+): () -> Unit {
     var asking by rememberSaveable { mutableStateOf(false) }
     val hasChanges by rememberUpdatedState(changed)
     val save by rememberUpdatedState(onSave)
     val discard by rememberUpdatedState(onDiscard)
+    val leaveItself by rememberUpdatedState(leavesItself)
     val leave = remember(closing) {
         {
             when {
                 closing.begun -> Unit
-                hasChanges() -> asking = true
+                hasChanges() -> if (!leaveItself()) asking = true
                 else -> discard()
             }
         }

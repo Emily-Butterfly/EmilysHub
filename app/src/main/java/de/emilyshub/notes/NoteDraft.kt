@@ -40,6 +40,21 @@ data class NoteDraft(
     fun cleaned() = copy(title = InputText.singleLine(title), text = InputText.multiLine(text))
 
     /**
+     * Without a title, the first line of its text that says anything as one (SPEC.md §8): without the marks of a
+     * heading, list item, task or quote in front, cut to [TITLE_MAX] characters; the text stays as it is. With a title,
+     * as it is.
+     */
+    fun withTitleFromText(): NoteDraft {
+        if (InputText.isVisible(title)) return this
+        val line = text.lineSequence()
+            .map { InputText.singleLine(it).replace(LINE_MARKS, "").trim() }
+            .firstOrNull(InputText::isVisible)
+            ?: return this
+        val cut = if (InputText.lengthOf(line) > TITLE_MAX) line.substring(0, line.offsetByCodePoints(0, TITLE_MAX)) else line
+        return copy(title = cut.trim())
+    }
+
+    /**
      * The note this draft makes, in [container], at [position] there, [changedAt] then, [pinned] there and [onToday] or
      * not, as the draft has nothing of either; [id] if saved already.
      */
@@ -51,6 +66,9 @@ data class NoteDraft(
 
         /** Some fifty pages, as a note is no book. */
         const val TEXT_MAX = 100_000
+
+        /** The marks in front of a heading, a list item, a task or a quote, one after the other as in "- [ ] ". */
+        private val LINE_MARKS = Regex("""^(\s*(#+|-|>|\[ ?]))+""")
     }
 }
 

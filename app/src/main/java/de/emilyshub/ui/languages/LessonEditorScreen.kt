@@ -92,7 +92,8 @@ sealed interface LessonEditorTarget : Serializable {
  * then) or another teacher given it ("Anderen Lehrer wählen"); the topics treated, chosen from its language's or typed
  * anew, gone with a language changed, which it says; text, photos and PDFs imported ([LessonAttachments]), what was
  * imported let go of when it is left unsaved; a price for the evaluation, and a note in Markdown, with
- * its preview. Loaded and saved through its editing session; refused, it says why at the field. Deleting asks first.
+ * its preview. Loaded and saved through its editing session; refused, it says why at the field. Left with changes, it
+ * saves them by itself if it can, else it asks. Deleting asks first.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,6 +165,10 @@ fun LessonEditorScreen(
         changed = { differsAsSaved(draft, opened.original ?: fresh, LessonDraft::cleaned) },
         onSave = save,
         onDiscard = discard,
+        // Saved by itself, with what was imported for it, if it can be (SPEC.md §8).
+        leavesItself = {
+            draft.problems.isEmpty().also { if (it) save() }
+        },
     )
     // The language and teacher it was saved with stay to choose, archived or not; the others only while offered.
     val savedDraft = opened.original

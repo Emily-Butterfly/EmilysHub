@@ -1,5 +1,6 @@
 package de.emilyshub.ui.notes
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -75,7 +77,7 @@ sealed interface NoteEditorTarget : Serializable {
  * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies, its tags and what it is linked to, while
  * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
  * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
- * first; leaving with changes asks whether to save them; archiving it saves them first. One in the archive (SPEC.md §7) only
+ * first; left with changes it saves them by itself, if it can, else it asks; archiving it saves them first. One in the archive (SPEC.md §7) only
  * shows its preview, to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,11 +133,27 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         ArchivedNote(notes, draft, onClose)
         return
     }
+    val context = LocalContext.current.applicationContext
     val leave = rememberLeaving(
         closing = closeWith,
         changed = { differsAsSaved(draft, opened.original ?: fresh, NoteDraft::cleaned) },
         onSave = { save() },
         onDiscard = onClose,
+        // Saved by itself if it can be, a title missing taken from its text (SPEC.md §8); a new one with neither title
+        // nor text is no note.
+        leavesItself = leavesItself@{
+            val titled = draft.withTitleFromText()
+            when {
+                noteId == null && !InputText.isVisible(titled.title) && !InputText.isVisible(titled.text) -> onClose()
+                titled.problems.isNotEmpty() -> return@leavesItself false
+                else -> closeWith {
+                    if (notes.save(opened, titled) is Saving.Saved) {
+                        Toast.makeText(context, R.string.note_saved_itself, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            true
+        },
     )
 
     Scaffold(
