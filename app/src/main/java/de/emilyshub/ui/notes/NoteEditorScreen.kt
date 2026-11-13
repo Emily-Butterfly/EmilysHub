@@ -55,10 +55,12 @@ import de.emilyshub.notes.NoteEditing
 import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /** Which note the editor shows. Serializable, so that the open editor survives rotation and the lock. */
@@ -73,7 +75,7 @@ sealed interface NoteEditorTarget : Serializable {
  * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies, its tags and what it is linked to, while
  * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
  * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
- * first; leaving without saving drops the changes; archiving it saves them first. One in the archive (SPEC.md §7) only
+ * first; leaving with changes asks whether to save them; archiving it saves them first. One in the archive (SPEC.md §7) only
  * shows its preview, to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +86,8 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (noteId == null) NoteEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -127,6 +131,11 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         ArchivedNote(notes, draft, onClose)
         return
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, NoteDraft::cleaned) },
+        onSave = { save() },
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -138,7 +147,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

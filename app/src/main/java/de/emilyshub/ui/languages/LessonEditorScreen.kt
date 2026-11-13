@@ -1,6 +1,5 @@
 package de.emilyshub.ui.languages
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,6 +67,7 @@ import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Money
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.ChoiceChip
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
@@ -76,6 +76,7 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /** What the editor of lessons opens: a new one, of the language [languageId] if given, or one saved already. */
@@ -105,6 +106,8 @@ fun LessonEditorScreen(
     val lessonId = (target as? LessonEditorTarget.Edit)?.lessonId
     var editing by rememberSaveable { mutableStateOf(if (lessonId == null) LessonEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(languages.newLesson((target as? LessonEditorTarget.New)?.languageId)) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     // What saving was refused for, as the editor alone cannot tell: a language or teacher no longer offered.
     var refused by rememberSaveable { mutableStateOf(emptySet<LessonProblem>()) }
@@ -135,12 +138,11 @@ fun LessonEditorScreen(
     val problems = draft.problems + refused
     val closeWith = rememberClosing(onClose)
     // Left without saving: what was imported for it is let go of.
-    val leave = {
+    val discard = {
         val left = draft
         scope.launchNow { files.discard(left, opened.original) }
         onClose()
     }
-    BackHandler(onBack = leave)
     val save = {
         if (draft.problems.isNotEmpty()) {
             showProblems = true
@@ -157,6 +159,11 @@ fun LessonEditorScreen(
             }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, LessonDraft::cleaned) },
+        onSave = save,
+        onDiscard = discard,
+    )
     // The language and teacher it was saved with stay to choose, archived or not; the others only while offered.
     val savedDraft = opened.original
     val offeredLanguages = (choices.languages + allLanguages.map { it.language }.filter { it.id == savedDraft?.languageId }).distinctBy { it.id }

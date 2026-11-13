@@ -191,6 +191,9 @@
     <string name="delete">Löschen</string>
     <string name="cancel">Abbrechen</string>
     <string name="ok">OK</string>
+    <string name="leaving_title">Änderungen speichern?</string>
+    <string name="leaving_discard">Verwerfen</string>
+    <string name="leaving_keep_editing">Weiter bearbeiten</string>
 
     <string name="reminder_channel">Erinnerungen</string>
     <string name="reminder_channel_silent">Erinnerungen (lautlos)</string>

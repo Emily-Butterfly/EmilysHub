@@ -47,6 +47,9 @@ data class BookingDraft(
     /** The description on a single line, without surrounding spaces. */
     val cleanedDescription: String get() = InputText.singleLine(description)
 
+    /** As it is saved: the amount without spaces around it, the description as [cleanedDescription]. */
+    fun cleaned() = copy(amount = amount.trim(), description = cleanedDescription)
+
     companion object {
         const val DESCRIPTION_MAX = 200
     }

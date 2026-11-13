@@ -53,6 +53,7 @@ import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.TodoProblem
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.DateDialog
@@ -67,6 +68,7 @@ import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
@@ -82,7 +84,7 @@ sealed interface TodoEditorTarget : Serializable {
 
 /**
  * Creates or changes a to-do with its title, description, due, how it comes again once due, places, priority, checklist,
- * tags and the goal it is part of (SPEC.md §5, §6), or deletes it. Leaving without saving drops the changes.
+ * tags and the goal it is part of (SPEC.md §5, §6), or deletes it. Leaving with changes asks whether to save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +104,8 @@ fun TodoEditorScreen(
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (todoId == null) TodoEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
     var recurrenceChosen by rememberSaveable { mutableStateOf(false) }
     // Only after a first try to save, so that a fresh form does not start out in red.
@@ -135,6 +139,11 @@ fun TodoEditorScreen(
             closeWith { todos.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, TodoDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -146,7 +155,7 @@ fun TodoEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

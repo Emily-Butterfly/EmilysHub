@@ -67,6 +67,9 @@ data class RecurringDraft(
 
     val cleanedDescription: String get() = InputText.singleLine(description)
 
+    /** As it is saved: the amount without spaces around it, the description on a single line. */
+    fun cleaned() = copy(amount = amount.trim(), description = cleanedDescription)
+
     /** The day of its first booking; with a day out of range, the first of its first month. */
     val firstDate: LocalDate
         get() = if (day in RecurringBooking.DAYS) schedule(interval, day, firstMonth).first() else firstMonth.atDay(1)

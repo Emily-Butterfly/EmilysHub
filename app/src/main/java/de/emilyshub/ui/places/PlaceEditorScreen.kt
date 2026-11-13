@@ -62,7 +62,9 @@ import de.emilyshub.places.Wifi
 import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import kotlinx.coroutines.launch
 import java.io.Serializable
 import kotlin.math.roundToInt
@@ -75,8 +77,8 @@ sealed interface PlaceEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a place with its name, WLANs and GPS area, or deletes it. Leaving without saving drops the
- * changes.
+ * Creates or changes a place with its name, WLANs and GPS area, or deletes it. Leaving with changes asks whether to
+ * save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +93,8 @@ fun PlaceEditorScreen(
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (placeId == null) PlaceEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(PlaceDraft(name = "", wifis = emptyList())) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var triedToSave by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -122,6 +126,11 @@ fun PlaceEditorScreen(
             closeWith { places.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, PlaceDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -133,7 +142,7 @@ fun PlaceEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

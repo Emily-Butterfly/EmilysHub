@@ -67,6 +67,7 @@ import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
@@ -76,6 +77,7 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.rememberToday
 import java.io.Serializable
 import java.time.LocalDate
@@ -186,6 +188,8 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
     val subscriptionId = (target as? SubscriptionEditorTarget.Edit)?.subscriptionId
     var editing by rememberSaveable { mutableStateOf<SubscriptionEditing?>(null) }
     var draft by rememberSaveable { mutableStateOf(subscriptions.newDraft()) }
+    // The form as a new one starts out, from a fixed booking or empty, to tell whether anything was typed.
+    var fresh by rememberSaveable { mutableStateOf(draft) }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var refused by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf<DateChoice?>(null) }
@@ -201,7 +205,12 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
         LaunchedEffect(target) {
             when (target) {
                 is SubscriptionEditorTarget.New -> {
-                    target.recurringId?.let { id -> subscriptions.draftFor(id)?.let { draft = it } }
+                    target.recurringId?.let { id ->
+                        subscriptions.draftFor(id)?.let {
+                            draft = it
+                            fresh = it
+                        }
+                    }
                     editing = SubscriptionEditing.New
                 }
                 is SubscriptionEditorTarget.Edit -> {
@@ -246,6 +255,11 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
             }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, SubscriptionDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -257,7 +271,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

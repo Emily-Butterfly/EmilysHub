@@ -227,6 +227,11 @@ data class SubscriptionDraft(
     /** Its note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
 
+    /** As it is saved: its name and note cleaned, the amount and the numbers without spaces around them. */
+    fun cleaned() = copy(
+        name = cleanedName, amount = amount.trim(), note = cleanedNote, notice = notice.trim(), renewal = renewal.trim(), lead = lead.trim(),
+    )
+
     /** Its own amount in cents: none if left empty, or linked. */
     val cents: Long? get() = if (recurringId == null && amount.isNotBlank()) Money.parse(amount) else null
 

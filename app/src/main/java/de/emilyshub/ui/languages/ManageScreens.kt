@@ -61,11 +61,13 @@ import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.languages.TeacherProblem
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /**
@@ -219,6 +221,8 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
     val teacherId = (target as? TeacherEditorTarget.Edit)?.teacherId
     var editing by rememberSaveable { mutableStateOf(if (teacherId == null) TeacherEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(TeacherDraft()) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     val all by remember(languages) { languages.languages() }.collectAsState(initial = emptyList())
 
@@ -254,6 +258,11 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
             }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, TeacherDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
     val offered = all.map { it.language }.filter { !it.archived || it.id in opened.original?.languageIds.orEmpty() }
 
     Scaffold(
@@ -266,7 +275,7 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

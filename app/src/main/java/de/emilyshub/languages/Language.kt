@@ -141,6 +141,9 @@ data class LessonDraft(
     /** Its note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
 
+    /** As it is saved: its note cleaned, the minutes and price without spaces around them. */
+    fun cleaned() = copy(minutes = minutes.trim(), price = price.trim(), note = cleanedNote)
+
     /** Its price in cents; none if left empty or not a price. */
     val priceCents: Long? get() = price.takeIf { it.isNotBlank() }?.let(Money::parse)
 
@@ -212,6 +215,9 @@ data class TeacherDraft(val name: String = "", val note: String = "", val langua
 
     /** Their note as it is saved. */
     val cleanedNote: String get() = InputText.multiLine(note)
+
+    /** As they are saved: their name and note cleaned. */
+    fun cleaned() = copy(name = cleanedName, note = cleanedNote)
 
     /** What keeps their name from being saved; none if it can be. */
     val nameProblem: TeacherProblem?

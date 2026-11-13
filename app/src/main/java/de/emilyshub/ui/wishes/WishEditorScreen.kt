@@ -51,6 +51,7 @@ import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.GoalField
@@ -59,6 +60,7 @@ import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
@@ -83,8 +85,8 @@ sealed interface WishEditorTarget : Serializable {
  * Creates or changes a wish with its title, description, period, status, tags, the goal it is part of and its progress
  * (SPEC.md §6), or deletes it: one with subgoals with them, or with its parts moved up a level, as the user chooses.
  * Done, it came true today unless another day gone by is chosen. A wish saved can have a subgoal added, [onOpenWish], or
- * be made into a to-do hanging under it with a tap, [onOpenTodo]; both save it first. Leaving without saving drops the
- * changes.
+ * be made into a to-do hanging under it with a tap, [onOpenTodo]; both save it first. Leaving with changes asks whether to
+ * save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +107,8 @@ fun WishEditorScreen(
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (wishId == null) WishEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(WishDraft(title = "", parentId = parentId)) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -136,6 +140,11 @@ fun WishEditorScreen(
             closeWith { wishes.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, WishDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     /** Saves the wish, if it can be, and then goes on with [next], which leaves the editor. */
     fun saveAndThen(next: suspend (wishId: Long) -> Unit) {
@@ -167,7 +176,7 @@ fun WishEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

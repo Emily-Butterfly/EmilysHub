@@ -41,16 +41,18 @@ import de.emilyshub.ledger.PlanTyped
 import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.TotalChoice
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.time.YearMonth
 
 /**
  * The budget calculator (SPEC.md §13): every expense category with a field for its budget and the average of its
  * expenses in the last months closed; the sum of them, the total budget and what is left of it or how far they are over
  * it. With [month] null, the monthly budgets against the standard total budget; else those of the open [month] against
- * its own. All is saved at once, over the total budget too; leaving without saving discards it.
+ * its own. All is saved at once, over the total budget too; leaving with changes asks whether to save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,21 +74,28 @@ fun BudgetCalculatorScreen(ledger: Ledger, month: YearMonth?, onClose: () -> Uni
     val shown = plan
     val now = typed
     val check = if (shown != null && now != null) PlanCheck(shown, now) else null
+    val save = { if (check != null && check.canSave) closeWith { ledger.saveBudgetPlan(check) } }
+    val leave = rememberLeaving(
+        changed = {
+            val saved = plan
+            val typedNow = typed
+            saved != null && typedNow != null && changed(typedNow, PlanTyped.of(saved), PlanTyped::cleaned)
+        },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.budget_calculator), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = { if (check != null && check.canSave) closeWith { ledger.saveBudgetPlan(check) } },
-                        enabled = check?.canSave == true,
-                    ) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = save, enabled = check?.canSave == true) { Text(stringResource(R.string.save)) }
                 },
             )
         },

@@ -45,6 +45,9 @@ data class PlanTyped(
     /** With the total budget chosen anew, what is typed for each choice kept. */
     fun withTotal(choice: TotalChoice) = copy(choice = choice)
 
+    /** As it is saved: every amount without spaces around it. */
+    fun cleaned() = copy(budgets = budgets.mapValues { it.value.trim() }, amount = amount.trim(), saving = saving.trim())
+
     companion object {
         /** The calculator as it opens: with the budgets and the total budget [plan] has. */
         fun of(plan: BudgetPlan): PlanTyped {

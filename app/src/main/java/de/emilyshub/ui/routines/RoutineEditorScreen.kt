@@ -52,6 +52,7 @@ import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.RecurrenceEnd
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
@@ -61,6 +62,7 @@ import de.emilyshub.ui.fields.PriorityField
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
@@ -76,7 +78,7 @@ sealed interface RoutineEditorTarget : Serializable {
 
 /**
  * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on, and the
- * goal it is part of with what it aims at for that (SPEC.md §6). Leaving without saving drops the changes; a tag made
+ * goal it is part of with what it aims at for that (SPEC.md §6). Leaving with changes asks whether to save them; a tag made
  * here ([TagsField]) is saved at once, like one made in the settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,6 +101,8 @@ fun RoutineEditorScreen(
     var draft by rememberSaveable {
         mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
     }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -124,7 +128,7 @@ fun RoutineEditorScreen(
     val problems = routines.problems(opened, draft)
     // How the routine is in use; none for a new one.
     val status = opened.status
-    // Does [work] and closes the editor, once: its changes not saved are dropped.
+    // Does [work] and closes the editor, once.
     val closeWith = rememberClosing(onClose)
     val save = {
         if (problems.isNotEmpty()) {
@@ -134,6 +138,11 @@ fun RoutineEditorScreen(
             closeWith { routines.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, RoutineDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -145,7 +154,7 @@ fun RoutineEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

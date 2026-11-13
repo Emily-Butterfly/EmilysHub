@@ -50,6 +50,7 @@ import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
@@ -57,6 +58,7 @@ import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 import java.time.YearMonth
 
@@ -79,6 +81,8 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (bookingId == null) BookingEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(ledger.newDraft(BookingKind.Expense)) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
@@ -133,6 +137,11 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
             }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, BookingDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -144,7 +153,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },

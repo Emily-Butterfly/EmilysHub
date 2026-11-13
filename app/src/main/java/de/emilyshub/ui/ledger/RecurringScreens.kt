@@ -54,12 +54,14 @@ import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.RecurringBooking
+import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.ledger.RecurringEditing
 import de.emilyshub.ledger.RecurringProblem
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.changed
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
@@ -69,6 +71,7 @@ import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /** What the editor of fixed bookings opens: a new one, or one saved already. */
@@ -155,6 +158,8 @@ fun RecurringEditorScreen(
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (recurringId == null) RecurringEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(ledger.newTemplate()) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var dayText by rememberSaveable { mutableStateOf(draft.day.toString()) }
@@ -186,6 +191,11 @@ fun RecurringEditorScreen(
             closeWith { ledger.saveTemplate(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        changed = { changed(draft, opened.original ?: fresh, RecurringDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -197,7 +207,7 @@ fun RecurringEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
