@@ -157,7 +157,7 @@ fun WishEditorScreen(
         val saved = draft
         closeWith.leaveThrough {
             val saving = wishes.save(opened, saved)
-            if (saving is Saving.Saved) next(saving.id)
+            if (saving is Saving.Saved) next(saving.id) else closeWith.reopen()
         }
     }
 

@@ -253,6 +253,7 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                     is Saving.Refused -> {
                         draft = draft.copy(languageIds = draft.languageIds intersect offeredIds(all, opened))
                         showProblems = true
+                        closeWith.reopen()
                     }
                 }
             }

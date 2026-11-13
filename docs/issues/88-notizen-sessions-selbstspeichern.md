@@ -37,3 +37,5 @@ Bei der Umsetzung festgelegt (13.11.2026):
 - Eine Zeile, die nach den Zeichen am Anfang leer ist (etwa nur „#“), zählt nicht als erste Zeile.
 - „Gespeichert“ ist ein kurzer Hinweis unten (Toast), wie bei Buchungen über Budget.
 - Eine neue Notiz ohne Titel und Text legt auch dann nichts an, wenn Tags oder Verknüpfungen gewählt waren.
+- Weist das Speichern eine Session beim Verlassen ab (Sprache oder Lehrer inzwischen archiviert), bleibt der Editor offen, zeigt das Problem am Feld und lässt sich danach wieder verlassen oder speichern; dasselbe gilt jetzt für Lehrer, Abo und Ziel.
+- Als Zeichen am Anfang zählen `#`, `-`, `>`, `[ ]` und `[x]` nur mit einem Leerzeichen dahinter: „#Urlaub“ und „-5 Grad“ bleiben, wie sie sind.

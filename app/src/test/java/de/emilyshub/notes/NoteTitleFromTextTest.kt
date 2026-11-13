@@ -24,6 +24,14 @@ class NoteTitleFromTextTest {
     }
 
     @Test
+    fun `a task done gives its title too, and a sign that belongs to the word stays`() {
+        assertEquals("Brot holen", NoteDraft(title = "", text = "- [x] Brot holen").withTitleFromText().title)
+        assertEquals("-5 Grad", NoteDraft(title = "", text = "-5 Grad").withTitleFromText().title)
+        assertEquals("#Urlaub", NoteDraft(title = "", text = "#Urlaub").withTitleFromText().title)
+        assertEquals("->Weiter", NoteDraft(title = "", text = "->Weiter").withTitleFromText().title)
+    }
+
+    @Test
     fun `a text of empty lines only gives no title`() {
         assertEquals("", NoteDraft(title = "", text = "\n   \n#\n").withTitleFromText().title)
     }

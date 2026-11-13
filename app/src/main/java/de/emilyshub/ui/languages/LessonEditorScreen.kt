@@ -155,6 +155,7 @@ fun LessonEditorScreen(
                     is Saving.Refused -> {
                         refused = saving.problems
                         showProblems = true
+                        closeWith.reopen()
                     }
                 }
             }
@@ -167,7 +168,12 @@ fun LessonEditorScreen(
         onDiscard = discard,
         // Saved by itself, with what was imported for it, if it can be (SPEC.md §8).
         leavesItself = {
-            draft.problems.isEmpty().also { if (it) save() }
+            if (draft.problems.isEmpty()) {
+                save()
+                true
+            } else {
+                false
+            }
         },
     )
     // The language and teacher it was saved with stay to choose, archived or not; the others only while offered.

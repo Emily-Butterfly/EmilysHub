@@ -54,4 +54,19 @@ class ClosingTest {
 
         assertTrue(closing.begun)
     }
+
+    @Test
+    fun `opened again, as when saving was refused, the editor can be left another time`() = runTest {
+        var done = 0
+        val closing = Closing(this) {}
+
+        closing.leaveThrough { done++ }
+        advanceUntilIdle()
+        closing.reopen()
+        closing.leaveThrough { done++ }
+        advanceUntilIdle()
+
+        assertTrue(closing.begun)
+        assertEquals(2, done)
+    }
 }

@@ -67,8 +67,11 @@ data class NoteDraft(
         /** Some fifty pages, as a note is no book. */
         const val TEXT_MAX = 100_000
 
-        /** The marks in front of a heading, a list item, a task or a quote, one after the other as in "- [ ] ". */
-        private val LINE_MARKS = Regex("""^(\s*(#+|-|>|\[ ?]))+""")
+        /**
+         * The marks in front of a heading, a list item, a task open or done, or a quote, one after the other as in
+         * "- [ ] ", each followed by a space or the end of the line: "#Urlaub" and "-5 Grad" keep theirs.
+         */
+        private val LINE_MARKS = Regex("""^(\s*(#+|-|>|\[[ xX]])(?=\s|$))+""")
     }
 }
 

@@ -37,6 +37,11 @@ class Closing internal constructor(private val scope: CoroutineScope, private va
         start(work)
     }
 
+    /** Back to before the work began, when it did not leave the editor after all, as when saving was refused. */
+    fun reopen() {
+        begun = false
+    }
+
     private fun start(work: suspend () -> Unit): Boolean {
         if (begun) return false
         begun = true

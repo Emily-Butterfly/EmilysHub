@@ -250,7 +250,10 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                 when (subscriptions.save(opened, saved)) {
                     is Saving.Saved -> onClose()
                     // Its fixed booking took another Abo meanwhile.
-                    is Saving.Refused -> refused = true
+                    is Saving.Refused -> {
+                        refused = true
+                        closeWith.reopen()
+                    }
                 }
             }
         }

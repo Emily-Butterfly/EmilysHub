@@ -144,7 +144,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         leavesItself = leavesItself@{
             val titled = draft.withTitleFromText()
             when {
-                noteId == null && !InputText.isVisible(titled.title) && !InputText.isVisible(titled.text) -> onClose()
+                noteId == null && !InputText.isVisible(titled.title) && !InputText.isVisible(titled.text) -> closeWith {}
                 titled.problems.isNotEmpty() -> return@leavesItself false
                 else -> closeWith {
                     if (notes.save(opened, titled) is Saving.Saved) {
