@@ -69,6 +69,7 @@ class RoutineEditingTest {
             heading("Neue Routine").assertIsDisplayed()
 
             field("Name").performTextInput("Zähne putzen")
+            compose.openMoreOptions()
             field("Beschreibung (optional)").performTextInput("Zwei Minuten")
             changeTime(from = "08:00", hour = "07", minute = "30")
             compose.onNodeWithText("Speichern").performClick()
@@ -221,6 +222,7 @@ class RoutineEditingTest {
     fun `a routine's priority is normal unless chosen low or high, and shows in the list`() {
         launchApp().use {
             newRoutine("Arzttermin")
+            compose.openMoreOptions()
             option("Normal").performScrollTo().assertIsSelected()
 
             option("Hoch").tap()
@@ -248,6 +250,7 @@ class RoutineEditingTest {
     fun `a routine can be caught up on for as many hours as chosen, by default four`() {
         launchApp().use {
             newRoutine("Tabletten")
+            compose.openMoreOptions()
             field("Zeitfenster in Stunden").performScrollTo().assertTextContains("4")
 
             field("Zeitfenster in Stunden").performTextReplacement("25")
@@ -266,6 +269,7 @@ class RoutineEditingTest {
         launchApp().use {
             newRoutine("Lesen")
 
+            compose.openMoreOptions()
             untilMidnight().performScrollTo().assertIsOff().performClick()
 
             field("Zeitfenster in Stunden").assertDoesNotExist()
@@ -283,6 +287,7 @@ class RoutineEditingTest {
             tab("Routinen").performClick()
             compose.onNodeWithText("Lesen").performClick()
 
+            compose.openMoreOptions()
             untilMidnight().performScrollTo().assertIsOn()
         }
     }
@@ -291,6 +296,7 @@ class RoutineEditingTest {
     fun `a routine reminds again as often and as far apart as chosen, by default three times every 30 minutes`() {
         launchApp().use {
             newRoutine("Tabletten")
+            compose.openMoreOptions()
             option("3").performScrollTo().assertIsSelected()
             field("Abstand in Minuten").performScrollTo().assertTextContains("30")
 
@@ -307,6 +313,7 @@ class RoutineEditingTest {
     fun `follow-ups come from 5 to 120 minutes apart, and with none there is no distance to choose`() {
         launchApp().use {
             newRoutine("Lüften")
+            compose.openMoreOptions()
             field("Abstand in Minuten").performScrollTo().performTextReplacement("2")
             compose.onNodeWithText("Speichern").performClick()
             heading("Neue Routine").assertIsDisplayed()
@@ -325,6 +332,7 @@ class RoutineEditingTest {
     fun `a routine can show its name on the lock screen, which is off by default and says anyone can see it then`() {
         launchApp().use {
             newRoutine("Arzttermin")
+            compose.openMoreOptions()
             nameOnLockScreen().performScrollTo().assertIsOff()
             compose.onNodeWithText("jeder", substring = true).assertIsDisplayed()
 
@@ -342,6 +350,7 @@ class RoutineEditingTest {
 
         launchApp().use { scenario ->
             newRoutine("Vitamine")
+            compose.openMoreOptions()
             tone().performScrollTo().assertTextContains("Standard")
 
             tone().performClick()
@@ -355,6 +364,7 @@ class RoutineEditingTest {
             assertEquals(morning, savedRoutines().single().style.tone)
 
             compose.onNodeWithText("Vitamine").performClick()
+            compose.openMoreOptions()
             tone().performScrollTo().performClick()
             val again = scenario.pickTone(picked = null)
             assertEquals(Uri.parse(morning.uri), uriExtra(again, RingtoneManager.EXTRA_RINGTONE_EXISTING_URI))
@@ -372,6 +382,7 @@ class RoutineEditingTest {
 
         launchApp().use { scenario ->
             newRoutine("Vitamine")
+            compose.openMoreOptions()
             compose.onNodeWithText("Eigene Datei…").performScrollTo().performClick()
             val request = scenario.pickFile(Uri.parse("content://downloads/1"))
             assertEquals(Intent.ACTION_OPEN_DOCUMENT, request.action)
@@ -391,6 +402,7 @@ class RoutineEditingTest {
 
         launchApp().use { scenario ->
             newRoutine("Vitamine")
+            compose.openMoreOptions()
             compose.onNodeWithText("Eigene Datei…").performScrollTo().performClick()
             scenario.pickFile(Uri.parse("content://downloads/1"))
             compose.onNodeWithText("keine abspielbare Audiodatei", substring = true).performScrollTo().assertIsDisplayed()
@@ -410,6 +422,7 @@ class RoutineEditingTest {
         launchApp().use {
             tab("Routinen").performClick()
             compose.onNodeWithText("Vitamine").performClick()
+            compose.openMoreOptions()
             compose.onNodeWithText("nicht mehr auf dem Handy", substring = true).performScrollTo().assertIsDisplayed()
         }
     }
@@ -422,11 +435,13 @@ class RoutineEditingTest {
         launchApp().use {
             newRoutine("Tabletten auf der Arbeit")
             coupling("Wasser").assertDoesNotExist()
+            compose.openMoreOptions()
             coupling("Tabletten zu Hause").performScrollTo().assertIsNotSelected().performClick()
             compose.onNodeWithText("Eine davon erledigt reicht für den Tag", substring = true).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Tabletten zu Hause").performClick()
+            compose.openMoreOptions()
             coupling("Tabletten auf der Arbeit").performScrollTo().assertIsSelected()
         }
         assertEquals(1, runBlocking { app.routines.coupledWith(home) }.size)
@@ -440,6 +455,7 @@ class RoutineEditingTest {
         launchApp().use {
             tab("Routinen").performClick()
             compose.onNodeWithText("Wasser").performClick()
+            compose.openMoreOptions()
             compose.onNodeWithText("Nur Routinen mit genau einer Uhrzeit am Tag", substring = true).performScrollTo().assertIsDisplayed()
             coupling("Tabletten zu Hause").assertDoesNotExist()
         }
@@ -454,6 +470,7 @@ class RoutineEditingTest {
             tab("Routinen").performClick()
             compose.onNodeWithText("Tabletten auf der Arbeit").performClick()
             addTime("12", "00")
+            compose.openMoreOptions()
             compose.onNodeWithText("erst die Kopplung lösen", substring = true).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Speichern").performClick()
             heading("Routine bearbeiten").assertIsDisplayed()
@@ -471,6 +488,7 @@ class RoutineEditingTest {
 
         launchApp().use {
             newRoutine("Arzttermin")
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().assertIsOff()
 
             fullScreenAlarm().performClick()
@@ -494,6 +512,7 @@ class RoutineEditingTest {
             option("Alle X Tage").assertIsSelected()
             field("Abstand in Tagen").assertTextContains("3")
             compose.onNode(hasText("Ab") and hasClickAction()).assertTextContains("20.10.2026")
+            compose.openMoreOptions()
             option("1").performScrollTo().assertIsSelected()
             field("Abstand in Minuten").performScrollTo().assertTextContains("60")
             compose.onNodeWithContentDescription("20:00 entfernen").assertExists()
@@ -581,6 +600,7 @@ class RoutineEditingTest {
 
         launchApp().use {
             newRoutine("Tabletten")
+            compose.openMoreOptions()
             option("Gesundheit").tap()
             compose.onNodeWithText("Neuer Tag").tap()
             field("Name des Tags").performTextInput("Morgens")
@@ -590,6 +610,7 @@ class RoutineEditingTest {
             compose.onNodeWithText("Gesundheit · Morgens").assertIsDisplayed()
 
             compose.onNodeWithText("Tabletten").performClick()
+            compose.openMoreOptions()
             option("Gesundheit").performScrollTo().assertIsSelected()
             option("Arbeit").assertIsNotSelected()
         }
@@ -645,6 +666,7 @@ class RoutineEditingTest {
 
         launchApp().use {
             newRoutine("Tabletten")
+            compose.openMoreOptions()
             compose.onNodeWithText("Erinnert überall.").performScrollTo().assertIsDisplayed()
 
             option("Zuhause").tap()
@@ -661,6 +683,7 @@ class RoutineEditingTest {
         launchApp().use {
             newRoutine("Tabletten")
 
+            compose.openMoreOptions()
             compose.onNodeWithText("Orte legst du in den Einstellungen", substring = true).performScrollTo().assertIsDisplayed()
         }
     }
@@ -674,6 +697,7 @@ class RoutineEditingTest {
             newRoutine("Tabletten")
             compose.onNodeWithText("auch bei geschlossener App", substring = true).assertDoesNotExist()
 
+            compose.openMoreOptions()
             option("Zuhause").tap()
             compose.onNodeWithText("auch bei geschlossener App", substring = true).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Immer erlauben").tap()

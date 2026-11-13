@@ -139,8 +139,9 @@ class EditorFormTest {
             openTodos()
             compose.onNodeWithText("Anrufen").performClick()
 
-            compose.onNodeWithText("schon vorbei", substring = true).assertExists()
             field("Titel").assertIsDisplayed()
+            compose.openMoreOptions()
+            compose.onNodeWithText("schon vorbei", substring = true).assertExists()
         }
     }
 

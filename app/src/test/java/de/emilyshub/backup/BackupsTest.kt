@@ -234,6 +234,21 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps the inbox, and one from before it loads with it empty`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(48, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("inbox"), everything().getValue("inbox"))
+        assertEquals(listOf("Zahnarzt anrufen\nwegen Kontrolle"), runBlocking { app.inbox.entries().first() }.map { it.text })
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("inbox"))
+    }
+
+    @Test
     fun `a backup keeps the Abos, and one from before them loads without any`() {
         val made = someOfEverything()
         val now = exported()
@@ -587,7 +602,7 @@ class BackupsTest {
     /**
      * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, notes
      * in a folder of a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
-     * off once, and a routine under a goal, aiming at a streak.
+     * off once, and a routine under a goal, aiming at a streak; a thought in the inbox.
      */
     private fun someOfEverything(before19: Boolean = false): Map<String, List<List<Any?>>> {
         val home = app.place("Zuhause", "FRITZ!Box 7590")
@@ -656,6 +671,7 @@ class BackupsTest {
                 ),
             )
             app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")
+            app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(
@@ -674,6 +690,7 @@ class BackupsTest {
         app.todo("Neues To-do")
         app.wish("Neuer Wunsch")
         app.notes.create(NoteDraft("Neue Notiz"))
+        app.inbox.capture("Neuer Gedanke")
     }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */

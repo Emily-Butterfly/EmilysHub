@@ -24,6 +24,7 @@ import de.emilyshub.doku.Patients
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.Languages
@@ -184,6 +185,8 @@ open class EmilysHubApplication : Application(), Hub {
     final override val places: Places by lazy { Places({ database }, io, onChange = ::updateReminders) }
 
     final override val tags: Tags by lazy { Tags({ database }, io) }
+
+    final override val inbox: Inbox by lazy { Inbox({ database }, clock, io) }
 
     final override val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
 

@@ -74,6 +74,37 @@
     <string name="priority_high">Hoch</string>
     <string name="priority_low_note">Niedrige Priorität</string>
     <string name="priority_high_note">Hohe Priorität</string>
+    <string name="more_options">Mehr Optionen</string>
+    <string name="more_options_routine">Beschreibung, Priorität, Tags, Orte, Ziel, Kopplung, Erneut erinnern, Vollbild-Alarm, Ton, Zeitfenster</string>
+    <string name="more_options_todo">In Heute zeigen, Wiederholung, Weckzeit, Orte, Vollbild-Alarm, Ton, Priorität, Checkliste, Tags, Ziel, Notizen</string>
+    <string name="option_description">Beschreibung</string>
+    <plurals name="option_tags">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tags</item>
+    </plurals>
+    <plurals name="option_checklist">
+        <item quantity="one">%1$d Unterpunkt</item>
+        <item quantity="other">%1$d Unterpunkte</item>
+    </plurals>
+    <string name="option_goal">Ziel: %1$s</string>
+    <plurals name="option_coupled">
+        <item quantity="one">Gekoppelt mit %1$d</item>
+        <item quantity="other">Gekoppelt mit %1$d</item>
+    </plurals>
+    <string name="option_follow_ups_never">Nicht erneut erinnern</string>
+    <string name="option_follow_ups">%1$d× erneut alle %2$d Min.</string>
+    <string name="option_full_screen">Vollbild-Alarm</string>
+    <string name="option_name_on_lock_screen">Name auf dem Sperrbildschirm</string>
+    <string name="option_tone_silent">Lautlos</string>
+    <string name="option_tone_own">Eigener Ton</string>
+    <string name="option_window_until_midnight">Zeitfenster bis Mitternacht</string>
+    <string name="option_window_hours">Zeitfenster %1$d Std.</string>
+    <plurals name="option_shows_before">
+        <item quantity="one">In Heute %1$d Tag vorher</item>
+        <item quantity="other">In Heute %1$d Tage vorher</item>
+    </plurals>
+    <string name="option_recurrence">Wiederholt sich</string>
+    <string name="option_wake">Weckzeit</string>
     <string name="field_checklist">Checkliste</string>
     <string name="checklist_item">Unterpunkt</string>
     <string name="checklist_item_add">Unterpunkt hinzufügen</string>
@@ -1300,4 +1331,18 @@
     <string name="attachment_export_failed">Exportieren hat nicht geklappt.</string>
     <string name="attachment_unreadable">Dieser Anhang lässt sich nicht öffnen.</string>
     <string name="attachment_page">Seite %1$d von %2$d</string>
+    <string name="inbox_title">Eingang</string>
+    <string name="inbox_capture">Was geht dir durch den Kopf?</string>
+    <string name="inbox_captured">Im Eingang</string>
+    <string name="inbox_open">Eingang (%1$d)</string>
+    <string name="inbox_empty">Der Eingang ist leer</string>
+    <string name="inbox_as_todo">To-do</string>
+    <string name="inbox_as_note">Notiz</string>
+    <string name="inbox_as_routine">Routine</string>
+    <string name="inbox_deleted">Aus dem Eingang gelöscht</string>
+    <string name="inbox_change">Text ändern</string>
+    <string name="inbox_change_title">Gedanke</string>
+    <string name="inbox_capture_short">Neuer Gedanke</string>
+    <string name="inbox_capture_long">Neuen Gedanken festhalten</string>
+    <string name="inbox_keep">Festhalten</string>
 </resources>

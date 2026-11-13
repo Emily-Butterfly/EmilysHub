@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.inbox.Sorting
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.Markdown
 import de.emilyshub.notes.NoteDraft
@@ -73,6 +75,9 @@ sealed interface NoteEditorTarget : Serializable {
     /** A new note, in [container]. */
     data class New(val container: Container) : NoteEditorTarget
 
+    /** A new one, of an entry of the inbox sorted in (SPEC.md §16), which leaves the inbox once this is saved. */
+    data class FromInbox(val sorting: Sorting) : NoteEditorTarget
+
     data class Edit(val noteId: Long) : NoteEditorTarget
 }
 
@@ -85,12 +90,15 @@ sealed interface NoteEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose: () -> Unit) {
+fun NoteEditorScreen(notes: Notes, tags: Tags, inbox: Inbox, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
     val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
+    val sorting = (target as? NoteEditorTarget.FromInbox)?.sorting
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (noteId == null) NoteEditing.New else null) }
-    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
+    var draft by rememberSaveable {
+        mutableStateOf(NoteDraft(title = sorting?.title.orEmpty(), text = sorting?.rest.orEmpty(), container = startIn))
+    }
     // The form as a new one starts out, to tell whether anything was typed.
     val fresh = rememberSaveable { draft }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
@@ -118,6 +126,11 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     val closeWith = rememberClosing(onClose)
     // A new one opens with the keyboard in its title (SPEC.md §8), once, not again on each return from the preview.
     val title = rememberFirstField(new = noteId == null)
+    // An entry of the inbox sorted in leaves it once the note is saved, not before.
+    suspend fun sortedOut() {
+        if (sorting != null) inbox.sortedOut(sorting.entryId)
+    }
+
     /** Saves the note, then does [after] with it, if any; or shows what keeps it from being saved. */
     fun save(after: (suspend (Long) -> Unit)? = null) {
         if (problems.isNotEmpty()) {
@@ -129,7 +142,10 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
             val saved = draft
             closeWith {
                 val saving = notes.save(opened, saved)
-                if (saving is Saving.Saved) after?.invoke(saving.id)
+                if (saving is Saving.Saved) {
+                    sortedOut()
+                    after?.invoke(saving.id)
+                }
             }
         }
     }
@@ -153,6 +169,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                 titled.problems.isNotEmpty() -> return@leavesItself false
                 else -> closeWith {
                     if (notes.save(opened, titled) is Saving.Saved) {
+                        sortedOut()
                         Toast.makeText(context, R.string.note_saved_itself, Toast.LENGTH_SHORT).show()
                     }
                 }

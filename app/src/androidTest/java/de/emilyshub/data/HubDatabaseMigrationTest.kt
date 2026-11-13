@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
@@ -1048,6 +1049,18 @@ class HubDatabaseMigrationTest {
 
             database.wishes().delete(goal)
             assertEquals(null, dao.exam(1)?.goalId)
+        }
+    }
+
+    @Test
+    fun `version 48 moves to version 49 with the inbox empty, and then a thought is kept in it`() {
+        createAtVersion(48) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.inbox()
+            assertEquals(emptyList<InboxEntry>(), dao.observeAll().first())
+            val id = dao.insert(InboxEntry(text = "Zahnarzt anrufen", capturedAt = Instant.parse("2026-11-13T08:00:00Z")))
+            assertEquals("Zahnarzt anrufen", dao.find(id)?.text)
         }
     }
 

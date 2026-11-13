@@ -27,12 +27,14 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
-/** How much of [max] is used up, or that it is exceeded. */
+/** How much of [max] is used up, or that it is exceeded, which as saving fails comes into view ([ProblemReveal]). */
 @Composable
 internal fun LengthHint(length: Int, max: Int) {
-    Text(
-        if (length > max) stringResource(R.string.text_too_long, max) else stringResource(R.string.text_length, length, max),
-    )
+    if (length > max) {
+        Text(stringResource(R.string.text_too_long, max), modifier = Modifier.revealedOnFailedSave())
+    } else {
+        Text(stringResource(R.string.text_length, length, max))
+    }
 }
 
 @Composable

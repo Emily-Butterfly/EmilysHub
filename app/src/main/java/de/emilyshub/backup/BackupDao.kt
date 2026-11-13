@@ -2,11 +2,7 @@ package de.emilyshub.backup
 
 import androidx.room.Dao
 import androidx.room.Query
-import de.emilyshub.ledger.Booking
-import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
-import de.emilyshub.ledger.MonthTotalBudget
-import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
@@ -15,12 +11,17 @@ import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
 import de.emilyshub.languages.Topic
-import de.emilyshub.ledger.Subscription
-import de.emilyshub.ledger.OpeningBalance
+import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
+import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -177,4 +178,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM lesson_attachments")
     fun lessonAttachments(): List<LessonAttachment>
+
+    @Query("SELECT * FROM inbox")
+    fun inbox(): List<InboxEntry>
 }

@@ -9,6 +9,7 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.ledger.Ledger
@@ -41,6 +42,9 @@ interface Hub {
     val wishes: Wishes
     val notes: Notes
     val tags: Tags
+
+    /** The Eingang, thoughts captured to be sorted in later (SPEC.md §16). */
+    val inbox: Inbox
     val places: Places
     val wifi: CurrentWifi
     val location: CurrentLocation

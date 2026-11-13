@@ -73,6 +73,7 @@ class GoalsScreenTest {
         launchApp().use {
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Belege sammeln").performClick()
+            compose.openMoreOptions()
             compose.onNode(hasText("Ziel") and hasText("Kein Ziel")).tap()
             compose.onNode(isSelectable() and hasText("Steuererklärung") and hasAnyAncestor(isDialog())).performClick()
             compose.onNodeWithText("Speichern").performClick()
@@ -98,6 +99,7 @@ class GoalsScreenTest {
             compose.onNodeWithText("In To-do umwandeln").tap()
 
             compose.onNodeWithText("To-do bearbeiten").assertIsDisplayed()
+            compose.openMoreOptions()
             compose.onNode(hasText("Ziel") and hasText("Steuererklärung")).performScrollTo().assertIsDisplayed()
         }
         val todo = runBlocking { app.todos.open().first().single().todo }

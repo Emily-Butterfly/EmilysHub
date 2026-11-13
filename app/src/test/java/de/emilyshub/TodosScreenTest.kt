@@ -66,6 +66,7 @@ class TodosScreenTest {
             option("Datum + Uhrzeit").tap()
             compose.onNode(hasText("08:00") and hasClickAction()).tap()
             typeTime(hour = "18", minute = "00")
+            compose.openMoreOptions()
             option("Hoch").tap()
             compose.onNodeWithText("Unterpunkt hinzufügen").tap()
             field("Unterpunkt").performTextInput("Belege")
@@ -142,6 +143,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Pakete")
+            compose.openMoreOptions()
             compose.onNodeWithText("Ohne Ort erinnert", substring = true).performScrollTo().assertIsDisplayed()
             option("Zuhause").tap()
             compose.onNodeWithText("Erinnert an diesen Orten", substring = true).performScrollTo().assertIsDisplayed()
@@ -160,6 +162,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Arzt anrufen")
+            compose.openMoreOptions()
             tone().performScrollTo().assertTextContains("Standard")
 
             tone().performClick()
@@ -167,6 +170,7 @@ class TodosScreenTest {
             compose.onNodeWithText("Speichern").performClick()
 
             compose.onNodeWithText("Arzt anrufen").performClick()
+            compose.openMoreOptions()
             tone().performScrollTo().assertTextContains("Glocke")
         }
         assertEquals(listOf(bell), runBlocking { app.todos.open().first().map { it.todo.style.tone } })
@@ -178,6 +182,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Arzt anrufen")
+            compose.openMoreOptions()
             nameOnLockScreen().performScrollTo().assertIsOff()
             compose.onNodeWithText("jeder", substring = true).assertIsDisplayed()
 
@@ -195,6 +200,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Arzt anrufen")
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().assertIsOff()
 
             fullScreenAlarm().performClick()
@@ -212,6 +218,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Müll")
+            compose.openMoreOptions()
             option("Fester Zeitpunkt").performScrollTo().assertIsDisplayed()
             option("Einige Tage vor der Fälligkeit").assertDoesNotExist()
             option("Datum").tap()
@@ -233,6 +240,7 @@ class TodosScreenTest {
             openTodos()
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextInput("Anrufen")
+            compose.openMoreOptions()
             option("Fester Zeitpunkt").tap()
             compose.onNodeWithText("Wecker: heute, 08:00").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("schon vorbei", substring = true).assertDoesNotExist()

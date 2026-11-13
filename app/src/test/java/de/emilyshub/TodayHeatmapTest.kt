@@ -3,8 +3,8 @@ package de.emilyshub
 import android.Manifest
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -65,6 +65,7 @@ class TodayHeatmapTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `tapping a day shows its date and count`() {
         val vitamins = app.routine("Vitamine", "07:30")
         app.history(vitamins, "2026-10-14" to Done)

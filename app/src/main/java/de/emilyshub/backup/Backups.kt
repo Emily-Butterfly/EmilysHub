@@ -245,7 +245,7 @@ class Backups(
             "subscriptions" to dao::subscriptions, "languages" to dao::languages, "teachers" to dao::teachers,
             "teacher_languages" to dao::teacherLanguages, "lessons" to dao::lessons, "exams" to dao::exams,
             "topics" to dao::topics, "lesson_topics" to dao::lessonTopics,
-            "lesson_attachments" to dao::lessonAttachments,
+            "lesson_attachments" to dao::lessonAttachments, "inbox" to dao::inbox,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {

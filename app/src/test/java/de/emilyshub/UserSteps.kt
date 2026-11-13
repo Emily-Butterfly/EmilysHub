@@ -11,6 +11,7 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
@@ -168,6 +169,11 @@ fun ComposeTestRule.openGoals() {
     onNode(hasText("Ziele") and hasClickAction()).performClick()
 }
 
+/** Unfolds "Mehr Optionen" in the editor of a routine or to-do (SPEC.md §8), where all but what is needed lies. */
+fun ComposeTestRule.openMoreOptions() {
+    onNode(hasText("Mehr Optionen") and hasClickAction()).performScrollTo().performClick()
+}
+
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */
 fun ComposeTestRule.unlockWithFingerprint(authenticator: FakeAuthenticator) {
     waitForIdle()
@@ -199,3 +205,6 @@ fun TestApplication.history(routineId: Long, vararg days: Pair<String, Occurrenc
         days.map { (date, status) -> Occurrence(routineId = routineId, date = LocalDate.parse(date), time = time, status = status) },
     )
 }
+
+/** A thought in the inbox (SPEC.md §16), captured now. */
+fun TestApplication.inbox(text: String) = runBlocking { check(inbox.capture(text)) }

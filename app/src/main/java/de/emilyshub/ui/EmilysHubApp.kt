@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,6 +72,10 @@ import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
 import de.emilyshub.ui.fields.LocalProblemReveal
 import de.emilyshub.ui.fields.ProblemReveal
+import de.emilyshub.ui.inbox.CaptureField
+import de.emilyshub.ui.inbox.CaptureScreen
+import de.emilyshub.ui.inbox.InboxLine
+import de.emilyshub.ui.inbox.InboxScreen
 import de.emilyshub.ui.languages.AttachmentViewerScreen
 import de.emilyshub.ui.languages.LanguageListScreen
 import de.emilyshub.ui.languages.LanguagePageScreen
@@ -200,7 +205,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
     val back = { stack = stack.pop() }
     LaunchedEffect(opening) {
         if (opening != null) {
-            stack = stack.push(opening)
+            // Asked for again while it shows, it is not opened twice.
+            if (stack.top != opening) stack = stack.push(opening)
             onOpened()
         }
     }
@@ -254,9 +260,9 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
     CompositionLocalProvider(LocalProblemReveal provides reveal) {
         screens.SaveableStateProvider(checkNotNull(stack.topStateKey)) {
             when (top) {
-                is Destination.NoteEditor -> NoteEditorScreen(hub.notes, hub.tags, top.target, onClose = back)
+                is Destination.NoteEditor -> NoteEditorScreen(hub.notes, hub.tags, hub.inbox, top.target, onClose = back)
                 is Destination.TodoEditor -> TodoEditorScreen(
-                    hub.todos, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection,
+                    hub.todos, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
                     onClose = back, onOpenNote = openNote,
                 )
                 Destination.TodoArchive ->
@@ -306,6 +312,10 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                 Destination.TeacherList ->
                     TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
                 is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)
+                Destination.Capture -> CaptureScreen(hub.inbox, onBack = back)
+                Destination.Inbox -> InboxScreen(
+                    hub.inbox, hub.day, onSort = { into, entry -> open(Destination.sorting(into, entry)) }, onBack = back,
+                )
                 Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
                 Destination.LedgerArchive ->
                     LedgerArchiveScreen(hub.ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
@@ -361,7 +371,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                     onBack = back,
                 )
                 is Destination.RoutineEditor -> RoutineEditorScreen(
-                    hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection, onClose = back, onOpenNote = openNote,
+                    hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
+                    onClose = back, onOpenNote = openNote,
                 )
                 Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
                 is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
@@ -520,6 +531,10 @@ private fun TopLevelScaffold(
                     },
                     onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
                     onOpenYesterday = { onYesterdayChange(true) },
+                    capture = {
+                        CaptureField(hub.inbox, Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp))
+                        InboxLine(hub.inbox, onOpen = { open(Destination.Inbox) })
+                    },
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                 )
             }

@@ -77,7 +77,8 @@ import java.time.LocalDate
  * before their day under "Demnächst", and there too the Abos to cancel soon, which open with a tap ([onOpenSubscription],
  * #80); and under it all, what was done each day of the last six months
  * ([TodayHeatmap]). Nothing until all of it is there, so that Heute does not say there is nothing before it comes. Above
- * it all, the way to yesterday, to catch up on it ([onOpenYesterday], [YesterdayScreen]).
+ * it all, the line a thought is captured in and the way to the Eingang ([capture], SPEC.md §16), and the way to
+ * yesterday, to catch up on it ([onOpenYesterday], [YesterdayScreen]).
  */
 @Composable
 fun TodayScreen(
@@ -88,6 +89,7 @@ fun TodayScreen(
     onOpenNote: (Long) -> Unit,
     onOpenYesterday: () -> Unit,
     onOpenSubscription: (Long) -> Unit = {},
+    capture: @Composable () -> Unit = {},
 ) {
     day ?: return
     val scope = rememberCoroutineScope()
@@ -100,6 +102,7 @@ fun TodayScreen(
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
+            capture()
             ToYesterday(onOpenYesterday)
             warnings()
             Box(Modifier.weight(1f)) { PlaceholderScreen(stringResource(R.string.today_empty), PaddingValues()) }
@@ -109,6 +112,7 @@ fun TodayScreen(
         return
     }
     LazyColumn(contentPadding = contentPadding) {
+        item(key = "capture") { Column { capture() } }
         item(key = "yesterday") { ToYesterday(onOpenYesterday) }
         item(key = "warnings") { Column { warnings() } }
         if (pinned.isNotEmpty()) {

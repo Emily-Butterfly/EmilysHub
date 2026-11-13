@@ -2,7 +2,17 @@ package de.emilyshub.search
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.languages.FakeLessonDocuments
+import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
+import de.emilyshub.languages.testAttachmentStore
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.Ledger
@@ -16,21 +26,13 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.TodoDraft
+import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.Todos
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import de.emilyshub.data.Saving
-import de.emilyshub.languages.FakeLessonDocuments
-import de.emilyshub.languages.Languages
-import de.emilyshub.languages.LessonDraft
-import de.emilyshub.languages.LessonEditing
-import de.emilyshub.languages.LessonFiles
-import de.emilyshub.languages.TeacherDraft
-import de.emilyshub.languages.TeacherEditing
-import de.emilyshub.languages.testAttachmentStore
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -178,6 +180,20 @@ class SearchTest {
         assertEquals(50 to 1, many.hits.size to many.more)
         val hit = search.find("zahlen").single().hits.single()
         assertEquals(SearchHit(newer, "Arabisch · Amal Straße", LocalDate.parse("2026-10-20")), hit)
+    }
+
+    @Test
+    fun `entries of the inbox are found by their text, in an area of their own, each by its first line`() = runBlocking {
+        val inbox = Inbox({ database }, clock, Dispatchers.Unconfined)
+        inbox.capture("Einkaufen\nMilch und Brot")
+        inbox.capture("Zahnarzt anrufen")
+        todos.save(TodoEditing.New, TodoDraft(title = "Brot backen"))
+
+        val found = search.find("brot")
+
+        assertEquals(listOf("Einkaufen"), titles(found, SearchArea.Inbox))
+        assertEquals(listOf("Brot backen"), titles(found, SearchArea.Todos))
+        assertEquals(inbox.entries().first().last().id, found.single { it.area == SearchArea.Inbox }.hits.single().id)
     }
 
     private fun List<SearchGroup>.lessonIds() = single { it.area == SearchArea.Lessons }.hits.map { it.id }

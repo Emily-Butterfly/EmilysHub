@@ -748,3 +748,13 @@ val MIGRATION_47_48 = object : Migration(47, 48) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_exams_goal_id` ON `exams` (`goal_id`)")
     }
 }
+
+/** Version 49: the Eingang (SPEC.md §16, #93), the thoughts captured to be sorted in later. None is yet. */
+val MIGRATION_48_49 = object : Migration(48, 49) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `inbox` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `text` TEXT NOT NULL, " +
+                "`captured_at` TEXT NOT NULL)",
+        )
+    }
+}

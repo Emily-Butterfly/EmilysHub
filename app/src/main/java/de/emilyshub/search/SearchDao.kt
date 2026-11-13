@@ -63,6 +63,10 @@ interface SearchDao {
             "JOIN teachers t ON t.id = s.teacher_id) WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun lessons(pattern: String): List<LessonCandidate>
+
+    /** The entries of the Eingang (SPEC.md §16), by their text, which [Search] titles by its first line. */
+    @Query("SELECT id, text AS title, text FROM inbox WHERE text LIKE :pattern ESCAPE '\\'")
+    suspend fun inbox(pattern: String): List<Candidate>
 }
 
 /** A lesson of Sprachen the database found (SPEC.md §15): its [date], [language] and [teacher], and all its text in one. */

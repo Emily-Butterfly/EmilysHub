@@ -160,6 +160,7 @@ class LeavingEditorsTest {
         launchApp().use { scenario ->
             openTodo("Milch")
             field("Titel").performTextReplacement("Hafermilch")
+            compose.openMoreOptions()
             compose.onNodeWithText("Einkaufsliste").performScrollTo().performClick()
             heading("Notiz bearbeiten").assertIsDisplayed()
 

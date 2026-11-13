@@ -47,6 +47,7 @@ class RoutineGoalsScreenTest {
             compose.onNode(hasText("Routinen") and hasClickAction()).performClick()
             compose.onNodeWithText("Vokabeln").performClick()
             compose.onNodeWithText("Routinen-Ziel").assertDoesNotExist()
+            compose.openMoreOptions()
             compose.onNode(hasText("Ziel") and hasText("Kein Ziel")).tap()
             compose.onNode(isSelectable() and hasText("Wortschatz") and hasAnyAncestor(isDialog())).performClick()
             option("Tage am Stück").tap()

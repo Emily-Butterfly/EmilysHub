@@ -1,7 +1,13 @@
 package de.emilyshub.ui.navigation
 
+import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.inbox.Sorting
 import de.emilyshub.languages.AttachmentRef
+import de.emilyshub.notes.NoteDraft
+import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.search.SearchArea
+import de.emilyshub.todos.TodoDraft
+import de.emilyshub.ui.inbox.SortInto
 import de.emilyshub.ui.languages.LessonEditorTarget
 import de.emilyshub.ui.languages.TeacherEditorTarget
 import de.emilyshub.ui.ledger.BookingEditorTarget
@@ -144,6 +150,12 @@ sealed interface Destination : Serializable {
     /** A teacher's editor (SPEC.md §15). */
     data class TeacherEditor(override val target: TeacherEditorTarget) : Editor
 
+    /** The Eingang, the thoughts captured to be sorted in (SPEC.md §16). */
+    data object Inbox : Destination
+
+    /** The line for a new thought, from the shortcut on the app's icon, over what was open (SPEC.md §16). */
+    data object Capture : Destination
+
     companion object {
         /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */
         fun found(area: SearchArea, id: Long): Destination = when (area) {
@@ -154,6 +166,18 @@ sealed interface Destination : Serializable {
             SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
             SearchArea.Subscriptions -> SubscriptionEditor(SubscriptionEditorTarget.Edit(id))
             SearchArea.Lessons -> LessonEditor(LessonEditorTarget.Edit(id))
+            // The inbox as a whole, where it is sorted in.
+            SearchArea.Inbox -> Inbox
+        }
+
+        /**
+         * The editor of a new entry that the inbox's [entry] is sorted [into] (SPEC.md §16): its first line as the title or
+         * name, as long as that may be, and the rest below.
+         */
+        fun sorting(into: SortInto, entry: InboxEntry): Destination = when (into) {
+            SortInto.Todo -> TodoEditor(TodoEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, TodoDraft.TITLE_MAX)))
+            SortInto.Note -> NoteEditor(NoteEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, NoteDraft.TITLE_MAX)))
+            SortInto.Routine -> RoutineEditor(RoutineEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, RoutineDraft.NAME_MAX)))
         }
     }
 }

@@ -8,28 +8,30 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
-import de.emilyshub.ledger.Booking
-import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
-import de.emilyshub.ledger.MonthTotalBudget
-import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.inbox.InboxDao
+import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.Exam
-import de.emilyshub.languages.LessonAttachment
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.LanguageDao
 import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
 import de.emilyshub.languages.LessonTopic
 import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherLanguage
 import de.emilyshub.languages.Topic
-import de.emilyshub.ledger.Subscription
-import de.emilyshub.ledger.SubscriptionDao
+import de.emilyshub.ledger.Booking
+import de.emilyshub.ledger.ClosedBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.LedgerDao
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
+import de.emilyshub.ledger.SubscriptionDao
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteDao
@@ -81,6 +83,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         Subscription::class,
         Language::class, Teacher::class, TeacherLanguage::class, Lesson::class, Exam::class, Topic::class, LessonTopic::class,
         LessonAttachment::class,
+        InboxEntry::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -106,12 +109,14 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun languages(): LanguageDao
 
+    abstract fun inbox(): InboxDao
+
     abstract fun search(): SearchDao
 
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 48
+        const val VERSION = 49
         private const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -139,7 +144,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34,
             MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
             MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44,
-            MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48,
+            MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

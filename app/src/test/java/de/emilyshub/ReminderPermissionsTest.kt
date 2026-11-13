@@ -128,6 +128,7 @@ class ReminderPermissionsTest {
         launchApp().use {
             newRoutine("Arzttermin")
 
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().performClick()
             compose.onNodeWithText("Damit EmilysHub wie ein Wecker", substring = true).assertIsDisplayed()
             compose.onNodeWithText("Zur Einstellung").performClick()
@@ -145,6 +146,7 @@ class ReminderPermissionsTest {
         launchApp().use {
             newRoutine("Arzttermin")
 
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().performClick()
             compose.onNodeWithText("Nein, danke").performClick()
 
@@ -160,6 +162,7 @@ class ReminderPermissionsTest {
         launchApp().use {
             newRoutine("Arzttermin")
 
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().performClick()
 
             compose.onNodeWithText("Vollbild-Alarme erlauben?").assertDoesNotExist()
@@ -174,6 +177,7 @@ class ReminderPermissionsTest {
         launchApp().use {
             openRoutine("Arzttermin")
 
+            compose.openMoreOptions()
             compose.onNodeWithText("Android erlaubt gerade keine Vollbild-Alarme", substring = true).assertExists()
             compose.onNodeWithText("Erlauben").performScrollTo().performClick()
         }
@@ -189,6 +193,7 @@ class ReminderPermissionsTest {
         launchApp().use {
             openRoutine("Arzttermin")
 
+            compose.openMoreOptions()
             fullScreenAlarm().performScrollTo().assertIsOn()
             compose.onNodeWithText("Android erlaubt gerade keine Vollbild-Alarme", substring = true).assertDoesNotExist()
         }

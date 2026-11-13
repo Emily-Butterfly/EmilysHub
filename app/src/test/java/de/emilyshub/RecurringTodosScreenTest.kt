@@ -52,6 +52,7 @@ class RecurringTodosScreenTest {
             compose.onNodeWithText("Wiederholung").assertDoesNotExist()
 
             option("Datum").tap()
+            compose.openMoreOptions()
             option("Monatlich am 23.").tap()
             compose.onNodeWithText("Speichern").performClick()
 
@@ -68,6 +69,7 @@ class RecurringTodosScreenTest {
         launchApp().use {
             openTodos()
             compose.onNodeWithText("Blumen düngen").performClick()
+            compose.openMoreOptions()
             option("Alle X Tage").tap()
             field("Abstand in Tagen").performScrollTo().performTextReplacement("14")
             compose.onNode(hasText("Ab Erledigung zählen") and hasClickAction()).tap()
@@ -87,6 +89,7 @@ class RecurringTodosScreenTest {
             compose.onNodeWithText("Jährlich am 30.10.").assertIsDisplayed()
             compose.onNodeWithText("Geburtstag Oma").performClick()
             pickDay("28")
+            compose.openMoreOptions()
             option("Jährlich am 30.10.").performScrollTo().assertIsSelected()
             option("Jährlich am 28.10.").tap()
             compose.onNodeWithText("Speichern").performClick()
@@ -102,6 +105,7 @@ class RecurringTodosScreenTest {
             compose.onNodeWithContentDescription("To-do anlegen").performClick()
             field("Titel").performTextReplacement("Miete überweisen")
             option("Datum").tap()
+            compose.openMoreOptions()
             option("Monatlich am 23.").tap()
             pickDay("28")
 
@@ -149,6 +153,7 @@ class RecurringTodosScreenTest {
         launchApp().use {
             openTodos()
             compose.onNodeWithText("Markt").performClick()
+            compose.openMoreOptions()
             option("Kein Ende").performScrollTo().assertIsSelected()
             option("Nach einer Anzahl").tap()
             field("Anzahl insgesamt").performScrollTo().performTextReplacement("2")
@@ -172,6 +177,7 @@ class RecurringTodosScreenTest {
         launchApp().use {
             openTodos()
             compose.onNodeWithText("Markt").performClick()
+            compose.openMoreOptions()
             option("Nach einer Anzahl").tap()
             field("Anzahl insgesamt").performScrollTo().performTextReplacement("0")
             compose.onNodeWithText("Speichern").performClick()
@@ -188,6 +194,7 @@ class RecurringTodosScreenTest {
         launchApp().use {
             openTodos()
             compose.onNodeWithText("Pflanzen gießen").performClick()
+            compose.openMoreOptions()
             option("An einem Datum").tap()
             // A month on at first, then the day picked in that month.
             compose.onNodeWithText("23.11.2026").performScrollTo().assertIsDisplayed()

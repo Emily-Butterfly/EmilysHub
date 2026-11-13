@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.LocalDate
 import java.time.LocalTime
@@ -58,6 +59,7 @@ class UpcomingTodosScreenTest {
             compose.onNodeWithText("Demnächst").assertDoesNotExist()
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Geschenk kaufen").performClick()
+            compose.openMoreOptions()
             option("Am Fälligkeitstag").performScrollTo()
             option("Schon einige Tage vorher").tap()
             compose.onNode(hasSetTextAction() and hasText("Tage vorher")).performScrollTo().performTextReplacement("4")
@@ -71,6 +73,7 @@ class UpcomingTodosScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
     fun `due tomorrow at a time, it says so, and ticked off there it stays ticked off`() {
         val tomorrow = Due.At(today.plusDays(1), LocalTime.of(9, 30))
         app.todo("Zahnarzt", due = tomorrow, checklist = listOf("Karte", "Überweisung"), showsDaysBefore = 2)
