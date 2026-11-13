@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import de.emilyshub.EmilysHubApplication
 import de.emilyshub.R
 import de.emilyshub.logged
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,7 +35,11 @@ import kotlinx.coroutines.launch
  */
 class AlarmRingService : Service() {
     private val app get() = application as EmilysHubApplication
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // What fails, such as reading data that cannot be opened (#100), is logged without its content, never a crash.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate +
+            CoroutineExceptionHandler { _, e -> Log.e("EmilysHub", "Ringing failed: ${e.logged}") },
+    )
 
     /** The occurrences and to-dos it rings for, each watched until its reminder is answered or gone. */
     private val ringingFor = mutableMapOf<Alarmed, Job>()

@@ -8,6 +8,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +59,7 @@ import de.emilyshub.R
 import de.emilyshub.backup.Backups
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
+import de.emilyshub.data.Unopenable
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -68,6 +71,7 @@ import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
+import de.emilyshub.ui.backups.RescueScreen
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
 import de.emilyshub.ui.fields.LocalProblemReveal
@@ -141,19 +145,37 @@ import de.emilyshub.ui.wishes.WishlistScreen
 import kotlin.math.roundToInt
 
 /**
- * The whole UI. Nothing is drawn before the settings are known, not even the theme, and nothing but
- * the lock screen while the app is locked (SPEC.md §9). What a reminder tapped asks to open ([opening]) opens once the
- * app is unlocked, over what was open, and [onOpened] says so.
+ * The whole UI. Nothing is drawn before the data are opened and the settings known, not even the theme, and nothing but
+ * the lock screen while the app is locked (SPEC.md §9). Data that cannot be opened show the way out instead (#100),
+ * behind the lock all the same, which counts as on then, as its setting cannot be read. What a reminder tapped asks to
+ * open ([opening]) opens once the app is unlocked, over what was open, and [onOpened] says so.
  */
 @Composable
 fun EmilysHubApp(hub: Hub, opening: Destination? = null, onOpened: () -> Unit = {}) {
     val settings = hub.settings
     val lock = hub.appLock
     val authenticator = hub.authenticator
-    LaunchedEffect(settings, lock) { lock.setEnabled(settings.load().appLockEnabled) }
+    val activity = LocalActivity.current as ComponentActivity
+    // Each time the data may have come to open: on start, and once a way out has opened them.
+    var attempt by remember { mutableIntStateOf(0) }
+    var unopenable by remember { mutableStateOf<Unopenable?>(null) }
+    LaunchedEffect(settings, lock, attempt) {
+        val reason = hub.data.check()
+        unopenable = reason
+        lock.setEnabled(if (reason == null) settings.load().appLockEnabled else true)
+    }
+    unopenable?.let { reason ->
+        EmilysHubTheme(darkTheme = isSystemInDarkTheme()) {
+            if (lock.isLocked) {
+                LockScreen(onUnlock = { authenticator.authenticate(activity, lock::unlock) })
+            } else {
+                RescueScreen(reason, hub.data, hub.rescue, onOpened = { attempt++ })
+            }
+        }
+        return
+    }
     val current = settings.current ?: return
 
-    val activity = LocalActivity.current as ComponentActivity
     val darkTheme = isDark(current.design)
     SystemFollowsDesign(activity, current.design, darkTheme)
 
@@ -365,7 +387,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                 )
                 Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)
                 Destination.Tags -> TagsScreen(hub.tags, onBack = back)
-                Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, onBack = back)
+                Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, hub.data, onBack = back)
                 Destination.Settings -> SettingsScreen(
                     appSettings = hub.settings,
                     appLock = hub.appLock,

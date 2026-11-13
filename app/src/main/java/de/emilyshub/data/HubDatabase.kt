@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
 import de.emilyshub.inbox.InboxDao
@@ -63,6 +64,7 @@ import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishDao
 import de.emilyshub.wishes.WishTag
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
 
 /**
  * The app's only database, encrypted with SQLCipher (SPEC.md §9).
@@ -117,15 +119,21 @@ abstract class HubDatabase : RoomDatabase() {
 
     companion object {
         const val VERSION = 49
-        private const val NAME = "emilyshub.db"
+        internal const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
-        /** Opens the database with its 256-bit [key]; a wrong key fails on first access. */
+        /**
+         * Opens the database with its 256-bit [key]; a wrong key fails on first access, and one of a newer version of the
+         * app with a [NewerSchemaException], leaving it as it is.
+         */
         fun open(context: Context, key: ByteArray, name: String = NAME): HubDatabase =
             Room.databaseBuilder(context, HubDatabase::class.java, name)
-                .openHelperFactory(openHelpers(key))
+                .openHelperFactory(NoticingNewer(openHelpers(key)))
                 .addMigrations(*MIGRATIONS.toTypedArray())
                 .build()
+
+        /** The file of the app's database on the phone, or of one by another [name]. */
+        fun file(context: Context, name: String = NAME): File = context.getDatabasePath(name)
 
         /** SQLCipher's, for databases with the 256-bit [key]: the app's database, and those its backups are migrated in. */
         fun openHelpers(key: ByteArray): SupportSQLiteOpenHelper.Factory {
@@ -150,5 +158,41 @@ abstract class HubDatabase : RoomDatabase() {
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */
         internal fun rawKey(key: ByteArray): ByteArray =
             "x'${key.toHexString()}'".toByteArray()
+    }
+}
+
+/** The database was written by a newer version of the app, with a schema of [version] (#100). */
+class NewerSchemaException(val version: Int) : IllegalStateException("The database is of a newer version")
+
+/**
+ * Opens with [factory], only one of a newer version fails with a [NewerSchemaException] before anything is changed, and
+ * nothing is ever deleted as damaged, so that the app can lay it aside instead (#100).
+ */
+private class NoticingNewer(private val factory: SupportSQLiteOpenHelper.Factory) : SupportSQLiteOpenHelper.Factory {
+    override fun create(configuration: SupportSQLiteOpenHelper.Configuration): SupportSQLiteOpenHelper {
+        val callback = configuration.callback
+        val noticing = object : SupportSQLiteOpenHelper.Callback(callback.version) {
+            override fun onConfigure(db: SupportSQLiteDatabase) = callback.onConfigure(db)
+
+            override fun onCreate(db: SupportSQLiteDatabase) = callback.onCreate(db)
+
+            override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) =
+                callback.onUpgrade(db, oldVersion, newVersion)
+
+            override fun onDowngrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) =
+                throw NewerSchemaException(oldVersion)
+
+            override fun onOpen(db: SupportSQLiteDatabase) = callback.onOpen(db)
+
+            override fun onCorruption(db: SupportSQLiteDatabase) = Unit
+        }
+        return factory.create(
+            SupportSQLiteOpenHelper.Configuration.builder(configuration.context)
+                .name(configuration.name)
+                .callback(noticing)
+                .noBackupDirectory(configuration.useNoBackupDirectory)
+                .allowDataLossOnRecovery(configuration.allowDataLossOnRecovery)
+                .build(),
+        )
     }
 }

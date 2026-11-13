@@ -6,11 +6,17 @@ import androidx.core.net.toUri
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupKey
 import de.emilyshub.backup.BackupMigration
+import de.emilyshub.backup.DataRescue
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.DocumentFolder
 import de.emilyshub.backup.NightAlarm
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
+import de.emilyshub.data.DataUnavailable
+import de.emilyshub.data.HubData
+import de.emilyshub.data.KEYSTORE_ALIAS
+import de.emilyshub.data.openOnPhone
+import de.emilyshub.data.phoneDataFiles
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.doku.Appointments
@@ -90,12 +96,18 @@ open class EmilysHubApplication : Application(), Hub {
 
     // Ports.
 
-    /** Opened on first use, which touches the Keystore and disk: never access it on the main thread. */
-    open val database: HubDatabase by lazy {
-        val wrappingKey = KeystoreKeys.getOrCreateAesGcmKey("database-key")
-        val key = DatabaseKeyFile(File(noBackupFilesDir, "database.key"), wrappingKey).readOrCreate()
-        HubDatabase.open(this, key)
-    }
+    /**
+     * Opens the database, which touches the Keystore and disk; fails with a [DataUnavailable] saying why it cannot (#100).
+     * Only through [data], which opens it once.
+     */
+    protected open fun openDatabase(): HubDatabase = openOnPhone(this, databaseKeyFile)
+
+    /** The database, opened on first use: never access it on the main thread. Fails while it cannot be opened (#100). */
+    val database: HubDatabase get() = data.database
+
+    private val databaseKeyFile get() = File(noBackupFilesDir, "database.key")
+    private val attachmentKeyFile get() = File(noBackupFilesDir, "attachments.key")
+    private val attachmentsFolder get() = File(filesDir, "attachments")
 
     /** Opens the Doku's database with its key in raw form, once the Doku password or the fingerprint set it free. */
     protected open val openDokuDatabase: (RawKey) -> DokuDatabase = { rawKey -> DokuDatabase.open(this, rawKey) }
@@ -131,9 +143,13 @@ open class EmilysHubApplication : Application(), Hub {
      * the database, like the database's own. Touches the Keystore and disk: never on the main thread.
      */
     protected open val attachmentKey: () -> SecretKey = {
-        val wrappingKey = KeystoreKeys.getOrCreateAesGcmKey("database-key")
-        SecretKeySpec(DatabaseKeyFile(File(noBackupFilesDir, "attachments.key"), wrappingKey).readOrCreate(), "AES")
+        val wrappingKey = KeystoreKeys.getOrCreateAesGcmKey(KEYSTORE_ALIAS)
+        SecretKeySpec(DatabaseKeyFile(attachmentKeyFile, wrappingKey).readOrCreate(), "AES")
     }
+
+    /** The key of the attachments once read, until other data take the place of these (#100). */
+    @Volatile
+    private var attachmentKeyRead: SecretKey? = null
 
     /** The WLAN connected to, by which the places are recognised. */
     override val wifi: CurrentWifi by lazy { SystemWifi(this) }
@@ -160,6 +176,29 @@ open class EmilysHubApplication : Application(), Hub {
         SupervisorJob() + Dispatchers.Default +
             CoroutineExceptionHandler { _, e -> Log.e(TAG, "Background work failed: ${e.logged}") },
     )
+
+    /**
+     * The app's data as they lie on the phone (#100): opened once, or why not; laid aside, never deleted, to begin anew.
+     * The Doku is not among them.
+     */
+    final override val data: HubData by lazy {
+        HubData(
+            open = ::openDatabase,
+            files = phoneDataFiles(this, databaseKeyFile, attachmentKeyFile, attachmentsFolder),
+            setAsideFolder = File(noBackupFilesDir, "set-aside"),
+            clock = clock,
+            io = io,
+            onReplaced = { attachmentKeyRead = null },
+        )
+    }
+
+    /** The ways out while the data cannot be opened (#100). */
+    final override val rescue: DataRescue by lazy {
+        DataRescue(data, backups) {
+            updateReminders()
+            nightlyBackups.schedule()
+        }
+    }
 
     // Modules, built from the ports. What changes what the reminders remind of tells them ([updateReminders]): the
     // routines, to-dos, Abos, places, looking around, the tones, and a backup restored; goals, notes, tags and the rest of
@@ -208,8 +247,8 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Sprachen (SPEC.md §15). */
     final override val lessonFiles: LessonFiles by lazy {
-        val key by lazy { attachmentKey() }
-        LessonFiles(AttachmentStore({ File(filesDir, "attachments") }, { key }), lessonDocuments, io)
+        val key = { attachmentKeyRead ?: attachmentKey().also { attachmentKeyRead = it } }
+        LessonFiles(AttachmentStore({ attachmentsFolder }, key), lessonDocuments, io)
     }
 
     final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }

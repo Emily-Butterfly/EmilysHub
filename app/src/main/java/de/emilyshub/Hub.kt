@@ -1,8 +1,10 @@
 package de.emilyshub
 
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.DataRescue
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
+import de.emilyshub.data.HubData
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
@@ -34,6 +36,11 @@ import de.emilyshub.wishes.Wishes
  * being passed down through each layer above.
  */
 interface Hub {
+    /** The app's data as they lie on the phone: whether they open, and what was laid aside (#100). */
+    val data: HubData
+
+    /** The ways out while the data cannot be opened (#100). */
+    val rescue: DataRescue
     val settings: AppSettings
     val appLock: AppLock
     val authenticator: DeviceAuthenticator

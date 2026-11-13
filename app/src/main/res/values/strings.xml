@@ -692,6 +692,30 @@
     <string name="backup_wrong_doku_password">Falsches Doku-Passwort</string>
     <string name="backup_replace_without_doku">Ohne Dokumentation einspielen</string>
     <string name="backup_restored">Backup geladen.</string>
+
+    <!-- When the data cannot be opened (#100). -->
+    <string name="rescue_title">Deine Daten lassen sich nicht öffnen</string>
+    <string name="rescue_key_broken">Der Schlüssel zu deinen Daten fehlt oder ist beschädigt.</string>
+    <string name="rescue_file_broken">Die Datei mit deinen Daten ist beschädigt.</string>
+    <string name="rescue_newer_version">Deine Daten stammen aus einer neueren Version der App.</string>
+    <string name="rescue_install_newer">Installiere die neuere Version der App, dann lassen sie sich wieder öffnen.</string>
+    <string name="rescue_no_reminders">Bis dahin kommen keine Erinnerungen.</string>
+    <string name="rescue_retry">Erneut versuchen</string>
+    <string name="rescue_still_unopenable">Sie lassen sich weiterhin nicht öffnen.</string>
+    <string name="rescue_load_backup">Backup laden</string>
+    <string name="rescue_load_backup_summary">Deine Daten aus einem Backup, in neuen Dateien mit neuem Schlüssel.</string>
+    <string name="rescue_start_over">Neu beginnen</string>
+    <string name="rescue_start_over_summary">Die App startet leer, wie neu installiert, auch ohne Backup-Passwort.</string>
+    <string name="rescue_start_over_title">Neu beginnen?</string>
+    <string name="rescue_start_over_text">Die App startet leer, wie neu installiert: ohne Backup-Passwort und ohne Ordner für die nächtlichen Backups. Die jetzigen Daten werden nicht gelöscht, sondern beiseitegelegt; du findest sie unter Backups. Die Dokumentation bleibt, wie sie ist.</string>
+    <string name="rescue_set_aside_note">„Backup laden“ und „Neu beginnen“ löschen nichts: Die jetzigen Daten werden beiseitegelegt.</string>
+    <string name="rescue_failed">Das hat nicht geklappt. Deine Daten sind, wie sie waren.</string>
+    <string name="backup_set_aside_title">Beiseitegelegte Daten</string>
+    <string name="backup_set_aside_summary">Daten, die sich nicht öffnen ließen, vor einem neuen Beginn oder einem geladenen Backup beiseitegelegt.</string>
+    <string name="backup_set_aside_at">Beiseitegelegt am %1$s</string>
+    <string name="backup_set_aside_delete">Endgültig löschen</string>
+    <string name="backup_set_aside_delete_title">Endgültig löschen?</string>
+    <string name="backup_set_aside_delete_text">Die am %1$s beiseitegelegten Daten werden gelöscht. Das lässt sich nicht rückgängig machen.</string>
     <string name="backup_restore_failed">Das Backup konnte nicht geladen werden. Deine Daten sind unverändert.</string>
     <string name="backup_nightly_title">Jede Nacht</string>
     <string name="backup_nightly_summary">Legt jede Nacht ein verschlüsseltes Backup in einem Ordner ab, den du einmal wählst. Die letzten %1$d bleiben, ältere löscht die App; von Hand gespeicherte Backups lässt sie stehen, auch in diesem Ordner.</string>

@@ -4,8 +4,10 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.FakeBackupFolder
+import de.emilyshub.data.DataUnavailable
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InMemorySettingsDao
+import de.emilyshub.data.Unopenable
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.FakeFingerprint
@@ -41,9 +43,12 @@ class TestApplication : EmilysHubApplication() {
     /** On the spot, so that the tests and Compose see every change at once. */
     override val io = Dispatchers.Unconfined
 
-    /** In memory, open to the tests, such as for the history of days gone by. */
-    override val database by lazy { inMemoryDatabase() }
+    /** In memory, open to the tests, such as for the history of days gone by; or failing for [openFails] (#100). */
+    override fun openDatabase(): HubDatabase = openFails?.let { throw DataUnavailable(it) } ?: inMemoryDatabase()
     val testDatabase: HubDatabase get() = database
+
+    /** Why opening the data fails from now on, as a test sets it; none for them to open (#100). */
+    var openFails: Unopenable? = null
 
     override val authenticator = FakeAuthenticator()
     override val fingerprint = FakeFingerprint()

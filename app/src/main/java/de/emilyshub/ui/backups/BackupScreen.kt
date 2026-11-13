@@ -61,6 +61,8 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.backup.NightlyState
 import de.emilyshub.backup.PasswordProblem
+import de.emilyshub.data.HubData
+import de.emilyshub.data.SetAside
 import de.emilyshub.logged
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
@@ -68,6 +70,7 @@ import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.numericDate
 import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -75,11 +78,12 @@ import kotlin.coroutines.cancellation.CancellationException
  * The backups (SPEC.md §10): the backup password, set once; a backup of all data saved to a file chosen in Android's
  * dialog; the folder the [nightly] backups go to; and one loaded from such a file with the password it was saved with,
  * which replaces all data only once confirmed, its Doku only with the Doku password that held when it was saved. Below,
- * the advice to copy the backups off the phone.
+ * the advice to copy the backups off the phone; last, the [data] laid aside when they could not be opened (#100), each with
+ * its date, to delete for good once confirmed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) {
+fun BackupScreen(backups: Backups, nightly: NightlyBackups, data: HubData, onBack: () -> Unit) {
     val resolver = LocalContext.current.contentResolver
     val scope = rememberCoroutineScope()
     var hasPassword by remember { mutableStateOf<Boolean?>(null) }
@@ -96,6 +100,10 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
     var opened by remember { mutableStateOf<Backup?>(null) }
     // Whether the Doku password given for the backup's Doku was not the one that held when it was made.
     var wrongDokuPassword by remember { mutableStateOf(false) }
+    var setAside by remember { mutableStateOf<List<SetAside>>(emptyList()) }
+    LaunchedEffect(data) { setAside = data.setAside() }
+    var deleting by remember { mutableStateOf<SetAside?>(null) }
+    val zone = ZoneId.systemDefault()
 
     fun work(block: suspend () -> Unit) {
         busy = true
@@ -225,9 +233,33 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
             Text(stringResource(R.string.backup_load_summary))
             OutlinedButton(onClick = { load.launch(arrayOf("*/*")) }, enabled = !busy) { Text(stringResource(R.string.backup_load)) }
 
+            if (setAside.isNotEmpty()) SetAsideSection(setAside, enabled = !busy, onDelete = { deleting = it })
+
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             outcome?.let { Text(stringResource(it), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         }
+    }
+
+    deleting?.let { laid ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(stringResource(R.string.backup_set_aside_delete_title)) },
+            text = { Text(stringResource(R.string.backup_set_aside_delete_text, laid.at.atZone(zone).dateAndTime())) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleting = null
+                        work {
+                            data.delete(laid)
+                            setAside = data.setAside()
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.backup_set_aside_delete))
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 
     picked?.let { file ->
@@ -336,6 +368,20 @@ private fun CopyAwaySection(copiedAway: LocalDate?, enabled: Boolean, onConfirm:
     OutlinedButton(onClick = onConfirm, enabled = enabled) { Text(stringResource(R.string.backup_confirm_copied_away)) }
 }
 
+/** The data laid aside when they could not be opened (#100), each with when, and to delete for good. */
+@Composable
+private fun SetAsideSection(setAside: List<SetAside>, enabled: Boolean, onDelete: (SetAside) -> Unit) {
+    SectionTitle(stringResource(R.string.backup_set_aside_title))
+    Text(stringResource(R.string.backup_set_aside_summary))
+    val zone = ZoneId.systemDefault()
+    setAside.forEach { laid ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.backup_set_aside_at, laid.at.atZone(zone).dateAndTime()), modifier = Modifier.weight(1f))
+            OutlinedButton(onClick = { onDelete(laid) }, enabled = enabled) { Text(stringResource(R.string.backup_set_aside_delete)) }
+        }
+    }
+}
+
 /** The new backup password, typed twice; its problems shown once the user tries to set it. */
 @Composable
 private fun NewPassword(busy: Boolean, onSet: (String) -> Unit) {
@@ -371,7 +417,7 @@ private fun NewPassword(busy: Boolean, onSet: (String) -> Unit) {
 
 /** Asks for the password of the backup in the file picked; the [problem] opening it shows below the field. */
 @Composable
-private fun PasswordOfBackup(
+internal fun PasswordOfBackup(
     busy: Boolean,
     @StringRes problem: Int?,
     onEdit: () -> Unit,
@@ -414,7 +460,7 @@ private fun PasswordOfBackup(
  * ([onReplace] with null), which then stays as it is.
  */
 @Composable
-private fun ConfirmReplacing(
+internal fun ConfirmReplacing(
     backup: Backup,
     takesPassword: Boolean,
     busy: Boolean,
@@ -499,7 +545,7 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, label: Stri
  * What [block] says of how it went, if anything, or [failure] if it failed: the kind of failure is only logged, for there
  * is nothing the user could do about it. Not its message, which may quote the data.
  */
-private suspend fun failingWith(@StringRes failure: Int, block: suspend () -> Int?): Int? = try {
+internal suspend fun failingWith(@StringRes failure: Int, block: suspend () -> Int?): Int? = try {
     block()
 } catch (e: CancellationException) {
     throw e
@@ -508,7 +554,7 @@ private suspend fun failingWith(@StringRes failure: Int, block: suspend () -> In
     failure
 }
 
-private val BackupProblem.message: Int
+internal val BackupProblem.message: Int
     @StringRes get() = when (this) {
         BackupProblem.NotABackup -> R.string.backup_not_a_backup
         BackupProblem.Damaged -> R.string.backup_damaged
@@ -520,5 +566,5 @@ private val BackupProblem.message: Int
     }
 
 /** Android knows no type for a backup of EmilysHub. */
-private const val MIME_TYPE = "application/octet-stream"
+internal const val MIME_TYPE = "application/octet-stream"
 private const val TAG = "EmilysHub"

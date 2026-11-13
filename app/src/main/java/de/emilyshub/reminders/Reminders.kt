@@ -1,11 +1,15 @@
 package de.emilyshub.reminders
 
 import android.content.Context
+import de.emilyshub.data.DataUnavailable
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Reminder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Clock
@@ -176,8 +180,12 @@ class Reminders internal constructor(
     /** The reminder to try out pops up. */
     fun showProbe() = screen.showProbe()
 
-    /** The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is not. */
-    fun reminder(about: Alarmed): Flow<DueReminder?> = sourceOf(about).reminder(about.id)
+    /**
+     * The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is
+     * not, or while the data cannot be opened (#100), so that the alarm goes quiet rather than failing.
+     */
+    fun reminder(about: Alarmed): Flow<DueReminder?> =
+        flow { emitAll(sourceOf(about).reminder(about.id)) }.catch { if (it is DataUnavailable) emit(null) else throw it }
 
     /**
      * What "Später" offers for [reminder] now, all of it, as its full-screen alarm shows it: before its time window ends,
