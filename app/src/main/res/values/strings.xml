@@ -1350,5 +1350,6 @@
     <string name="capture_write">Schreiben</string>
     <string name="settings_inbox">Eingang</string>
     <string name="settings_capture">Gedanke festhalten in den Benachrichtigungen</string>
+    <string name="settings_capture_needs_notifications">Dafür braucht die App die Erlaubnis für Benachrichtigungen. Antippen öffnet Androids Einstellungen dazu.</string>
     <string name="settings_capture_summary">Eine stille Benachrichtigung bleibt stehen. Was du dort schreibst, landet im Eingang, ohne die App zu öffnen; sie zeigt nie, was darin liegt.</string>
 </resources>

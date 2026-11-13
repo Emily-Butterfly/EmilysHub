@@ -41,5 +41,8 @@ Bei der Umsetzung festgelegt (13.11.2026):
 - Die Einstellung steht in der Tabelle der Einstellungen, die kein Backup mitnimmt, wie die App-Sperre.
 - Nach dem Abschicken wird die Benachrichtigung neu gesetzt, ohne Verlauf des Antwortfelds; so wartet sie auch nicht weiter auf die Antwort.
 - Vor Android 13 gibt es keine Erlaubnis zu fragen: Sind Benachrichtigungen dort aus, öffnet der Schalter Androids Einstellungen dazu und bleibt aus.
-- Sie kommt bei jedem Öffnen der App wieder (nicht nur beim Kaltstart) und nach Neustart und Update über den `RescheduleReceiver`.
+- Sie kommt bei jedem Öffnen der App wieder (`onStart`, nicht nur beim Kaltstart) und nach Neustart und Update über den `RescheduleReceiver`; die Aktualisierungen laufen nacheinander, damit keine verspätete sie nach dem Ausschalten wieder zeigt.
+- Werden Benachrichtigungen später verboten, zeigt der Schalter „aus“ und sagt, was fehlt; wurde die Erlaubnis einmal abgelehnt, führt er zu Androids Einstellungen.
+- Schreiben verlangt ab Android 12 ausdrücklich das entsperrte Handy (`setAuthenticationRequired`), und die Benachrichtigung bleibt auf dem Handy (`setLocalOnly`), damit Uhren oder spiegelnde Apps nicht über sie schreiben.
+- Offen, am Gerät zu prüfen: ob Android den abgeschickten Text kurz als Verlauf zeigt, bevor die neu gesetzte Benachrichtigung ihn ersetzt. Ein leerer oder zu langer Text wird ohne Hinweis verworfen.
 - Dass genau ein PendingIntent veränderlich ist, prüft ein Test über die Quellen (`FLAG_MUTABLE` nur in `CaptureNotification.kt`) und einer an der Benachrichtigung selbst.

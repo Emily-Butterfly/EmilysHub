@@ -71,6 +71,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.security.SecureRandom
 import java.time.Clock
@@ -303,10 +305,13 @@ open class EmilysHubApplication : Application(), Hub {
     /** "Gedanke festhalten" in the notifications (SPEC.md §16), shown or gone as its setting is on this device. */
     open val captureNotification: CaptureNotification by lazy { CaptureNotification(this) }
 
+    /** One after the other, so that one that read the setting before it changed cannot show it after it is off. */
+    private val captureUpdates = Mutex()
+
     /** Shows "Gedanke festhalten" or takes it away, as its setting is; after a restart or an update too. */
     suspend fun updateCaptureNotification() {
         try {
-            captureNotification.update(settings.mayCaptureInNotifications())
+            captureUpdates.withLock { captureNotification.update(settings.mayCaptureInNotifications()) }
         } catch (e: Exception) {
             Log.e(TAG, "Could not update the notification for thoughts: ${e.logged}")
         }

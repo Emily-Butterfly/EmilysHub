@@ -8,12 +8,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
+import android.provider.Settings
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
@@ -90,8 +92,35 @@ class CaptureNotificationTest {
             }
 
             captureSwitch().assertIsOff()
+            compose.onNodeWithText("Dafür braucht die App die Erlaubnis", substring = true).assertExists()
+
+            // Asked once already, the next tap leads to Android's settings.
+            captureSwitch().performClick()
+            assertEquals(Settings.ACTION_APP_NOTIFICATION_SETTINGS, shadowOf(app).nextStartedActivity?.action)
         }
         assertNull(shown())
+    }
+
+    @Test
+    fun `notifications forbidden later, the switch shows off and says why`() {
+        turnOn()
+        shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+
+        launchApp().use {
+            openSettings()
+            captureSwitch().performScrollTo().assertIsOff()
+            compose.onNodeWithText("Dafür braucht die App die Erlaubnis", substring = true).assertExists()
+        }
+        assertNull(shown())
+    }
+
+    @Test
+    fun `writing takes the phone unlocked and stays on it`() {
+        turnOn()
+        val notification = checkNotNull(shown())
+
+        assertTrue(notification.actions.single().isAuthenticationRequired)
+        assertTrue("local only", notification.flags and Notification.FLAG_LOCAL_ONLY != 0)
     }
 
     @Test
@@ -199,7 +228,7 @@ class CaptureNotificationTest {
     private fun results(text: String) = Bundle().apply { putCharSequence(CaptureNotification.KEY_TEXT, text) }
 
     private fun shown(): Notification? =
-        manager.activeNotifications.find { it.tag == CaptureNotification.TAG }?.notification
+        manager.activeNotifications.find { it.tag == CaptureNotification.NOTIFICATION_TAG }?.notification
 
     private fun openSettings() = compose.onNodeWithContentDescription("Einstellungen").performClick()
 

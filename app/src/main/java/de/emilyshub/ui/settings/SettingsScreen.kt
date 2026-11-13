@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -228,24 +229,33 @@ private fun AppLockSwitch(on: Boolean, canAuthenticate: () -> Boolean, onChange:
 }
 
 /**
- * "Gedanke festhalten in den Benachrichtigungen" (SPEC.md §16). Turned on without notifications allowed, it asks for
- * them first, and stays off without; from before Android 13, where there is nothing to ask, it opens Android's
- * settings of the app's notifications instead.
+ * "Gedanke festhalten in den Benachrichtigungen" (SPEC.md §16): on only while notifications are allowed too, checked
+ * again on every return. Turned on without them, it asks for them first and stays off without; once they were turned
+ * down, or before Android 13, where there is nothing to ask, it opens Android's settings of the app's notifications.
  */
 @Composable
 private fun CaptureSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
     val context = LocalContext.current
+    var allowed by remember { mutableStateOf(context.notificationsAllowed()) }
+    var declined by rememberSaveable { mutableStateOf(false) }
+    LifecycleResumeEffect(context) {
+        allowed = context.notificationsAllowed()
+        onPauseOrDispose {}
+    }
     val requestNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) onChange(true)
+        allowed = granted
+        if (granted) onChange(true) else declined = true
     }
     SettingSwitch(
         title = stringResource(R.string.settings_capture),
-        summary = stringResource(R.string.settings_capture_summary),
-        checked = on,
+        summary = stringResource(
+            if (allowed || !(on || declined)) R.string.settings_capture_summary else R.string.settings_capture_needs_notifications,
+        ),
+        checked = on && allowed,
         onChange = { enabled ->
             when {
-                !enabled || context.notificationsAllowed() -> onChange(enabled)
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+                !enabled || allowed -> onChange(enabled)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !declined ->
                     requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else -> context.openSettings(SystemSettings.notifications(context))
             }

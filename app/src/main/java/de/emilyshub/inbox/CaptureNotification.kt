@@ -8,6 +8,7 @@ import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import android.os.Build
 import de.emilyshub.MainActivity
 import de.emilyshub.R
 import de.emilyshub.reminders.notificationsAllowed
@@ -27,7 +28,7 @@ class CaptureNotification(private val context: Context) {
     }
 
     /** Shown anew, empty, with nothing of what was written. */
-    fun show() {
+    private fun show() {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, context.getString(R.string.capture_channel), NotificationManager.IMPORTANCE_LOW).apply {
                 setSound(null, null)
@@ -42,6 +43,8 @@ class CaptureNotification(private val context: Context) {
         )
             .addRemoteInput(RemoteInput.Builder(KEY_TEXT).setLabel(context.getString(R.string.inbox_capture)).build())
             .setAllowGeneratedReplies(false)
+            // Written only on the phone unlocked, whatever its maker set for the lock screen.
+            .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true) }
             .build()
         val notification = Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
@@ -51,15 +54,17 @@ class CaptureNotification(private val context: Context) {
             .setShowWhen(false)
             // There is nothing to hide: it says no more than its title.
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+            // Not on a watch or to apps that mirror notifications, which could write through it.
+            .setLocalOnly(true)
             .setContentIntent(openCapture())
             .addAction(write)
             .build()
-        manager.notify(TAG, ID, notification)
+        manager.notify(NOTIFICATION_TAG, ID, notification)
     }
 
     /** It and its channel are gone. */
-    fun remove() {
-        manager.cancel(TAG, ID)
+    private fun remove() {
+        manager.cancel(NOTIFICATION_TAG, ID)
         manager.deleteNotificationChannel(CHANNEL)
     }
 
@@ -79,7 +84,7 @@ class CaptureNotification(private val context: Context) {
 
     companion object {
         const val CHANNEL = "capture"
-        const val TAG = "capture"
+        const val NOTIFICATION_TAG = "capture"
         const val ID = 1
 
         /** Under what the field gives its text. */

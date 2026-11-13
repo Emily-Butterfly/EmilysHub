@@ -33,11 +33,16 @@ class MainActivity : ComponentActivity() {
             BundleCompat.getSerializable(savedInstanceState, OPENING, Destination::class.java)
         }
         publishShortcuts(this)
-        // "Gedanke festhalten" back on each opening, should it have been swiped away (SPEC.md §16).
-        app.background.launch { app.updateCaptureNotification() }
         setContent {
             EmilysHubApp(app, opening = opening.value, onOpened = { opening.value = null })
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // "Gedanke festhalten" back on each opening, should it have been swiped away (SPEC.md §16).
+        val app = application as EmilysHubApplication
+        app.background.launch { app.updateCaptureNotification() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
