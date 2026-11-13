@@ -940,7 +940,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 42 moves to version 43 without Abos, and then one can be linked to a fixed booking`() {
+    fun `version 42 moves to version 43 without Abos and then one can be linked to a fixed booking`() {
         createAtVersion(42) {
             it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other, budget_cents) VALUES (1, 'expense', 'Freizeit', 0, NULL)")
             it.execSQL(
@@ -959,7 +959,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 43 moves to version 44 where the Abos there remind at all their times, and then one can count from a moment`() {
+    fun `version 43 moves to version 44 where the Abos there remind at all their times and then one can count from a moment`() {
         createAtVersion(43) {
             it.execSQL(
                 "INSERT INTO subscriptions (id, name, note, cancel_by, lead_days, runs_on) VALUES (1, 'Streaming', '', '2027-01-31', 14, 0)",
@@ -976,7 +976,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 44 moves to version 45 without languages, and then a lesson can be held, its language kept while it is there`() {
+    fun `version 44 moves to version 45 without languages and then a lesson can be held with its language kept while it is there`() {
         createAtVersion(44) {}
 
         withMigratedDatabase { database ->
@@ -994,7 +994,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 45 moves to version 46 without topics, and then a lesson treats one, which an exam deleted leaves without it`() {
+    fun `version 45 moves to version 46 without topics and then a lesson treats one which an exam deleted leaves without it`() {
         createAtVersion(45) {}
 
         withMigratedDatabase { database ->
@@ -1015,7 +1015,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 46 moves to version 47 without attachments, and then a lesson has one, gone with it`() {
+    fun `version 46 moves to version 47 without attachments and then a lesson has one that goes with it`() {
         createAtVersion(46) {}
 
         withMigratedDatabase { database ->
@@ -1033,7 +1033,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 47 moves to version 48 with exams at no goal, and then one is part of a goal, without it once that goes`() {
+    fun `version 47 moves to version 48 with exams at no goal and then one is part of a goal until that goes`() {
         createAtVersion(47) {
             it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
             it.execSQL("INSERT INTO exams (id, language_id, name, date, taken, result) VALUES (1, 1, 'A2', '2026-12-25', 0, '')")
