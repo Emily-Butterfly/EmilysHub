@@ -709,7 +709,7 @@ class RoutineEditingTest {
     }
 
     @Test
-    fun `back leaves the editor without saving`() {
+    fun `back with changes asks, and Verwerfen leaves the editor without saving`() {
         launchApp().use { scenario ->
             tab("Routinen").performClick()
             compose.onNodeWithContentDescription("Routine anlegen").performClick()
@@ -717,6 +717,7 @@ class RoutineEditingTest {
 
             compose.waitForIdle()
             scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            compose.onNode(hasText("Verwerfen") and hasAnyAncestor(isDialog())).performClick()
 
             heading("Routinen").assertIsDisplayed()
         }
