@@ -1345,4 +1345,10 @@
     <string name="inbox_capture_short">Neuer Gedanke</string>
     <string name="inbox_capture_long">Neuen Gedanken festhalten</string>
     <string name="inbox_keep">Festhalten</string>
+    <string name="capture_channel">Gedanke festhalten</string>
+    <string name="capture_title">Gedanke festhalten</string>
+    <string name="capture_write">Schreiben</string>
+    <string name="settings_inbox">Eingang</string>
+    <string name="settings_capture">Gedanke festhalten in den Benachrichtigungen</string>
+    <string name="settings_capture_summary">Eine stille Benachrichtigung bleibt stehen. Was du dort schreibst, landet im Eingang, ohne die App zu öffnen; sie zeigt nie, was darin liegt.</string>
 </resources>

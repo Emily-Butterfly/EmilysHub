@@ -79,6 +79,11 @@
         <receiver
             android:name=".reminders.ReminderReceiver"
             android:exported="false" />
+        <!-- The text written in "Gedanke festhalten" (SPEC.md §16). Not exported (SPEC.md §9): only the app's own
+             notification sends here. -->
+        <receiver
+            android:name=".inbox.CaptureReceiver"
+            android:exported="false" />
         <!-- The night's backup (SPEC.md §10). Not exported (SPEC.md §9). -->
         <receiver
             android:name=".backup.BackupReceiver"

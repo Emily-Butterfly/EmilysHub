@@ -17,6 +17,7 @@ enum class Design(val stored: String) { System("system"), Light("light"), Dark("
  * [remindersAsked]: whether the permissions reminders need were asked for already, which happens once.
  * [lookAroundEnabled]: whether the app looks around every 30 minutes while a to-do waits for a place, so that arriving
  * there is noticed without a WLAN too; on unless turned off. [tones]: the default tones of alarms and notifications.
+ * [captureInNotifications]: whether "Gedanke festhalten" stands in the notifications (SPEC.md §16); off unless turned on.
  */
 data class Settings(
     val design: Design,
@@ -24,6 +25,7 @@ data class Settings(
     val remindersAsked: Boolean,
     val lookAroundEnabled: Boolean,
     val tones: DefaultTones = DefaultTones(),
+    val captureInNotifications: Boolean = false,
 )
 
 /**
@@ -32,21 +34,23 @@ data class Settings(
  * [dao] is only called on [io], since the first call opens the database. Stored values are
  * checked strictly: anything unknown counts as the default, and for the app lock that is "on".
  * After looking around is turned on or off, [onLookAroundChange] runs, for the reminders to follow, and after a default
- * tone changes, [onTonesChange], for the reminders' channels to follow.
+ * tone changes, [onTonesChange], for the reminders' channels to follow; after "Gedanke festhalten" is turned on or off,
+ * [onCaptureChange], for its notification to follow.
  */
 class AppSettings(
     private val dao: () -> SettingsDao,
     private val io: CoroutineContext = Dispatchers.IO,
     private val onLookAroundChange: suspend () -> Unit = {},
     private val onTonesChange: suspend () -> Unit = {},
+    private val onCaptureChange: suspend () -> Unit = {},
 ) {
     /** Compose state: null until [load] has finished. */
     var current: Settings? by mutableStateOf(null)
         private set
 
     suspend fun load(): Settings {
-        val (design, appLock, remindersAsked, lookAround) = withContext(io) {
-            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND).map { dao().get(it) }
+        val (design, appLock, remindersAsked, lookAround, capture) = withContext(io) {
+            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND, CAPTURE).map { dao().get(it) }
         }
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
@@ -54,6 +58,7 @@ class AppSettings(
             remindersAsked = remindersAsked == YES,
             lookAroundEnabled = isOn(lookAround),
             tones = defaultTones(),
+            captureInNotifications = capture == ON,
         ).also { current = it }
     }
 
@@ -68,6 +73,13 @@ class AppSettings(
 
     suspend fun setLookAroundEnabled(enabled: Boolean) =
         save(LOOK_AROUND, if (enabled) ON else OFF, then = onLookAroundChange) { it.copy(lookAroundEnabled = enabled) }
+
+    /** "Gedanke festhalten" in the notifications (SPEC.md §16), on this device only. */
+    suspend fun setCaptureInNotifications(enabled: Boolean) =
+        save(CAPTURE, if (enabled) ON else OFF, then = onCaptureChange) { it.copy(captureInNotifications = enabled) }
+
+    /** Whether "Gedanke festhalten" is on, read anew from the database: asked while the app may be closed. */
+    suspend fun mayCaptureInNotifications(): Boolean = withContext(io) { dao().get(CAPTURE) } == ON
 
     /** The default tone of full-screen alarms (SPEC.md §3), for those without one of their own. */
     suspend fun setAlarmTone(tone: Tone) =
@@ -110,5 +122,6 @@ class AppSettings(
         const val YES = "yes"
         const val ALARM_TONE = "alarm-tone"
         const val NOTIFICATION_TONE = "notification-tone"
+        const val CAPTURE = "capture-notification"
     }
 }

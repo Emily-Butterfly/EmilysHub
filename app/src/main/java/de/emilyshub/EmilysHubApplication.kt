@@ -24,6 +24,7 @@ import de.emilyshub.doku.Patients
 import de.emilyshub.doku.RawKey
 import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.inbox.CaptureNotification
 import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.languages.CameraShot
@@ -163,7 +164,12 @@ open class EmilysHubApplication : Application(), Hub {
     // the household book never remind of anything (SPEC.md §6, §13).
 
     final override val settings: AppSettings by lazy {
-        AppSettings(settingsStore, io, onLookAroundChange = ::updateReminders, onTonesChange = ::updateReminders)
+        AppSettings(
+            settingsStore, io,
+            onLookAroundChange = ::updateReminders,
+            onTonesChange = ::updateReminders,
+            onCaptureChange = ::updateCaptureNotification,
+        )
     }
 
     /** The phone's tones as the app chooses from them, with audio files of one's own brought into them. */
@@ -291,6 +297,18 @@ open class EmilysHubApplication : Application(), Hub {
             reminders.update()
         } catch (e: Exception) {
             Log.e(TAG, "Could not update the reminders: ${e.logged}")
+        }
+    }
+
+    /** "Gedanke festhalten" in the notifications (SPEC.md §16), shown or gone as its setting is on this device. */
+    open val captureNotification: CaptureNotification by lazy { CaptureNotification(this) }
+
+    /** Shows "Gedanke festhalten" or takes it away, as its setting is; after a restart or an update too. */
+    suspend fun updateCaptureNotification() {
+        try {
+            captureNotification.update(settings.mayCaptureInNotifications())
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not update the notification for thoughts: ${e.logged}")
         }
     }
 
