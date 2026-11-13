@@ -34,6 +34,7 @@ import de.emilyshub.stats.DoneRate
 import de.emilyshub.stats.RoutineHistory
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.dateLine
 import de.emilyshub.ui.rememberToday
 import java.time.LocalDate
 
@@ -115,11 +116,17 @@ fun RoutineStatisticsScreen(routines: Routines, day: Day, routineId: Long, onBac
     }
 }
 
-/** The current and longest streak, and the done rates of the last 7, 30 and 90 days. */
+/**
+ * The current and longest streak, without a current one the last one, if there was one (#99), and the done rates of the
+ * last 7, 30 and 90 days.
+ */
 @Composable
 private fun Summary(history: RoutineHistory, today: LocalDate) {
     val streaks = history.streaks()
     Text(stringResource(R.string.statistics_streak_current, days(streaks.current)))
+    history.lastStreak()?.let { last ->
+        Text(stringResource(R.string.statistics_streak_last, days(last.days), last.until.dateLine()))
+    }
     Text(stringResource(R.string.statistics_streak_longest, days(streaks.longest)))
     SectionTitle(stringResource(R.string.statistics_rate_title))
     RoutineHistory.PERIODS.forEach { period ->

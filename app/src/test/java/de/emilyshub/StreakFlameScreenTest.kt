@@ -68,18 +68,62 @@ class StreakFlameScreenTest {
     }
 
     @Test
-    fun `without a streak there is no flame, and only Heute has one`() {
+    fun `without a streak the flame stands at 0, grey, naming the last one, and only Heute has one`() {
         val vitamins = app.routine("Vitamine", "07:30")
         app.history(vitamins, "2026-10-21" to Done, "2026-10-22" to Missed)
 
         launchApp().use {
-            compose.onNode(hasContentDescription("Streak", substring = true)).assertDoesNotExist()
+            compose.onNodeWithContentDescription("Kein Streak. Letzter: 1 Tag").assertIsDisplayed()
 
             compose.onNode(isToggleable() and hasText("Vitamine")).performClick()
             compose.onNodeWithContentDescription("Streak 1 Tag").assertIsDisplayed()
 
             compose.onNode(hasText("Routinen") and hasClickAction()).performClick()
             compose.onNode(hasContentDescription("Streak", substring = true)).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `with something due but never a streak, the flame says only that there is none`() {
+        app.routine("Vitamine", "07:30")
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Kein Streak").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `without any routine there is no flame`() {
+        launchApp().use {
+            compose.onNode(hasContentDescription("Streak", substring = true)).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `tapped at 0, the flame opens the statistics, which name the last streak, overall and for the routine`() {
+        val vitamins = app.routine("Vitamine", "07:30")
+        app.history(vitamins, "2026-10-20" to Done, "2026-10-21" to Done, "2026-10-22" to Missed)
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Kein Streak. Letzter: 2 Tage").performClick()
+
+            compose.onNodeWithText("Aktueller Streak: 0 Tage").assertIsDisplayed()
+            compose.onNodeWithText("Letzter Streak: 2 Tage, bis Mi., 21. Okt.").assertIsDisplayed()
+
+            compose.onNodeWithText("Vitamine").performClick()
+            compose.onNodeWithText("Letzter Streak: 2 Tage, bis Mi., 21. Okt.").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `with a streak running, the statistics name no last one`() {
+        val vitamins = app.routine("Vitamine", "07:30")
+        app.history(vitamins, "2026-10-20" to Done, "2026-10-21" to Missed, "2026-10-22" to Done)
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Streak 1 Tag, heute noch offen").performClick()
+
+            compose.onNodeWithText("Letzter Streak", substring = true).assertDoesNotExist()
         }
     }
 }

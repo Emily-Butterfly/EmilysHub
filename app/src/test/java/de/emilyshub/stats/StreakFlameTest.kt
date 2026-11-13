@@ -8,7 +8,9 @@ import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.OccurrenceStatus.Open
 import de.emilyshub.routines.OccurrenceStatus.Skipped
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -39,23 +41,38 @@ class StreakFlameTest {
     }
 
     @Test
-    fun `with yesterday missed, there is no flame until today is done`() {
+    fun `with yesterday missed, the flame stands at 0, grey, naming the last streak, until today is done`() {
         val missedYesterday = arrayOf("2026-10-21" to Done, "2026-10-22" to Missed)
+        val last = LastStreak(days = 1, until = LocalDate.parse("2026-10-21"))
 
-        assertNull(flame(*missedYesterday, "2026-10-23" to Open))
+        assertEquals(StreakFlame(days = 0, todayOpen = true, last = last), flame(*missedYesterday, "2026-10-23" to Open))
         assertEquals(StreakFlame(days = 1, todayOpen = false), flame(*missedYesterday, "2026-10-23" to Done))
     }
 
     @Test
-    fun `missed or dropped today, the streak is over and there is no flame`() {
-        assertNull(flame(*before, "2026-10-23" to Done, "2026-10-23" to Missed))
-        assertNull(flame(*before, "2026-10-23" to Dropped))
+    fun `missed or dropped today, the streak is over and the flame stands at 0, grey`() {
+        val last = LastStreak(days = 2, until = LocalDate.parse("2026-10-22"))
+        assertEquals(StreakFlame(days = 0, todayOpen = false, last = last), flame(*before, "2026-10-23" to Done, "2026-10-23" to Missed))
+        assertEquals(StreakFlame(days = 0, todayOpen = false, last = last), flame(*before, "2026-10-23" to Dropped))
+        assertFalse(flame(*before, "2026-10-23" to Dropped)!!.lit)
     }
 
     @Test
-    fun `without a streak, there is no flame`() {
+    fun `without anything ever due, there is no flame`() {
         assertNull(flame())
-        assertNull(flame("2026-10-22" to Skipped, "2026-10-23" to Open))
+    }
+
+    @Test
+    fun `with something due but never a streak, the flame stands at 0 without a last one`() {
+        assertEquals(StreakFlame(days = 0, todayOpen = true), flame("2026-10-22" to Skipped, "2026-10-23" to Open))
+        assertEquals(StreakFlame(days = 0, todayOpen = false), flame("2026-10-22" to Missed))
+    }
+
+    @Test
+    fun `the flame is lit only with a streak and today no longer open`() {
+        assertTrue(StreakFlame(days = 2, todayOpen = false).lit)
+        assertFalse(StreakFlame(days = 2, todayOpen = true).lit)
+        assertFalse(StreakFlame(days = 0, todayOpen = false).lit)
     }
 
     @Test

@@ -35,6 +35,11 @@
         <item quantity="one">Streak %d Tag, heute noch offen</item>
         <item quantity="other">Streak %d Tage, heute noch offen</item>
     </plurals>
+    <string name="today_streak_none">Kein Streak</string>
+    <plurals name="today_streak_none_last">
+        <item quantity="one">Kein Streak. Letzter: %d Tag</item>
+        <item quantity="other">Kein Streak. Letzter: %d Tage</item>
+    </plurals>
     <string name="today_heatmap">Erledigt, letzte 6 Monate</string>
     <!-- A day of the heatmap tapped: "Mi, 14.10.: 5 erledigt". -->
     <string name="today_heatmap_day">%1$s, %2$s: %3$d erledigt</string>
@@ -206,6 +211,8 @@
     <string name="statistics_each">Je Routine</string>
     <string name="statistics_streak_current">Aktueller Streak: %1$s</string>
     <string name="statistics_streak_longest">Längster Streak: %1$s</string>
+    <!-- While no streak runs: "Letzter Streak: 23 Tage, bis Mi., 21. Okt.". -->
+    <string name="statistics_streak_last">Letzter Streak: %1$s, bis %2$s</string>
     <plurals name="statistics_days">
         <item quantity="one">%d Tag</item>
         <item quantity="other">%d Tage</item>

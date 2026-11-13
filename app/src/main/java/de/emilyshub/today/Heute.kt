@@ -29,7 +29,7 @@ import java.time.LocalDate
 
 /**
  * Heute as it stands on [date] (SPEC.md §1): its entries in their [blocks] ([todayBlocks]), with how far the day is, the to-dos shown before their
- * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without one, the
+ * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without anything ever due, the
  * [heatmap] of the last six months, and under Demnächst too the Abos to cancel soon ([subscriptions], #80), from the first
  * day of their lead to their last day.
  */

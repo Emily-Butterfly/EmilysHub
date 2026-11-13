@@ -83,7 +83,7 @@ class YesterdayScreenTest {
         app.history(vitamins, "2026-10-21" to Done, "2026-10-22" to Missed)
 
         launchApp().use {
-            compose.onNodeWithContentDescription("Streak", substring = true).assertDoesNotExist()
+            compose.onNodeWithContentDescription("Kein Streak. Letzter: 1 Tag").assertIsDisplayed()
             compose.onNodeWithText("‹ Gestern").performClick()
             compose.onNodeWithText("Verpasst").assertIsDisplayed()
             // Neither skipped nor dropped on the day before.

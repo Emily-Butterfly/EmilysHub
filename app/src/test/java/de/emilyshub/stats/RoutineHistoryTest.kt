@@ -8,6 +8,7 @@ import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.OccurrenceStatus.Open
 import de.emilyshub.routines.OccurrenceStatus.Skipped
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 
@@ -150,6 +151,44 @@ class RoutineHistoryTest {
     }
 
     /** The occurrences of a routine on the days given, as they ended. */
+    @Test
+    fun `with the streak broken, the last one is the days done before the break, until the last of them`() {
+        val history = history(
+            "2026-10-19" to Done, "2026-10-20" to Done, "2026-10-21" to Done,
+            "2026-10-22" to Missed, "2026-10-23" to Open,
+        )
+
+        assertEquals(LastStreak(days = 3, until = LocalDate.parse("2026-10-21")), history.lastStreak())
+    }
+
+    @Test
+    fun `after several breaks, the last streak is the latest one, however many days were broken after it`() {
+        val history = history(
+            "2026-10-14" to Done, "2026-10-15" to Done, "2026-10-16" to Done, "2026-10-17" to Missed,
+            "2026-10-18" to Done, "2026-10-19" to Done, "2026-10-20" to Dropped,
+            "2026-10-21" to Missed, "2026-10-22" to Missed,
+        )
+
+        assertEquals(LastStreak(days = 2, until = LocalDate.parse("2026-10-19")), history.lastStreak())
+    }
+
+    @Test
+    fun `skipped and open days in the last streak neither count nor break it`() {
+        val history = history(
+            "2026-10-16" to Done, "2026-10-17" to Skipped, "2026-10-18" to Done, "2026-10-19" to Open,
+            "2026-10-20" to Done, "2026-10-21" to Skipped, "2026-10-22" to Missed, "2026-10-23" to Skipped,
+        )
+
+        assertEquals(LastStreak(days = 3, until = LocalDate.parse("2026-10-20")), history.lastStreak())
+    }
+
+    @Test
+    fun `without an earlier streak, or while one runs, there is no last one`() {
+        assertNull(history().lastStreak())
+        assertNull(history("2026-10-21" to Missed, "2026-10-22" to Skipped).lastStreak())
+        assertNull(history("2026-10-20" to Done, "2026-10-21" to Missed, "2026-10-22" to Done).lastStreak())
+    }
+
     private fun history(vararg days: Pair<String, OccurrenceStatus>) =
         RoutineHistory(days.map { (date, status) -> outcome(routine = 1, date, status) })
 
