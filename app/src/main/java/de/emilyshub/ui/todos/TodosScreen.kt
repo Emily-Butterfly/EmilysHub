@@ -20,10 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,6 +54,7 @@ import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.placesLabel
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.offerUndo
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberNow
 import kotlinx.coroutines.flow.map
@@ -96,12 +95,6 @@ fun TodosScreen(
     val movedMessage = stringResource(R.string.move_done)
     val undoLabel = stringResource(R.string.undo)
 
-    /** Says [message], with the way to [undo] what it says. */
-    suspend fun offerUndo(message: String, undo: suspend () -> Unit) {
-        val result = snackbar.showSnackbar(message, actionLabel = undoLabel, duration = SnackbarDuration.Short)
-        if (result == SnackbarResult.ActionPerformed) undo()
-    }
-
     val list = open
     Box(Modifier.fillMaxSize()) {
         when {
@@ -134,14 +127,14 @@ fun TodosScreen(
                             onTick = {
                                 scope.launchNow {
                                     todos.markDone(todo.id)
-                                    offerUndo(doneMessage.format(todo.title)) { todos.reopen(todo.id) }
+                                    snackbar.offerUndo(doneMessage.format(todo.title), undoLabel) { todos.reopen(todo.id) }
                                 }
                             },
                             onClick = { onOpen(todo.id) },
                             onMove = { date ->
                                 scope.launchNow {
                                     val move = todos.moveTo(todo.id, date) ?: return@launchNow
-                                    offerUndo(movedMessage.format(date.dateLine())) { todos.undo(move) }
+                                    snackbar.offerUndo(movedMessage.format(date.dateLine()), undoLabel) { todos.undo(move) }
                                 }
                             },
                         )
@@ -150,7 +143,9 @@ fun TodosScreen(
                                 scope.launchNow {
                                     if (todos.tick(todo.id, entry.itemId, ticked)) {
                                         // Unticking the item opens the to-do again, the rest of its checklist still ticked off.
-                                        offerUndo(doneMessage.format(todo.title)) { todos.tick(todo.id, entry.itemId, ticked = false) }
+                                        snackbar.offerUndo(doneMessage.format(todo.title), undoLabel) {
+                                            todos.tick(todo.id, entry.itemId, ticked = false)
+                                        }
                                     }
                                 }
                             }

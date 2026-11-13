@@ -20,10 +20,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,8 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
@@ -77,6 +75,7 @@ import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.PinnedNotes
 import de.emilyshub.ui.numericDate
+import de.emilyshub.ui.offerUndo
 import de.emilyshub.ui.shortWeekdayDayAndMonth
 import de.emilyshub.ui.todos.TodoMenu
 import de.emilyshub.ui.todos.dueText
@@ -125,24 +124,19 @@ fun TodayScreen(
     val undoLabel = stringResource(R.string.undo)
     val today = day.date
     val onHeute = remember(heute, scope, snackbar, tickedMessage, movedMessage, undoLabel, today, onOpenTodo, onOpenRoutine) {
-        /** Says [message], with the way to [undo] what it says. */
-        suspend fun offerUndo(message: String, undo: suspend () -> Unit) {
-            val result = snackbar.showSnackbar(message, actionLabel = undoLabel, duration = SnackbarDuration.Short)
-            if (result == SnackbarResult.ActionPerformed) undo()
-        }
         OnHeute(
             today = today,
             // Ticked off, it goes to what is over; the bar brings it back.
             tickOff = { entry ->
                 scope.launchNow {
                     heute.onToday.setDone(entry, done = true)
-                    offerUndo(tickedMessage.format(entry.name)) { heute.onToday.setDone(entry, done = false) }
+                    snackbar.offerUndo(tickedMessage.format(entry.name), undoLabel) { heute.onToday.setDone(entry, done = false) }
                 }
             },
             move = { todo, date ->
                 scope.launchNow {
                     val move = heute.move(todo, date) ?: return@launchNow
-                    offerUndo(movedMessage.format(date.dateLine())) { heute.undoMove(move) }
+                    snackbar.offerUndo(movedMessage.format(date.dateLine()), undoLabel) { heute.undoMove(move) }
                 }
             },
             openTodo = onOpenTodo,
@@ -191,7 +185,7 @@ fun TodayScreen(
                     }
                 }
                 if (!blocks.isEmpty) {
-                    item(key = "up-next") { Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.today_up_next)) } }
+                    item(key = "up-next") { BlockTitle(stringResource(R.string.today_up_next)) }
                 }
                 if (blocks.upNext.isEmpty()) {
                     item(key = "nothing-due") {
@@ -219,8 +213,10 @@ fun TodayScreen(
                 }
                 // Under the day's own entries, those due some days on that are to show before (SPEC.md §1).
                 if (upcoming.isNotEmpty() || subscriptions.isNotEmpty()) {
-                    item(key = "upcoming") { Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.today_upcoming)) } }
-                    items(upcoming, key = { "upcoming:${it.todo.todoId}" }) { entry -> TodoEntry(entry, today, act, onHeute, upcoming = true) }
+                    item(key = "upcoming") { BlockTitle(stringResource(R.string.today_upcoming)) }
+                    items(upcoming, key = { "upcoming:${it.todo.todoId}" }) { entry ->
+                        TodoEntry(entry, today, act, onHeute, upcoming = true)
+                    }
                     // The Abos to cancel soon (#80), from the first day of their lead to their last day.
                     items(subscriptions, key = { "subscription:${it.subscriptionId}" }) { reminder ->
                         SubscriptionRow(reminder, onOpen = { onOpenSubscription(reminder.subscriptionId) })
@@ -237,6 +233,12 @@ fun TodayScreen(
                 .padding(contentPadding),
         )
     }
+}
+
+/** The title of a part of Heute, as far in as the rows under it (Befund U11). */
+@Composable
+private fun BlockTitle(text: String) {
+    Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(text) }
 }
 
 /** The date at the top of Heute, and how far the day is, while anything on it counts (SPEC.md §1, Kopfzeile). */

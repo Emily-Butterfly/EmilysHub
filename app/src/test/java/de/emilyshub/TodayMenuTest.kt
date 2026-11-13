@@ -1,6 +1,7 @@
 package de.emilyshub
 
 import android.Manifest
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -150,18 +151,22 @@ class TodayMenuTest {
     }
 
     @Test
-    fun `a to-do ticked off only opens from its menu, which leads to its editor`() {
+    fun `a to-do ticked off only opens from its menu, which leads to its editor, and back to Heute`() {
         app.todo("Müll", due = Due.On(FRIDAY))
 
-        launchApp().use {
+        launchApp().use { scenario ->
             row("Müll").performClick()
             compose.openPast()
             menuOf("Müll")
             assertEquals(listOf("Öffnen"), menuItems())
 
             item("Öffnen").performClick()
-
             compose.onNode(isHeading() and hasText("To-do bearbeiten")).assertIsDisplayed()
+
+            compose.waitForIdle()
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+            foldLine("Schon vorbei").assertIsDisplayed()
         }
     }
 
@@ -193,13 +198,15 @@ class TodayMenuTest {
 
     private fun row(name: String) = compose.onNode(isToggleable() and hasText(name))
 
+    private fun foldLine(title: String) = compose.onNode(isHeading() and hasText(title, substring = true))
+
     private fun menuOf(name: String) = compose.onNodeWithContentDescription("Mehr zu „$name“").performClick()
 
     private fun item(text: String) = compose.onNode(hasText(text) and hasAnyAncestor(isPopup()))
 
     /** What the open menu offers, in its order. */
     private fun menuItems() = compose.onAllNodes(hasClickAction() and hasAnyAncestor(isPopup())).fetchSemanticsNodes()
-        .map { node -> node.config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString { it.text } }
+        .map { node -> node.config[SemanticsProperties.Text].joinToString { it.text } }
 
     private fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first().map { it.status } }
 

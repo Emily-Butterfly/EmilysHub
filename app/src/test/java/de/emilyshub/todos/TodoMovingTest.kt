@@ -3,8 +3,8 @@ package de.emilyshub.todos
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
-import de.emilyshub.routines.Priority
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.routines.Priority
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -120,6 +120,44 @@ class TodoMovingTest {
         assertEquals(listOf("Müll"), todos.open().first().map { it.todo.title })
         assertEquals(Due.On(LocalDate.parse("2026-11-02")), todos.open().first().single().todo.due)
         assertEquals(mondays, todos.get(id)?.recurrence)
+    }
+
+    @Test
+    fun `moved past the end of its series, the series ends on the new day instead, and undoing puts that back too`() = runBlocking {
+        val mondays = Recurrence.Weekdays(setOf(DayOfWeek.MONDAY))
+        val end = LocalDate.parse("2026-10-28")
+        val id = todos.create(
+            TodoDraft("Müll", due = Due.On(LocalDate.parse("2026-10-26")), recurrence = mondays, end = RecurrenceEnd.OnDate(end)),
+        )
+
+        val move = checkNotNull(todos.moveTo(id, LocalDate.parse("2026-10-30")))
+        assertEquals(RecurrenceEnd.OnDate(LocalDate.parse("2026-10-30")), todos.get(id)?.end)
+
+        todos.undo(move)
+        assertEquals(Due.On(LocalDate.parse("2026-10-26")), todos.get(id)?.due)
+        assertEquals(RecurrenceEnd.OnDate(end), todos.get(id)?.end)
+    }
+
+    @Test
+    fun `moved within the end of its series, the end stays`() = runBlocking {
+        val mondays = Recurrence.Weekdays(setOf(DayOfWeek.MONDAY))
+        val end = RecurrenceEnd.OnDate(LocalDate.parse("2026-12-31"))
+        val id = todos.create(TodoDraft("Müll", due = Due.On(LocalDate.parse("2026-10-26")), recurrence = mondays, end = end))
+
+        todos.moveTo(id, LocalDate.parse("2026-10-30"))
+
+        assertEquals(end, todos.get(id)?.end)
+    }
+
+    @Test
+    fun `moved to the day it is due on already, nothing changes, its reminder put off staying so`() = runBlocking {
+        val id = todos.create(TodoDraft("Arzt", due = Due.At(today, LocalTime.of(6, 0))))
+        val later = Instant.parse("2026-10-23T08:00:00Z")
+        todos.putOff(id, later)
+
+        assertNull(todos.moveTo(id, today))
+
+        assertEquals(later, todos.get(id)?.reminding?.remindAt)
     }
 
     @Test

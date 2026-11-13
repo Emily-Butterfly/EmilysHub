@@ -28,8 +28,11 @@ enum class MoveTo {
     }
 }
 
-/** A to-do moved to another day ([Todos.moveTo]): due as [from] before and as [to] after, to undo it ([Todos.undo]). */
-data class TodoMove(val todoId: Long, val from: Due, val to: Due)
+/**
+ * A to-do moved to another day ([Todos.moveTo]): due as [from] before and as [to] after, and the day its series ended on
+ * before, [endedOn], if the move pushed that end out to the new day; to undo it ([Todos.undo]).
+ */
+data class TodoMove(val todoId: Long, val from: Due, val to: Due, val endedOn: LocalDate? = null)
 
 /** Due on [date] instead, at the same time if it has one; one due whenever on that day, without a time. */
 internal fun Due.movedTo(date: LocalDate): Due = when (this) {

@@ -46,7 +46,7 @@
     <string name="today_todo_due">To-do, fällig: %1$s</string>
     <string name="today_todo_overdue">To-do, überfällig: %1$s</string>
     <string name="today_skip">Überspringen</string>
-    <string name="today_more">Mehr zu „%1$s“</string>
+    <string name="more_about">Mehr zu „%1$s“</string>
     <string name="today_drop">Heute nicht</string>
     <string name="today_yesterday_at">Gestern, %1$s</string>
     <string name="today_to_yesterday">‹ Gestern</string>

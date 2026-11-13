@@ -20,7 +20,7 @@ import de.emilyshub.R
 fun MoreMenu(name: String, expanded: Boolean, onExpandedChange: (Boolean) -> Unit, items: @Composable (close: () -> Unit) -> Unit) {
     Box {
         IconButton(onClick = { onExpandedChange(true) }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.today_more, name))
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_about, name))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
             items { onExpandedChange(false) }

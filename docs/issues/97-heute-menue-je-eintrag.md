@@ -56,3 +56,5 @@ Bei der Umsetzung festgelegt (13.11.2026):
 - Auch eine durch eine gekoppelte Routine erledigte Routine bietet nur „Öffnen“, wie eine erledigte.
 - Die Weckzeit „N Tage vorher“ wandert von selbst, da sie am Tag der Fälligkeit hängt; eine feste Weckzeit bleibt, wie im Editor.
 - Im Tab To-dos öffnet ein langes Drücken auf die Zeile dasselbe Menü; Antippen öffnet dort weiter den Editor.
+- **Bestätigt am 13.11.2026:** Wird ein wiederkehrendes To-do über das Enddatum seiner Reihe hinaus verschoben, endet die Reihe am neuen Tag; „Rückgängig“ stellt beides zurück.
+- Auf den Tag verschoben, an dem es schon fällig ist, bleibt es, wie es ist: Ein „Später“ seiner Erinnerung gilt weiter, und es kommt keine Leiste.
