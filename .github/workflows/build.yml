@@ -1,3 +1,4 @@
+# Its run number is the app's versionCode (docs/release-signierung.md): renamed, this file counts from 1 again.
 name: Build
 
 on:
