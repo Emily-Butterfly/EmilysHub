@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InboxDao {
-    /** The newest first; of two captured at once, the one captured last. */
-    @Query("SELECT * FROM inbox ORDER BY captured_at DESC, id DESC")
+    /** The newest first: by id, which counts up as they are captured and stays with one put back. */
+    @Query("SELECT * FROM inbox ORDER BY id DESC")
     fun observeAll(): Flow<List<InboxEntry>>
 
     @Query("SELECT COUNT(*) FROM inbox")

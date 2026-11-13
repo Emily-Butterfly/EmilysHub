@@ -35,14 +35,14 @@ import de.emilyshub.wishes.Wishes
 
 /**
  * "Mehr Optionen" of a long editor (SPEC.md §8): what an entry seldom needs, folded away below what it always does.
- * Folded, the row names what of it differs from the default, the [set] ones, or with none what can be set there,
+ * Folded, the row names what of it differs from the default, its [summary], or with none what can be set there,
  * [available]. Whether it is open is the editor's to keep, across rotation and the lock.
  */
 @Composable
 fun MoreOptions(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    set: List<String>,
+    summary: List<String>,
     available: String,
     content: @Composable () -> Unit,
 ) {
@@ -63,9 +63,9 @@ fun MoreOptions(
                 )
                 if (!expanded) {
                     Text(
-                        set.takeIf { it.isNotEmpty() }?.joinToString(" · ") ?: available,
+                        summary.takeIf { it.isNotEmpty() }?.joinToString(" · ") ?: available,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (set.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                        color = if (summary.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                     )
                 }
             }

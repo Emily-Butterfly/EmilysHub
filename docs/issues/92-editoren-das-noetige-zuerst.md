@@ -35,6 +35,6 @@ Aus dem Gutachten vom 12.11.2026 (Befund U5, Vorschlag UX 1, Punkt 3); die Einze
 Bei der Umsetzung festgelegt (13.11.2026):
 
 - Die Zusammenfassung folgt der Reihenfolge der Felder; Orte und Ziel nennt sie mit Namen („Ort: Gym“, „Ziel: …“), Tags und Unterpunkte als Anzahl, Ton, Erneut erinnern und Zeitfenster nur, wenn sie vom Standard abweichen.
-- Die verknüpften Notizen liegen bei beiden Editoren unter „Mehr Optionen“.
+- Die verknüpften Notizen liegen bei beiden Editoren unter „Mehr Optionen“; die Zusammenfassung nennt sie nicht, da sie keine Einstellung des Eintrags sind.
 - Ein zu langer Text holt sich, wie die übrigen Probleme seit #91, beim Speichern selbst in den sichtbaren Bereich; so zeigt sich auch die Beschreibung, wenn der Abschnitt dafür aufklappt.
 - Geprüft auf der Bildschirmgröße des A52 in den UI-Tests, ohne Tastatur; mit offener Tastatur am Gerät noch nachzusehen.

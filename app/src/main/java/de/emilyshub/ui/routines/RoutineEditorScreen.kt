@@ -159,7 +159,7 @@ fun RoutineEditorScreen(
         if (problems.isNotEmpty()) {
             showMissingName = true
             // A problem in what is folded away unfolds it, to be seen.
-            if (problems.any { it in FOLDED }) moreOptions = true
+            if (problems.any { it !in UNFOLDED }) moreOptions = true
             firstField.saveFailed(atField = DraftProblem.NameMissing in problems || DraftProblem.NameTooLong in problems)
         } else {
             val saved = draft
@@ -263,7 +263,7 @@ fun RoutineEditorScreen(
             MoreOptions(
                 expanded = moreOptions,
                 onExpandedChange = { moreOptions = it },
-                set = optionsSet(cleaned, places, wishes),
+                summary = optionsSet(cleaned, places, wishes),
                 available = stringResource(R.string.more_options_routine),
             ) {
                 OutlinedTextField(
@@ -321,14 +321,18 @@ fun RoutineEditorScreen(
 
 private val DEFAULT_TIME: LocalTime = LocalTime.of(8, 0)
 
-/** The problems shown in the fields under "Mehr Optionen". */
-private val FOLDED = setOf(
-    DraftProblem.DescriptionTooLong,
-    DraftProblem.TargetOutOfRange,
-    DraftProblem.CoupledNeedsOneTime,
-    DraftProblem.FollowUpCountOutOfRange,
-    DraftProblem.FollowUpIntervalOutOfRange,
-    DraftProblem.WindowOutOfRange,
+/** The problems shown in the fields above "Mehr Optionen"; all others are under it. */
+private val UNFOLDED = setOf(
+    DraftProblem.NameMissing,
+    DraftProblem.NameTooLong,
+    DraftProblem.TimesMissing,
+    DraftProblem.TooManyTimes,
+    DraftProblem.WeekdaysMissing,
+    DraftProblem.IntervalOutOfRange,
+    DraftProblem.EndDateTooEarly,
+    DraftProblem.GoneBy,
+    DraftProblem.ChecklistTooLong,
+    DraftProblem.ChecklistItemTooLong,
 )
 
 /** What under "Mehr Optionen" differs from a new routine, in the order of its fields. */

@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,11 +67,18 @@ enum class SortInto { Todo, Note, Routine }
 /**
  * The line a thought is captured in (SPEC.md §16): one line, kept in the inbox by "Fertig" on the keyboard, or by the
  * [button] "Festhalten" where there is one; then the line is empty again and the keyboard stays for the next one. Close
- * to the 1 000 characters, it counts them. [focused], it takes the keyboard as it shows.
+ * to the 1 000 characters, it counts them. [focused], it takes the keyboard as it shows. What is typed is kept in
+ * [typed], which a screen whose layout changes around the line keeps above it.
  */
 @Composable
-fun CaptureField(inbox: Inbox, modifier: Modifier = Modifier, button: Boolean = false, focused: Boolean = false) {
-    var text by rememberSaveable { mutableStateOf("") }
+fun CaptureField(
+    inbox: Inbox,
+    modifier: Modifier = Modifier,
+    button: Boolean = false,
+    focused: Boolean = false,
+    typed: MutableState<String> = rememberSaveable { mutableStateOf("") },
+) {
+    var text by typed
     val scope = rememberCoroutineScope()
     val context = LocalContext.current.applicationContext
     val focus = remember { FocusRequester() }

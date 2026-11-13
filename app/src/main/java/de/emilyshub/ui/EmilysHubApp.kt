@@ -425,6 +425,9 @@ private fun TopLevelScaffold(
     val openTodo = { target: TodoEditorTarget -> open(Destination.TodoEditor(target)) }
     val openWish = { target: WishEditorTarget -> open(Destination.WishEditor(target)) }
     val openNote = { target: NoteEditorTarget -> open(Destination.NoteEditor(target)) }
+    // What is typed in Heute's line for thoughts (SPEC.md §16), kept as Heute changes from a day with nothing to one
+    // with entries.
+    val thought = rememberSaveable { mutableStateOf("") }
     Scaffold(
         topBar = {
             BoxWithConstraints {
@@ -532,7 +535,7 @@ private fun TopLevelScaffold(
                     onOpenNote = { openNote(NoteEditorTarget.Edit(it)) },
                     onOpenYesterday = { onYesterdayChange(true) },
                     capture = {
-                        CaptureField(hub.inbox, Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp))
+                        CaptureField(hub.inbox, Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp), typed = thought)
                         InboxLine(hub.inbox, onOpen = { open(Destination.Inbox) })
                     },
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },

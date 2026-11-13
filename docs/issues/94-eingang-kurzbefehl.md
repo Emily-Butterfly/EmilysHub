@@ -32,4 +32,5 @@ Aus dem Gutachten vom 12.11.2026 (Feature 1); die Einzelheiten sind nicht in ein
 Bei der Umsetzung festgelegt (13.11.2026):
 
 - Der Kurzbefehl ist ein dynamischer, den die App beim Start setzt, kein statischer aus `res/xml/shortcuts.xml`: Android startet einen statischen immer mit `FLAG_ACTIVITY_CLEAR_TASK` (AOSP, `ShortcutParser`), was ein offenes Editor-Fenster samt Entwurf schließen würde. Der dynamische zielt ebenso auf die Launcher-Activity mit dem Zusatz, mit `CLEAR_TOP | SINGLE_TOP` wie die Erinnerung eines Abos; der Test prüft ihn bei `ShortcutManager` statt in den Ressourcen des Manifests.
+- Als dynamischer erscheint der Kurzbefehl, sobald die App nach der Installation (oder nach dem Löschen ihrer Daten) einmal geöffnet war.
 - Die Eingabe ist ein eigenes Ziel (`Destination.Capture`) über dem Offenen; zweimal hintereinander geöffnet, liegt sie nur einmal darauf.

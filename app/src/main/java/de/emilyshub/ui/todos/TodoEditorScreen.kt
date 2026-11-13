@@ -251,7 +251,7 @@ fun TodoEditorScreen(
             MoreOptions(
                 expanded = moreOptions,
                 onExpandedChange = { moreOptions = it },
-                set = optionsSet(cleaned, places, wishes),
+                summary = optionsSet(cleaned, places, wishes),
                 available = stringResource(R.string.more_options_todo),
             ) {
                 draft.due.date?.let { dueDay ->

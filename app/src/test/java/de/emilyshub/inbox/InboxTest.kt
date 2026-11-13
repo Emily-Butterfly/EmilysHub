@@ -42,6 +42,15 @@ class InboxTest {
     }
 
     @Test
+    fun `of two captured at the same moment, the later one is first`() = runBlocking {
+        clock.now = Instant.parse("2026-11-13T08:00:00.500Z")
+        inbox.capture("Erster")
+        inbox.capture("Zweiter")
+
+        assertEquals(listOf("Zweiter", "Erster"), inbox.entries().first().map { it.text })
+    }
+
+    @Test
     fun `nothing to see is not captured, nor more than 1000 characters`() = runBlocking {
         assertFalse(inbox.capture(" \n​ "))
         assertFalse(inbox.capture("a".repeat(1001)))
