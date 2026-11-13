@@ -65,6 +65,7 @@ import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.differsAsSaved
+import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.rememberClosing
@@ -126,7 +127,7 @@ fun PlaceEditorScreen(
     val save = {
         if (problems.isNotEmpty()) {
             triedToSave = true
-            if (problems.any { it in NAME_PROBLEMS }) firstField.show()
+            firstField.saveFailed(atField = problems.any { it in NAME_PROBLEMS })
         } else {
             val saved = draft
             closeWith { places.save(opened, saved) }
@@ -188,7 +189,7 @@ fun PlaceEditorScreen(
                 supportingText = nameProblem?.let { { Text(it) } },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             // Both the WLAN connected to and the position now need the location allowed and on.
             if (access.current != LocationAccess.Granted) LocationAccessNotice(access)
@@ -260,13 +261,7 @@ private fun WifisField(
                 }
             }
         }
-        if (showMissing) {
-            Text(
-                stringResource(R.string.place_wifi_or_area_missing),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
+        if (showMissing) Problem(stringResource(R.string.place_wifi_or_area_missing))
         if (wifis.size >= PlaceDraft.WIFIS_MAX) {
             Text(stringResource(R.string.place_too_many_wifis, PlaceDraft.WIFIS_MAX), style = MaterialTheme.typography.bodyMedium)
             return@Column

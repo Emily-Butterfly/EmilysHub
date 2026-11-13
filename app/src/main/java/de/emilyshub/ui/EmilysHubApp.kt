@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +69,8 @@ import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.doku.DokuArea
 import de.emilyshub.ui.doku.DokuMenu
+import de.emilyshub.ui.fields.LocalProblemReveal
+import de.emilyshub.ui.fields.ProblemReveal
 import de.emilyshub.ui.languages.AttachmentViewerScreen
 import de.emilyshub.ui.languages.LanguageListScreen
 import de.emilyshub.ui.languages.LanguagePageScreen
@@ -246,131 +249,136 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
         return
     }
     BackHandler(onBack = back)
-    screens.SaveableStateProvider(checkNotNull(stack.topStateKey)) {
-        when (top) {
-            is Destination.NoteEditor -> NoteEditorScreen(hub.notes, hub.tags, top.target, onClose = back)
-            is Destination.TodoEditor -> TodoEditorScreen(
-                hub.todos, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection,
-                onClose = back, onOpenNote = openNote,
-            )
-            Destination.TodoArchive ->
-                TodoArchiveScreen(
-                    hub.todos, hub.day, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back,
+    // Problems found on saving come into view, one per try, on each screen anew (SPEC.md §8).
+    val reveal = remember(stack.topStateKey) { ProblemReveal() }
+    CompositionLocalProvider(LocalProblemReveal provides reveal) {
+        screens.SaveableStateProvider(checkNotNull(stack.topStateKey)) {
+            when (top) {
+                is Destination.NoteEditor -> NoteEditorScreen(hub.notes, hub.tags, top.target, onClose = back)
+                is Destination.TodoEditor -> TodoEditorScreen(
+                    hub.todos, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection,
+                    onClose = back, onOpenNote = openNote,
                 )
-            is Destination.WishEditor -> WishEditorScreen(
-                wishes = hub.wishes,
-                day = hub.day,
-                todos = hub.todos,
-                tags = hub.tags,
-                notes = hub.notes,
-                target = top.target,
-                onClose = back,
-                onOpenNote = openNote,
-                // A new editor for each wish, so that one opened from another starts afresh.
-                onOpenWish = { stack = stack.replaceTop(Destination.WishEditor(it)) },
-                // The to-do made of it in its place, going back where it would.
-                onOpenTodo = { stack = stack.replaceTop(Destination.TodoEditor(TodoEditorTarget.Edit(it))) },
-            )
-            Destination.WishReview ->
-                WishReviewScreen(hub.wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
-            is Destination.BookingEditor -> BookingEditorScreen(hub.ledger, top.target, onClose = back)
-            is Destination.RecurringEditor -> RecurringEditorScreen(
-                hub.ledger, hub.subscriptions, top.target, onClose = back,
-                onOpenSubscription = { open(Destination.SubscriptionEditor(it)) },
-            )
-            Destination.Subscriptions ->
-                SubscriptionListScreen(hub.subscriptions, hub.day, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
-            is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
-            is Destination.LanguagePage -> LanguagePageScreen(
-                languages = hub.languages,
-                wishes = hub.wishes,
-                languageId = top.languageId,
-                examId = top.examId,
-                onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
-                onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
-                onBack = back,
-            )
-            is Destination.LessonEditor -> LessonEditorScreen(
-                hub.languages, hub.lessonFiles, top.target, onClose = back,
-                onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
-            )
-            is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
-            Destination.LanguageList ->
-                LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
-            Destination.TeacherList ->
-                TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
-            is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)
-            Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
-            Destination.LedgerArchive ->
-                LedgerArchiveScreen(hub.ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
-            is Destination.LedgerYear -> LedgerYearScreen(
-                ledger = hub.ledger,
-                day = hub.day,
-                year = top.year,
-                onYearChange = { stack = stack.replaceTop(Destination.LedgerYear(it)) },
-                onOpenMonth = { open(Destination.Ledger(it)) },
-                onBack = back,
-            )
-            Destination.LedgerCategories ->
-                LedgerCategoriesScreen(hub.ledger, onOpenCalculator = { open(Destination.BudgetCalculator(null)) }, onBack = back)
-            is Destination.BudgetCalculator -> BudgetCalculatorScreen(hub.ledger, top.month, onClose = back)
-            is Destination.Ledger -> LedgerScreen(
-                ledger = hub.ledger,
-                day = hub.day,
-                month = top.month,
-                onMonthChange = { stack = stack.replaceTop(Destination.Ledger(it)) },
-                onOpen = { open(Destination.BookingEditor(BookingEditorTarget.Edit(it))) },
-                onCreate = { open(Destination.BookingEditor(BookingEditorTarget.New)) },
-                onOpenCategories = { open(Destination.LedgerCategories) },
-                onOpenRecurring = { open(Destination.Recurring) },
-                onOpenSubscriptions = { open(Destination.Subscriptions) },
-                onOpenArchive = { open(Destination.LedgerArchive) },
-                onOpenYear = { stack = stack.openLedgerYear() },
-                onOpenCalculator = { open(Destination.BudgetCalculator(it)) },
-                onBack = back,
-            )
-            Destination.NoteTabs -> NoteTabsScreen(hub.notes, onBack = back)
-            Destination.NoteArchive -> NoteArchiveScreen(hub.notes, onOpenNote = openNote, onBack = back)
-            is Destination.PlaceEditor -> PlaceEditorScreen(hub.places, hub.wifi, hub.location, top.target, onClose = back)
-            Destination.Places -> PlacesScreen(
-                places = hub.places,
-                wifi = hub.wifi,
-                location = hub.location,
-                onOpen = { open(Destination.PlaceEditor(PlaceEditorTarget.Edit(it))) },
-                onCreate = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) },
-                onBack = back,
-            )
-            Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)
-            Destination.Tags -> TagsScreen(hub.tags, onBack = back)
-            Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, onBack = back)
-            Destination.Settings -> SettingsScreen(
-                appSettings = hub.settings,
-                appLock = hub.appLock,
-                canAuthenticate = hub.authenticator::canAuthenticate,
-                tones = hub.toneCollection,
-                onOpenStatus = { open(Destination.Status) },
-                onOpenPlaces = { open(Destination.Places) },
-                onOpenTags = { open(Destination.Tags) },
-                onOpenBackups = { open(Destination.Backups) },
-                onBack = back,
-            )
-            is Destination.RoutineEditor -> RoutineEditorScreen(
-                hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection, onClose = back, onOpenNote = openNote,
-            )
-            Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
-            is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
-            Destination.Statistics ->
-                StatisticsScreen(hub.routines, hub.day, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
-            is Destination.Search -> SearchScreen(
-                search = hub.search,
-                query = top.query,
-                onQueryChange = { stack = stack.search(it) },
-                // An entry found opens over the hub.search, which keeps what was searched for.
-                onOpen = { area, id -> open(Destination.found(area, id)) },
-                onBack = back,
-            )
+                Destination.TodoArchive ->
+                    TodoArchiveScreen(
+                        hub.todos, hub.day, onOpen = { open(Destination.TodoEditor(TodoEditorTarget.Edit(it))) }, onBack = back,
+                    )
+                is Destination.WishEditor -> WishEditorScreen(
+                    wishes = hub.wishes,
+                    day = hub.day,
+                    todos = hub.todos,
+                    tags = hub.tags,
+                    notes = hub.notes,
+                    target = top.target,
+                    onClose = back,
+                    onOpenNote = openNote,
+                    // A new editor for each wish, so that one opened from another starts afresh.
+                    onOpenWish = { stack = stack.replaceTop(Destination.WishEditor(it)) },
+                    // The to-do made of it in its place, going back where it would.
+                    onOpenTodo = { stack = stack.replaceTop(Destination.TodoEditor(TodoEditorTarget.Edit(it))) },
+                )
+                Destination.WishReview ->
+                    WishReviewScreen(hub.wishes, onOpen = { open(Destination.WishEditor(WishEditorTarget.Edit(it))) }, onBack = back)
+                is Destination.BookingEditor -> BookingEditorScreen(hub.ledger, top.target, onClose = back)
+                is Destination.RecurringEditor -> RecurringEditorScreen(
+                    hub.ledger, hub.subscriptions, top.target, onClose = back,
+                    onOpenSubscription = { open(Destination.SubscriptionEditor(it)) },
+                )
+                Destination.Subscriptions ->
+                    SubscriptionListScreen(hub.subscriptions, hub.day, onOpen = { open(Destination.SubscriptionEditor(it)) }, onBack = back)
+                is Destination.SubscriptionEditor -> SubscriptionEditorScreen(hub.subscriptions, hub.ledger, top.target, onClose = back)
+                is Destination.LanguagePage -> LanguagePageScreen(
+                    languages = hub.languages,
+                    wishes = hub.wishes,
+                    languageId = top.languageId,
+                    examId = top.examId,
+                    onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
+                    onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
+                    onBack = back,
+                )
+                is Destination.LessonEditor -> LessonEditorScreen(
+                    hub.languages, hub.lessonFiles, top.target, onClose = back,
+                    onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
+                )
+                is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
+                Destination.LanguageList ->
+                    LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
+                Destination.TeacherList ->
+                    TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
+                is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)
+                Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
+                Destination.LedgerArchive ->
+                    LedgerArchiveScreen(hub.ledger, onOpen = { stack = stack.openArchivedMonth(it) }, onBack = back)
+                is Destination.LedgerYear -> LedgerYearScreen(
+                    ledger = hub.ledger,
+                    day = hub.day,
+                    year = top.year,
+                    onYearChange = { stack = stack.replaceTop(Destination.LedgerYear(it)) },
+                    onOpenMonth = { open(Destination.Ledger(it)) },
+                    onBack = back,
+                )
+                Destination.LedgerCategories ->
+                    LedgerCategoriesScreen(hub.ledger, onOpenCalculator = { open(Destination.BudgetCalculator(null)) }, onBack = back)
+                is Destination.BudgetCalculator -> BudgetCalculatorScreen(hub.ledger, top.month, onClose = back)
+                is Destination.Ledger -> LedgerScreen(
+                    ledger = hub.ledger,
+                    day = hub.day,
+                    month = top.month,
+                    onMonthChange = { stack = stack.replaceTop(Destination.Ledger(it)) },
+                    onOpen = { open(Destination.BookingEditor(BookingEditorTarget.Edit(it))) },
+                    onCreate = { open(Destination.BookingEditor(BookingEditorTarget.New)) },
+                    onOpenCategories = { open(Destination.LedgerCategories) },
+                    onOpenRecurring = { open(Destination.Recurring) },
+                    onOpenSubscriptions = { open(Destination.Subscriptions) },
+                    onOpenArchive = { open(Destination.LedgerArchive) },
+                    onOpenYear = { stack = stack.openLedgerYear() },
+                    onOpenCalculator = { open(Destination.BudgetCalculator(it)) },
+                    onBack = back,
+                )
+                Destination.NoteTabs -> NoteTabsScreen(hub.notes, onBack = back)
+                Destination.NoteArchive -> NoteArchiveScreen(hub.notes, onOpenNote = openNote, onBack = back)
+                is Destination.PlaceEditor -> PlaceEditorScreen(hub.places, hub.wifi, hub.location, top.target, onClose = back)
+                Destination.Places -> PlacesScreen(
+                    places = hub.places,
+                    wifi = hub.wifi,
+                    location = hub.location,
+                    onOpen = { open(Destination.PlaceEditor(PlaceEditorTarget.Edit(it))) },
+                    onCreate = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) },
+                    onBack = back,
+                )
+                Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)
+                Destination.Tags -> TagsScreen(hub.tags, onBack = back)
+                Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, onBack = back)
+                Destination.Settings -> SettingsScreen(
+                    appSettings = hub.settings,
+                    appLock = hub.appLock,
+                    canAuthenticate = hub.authenticator::canAuthenticate,
+                    tones = hub.toneCollection,
+                    onOpenStatus = { open(Destination.Status) },
+                    onOpenPlaces = { open(Destination.Places) },
+                    onOpenTags = { open(Destination.Tags) },
+                    onOpenBackups = { open(Destination.Backups) },
+                    onBack = back,
+                )
+                is Destination.RoutineEditor -> RoutineEditorScreen(
+                    hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, top.target, hub.toneCollection, onClose = back, onOpenNote = openNote,
+                )
+                Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
+                is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
+                Destination.Statistics ->
+                    StatisticsScreen(hub.routines, hub.day, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
+                is Destination.Search -> SearchScreen(
+                    search = hub.search,
+                    query = top.query,
+                    onQueryChange = { stack = stack.search(it) },
+                    // An entry found opens over the hub.search, which keeps what was searched for.
+                    onOpen = { area, id -> open(Destination.found(area, id)) },
+                    onBack = back,
+                )
+            }
         }
     }
+
 }
 
 /**

@@ -190,7 +190,7 @@ fun RecurringEditorScreen(
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
-            if (bookingProblems.any { it in AMOUNT_PROBLEMS }) firstField.show()
+            firstField.saveFailed(atField = bookingProblems.any { it in AMOUNT_PROBLEMS })
         } else {
             val saved = draft
             closeWith { ledger.saveTemplate(opened, saved) }
@@ -248,7 +248,7 @@ fun RecurringEditorScreen(
                 ) { Text(stringResource(if (abo == null) R.string.subscription_as_abo else R.string.subscription_open)) }
             }
             KindChips(draft.kind) { draft = draft.copy(kind = it, categoryId = null) }
-            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems, Modifier.focusRequester(firstField.focus)) {
+            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems, Modifier.focusRequester(firstField.requester)) {
                 draft = draft.copy(amount = it)
             }
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && RecurringProblem.CategoryMissing in problems) {

@@ -140,7 +140,7 @@ fun TodoEditorScreen(
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
-            if (TodoProblem.TitleMissing in problems || TodoProblem.TitleTooLong in problems) firstField.show()
+            firstField.saveFailed(atField = TodoProblem.TitleMissing in problems || TodoProblem.TitleTooLong in problems)
         } else {
             val saved = draft
             closeWith { todos.save(opened, saved) }
@@ -207,7 +207,7 @@ fun TodoEditorScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             OutlinedTextField(
                 value = draft.description,

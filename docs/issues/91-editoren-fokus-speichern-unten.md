@@ -14,7 +14,7 @@ Ein neuer Eintrag lässt sich sofort tippen und mit dem Daumen speichern: Die Ta
 ## Akzeptanzkriterien
 
 - [x] Gilt für die Editoren von To-do, Routine, Ziel, Notiz, Ort, Buchung, Fixbuchung, Abo, Session und Lehrer und für den Budget-Rechner; die Seiten der Dokumentation bleiben, wie sie sind
-- [x] Bei einem neuen Eintrag hat das erste Pflichtfeld (Titel, Name, bei der Buchung der Betrag) beim Öffnen den Fokus, und die Tastatur ist offen; beim Bearbeiten eines gespeicherten Eintrags nicht
+- [x] Bei einem neuen Eintrag hat das erste Pflichtfeld (Titel, Name, bei der Buchung der Betrag) beim Öffnen den Fokus, und die Tastatur ist offen; beim Bearbeiten eines gespeicherten Eintrags nicht (ausgenommen die Session, siehe unten)
 - [x] „Speichern“ ist ein gefüllter Knopf über die Breite am unteren Rand; ist die Tastatur offen, sitzt er direkt über ihr. Der Textknopf oben rechts entfällt
 - [x] „Löschen“ und, bei Notizen, „Archivieren“ bleiben oben in der Leiste
 - [x] Der Knopf verdeckt kein Feld: Der Inhalt lässt sich bis über ihn scrollen
@@ -34,5 +34,5 @@ Bei der Umsetzung festgelegt (13.11.2026):
 
 - Der Fokus kommt einmal beim Öffnen, nicht wieder nach Drehen oder Sperre; scheitert das Speichern am Titel (Name, Betrag), geht er wieder dorthin.
 - Die Session hat kein Feld, das zuerst getippt werden muss (Datum steht, die Dauer geht per Tipp), und öffnet ohne Tastatur; der Budget-Rechner ist kein neuer Eintrag.
-- Ein Hinweis zu einem Problem, das kein Textfeld betrifft (etwa „Bitte wähle eine Kategorie“), scrollt sich beim Erscheinen selbst in den sichtbaren Bereich.
+- Scheitert das Speichern, kommt das erste Problem in den sichtbaren Bereich: das Titelfeld, wenn es dort liegt, sonst der oberste Hinweis (etwa „Bitte wähle eine Kategorie“). Ein Hinweis, der schon beim Öffnen steht (etwa ein abgeschlossener Monat oder ein vergangener Weckzeitpunkt), lässt den Editor oben. Die Seiten der Dokumentation bleiben davon unberührt.
 - Bei einem Ziel speichert „Fertig“ wie beim To-do nur bei einem neuen; beim Bearbeiten führt es ins nächste Feld.

@@ -71,6 +71,7 @@ import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.LocalProblemReveal
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.launchNow
@@ -145,8 +146,10 @@ fun LessonEditorScreen(
         scope.launchNow { files.discard(left, opened.original) }
         onClose()
     }
+    val reveal = LocalProblemReveal.current
     val save = {
         if (draft.problems.isNotEmpty()) {
+            reveal?.saveFailed()
             showProblems = true
         } else {
             val saved = draft
@@ -155,6 +158,7 @@ fun LessonEditorScreen(
                     is Saving.Saved -> onClose()
                     is Saving.Refused -> {
                         refused = saving.problems
+                        reveal?.saveFailed()
                         showProblems = true
                         closeWith.reopen()
                     }

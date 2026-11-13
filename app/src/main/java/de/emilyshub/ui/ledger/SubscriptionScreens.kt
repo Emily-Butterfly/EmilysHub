@@ -249,7 +249,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
-            if (SubscriptionProblem.NameMissing in problems || SubscriptionProblem.NameTooLong in problems) firstField.show()
+            firstField.saveFailed(atField = SubscriptionProblem.NameMissing in problems || SubscriptionProblem.NameTooLong in problems)
         } else {
             val saved = draft
             closeWith.leaveThrough {
@@ -321,7 +321,7 @@ fun SubscriptionEditorScreen(subscriptions: Subscriptions, ledger: Ledger, targe
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             RecurringChoice(draft, choices.map { it.id to it.name }, refused) { draft = draft.copy(recurringId = it) }
             val linked = choices.find { it.id == draft.recurringId }

@@ -121,7 +121,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
         if (locked) return@save
         if (problems.isNotEmpty()) {
             showProblems = true
-            if (problems.any { it in AMOUNT_PROBLEMS }) firstField.show()
+            firstField.saveFailed(atField = problems.any { it in AMOUNT_PROBLEMS })
         } else {
             val saved = draft
             val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
@@ -188,7 +188,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 // A category of the other kind does not fit any more.
                 draft = draft.copy(kind = kind, categoryId = null)
             }
-            AmountField(draft.amount, draft.cents, problems, showProblems, Modifier.focusRequester(firstField.focus)) {
+            AmountField(draft.amount, draft.cents, problems, showProblems, Modifier.focusRequester(firstField.requester)) {
                 draft = draft.copy(amount = it)
             }
             DateValue(stringResource(R.string.booking_date), draft.date, onClick = { choosingDate = true })
@@ -255,9 +255,7 @@ internal fun AmountField(
     modifier: Modifier = Modifier,
     onChange: (String) -> Unit,
 ) {
-    val problem = problems.firstOrNull {
-        it in setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
-    }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
+    val problem = problems.firstOrNull { it in AMOUNT_PROBLEMS }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
     OutlinedTextField(
         value = amount,
         onValueChange = { typed -> onChange(typed.filter { it.isDigit() || it == ',' || it == '.' }) },

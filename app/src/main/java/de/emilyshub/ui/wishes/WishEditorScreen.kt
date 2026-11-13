@@ -141,7 +141,7 @@ fun WishEditorScreen(
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
-            if (WishProblem.TitleMissing in problems || WishProblem.TitleTooLong in problems) firstField.show()
+            firstField.saveFailed(atField = WishProblem.TitleMissing in problems || WishProblem.TitleTooLong in problems)
         } else {
             val saved = draft
             closeWith { wishes.save(opened, saved) }
@@ -228,7 +228,7 @@ fun WishEditorScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             OutlinedTextField(
                 value = draft.description,

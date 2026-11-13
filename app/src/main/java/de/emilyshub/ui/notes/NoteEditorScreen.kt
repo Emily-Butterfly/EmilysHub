@@ -58,6 +58,7 @@ import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
 import de.emilyshub.ui.differsAsSaved
+import de.emilyshub.ui.fields.FirstField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.SaveBar
@@ -115,6 +116,8 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
 
     val problems = draft.problems
     val closeWith = rememberClosing(onClose)
+    // A new one opens with the keyboard in its title (SPEC.md §8), once, not again on each return from the preview.
+    val title = rememberFirstField(new = noteId == null)
     /** Saves the note, then does [after] with it, if any; or shows what keeps it from being saved. */
     fun save(after: (suspend (Long) -> Unit)? = null) {
         if (problems.isNotEmpty()) {
@@ -193,7 +196,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
             if (previewing) {
                 Preview(notes, draft)
             } else {
-                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, new = noteId == null, onChange = { draft = it })
+                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, title, onChange = { draft = it })
             }
         }
     }
@@ -267,13 +270,11 @@ private fun Writing(
     problems: Set<NoteProblem>,
     showMissingTitle: Boolean,
     titleAsked: Int,
-    new: Boolean,
+    title: FirstField,
     onChange: (NoteDraft) -> Unit,
 ) {
     val cleaned = draft.cleaned()
-    // A new one opens with the keyboard in its title (SPEC.md §8).
-    val title = rememberFirstField(new)
-    LaunchedEffect(titleAsked) { if (titleAsked > 0) title.show() }
+    LaunchedEffect(titleAsked) { if (titleAsked > 0) title.focus() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -297,7 +298,7 @@ private fun Writing(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(title.focus),
+                .focusRequester(title.requester),
         )
         LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
         TagsField(tags, draft.tagIds, onChange = { onChange(draft.copy(tagIds = it)) })

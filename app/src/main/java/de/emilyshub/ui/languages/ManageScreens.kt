@@ -249,7 +249,7 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
-            if (draft.nameProblem != null) firstField.show()
+            firstField.saveFailed(atField = draft.nameProblem != null)
         } else {
             val saved = draft
             closeWith.leaveThrough {
@@ -316,7 +316,7 @@ fun TeacherEditorScreen(languages: Languages, target: TeacherEditorTarget, onClo
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             OutlinedTextField(
                 value = draft.note,

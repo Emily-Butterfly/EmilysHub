@@ -17,12 +17,15 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.todos.WakeTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * The editors (SPEC.md §8, #91): a new entry opens with the keyboard in its first field, one saved does not; "Speichern"
@@ -126,6 +129,57 @@ class EditorFormTest {
             field("Titel").assertIsFocused()
         }
         assertEquals(emptyList<String>(), titles())
+    }
+
+    @Test
+    fun `a problem there as the editor opens leaves it at its top`() {
+        app.todo("Anrufen", wake = WakeTime.At(LocalDate.parse("2026-10-23"), LocalTime.of(6, 30)))
+
+        launchApp().use {
+            openTodos()
+            compose.onNodeWithText("Anrufen").performClick()
+
+            compose.onNodeWithText("schon vorbei", substring = true).assertExists()
+            field("Titel").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a problem found on saving comes into view, the first one`() {
+        launchApp().use {
+            compose.onNodeWithContentDescription("Einstellungen").performClick()
+            compose.onNodeWithText("Orte verwalten").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Ort anlegen").performClick()
+            field("Name").performTextInput("Zuhause")
+
+            compose.onNode(hasText("Speichern") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("Ein Ort braucht mindestens ein WLAN", substring = true).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the first field of a new goal, Abo and teacher is focused too`() {
+        launchApp().use {
+            compose.openGoals()
+            compose.onNodeWithContentDescription("Ziel anlegen").performClick()
+            field("Titel").assertIsFocused()
+        }
+        launchApp().use {
+            compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Haushaltsbuch öffnen").performClick()
+            compose.onNodeWithContentDescription("Abos").performClick()
+            compose.onNodeWithContentDescription("Abo anlegen").performClick()
+            field("Name").assertIsFocused()
+        }
+        launchApp().use {
+            compose.onNode(isSelectable() and hasText("Sonstiges")).performClick()
+            compose.onNode(hasText("Sprachen") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Menü der Sprachen").performClick()
+            compose.onNodeWithText("Lehrer verwalten").performClick()
+            compose.onNodeWithContentDescription("Lehrer anlegen").performClick()
+            field("Name").assertIsFocused()
+        }
     }
 
     private fun titles() = runBlocking { app.todos.open().first().map { it.todo.title } }

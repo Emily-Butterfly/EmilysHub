@@ -138,7 +138,7 @@ fun RoutineEditorScreen(
     val save = {
         if (problems.isNotEmpty()) {
             showMissingName = true
-            if (DraftProblem.NameMissing in problems || DraftProblem.NameTooLong in problems) firstField.show()
+            firstField.saveFailed(atField = DraftProblem.NameMissing in problems || DraftProblem.NameTooLong in problems)
         } else {
             val saved = draft
             closeWith { routines.save(opened, saved) }
@@ -223,7 +223,7 @@ fun RoutineEditorScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(firstField.focus),
+                    .focusRequester(firstField.requester),
             )
             OutlinedTextField(
                 value = draft.description,
