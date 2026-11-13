@@ -107,10 +107,24 @@ class Backups(
             }
         }
         settings().put(Setting(LAST_MADE, now.toString()))
+        if (firstMadeStored() == null) settings().put(Setting(FIRST_MADE, now.toString()))
     }
 
     /** When the last backup was made here, by hand or by night. */
     suspend fun lastMade(): Instant? = withContext(io) { settings().get(LAST_MADE)?.let(Instant::parse) }
+
+    /**
+     * When the first backup was made on this device, as far as it was noted: from this version on, or, for backups made
+     * before it, from the moment [noteFirstMade] was first told after the update.
+     */
+    suspend fun firstMade(): Instant? = withContext(io) { firstMadeStored() }
+
+    /** Takes [at] as the moment of the first backup, if there are backups made before the first was noted. */
+    suspend fun noteFirstMade(at: Instant) = withContext(io) {
+        if (firstMadeStored() == null && settings().get(LAST_MADE) != null) settings().put(Setting(FIRST_MADE, at.toString()))
+    }
+
+    private suspend fun firstMadeStored(): Instant? = settings().get(FIRST_MADE)?.takeIf { it.isNotEmpty() }?.let(Instant::parse)
 
     /**
      * The backup in the stream [input] opens, opened with its [password] and checked: by putting it in place of all data
@@ -295,6 +309,7 @@ class Backups(
         const val MIN_PASSWORD_LENGTH = 10
         private const val KEY = "backup-key"
         private const val LAST_MADE = "backup-last-made"
+        private const val FIRST_MADE = "backup-first-made"
         private const val SEPARATOR = ":"
         private const val ATTACHMENTS_TABLE = "lesson_attachments"
 

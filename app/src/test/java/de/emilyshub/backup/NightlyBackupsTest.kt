@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
 import de.emilyshub.alarmsFor
+import de.emilyshub.data.Setting
 import de.emilyshub.routine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -21,6 +22,7 @@ import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import java.io.ByteArrayInputStream
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -250,7 +252,105 @@ class NightlyBackupsTest {
         assertEquals(listOf(berlin("2026-10-24T03:00")), nights())
     }
 
+    @Test
+    fun `backups never copied away are told on Heute 30 days after the first one`() {
+        setPassword()
+        exportByHand()
+        app.clock.now = berlin("2026-11-21T07:00")
+        exportByHand()
+
+        app.clock.now = berlin("2026-11-22T07:00")
+        assertNull(runBlocking { nightly.warning() })
+        app.clock.now = berlin("2026-11-22T07:01")
+        assertEquals(BackupWarning.NotCopiedAway, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `backups copied away are told on Heute again only once that is over 30 days ago`() {
+        setPassword()
+        exportByHand()
+        app.clock.now = berlin("2026-11-21T07:00")
+        exportByHand()
+        runBlocking { nightly.confirmCopiedAway() }
+        assertEquals(LocalDate.parse("2026-11-21"), runBlocking { nightly.state() }.copiedAway)
+
+        app.clock.now = berlin("2026-12-20T07:00")
+        exportByHand()
+        app.clock.now = berlin("2026-12-21T23:00")
+        assertNull(runBlocking { nightly.warning() })
+        app.clock.now = berlin("2026-12-22T00:00")
+        assertEquals(BackupWarning.NotCopiedAway, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `copying away taken back counts as it did before`() {
+        setPassword()
+        exportByHand()
+        app.clock.now = berlin("2026-11-21T07:00")
+        exportByHand()
+        app.clock.now = berlin("2026-11-23T07:00")
+
+        val before = runBlocking { nightly.confirmCopiedAway() }
+        assertNull(runBlocking { nightly.warning() })
+        runBlocking { nightly.undoCopiedAway(before) }
+
+        assertNull(runBlocking { nightly.state() }.copiedAway)
+        assertEquals(BackupWarning.NotCopiedAway, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `without a backup there is nothing to copy away`() {
+        runBlocking { nightly.schedule() }
+        app.clock.now = berlin("2026-11-22T07:01")
+
+        assertEquals(BackupWarning.None, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `a backup failed or too old is told before one not copied away`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+        app.clock.now = berlin("2026-11-23T07:01")
+        assertEquals(BackupWarning.Old, runBlocking { nightly.warning() })
+
+        folder.failing = true
+        night("2026-11-24T03:00")
+        assertEquals(BackupWarning.Failed, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `on an update, backups made before count as not copied away 30 days from then`() {
+        setPassword()
+        exportByHand()
+        // As an older version left it: backups made, but no note of the first.
+        runBlocking { app.settingsDao.put(Setting(FIRST_MADE, "")) }
+        app.clock.now = berlin("2026-11-20T07:00")
+
+        runBlocking { nightly.schedule() }
+
+        app.clock.now = berlin("2026-12-01T07:00")
+        exportByHand()
+        app.clock.now = berlin("2026-12-20T07:00")
+        assertNull(runBlocking { nightly.warning() })
+        app.clock.now = berlin("2026-12-20T07:01")
+        assertEquals(BackupWarning.NotCopiedAway, runBlocking { nightly.warning() })
+    }
+
+    @Test
+    fun `a backup restored leaves the day of copying away as it was`() {
+        setPassword()
+        runBlocking { nightly.choose(FOLDER) }
+        runBlocking { nightly.confirmCopiedAway() }
+        val file = folder.files.values.single()
+
+        runBlocking { app.backups.restore(app.backups.open({ ByteArrayInputStream(file) }, PASSWORD)) }
+
+        assertEquals(LocalDate.parse("2026-10-23"), runBlocking { nightly.state() }.copiedAway)
+    }
+
     private fun setPassword() = runBlocking { app.backups.setPassword(PASSWORD) }
+
+    private fun exportByHand() = runBlocking { app.backups.export { java.io.ByteArrayOutputStream() } }
 
     /** The clock at [localDateTime] in Berlin, and the alarm for the night's backup going off then. */
     /**
@@ -276,6 +376,7 @@ class NightlyBackupsTest {
 
     private companion object {
         const val PASSWORD = "Flieder und Lila"
+        const val FIRST_MADE = "backup-first-made"
         const val FOLDER = "content://com.android.externalstorage.documents/tree/primary%3ABackups"
         const val OTHER_FOLDER = "content://com.android.externalstorage.documents/tree/primary%3AAnderswo"
     }

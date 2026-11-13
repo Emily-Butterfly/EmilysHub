@@ -2,8 +2,10 @@ package de.emilyshub
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -71,6 +73,24 @@ class TodayBackupWarningTest {
 
         launchApp().use {
             compose.onNodeWithText("Noch kein Backup").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `backups never copied away from the phone are told on Heute 30 days after the first, until confirmed`() {
+        runBlocking { app.backups.export { ByteArrayOutputStream() } }
+        app.clock.now = Instant.parse("2026-11-20T07:00:00Z")
+        runBlocking { app.backups.export { ByteArrayOutputStream() } }
+        app.clock.now = Instant.parse("2026-11-23T07:00:00Z")
+
+        launchApp().use {
+            compose.onNodeWithText("Deine Backups liegen nur auf dem Handy").assertIsDisplayed()
+
+            compose.onNodeWithText("Zu den Backups").performClick()
+            compose.onNodeWithText("Heute weggekopiert").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithText("Deine Backups liegen nur auf dem Handy").assertDoesNotExist()
         }
     }
 

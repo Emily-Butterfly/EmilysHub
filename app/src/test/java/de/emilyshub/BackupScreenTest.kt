@@ -297,6 +297,24 @@ class BackupScreenTest {
         app.deleteDatabase(DokuDatabase.NAME)
     }
 
+    @Test
+    fun `copying away is confirmed for today, which can be taken back right away`() {
+        launchApp().use {
+            openBackups()
+            compose.onNodeWithText("Noch nie ausgelagert.").performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("Heute weggekopiert").performScrollTo().performClick()
+
+            compose.onNodeWithText("Zuletzt ausgelagert am 23.10.2026.").performScrollTo().assertIsDisplayed()
+            assertEquals(java.time.LocalDate.parse("2026-10-23"), runBlocking { app.nightlyBackups.state() }.copiedAway)
+
+            compose.onNodeWithText("Rückgängig").performClick()
+
+            compose.onNodeWithText("Noch nie ausgelagert.").performScrollTo().assertIsDisplayed()
+            assertEquals(null, runBlocking { app.nightlyBackups.state() }.copiedAway)
+        }
+    }
+
     private fun openBackups() {
         compose.onNodeWithContentDescription("Einstellungen").performClick()
         compose.onNodeWithText("Backups verwalten").performScrollTo().performClick()

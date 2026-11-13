@@ -26,6 +26,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,6 +66,8 @@ import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.enumeration
+import de.emilyshub.ui.numericDate
+import java.time.LocalDate
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -125,8 +131,24 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
         }
     }
     LaunchedEffect(nightly) { nightlyState = nightly.state() }
+    val snackbar = remember { SnackbarHostState() }
+    val confirmedMessage = stringResource(R.string.backup_confirmed_copied_away)
+    val undoLabel = stringResource(R.string.undo)
+    // Confirmed for today, with a bar to take it back at once to what held before.
+    val confirmCopiedAway = {
+        scope.launch {
+            val before = nightly.confirmCopiedAway()
+            nightlyState = nightly.state()
+            val result = snackbar.showSnackbar(confirmedMessage, actionLabel = undoLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) {
+                nightly.undoCopiedAway(before)
+                nightlyState = nightly.state()
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.backups_title), modifier = Modifier.semantics { heading() }) },
@@ -189,13 +211,14 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, onBack: () -> Unit) 
                 )
             }
 
+            nightlyState?.let { state -> CopyAwaySection(state.copiedAway, enabled = !busy, onConfirm = { confirmCopiedAway() }) }
+
             SectionTitle(stringResource(R.string.backup_load_title))
             Text(stringResource(R.string.backup_load_summary))
             OutlinedButton(onClick = { load.launch(arrayOf("*/*")) }, enabled = !busy) { Text(stringResource(R.string.backup_load)) }
 
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             outcome?.let { Text(stringResource(it), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-            Hint(stringResource(R.string.backup_copy_hint))
         }
     }
 
@@ -288,6 +311,21 @@ private fun NightlySection(state: NightlyState, enabled: Boolean, passwordSet: B
         }
         if (folder != null) OutlinedButton(onClick = onStop, enabled = enabled) { Text(stringResource(R.string.backup_nightly_stop)) }
     }
+}
+
+/**
+ * Copying the backups away from the phone (SPEC.md §10), which the app cannot see for itself: what to do, the day it
+ * was last [copiedAway], if ever, and [onConfirm] to note it for today.
+ */
+@Composable
+private fun CopyAwaySection(copiedAway: LocalDate?, enabled: Boolean, onConfirm: () -> Unit) {
+    SectionTitle(stringResource(R.string.backup_copy_title))
+    Text(stringResource(R.string.backup_copy_hint))
+    Text(
+        copiedAway?.let { stringResource(R.string.backup_copied_away, it.numericDate()) }
+            ?: stringResource(R.string.backup_never_copied_away),
+    )
+    OutlinedButton(onClick = onConfirm, enabled = enabled) { Text(stringResource(R.string.backup_confirm_copied_away)) }
 }
 
 /** The new backup password, typed twice; its problems shown once the user tries to set it. */

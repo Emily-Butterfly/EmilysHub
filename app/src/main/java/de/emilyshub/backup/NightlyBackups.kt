@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZonedDateTime
@@ -39,17 +40,21 @@ interface BackupFolder {
     fun delete(fileName: String)
 }
 
-/** Why Heute tells of the backups: the last one failed, is over 30 days old, or there has been none for 30 days. */
-enum class BackupWarning { Failed, Old, None }
+/**
+ * Why Heute tells of the backups, the first first: the last one failed, is over 30 days old, there has been none for 30
+ * days, or they lie only on the phone, not copied away for over 30 days (SPEC.md §10).
+ */
+enum class BackupWarning { Failed, Old, None, NotCopiedAway }
 
 /** The folder the nightly backups go to, by the [name] Android shows for it, if it tells one. */
 data class ChosenFolder(val name: String?)
 
 /**
  * How the nightly backups stand: the [folder] chosen, none while they are off; when the last backup was made, by night
- * or by hand; and whether the last nightly one [failed] after that.
+ * or by hand; whether the last nightly one [failed] after that; and the day the backups were last [copiedAway] from
+ * the phone, as the user confirmed it, none if never.
  */
-data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?, val failed: Boolean)
+data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?, val failed: Boolean, val copiedAway: LocalDate? = null)
 
 /**
  * The backups made each night (SPEC.md §10) into a folder chosen once, whose access is kept: at [NIGHT], with the key
@@ -63,7 +68,9 @@ data class NightlyState(val folder: ChosenFolder?, val lastMade: ZonedDateTime?,
  * address stored, and [alarm] wakes the app for the next backup. [settings] is only called on [io].
  *
  * Heute is told ([warning]) when the last backup, made by night or by hand, is over [WARN_AFTER_DAYS] days old, or
- * failed; and when there has been none at all since the app first looked, as long.
+ * failed; when there has been none at all since the app first looked, as long; and when the backups were last copied
+ * away from the phone ([confirmCopiedAway]) as long ago, or never, as long after the first one. That day is a setting of
+ * the device, which a backup neither holds nor restores.
  */
 class NightlyBackups(
     private val backups: Backups,
@@ -145,6 +152,8 @@ class NightlyBackups(
     suspend fun schedule() = withContext(io) {
         lock.withLock {
             if (stored(WATCHED_SINCE) == null) put(WATCHED_SINCE, clock.instant().toString())
+            // Backups made before the first was noted count from the update.
+            backups.noteFirstMade(clock.instant())
             setAlarm()
         }
     }
@@ -157,7 +166,20 @@ class NightlyBackups(
             lastMade = lastMade?.atZone(clock.zone),
             // Until a backup is made after it, by night or by hand.
             failed = failed != null && (lastMade == null || !failed.isBefore(lastMade)),
+            copiedAway = stored(COPIED_AWAY)?.let(LocalDate::parse),
         )
+    }
+
+    /** The backups are copied away from the phone as of today; the day it said before, none if never, to take it back with. */
+    suspend fun confirmCopiedAway(): LocalDate? = withContext(io + NonCancellable) {
+        val before = stored(COPIED_AWAY)?.let(LocalDate::parse)
+        put(COPIED_AWAY, LocalDate.now(clock).toString())
+        before
+    }
+
+    /** Copying away taken back: the day before stands again, [previous], none if never. */
+    suspend fun undoCopiedAway(previous: LocalDate?) = withContext(io + NonCancellable) {
+        put(COPIED_AWAY, previous?.toString().orEmpty())
     }
 
     /** What Heute is to tell of the backups, if anything. */
@@ -169,8 +191,17 @@ class NightlyBackups(
             state.failed -> BackupWarning.Failed
             outdated && state.lastMade == null -> BackupWarning.None
             outdated -> BackupWarning.Old
+            state.lastMade != null && onlyOnPhone(state.copiedAway) -> BackupWarning.NotCopiedAway
             else -> null
         }
+    }
+
+    /** Whether the backups were copied away last on [copiedAway] over [WARN_AFTER_DAYS] days ago, or never as long after the first. */
+    private suspend fun onlyOnPhone(copiedAway: LocalDate?): Boolean = if (copiedAway != null) {
+        LocalDate.now(clock).isAfter(copiedAway.plusDays(WARN_AFTER_DAYS))
+    } else {
+        val first = backups.firstMade()
+        first != null && clock.instant().isAfter(first.atZone(clock.zone).plusDays(WARN_AFTER_DAYS).toInstant())
     }
 
     /**
@@ -273,6 +304,7 @@ class NightlyBackups(
         private const val LAST_TRIED = "backup-night-tried"
         private const val FAILED = "backup-night-failed"
         private const val WATCHED_SINCE = "backup-watched-since"
+        private const val COPIED_AWAY = "backup-copied-away"
         private const val TAG = "EmilysHub"
     }
 }
