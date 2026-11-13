@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import de.emilyshub.BuildConfig
 import de.emilyshub.R
 import de.emilyshub.data.Design
 import de.emilyshub.data.AppSettings
@@ -147,6 +148,14 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.backups_manage)) },
                 supportingContent = { Text(stringResource(R.string.backups_manage_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenBackups),
+            )
+
+            // Which build is installed (SPEC.md §12), only to read.
+            Text(
+                stringResource(R.string.settings_version, BuildConfig.VERSION_NAME, BuildConfig.COMMIT),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
             )
         }
     }

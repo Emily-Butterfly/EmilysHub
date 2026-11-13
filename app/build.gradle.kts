@@ -1,3 +1,5 @@
+import emilyshub.buildlogic.AppVersion
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,6 +7,12 @@ plugins {
     alias(libs.plugins.room)
     id("emilyshub.manifest-policy")
 }
+
+// Each run of the CI's workflow its own, rising version; a local build stays at 1 (docs/release-signierung.md).
+val appVersion = AppVersion.of(
+    runNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull,
+    commit = providers.environmentVariable("GITHUB_SHA").orNull,
+)
 
 android {
     namespace = "de.emilyshub"
@@ -14,8 +22,9 @@ android {
         applicationId = "de.emilyshub"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersion.code
+        versionName = appVersion.name
+        buildConfigField("String", "COMMIT", "\"${appVersion.commit}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -50,6 +59,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     androidResources {

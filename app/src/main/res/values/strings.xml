@@ -588,6 +588,7 @@
     <string name="reminder_probe">Probe-Erinnerung</string>
     <string name="reminder_probe_text">So erinnert dich EmilysHub.</string>
     <string name="settings_backups">Backups</string>
+    <string name="settings_version">Version %1$s · %2$s</string>
     <string name="backups_manage">Backups verwalten</string>
     <string name="backups_manage_summary">Alle Daten verschlüsselt sichern und wieder laden</string>
     <string name="backups_title">Backups</string>

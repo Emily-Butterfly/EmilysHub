@@ -70,3 +70,9 @@ Ist noch die Debug-APK (`emilyshub-debug`) installiert, deinstalliere sie vorher
 ## 5. Update einmal ausprobieren
 
 Installiere die APK aus einem späteren Lauf über die vorhandene App. Android bietet dann ein **Update** an, und die App behält ihre Daten. Erscheint stattdessen „App nicht installiert“, vergleiche die Fingerabdrücke der beiden Läufe.
+
+## Versionsnummer
+
+Jeder Lauf des Workflows `build.yml` gibt der App seine laufende Nummer (`GITHUB_RUN_NUMBER`) als `versionCode` und `0.1.<Nummer>` als Version, dazu die ersten 7 Zeichen des Commits. Debug- und Release-APK eines Laufs tragen dieselbe Nummer. Die Einstellungen zeigen sie ganz unten, etwa „Version 0.1.412 · 2dc38f5“. Weil die Nummer steigt, lehnt Android einen älteren Build über einem neueren ab. Ein lokaler Build steht auf `versionCode` 1 und „0.1.0-lokal“.
+
+Die Nummer zählt je Workflow. Wird `build.yml` umbenannt oder neu angelegt, beginnt sie wieder bei 1. Dann in `build-logic/src/main/kotlin/emilyshub/buildlogic/AppVersion.kt` einen festen Versatz addieren, der über der letzten Nummer liegt, sonst lässt sich der neue Build nicht über den alten installieren.
