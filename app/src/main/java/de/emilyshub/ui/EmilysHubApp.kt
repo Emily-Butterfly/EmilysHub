@@ -125,8 +125,8 @@ import de.emilyshub.ui.status.rememberUse
 import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
-import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.HeuteFolds
+import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.TodayScreen
 import de.emilyshub.ui.today.YesterdayScreen
 import de.emilyshub.ui.today.rememberHeute

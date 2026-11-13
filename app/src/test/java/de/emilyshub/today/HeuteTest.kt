@@ -132,14 +132,14 @@ class HeuteTest {
         app.todo("Müll", due = Due.On(FRIDAY))
         val seen = collect()
         assertEquals(listOf("Müll", "Vitamine"), seen.last().blocks.upNext.map { it.name })
-        assertEquals(DayStand(done = 0, of = 2), seen.last().blocks.stand)
+        assertEquals(DayStand(done = 0, total = 2), seen.last().blocks.stand)
 
         heute.onToday.setDone(seen.last().entries.first { it.name == "Vitamine" }, done = true)
         runCurrent()
 
         assertEquals(listOf("Müll"), seen.last().blocks.upNext.map { it.name })
         assertEquals(listOf("Vitamine"), seen.last().blocks.past.map { it.name })
-        assertEquals(DayStand(done = 1, of = 2), seen.last().blocks.stand)
+        assertEquals(DayStand(done = 1, total = 2), seen.last().blocks.stand)
     }
 
     @Test

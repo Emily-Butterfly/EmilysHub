@@ -118,7 +118,7 @@ class TodayListTest {
     }
 
     @Test
-    fun `the stand counts what is done of all but the skipped ones, by hand or by a coupled routine`() {
+    fun `the stand counts what is done of today's entries but the skipped ones, by hand or by a coupled routine`() {
         val routines = listOf(
             routine("Offen", "08:00"),
             routine("Erledigt", "08:00", OccurrenceStatus.Done),
@@ -128,15 +128,27 @@ class TodayListTest {
             routine("Ausgelassen", "08:00", OccurrenceStatus.Dropped),
         )
         val todos = listOf(
-            todo("Überfällig", Due.On(today.minusDays(1)), overdue = true),
             todo("Erledigtes To-do", Due.On(today), done = true),
+            todo("Überfällig seit früh", Due.At(today, LocalTime.of(6, 0)), overdue = true),
         )
 
-        assertEquals(DayStand(done = 2, of = 6), todayBlocks(routines, todos, today).stand)
+        assertEquals(DayStand(done = 2, total = 6), todayBlocks(routines, todos, today).stand)
     }
 
     @Test
-    fun `the summary of what is over counts each status that occurs`() {
+    fun `the stand leaves out the to-dos due on days before, open or ticked off today, but counts yesterday's routines still in their time window`() {
+        val routines = listOf(routine("Lesen", "23:00", date = today.minusDays(1)))
+        val todos = listOf(
+            todo("Seit gestern", Due.On(today.minusDays(1)), overdue = true),
+            todo("Seit letzter Woche, heute erledigt", Due.On(today.minusDays(7)), done = true),
+            todo("Heute", Due.On(today)),
+        )
+
+        assertEquals(DayStand(done = 0, total = 2), todayBlocks(routines, todos, today).stand)
+    }
+
+    @Test
+    fun `the summary of what is over counts each status that occurs, leaving out what a coupled routine did`() {
         val routines = listOf(
             routine("Erledigt", "08:00", OccurrenceStatus.Done),
             routine("Übersprungen", "09:00", OccurrenceStatus.Skipped),
@@ -145,7 +157,7 @@ class TodayListTest {
         )
         val todos = listOf(todo("Erledigtes To-do", Due.On(today), done = true))
 
-        assertEquals(PastSummary(done = 2, skipped = 2, missed = 1, dropped = 0), todayBlocks(routines, todos, today).summary)
+        assertEquals(PastSummary(done = 2, skipped = 1, missed = 1, dropped = 0), todayBlocks(routines, todos, today).summary)
     }
 
     @Test
@@ -162,7 +174,7 @@ class TodayListTest {
         val blocks = todayBlocks(emptyList(), emptyList(), today)
 
         assertTrue(blocks.isEmpty)
-        assertEquals(DayStand(done = 0, of = 0), blocks.stand)
+        assertEquals(DayStand(done = 0, total = 0), blocks.stand)
     }
 
     private fun routine(

@@ -37,12 +37,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,12 +67,12 @@ import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.dateLine
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.endText
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.notes.PinnedNotes
-import de.emilyshub.ui.dateLine
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.shortWeekdayDayAndMonth
 import de.emilyshub.ui.todos.dueText
@@ -128,7 +128,8 @@ fun TodayScreen(
     }
     val today = day.date
     val blocks = day.blocks
-    val (upcoming, pinned) = day.upcoming to day.pinned
+    val upcoming = day.upcoming
+    val pinned = day.pinned
     val subscriptions = day.subscriptions
     Box(Modifier.fillMaxSize()) {
         if (blocks.isEmpty && pinned.isEmpty() && upcoming.isEmpty() && subscriptions.isEmpty()) {
@@ -222,7 +223,7 @@ private fun DateLine(day: HeuteDay) {
     val date = day.date.dateLine()
     val stand = day.blocks.stand
     Text(
-        text = if (stand.of == 0) date else stringResource(R.string.today_stand, date, stand.done, stand.of),
+        text = if (stand.total == 0) date else stringResource(R.string.today_stand, date, stand.done, stand.total),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
     )
@@ -350,6 +351,11 @@ private typealias Act = (suspend Heute.() -> Unit) -> Unit
 /** Ticks an entry of Heute off, offering to undo it. */
 private typealias TickOff = (TodayEntry) -> Unit
 
+/** Ticks [entry] off through [tickOff] where there is one, as on Heute, or unticks it; otherwise as [catchingUp] has it. */
+private fun setDone(entry: TodayEntry, done: Boolean, act: Act, tickOff: TickOff?, catchingUp: Boolean) {
+    if (done && tickOff != null) tickOff(entry) else act { ticking(catchingUp).setDone(entry, done) }
+}
+
 /**
  * A routine's occurrence on Heute, with its checklist under it, but for one missed; ticked off through [tickOff] where
  * there is one. On the day before when [catchingUp] on it, only to tick off late or untick
@@ -364,9 +370,7 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
             fromDayBefore = routine.dueAt.toLocalDate().isBefore(today),
             tickable = if (catchingUp) routine.catchUpTickable else routine.tickable,
             offer = if (catchingUp) RoutineOffer.None else routine.offer,
-            onDoneChange = { done ->
-                if (done && tickOff != null) tickOff(entry) else act { ticking(catchingUp).setDone(entry, done) }
-            },
+            onDoneChange = { done -> setDone(entry, done, act, tickOff, catchingUp) },
             onSkip = { act { skip(routine) } },
             onDrop = { act { drop(routine) } },
             onUndo = { act { undo(routine) } },
@@ -402,9 +406,7 @@ private fun TodoEntry(
             todo = todo,
             today = today,
             upcoming = upcoming,
-            onDoneChange = { done ->
-                if (done && tickOff != null) tickOff(entry) else act { ticking(catchingUp).setDone(entry, done) }
-            },
+            onDoneChange = { done -> setDone(entry, done, act, tickOff, catchingUp) },
         )
         todo.checklist.forEach { item ->
             ChecklistRow(item, tickable = true) { ticked ->

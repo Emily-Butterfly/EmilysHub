@@ -47,8 +47,9 @@ Aus dem Gutachten vom 12.11.2026 (Befunde U3 und U11, Vorschlag UX 2).
 
 Bei der Umsetzung festgelegt (13.11.2026):
 
-- Der Stand zählt alles, was auf Heute steht: auch die überfälligen To-dos und die Fälligkeiten von gestern, deren Zeitfenster noch läuft. Verpasstes und Ausgelassenes zählt mit, als nicht erledigt.
-- Die Zusammenfassung von „Schon vorbei“ nennt „Heute nicht“ eigens, als „ausgelassen“, wie der Status in der Zeile.
+- **Bestätigt am 13.11.2026:** Der Stand zählt nur die Einträge von heute: To-dos, die heute fällig sind, und die Fälligkeiten der Routinen auf Heute, auch die von gestern, deren Zeitfenster noch läuft. To-dos von Vortagen zählen nicht, überfällig oder heute erledigt; sie zeigt „Überfällig (n)“. Verpasstes und Ausgelassenes zählt mit, als nicht erledigt.
+- **Bestätigt am 13.11.2026:** Die Zusammenfassung von „Schon vorbei“ lässt aus, was eine gekoppelte Routine erledigt hat; seine Zeile sagt „durch … erledigt“.
+- Die Zusammenfassung nennt „Heute nicht“ eigens, als „ausgelassen“, wie der Status in der Zeile.
 - „Jetzt und als Nächstes“ hat einen sichtbaren Abschnittstitel. Steht nur noch Überfälliges offen, sagt der Block „Für heute ist alles erledigt“.
 - Die Leiste mit „Rückgängig“ kommt beim Abhaken des Kästchens; hakt der letzte Unterpunkt einer Checkliste den Eintrag ab, kommt keine, der Unterpunkt lässt sich in „Schon vorbei“ wieder abhaken.
 - Auf- und Zugeklappt hält die App wie „‹ Gestern“: Es bleibt, solange ein Bildschirm über Heute liegt und beim Wechsel zu Gestern und zurück, und ist nach Tabwechsel, Neustart und App-Sperre wieder zugeklappt.

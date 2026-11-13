@@ -40,12 +40,14 @@ fun todayList(routines: List<DueRoutine>, todos: List<DueTodo>, today: LocalDate
 /**
  * Heute in its blocks (SPEC.md §1, Drei Blöcke): the to-dos [overdue], the longest overdue first; what is still open
  * of the day [upNext], in Heute's order ([todayList]), past its time too, and yesterday's routines whose time window
- * is still open; and what is [past]: done, skipped, missed or dropped, by its time.
+ * is still open; and what is [past]: done, skipped, missed or dropped, by its time. With them, how far the day is
+ * ([stand]).
  */
 data class TodayBlocks(
     val overdue: List<TodayEntry.OfTodo>,
     val upNext: List<TodayEntry>,
     val past: List<TodayEntry>,
+    val stand: DayStand,
 ) {
     /** Whether there is nothing on Heute at all. */
     val isEmpty: Boolean get() = overdue.isEmpty() && upNext.isEmpty() && past.isEmpty()
@@ -53,27 +55,20 @@ data class TodayBlocks(
     /** All of Heute's entries, block by block. */
     val all: List<TodayEntry> get() = overdue + upNext + past
 
-    /** How far the day is: what is done of all entries but the skipped ones, by hand or by a coupled routine. */
-    val stand: DayStand
-        get() {
-            val counted = all.filterNot { it.skipped }
-            return DayStand(done = counted.count { it.done }, of = counted.size)
-        }
-
-    /** What [past] holds, by its status. */
+    /** What [past] holds, by its status; what a coupled routine did is left out, its row saying so. */
     val summary: PastSummary
         get() = PastSummary(
             done = past.count { it.done },
-            skipped = past.count { it.skipped },
+            skipped = past.count { it is TodayEntry.OfRoutine && it.routine.status == OccurrenceStatus.Skipped && !it.routine.covered },
             missed = past.count { it is TodayEntry.OfRoutine && it.routine.status == OccurrenceStatus.Missed },
             dropped = past.count { it is TodayEntry.OfRoutine && it.routine.status == OccurrenceStatus.Dropped },
         )
 }
 
-/** How far the day is (SPEC.md §1, Kopfzeile): [done] of [of] entries. */
-data class DayStand(val done: Int, val of: Int)
+/** How far the day is (SPEC.md §1, Kopfzeile): [done] of [total] entries. */
+data class DayStand(val done: Int, val total: Int)
 
-/** What is over on Heute (SPEC.md §1, Schon vorbei), counted by its status; skipped by a coupled routine among [skipped]. */
+/** What is over on Heute (SPEC.md §1, Schon vorbei), counted by its status, but for what a coupled routine did. */
 data class PastSummary(val done: Int, val skipped: Int, val missed: Int, val dropped: Int)
 
 /**
@@ -84,6 +79,9 @@ fun todayBlocks(routines: List<DueRoutine>, todos: List<DueTodo>, today: LocalDa
     val list = todayList(routines, todos, today)
     val (open, past) = list.partition { it.open }
     val (overdue, upNext) = open.partition { it is TodayEntry.OfTodo && it.todo.overdue }
+    // Today's entries: the to-dos due on days before, open or ticked off today, are not; yesterday's routines still
+    // in their time window are, as they are due now. Skipped ones, by hand or by a coupled routine, are not either.
+    val counted = list.filter { it.dueToday(today) && !it.skipped }
     return TodayBlocks(
         overdue = overdue.map { it as TodayEntry.OfTodo },
         upNext = upNext,
@@ -92,13 +90,24 @@ fun todayBlocks(routines: List<DueRoutine>, todos: List<DueTodo>, today: LocalDa
                 .thenBy { if (it is TodayEntry.OfRoutine) 0 else 1 }
                 .thenBy(InputText.byName) { it.name },
         ),
+        stand = DayStand(done = counted.count { it.done }, total = counted.size),
     )
+}
+
+/** Whether it counts for [today]: a routine's occurrence on Heute always, a to-do when due that day. */
+private fun TodayEntry.dueToday(today: LocalDate): Boolean = when (this) {
+    is TodayEntry.OfRoutine -> true
+    is TodayEntry.OfTodo -> when (val due = todo.due) {
+        is Due.On -> due.date == today
+        is Due.At -> due.date == today
+        Due.None -> false
+    }
 }
 
 /** Still to do: a to-do not ticked off, an occurrence open, and not done by another of its group. */
 private val TodayEntry.open: Boolean
     get() = when (this) {
-        is TodayEntry.OfRoutine -> routine.status == OccurrenceStatus.Open && routine.coveredBy == null
+        is TodayEntry.OfRoutine -> routine.status == OccurrenceStatus.Open && !routine.covered
         is TodayEntry.OfTodo -> !todo.done
     }
 
@@ -111,7 +120,7 @@ private val TodayEntry.done: Boolean
 
 /** Skipped, by hand or by another of its group. */
 private val TodayEntry.skipped: Boolean
-    get() = this is TodayEntry.OfRoutine && (routine.status == OccurrenceStatus.Skipped || routine.coveredBy != null)
+    get() = this is TodayEntry.OfRoutine && (routine.status == OccurrenceStatus.Skipped || routine.covered)
 
 /** Overdue to-dos, then the to-dos of [today] without a time or ticked off overdue, then all with a time on it. */
 private fun TodayEntry.group(today: LocalDate): Int = when (this) {
