@@ -324,6 +324,8 @@ open class EmilysHubApplication : Application(), Hub {
         registerActivityLifecycleCallbacks(AppLockLifecycle(appLock))
         // Android drops the alarm when the app is stopped by force; it is set again on the next start.
         background.launch { reminders.update() }
+        // So too the notification of a run running, and the alarm for the end of its step (SPEC.md §2).
+        background.launch { updateRun() }
         // So too the alarm for the night's backup; and one missed meanwhile is made up.
         background.launch { nightlyBackups.schedule() }
         // The fixed bookings of the days the app did not run on (SPEC.md §13).

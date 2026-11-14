@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -89,7 +91,7 @@ sealed interface RunView {
             val end = endsAt
             val others = left.filter { it.itemId != item.itemId }
             if (end == null || others.any { it.minutes == null }) return Outlook(left.size, doneBy = null)
-            val doneBy = maxOf(end, now) + Duration.ofMinutes(others.sumOf { it.minutes!!.toLong() })
+            val doneBy = maxOf(end, now) + Duration.ofMinutes(others.sumOf { it.minutes?.toLong() ?: 0 })
             return Outlook(left.size, doneBy)
         }
     }
@@ -164,21 +166,29 @@ class RoutineRuns(
     }
 
     /**
+     * Whoever changes the kept run reads it again and writes it under this, so that none of them writes over what another
+     * wrote meanwhile. Nothing done while holding it ticks, or runs [onChange]: both bring the notification up to date,
+     * which may take it.
+     */
+    private val changing = Mutex()
+
+    /**
      * A run through the occurrence's checklist, started now, in the place of any other; one started before is taken up
      * where its checklist is, its stopwatch counting on from its first start. A run still running through it goes on as
      * it is, its step's time too; what one ended before ticked off, "Schritt zurück" leaves.
      */
     suspend fun start(occurrenceId: Long, routineId: Long) {
-        val running = store.current()?.takeIf { it.occurrenceId == occurrenceId && it.finishedAt == null }
-        if (running == null) {
-            val startedAt = routines.startRun(occurrenceId)
-            store.replace(Run(occurrenceId, routineId, startedAt, stepStartedAt = clock.instant()))
+        changing.withLock {
+            val running = store.current()?.takeIf { it.occurrenceId == occurrenceId && it.finishedAt == null }
+            if (running == null) {
+                val startedAt = routines.startRun(occurrenceId)
+                // At the first step left, which shows from now on.
+                val first = routines.forRun(occurrenceId).first()?.checklist?.firstOrNull { !it.ticked }?.itemId
+                store.replace(Run(occurrenceId, routineId, startedAt, stepItemId = first, stepStartedAt = clock.instant()))
+            }
         }
         onChange()
     }
-
-    /** The run kept, running or finished; none while none is. */
-    fun running(): Flow<Run?> = store.observe()
 
     /** The run kept, running or finished; none while none is. */
     suspend fun current(): Run? = store.current()
@@ -207,13 +217,16 @@ class RoutineRuns(
      * now; with the last of them, the routine is done. Nothing if it is at another, as after a second tap.
      */
     suspend fun done(occurrenceId: Long, itemId: Long) {
-        val (run, step) = atStep(occurrenceId) ?: return
-        if (step.item.itemId != itemId) return
+        val step = stepOf(occurrenceId)?.takeIf { it.item.itemId == itemId } ?: return
         routines.tick(occurrenceId, itemId, ticked = true)
-        val now = clock.instant()
-        val next = step.left.firstOrNull { it.itemId != itemId }
-        val moved = if (next == null) run.copy(finishedAt = now) else run.at(next.itemId, now)
-        store.save(moved.copy(tickedHere = run.tickedHere + itemId))
+        changing.withLock {
+            // A second tap meanwhile ticked it off already.
+            val run = running(occurrenceId)?.takeIf { itemId !in it.tickedHere } ?: return@withLock
+            val now = clock.instant()
+            val next = step.left.firstOrNull { it.itemId != itemId }
+            val moved = if (next == null) run.copy(finishedAt = now) else run.at(next.itemId, now)
+            store.save(moved.copy(tickedHere = run.tickedHere + itemId))
+        }
         onChange()
     }
 
@@ -222,45 +235,66 @@ class RoutineRuns(
      * anew; nothing if there is none.
      */
     suspend fun back(occurrenceId: Long) {
-        val (run, step) = atStep(occurrenceId) ?: return
-        val item = run.lastTicked(step.checklist) ?: return
+        val run = running(occurrenceId) ?: return
+        val item = run.lastTicked(stepOf(occurrenceId)?.checklist ?: return) ?: return
         routines.tick(occurrenceId, item, ticked = false)
-        store.save(run.at(item, clock.instant()).copy(tickedHere = run.tickedHere.take(run.tickedHere.lastIndexOf(item))))
+        changing.withLock {
+            val now = running(occurrenceId)?.takeIf { item in it.tickedHere } ?: return@withLock
+            store.save(now.at(item, clock.instant()).copy(tickedHere = now.tickedHere.take(now.tickedHere.lastIndexOf(item))))
+        }
         onChange()
     }
 
-    /** "Beenden": no run is running any more; the ticks stay as they are. */
-    suspend fun stop() {
-        store.clear()
+    /**
+     * "Beenden" of the run through the occurrence: no run is running any more; the ticks stay as they are. Nothing if
+     * another is running by now, as from a notification left from before.
+     */
+    suspend fun stop(occurrenceId: Long) {
+        changing.withLock {
+            if (store.current()?.occurrenceId == occurrenceId) store.clear()
+        }
         onChange()
     }
 
-    /** The step's time running out was told of, once. */
-    suspend fun alerted(occurrenceId: Long) {
-        val run = store.current()?.takeIf { it.occurrenceId == occurrenceId } ?: return
+    /**
+     * The time of the step [itemId], shown since [since], running out was told of, once; nothing once the run has moved
+     * on from it, so that the next step still gets its own.
+     */
+    suspend fun alerted(occurrenceId: Long, itemId: Long, since: Instant) = changing.withLock {
+        val run = running(occurrenceId)?.takeIf { it.stepItemId == itemId && it.stepStartedAt == since } ?: return@withLock
         store.save(run.copy(alerted = true))
     }
 
-    /** The run through the occurrence, while it runs, and the step it is at. */
-    private suspend fun atStep(occurrenceId: Long): Pair<Run, RunView.Step>? {
-        val run = store.current()?.takeIf { it.occurrenceId == occurrenceId && it.finishedAt == null } ?: return null
-        val step = view(occurrenceId, run.routineId).first() as? RunView.Step ?: return null
-        // As the view had it: at this step, since it showed.
-        return (store.current() ?: run) to step
+    /** The run through the occurrence, while it runs. */
+    private suspend fun running(occurrenceId: Long): Run? =
+        store.current()?.takeIf { it.occurrenceId == occurrenceId && it.finishedAt == null }
+
+    /** The step the run through the occurrence is at, while it runs. */
+    private suspend fun stepOf(occurrenceId: Long): RunView.Step? {
+        val run = running(occurrenceId) ?: return null
+        return view(occurrenceId, run.routineId).first() as? RunView.Step
+    }
+
+    /**
+     * The run through the occurrence follows when the step showing is another than its own, as when one was ticked off on
+     * Heute meanwhile: that one shows since [at]. Nothing once it no longer runs, so that a view from before it ended does
+     * not bring it back.
+     */
+    private suspend fun follow(occurrenceId: Long, itemId: Long, at: Instant) = changing.withLock {
+        val run = running(occurrenceId)?.takeIf { it.stepItemId != itemId } ?: return@withLock
+        store.save(run.at(itemId, at))
     }
 
     /**
      * What the open [occurrence] shows of its [run], and once its time window ends, that it was missed, though nothing
      * marked it so yet: the alarm that does may come later. A step other than the run's, as one ticked off on Heute
-     * meanwhile, begins now.
+     * meanwhile, begins now, and the kept run follows ([follow]).
      */
     private fun untilWindowEnds(run: Run?, occurrence: RunOccurrence): Flow<RunView> = flow {
-        val view = viewOf(run, occurrence)
-        if (run != null && view is RunView.Step && run.stepItemId != view.item.itemId) {
-            // The kept run follows, which shows the step anew.
-            store.save(run.at(view.item.itemId, clock.instant()))
-            return@flow
-        }
+        val now = clock.instant()
+        val view = viewOf(run, occurrence, now)
+        // Before it shows: one who only looks once, as the notification does, is to find the run following too.
+        if (view is RunView.Step && run?.stepItemId != view.item.itemId) follow(occurrence.occurrence.id, view.item.itemId, now)
         emit(view)
         if (view !is RunView.Step) return@flow
         val end = occurrence.routine.windowEnd(occurrence.occurrence, clock.zone)
@@ -275,8 +309,11 @@ class RoutineRuns(
         RoutineStatus.Active, null -> RunEnd.Gone
     }
 
-    /** What an occurrence not done shows of its [run]: its next step while both run, why it ended otherwise. */
-    private fun viewOf(run: Run?, open: RunOccurrence): RunView {
+    /**
+     * What an occurrence not done shows of its [run] at [now]: its next step while both run, why it ended otherwise. A step
+     * other than the run's shows since [now].
+     */
+    private fun viewOf(run: Run?, open: RunOccurrence, now: Instant): RunView {
         val (occurrence, routine, checklist) = open
         val why = when {
             routine.status == RoutineStatus.Paused -> RunEnd.Paused
@@ -286,17 +323,18 @@ class RoutineRuns(
             occurrence.status == OccurrenceStatus.Dropped -> RunEnd.Dropped
             occurrence.status == OccurrenceStatus.Missed -> RunEnd.Missed
             // Over, though the alarm that marks it missed has not come yet.
-            routine.windowEnded(occurrence, clock.instant(), clock.zone) -> RunEnd.Missed
-            run == null || run.finishedAt != null -> RunEnd.Stopped
+            routine.windowEnded(occurrence, now, clock.zone) -> RunEnd.Missed
             else -> null
         }
         if (why != null) return RunView.Ended(why)
+        if (run == null || run.finishedAt != null) return RunView.Ended(RunEnd.Stopped)
         val next = checklist.indexOfFirst { !it.ticked }
         if (next < 0) return RunView.Ended(RunEnd.Gone)
+        val item = checklist[next]
         return RunView.Step(
-            routine.name, checklist[next], number = next + 1, count = checklist.size, checklist = checklist,
-            startedAt = run!!.stepStartedAt, runStartedAt = run.startedAt, canGoBack = run.lastTicked(checklist) != null,
-            nameOnLockScreen = routine.style.nameOnLockScreen,
+            routine.name, item, number = next + 1, count = checklist.size, checklist = checklist,
+            startedAt = if (run.stepItemId == item.itemId) run.stepStartedAt else now, runStartedAt = run.startedAt,
+            canGoBack = run.lastTicked(checklist) != null, nameOnLockScreen = routine.style.nameOnLockScreen,
         )
     }
 }

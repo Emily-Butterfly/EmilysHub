@@ -163,16 +163,16 @@ private fun StepView(step: RunView.Step, now: Instant, zone: ZoneId, onDone: () 
  */
 @Composable
 private fun TimeRing(progress: Float, time: String, over: Boolean) {
-    val label = if (over) stringResource(R.string.run_overtime) + " " + time else time
+    val label = if (over) stringResource(R.string.run_overtime_spoken, time) else time
     Box(Modifier.size(RING).semantics(mergeDescendants = true) { contentDescription = label }, contentAlignment = Alignment.Center) {
         CircularProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
             modifier = Modifier.size(RING),
-            color = if (over) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+            color = if (over) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
             strokeWidth = 8.dp,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
         )
-        Text(time, style = MaterialTheme.typography.displaySmall, color = if (over) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface)
+        Text(time, style = MaterialTheme.typography.displaySmall, color = if (over) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface)
     }
 }
 

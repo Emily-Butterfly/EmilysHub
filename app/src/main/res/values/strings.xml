@@ -1420,6 +1420,7 @@
     <string name="run_stop">Beenden</string>
     <string name="run_notification_title">Ablauf läuft</string>
     <string name="run_overtime">Überzeit</string>
+    <string name="run_overtime_spoken">Überzeit %1$s</string>
     <string name="run_channel">Laufender Ablauf</string>
     <string name="run_alert_channel">Ablauf: Zeit um</string>
     <plurals name="run_left">

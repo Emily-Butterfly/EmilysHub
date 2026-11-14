@@ -7,7 +7,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
@@ -52,7 +51,6 @@ data class RunWithStart(
 
 @Dao
 interface RunDao {
-    @Transaction
     @Query(RUNS)
     fun observeRuns(): Flow<List<RunWithStart>>
 

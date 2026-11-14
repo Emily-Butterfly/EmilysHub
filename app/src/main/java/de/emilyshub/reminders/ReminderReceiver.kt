@@ -25,7 +25,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
             ACTION_RUN_STEP_END -> suspend { app.updateRun() }
             ACTION_RUN_DONE -> intent.runStep()?.let { (occurrence, item) -> suspend { app.runs.done(occurrence, item) } }
-            ACTION_RUN_STOP -> suspend { app.runs.stop() }
+            ACTION_RUN_STOP -> intent.occurrenceId()?.let { occurrence -> suspend { app.runs.stop(occurrence) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }

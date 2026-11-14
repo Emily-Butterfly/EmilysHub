@@ -109,6 +109,10 @@ class RunNotificationTest {
     fun `Beenden takes it away and leaves the ticks`() {
         val occurrence = startRun()
 
+        // Of another occurrence, as from a notification shown before: nothing.
+        send(ReminderReceiver.ACTION_RUN_STOP, occurrence + 1, item = 1)
+        assertEquals(occurrence, runBlocking { app.runs.current() }?.occurrenceId)
+
         send(ReminderReceiver.ACTION_RUN_STOP, occurrence, item = 1)
 
         assertNull(shown())
@@ -131,6 +135,17 @@ class RunNotificationTest {
         val notification = checkNotNull(shown())
         assertEquals((app.clock.now + Duration.ofMinutes(3)).toEpochMilli(), notification.`when`)
         assertEquals(1, alarms.alarmsFor(ReminderReceiver.ACTION_RUN_STEP_END).size)
+    }
+
+    @Test
+    fun `after the app was stopped by force it stands again on the next start`() {
+        startRun()
+        manager.cancelAll()
+
+        app.onCreate()
+        idle()
+
+        assertTrue(shown() != null)
     }
 
     @Test

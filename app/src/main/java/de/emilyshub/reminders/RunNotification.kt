@@ -49,7 +49,7 @@ class RunNotification(
         if (end != null && now.isBefore(end) && !run.alerted) alarm.set(end) else alarm.cancel()
         createChannels()
         manager.notify(TAG, ID, notification(run.occurrenceId, run.routineId, step, alert))
-        if (alert) runs.alerted(run.occurrenceId)
+        if (alert) runs.alerted(run.occurrenceId, step.item.itemId, step.startedAt)
     }
 
     private fun notification(occurrenceId: Long, routineId: Long, step: RunView.Step, alert: Boolean): Notification {
@@ -63,7 +63,8 @@ class RunNotification(
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setOngoing(true)
             .setOnlyAlertOnce(!alert)
-            // It says no more than the lock screen may show (RunFace).
+            // It says no more than the lock screen may show (RunFace), on the phone unlocked too: a run is short, and
+            // one notification for both keeps it from changing as the phone is unlocked.
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setLocalOnly(true)
             .setShowWhen(true)
@@ -102,6 +103,8 @@ class RunNotification(
     private fun action(title: Int, action: String, occurrenceId: Long, itemId: Long): Notification.Action {
         val intent = Intent(context, ReminderReceiver::class.java)
             .setAction(action)
+            // Tells the intents of different runs and steps apart, so that each keeps its own extras.
+            .setIdentifier("$TAG:$occurrenceId:$itemId")
             .putExtra(EXTRA_OCCURRENCE, occurrenceId)
             .putExtra(EXTRA_ITEM, itemId)
         val operation = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -125,7 +128,7 @@ class RunNotification(
         /** The step an action of the notification is about. */
         const val EXTRA_ITEM = "item"
 
-        /** Not the request code of the reminders' taps. */
+        /** Not the request code of the reminders' taps (0), nor that of "Gedanke festhalten" (1). */
         private const val REQUEST_OPEN = 2
     }
 }

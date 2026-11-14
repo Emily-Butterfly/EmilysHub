@@ -140,7 +140,7 @@ class RoutineRunsTest {
         val occurrence = routine("Morgens", "Wasser", "Zähne", "Dehnen")
         start(occurrence)
         done(occurrence)
-        runs.stop()
+        runs.stop(occurrence)
 
         start(occurrence)
 
@@ -152,7 +152,7 @@ class RoutineRunsTest {
         val occurrence = routine("Morgens", "Wasser", "Zähne")
         start(occurrence)
         val first = step(occurrence).runStartedAt
-        runs.stop()
+        runs.stop(occurrence)
         clock.now = clock.now.plus(Duration.ofMinutes(3))
 
         start(occurrence)
@@ -212,7 +212,7 @@ class RoutineRunsTest {
         done(occurrence)
         val before = changes
 
-        runs.stop()
+        runs.stop(occurrence)
 
         assertNull(runs.current())
         assertEquals(RunEnd.Stopped, (view(occurrence) as RunView.Ended).why)
@@ -341,7 +341,7 @@ class RoutineRunsTest {
         val later = clock.now + Duration.ofMinutes(4)
         assertEquals(Outlook(steps = 3, doneBy = later + Duration.ofMinutes(13)), step.outlook(later))
 
-        runs.stop()
+        runs.stop(timed)
         val partly = routine("Abends", "Lesen", "Licht aus", time = "20:00", minutes = listOf(5, null))
         start(partly)
         assertEquals(Outlook(steps = 2, doneBy = null), step(partly).outlook(clock.now))
@@ -393,12 +393,52 @@ class RoutineRunsTest {
     }
 
     @Test
+    fun `Beenden from the notification of a run ended already leaves the one running`() = runBlocking {
+        val morning = routine("Morgens", "Wasser")
+        val evening = routine("Abends", "Lesen", time = "20:00")
+        start(morning)
+        start(evening)
+
+        runs.stop(morning)
+
+        assertEquals(evening, runs.current()?.occurrenceId)
+    }
+
+    @Test
+    fun `a view that saw a run before it was ended does not bring it back`() = runBlocking {
+        val occurrence = routine("Morgens", "Wasser", "Zähne")
+        start(occurrence)
+        val views = runs.view(occurrence, routineIdOf(occurrence))
+        assertEquals("Wasser", (views.first() as RunView.Step).item.text)
+        runs.stop(occurrence)
+
+        // Ticked off on Heute: the step the run would follow, were it still running.
+        routines.tick(occurrence, itemId("Wasser"), ticked = true)
+        views.first()
+
+        assertNull(runs.current())
+    }
+
+    @Test
+    fun `the end of a step's time told of marks only that step, not the next one`() = runBlocking {
+        val occurrence = routine("Morgens", "Wasser", "Zähne", minutes = listOf(1, 1))
+        start(occurrence)
+        val first = step(occurrence)
+        done(occurrence)
+
+        runs.alerted(occurrence, first.item.itemId, first.startedAt)
+
+        assertEquals(false, runs.current()?.alerted)
+    }
+
+    @Test
     fun `the time running out is alerted once`() = runBlocking {
         val occurrence = routine("Morgens", "Wasser", "Zähne", minutes = listOf(1, 1))
         start(occurrence)
         assertEquals(false, runs.current()?.alerted)
 
-        runs.alerted(occurrence)
+        val step = step(occurrence)
+        runs.alerted(occurrence, step.item.itemId, step.startedAt)
         assertEquals(true, runs.current()?.alerted)
 
         done(occurrence)
