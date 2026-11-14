@@ -2,10 +2,10 @@ package de.emilyshub.routines
 
 import de.emilyshub.stats.RoutineHistory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.io.Serializable
 import java.time.Clock
@@ -99,18 +99,34 @@ class RoutineRuns(private val routines: Routines, private val clock: Clock) {
 
     /** What the [run] shows, anew as its occurrence, its routine and its history change. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun view(run: Run): Flow<RunView> = routines.forRun(run.occurrenceId).flatMapLatest { of ->
-        // Setting a routine aside takes its open occurrences away.
-        of ?: return@flatMapLatest flow { emit(RunView.Ended(goneBecause(routines.get(run.routineId)))) }
-        if (of.occurrence.status == OccurrenceStatus.Done) {
-            routines.history(of.routine.id).map { RunView.Done(of.routine.name, RoutineHistory(it).streaks().current) }
-        } else {
-            flowOf(viewOf(of))
+    fun view(run: Run): Flow<RunView> = routines.forRun(run.occurrenceId).flatMapLatest { occurrence ->
+        when {
+            // Setting a routine aside takes its open occurrences away.
+            occurrence == null -> flow { emit(RunView.Ended(goneBecause(routines.get(run.routineId)))) }
+            occurrence.occurrence.status == OccurrenceStatus.Done -> routines.history(occurrence.routine.id).map {
+                RunView.Done(occurrence.routine.name, RoutineHistory(it).streaks().current)
+            }
+            else -> untilWindowEnds(occurrence)
         }
+    }
+
+    /**
+     * What the open [occurrence] shows, and once its time window ends, that it was missed, though nothing marked it so
+     * yet: the alarm that does may come later.
+     */
+    private fun untilWindowEnds(occurrence: RunOccurrence): Flow<RunView> = flow {
+        val view = viewOf(occurrence)
+        emit(view)
+        if (view !is RunView.Step) return@flow
+        val end = occurrence.routine.windowEnd(occurrence.occurrence, clock.zone)
+        delay(Duration.between(clock.instant(), end).toMillis().coerceAtLeast(0))
+        emit(RunView.Ended(RunEnd.Missed))
     }
 
     /** "Fertig": ticks the [step] off, and the run moves on; with the last of them, the routine is done. */
     suspend fun done(run: Run, step: RunView.Step): Run {
+        // Tapped again before the next step shows.
+        if (step.item.itemId in run.tickedHere) return run
         routines.tick(run.occurrenceId, step.item.itemId, ticked = true)
         return run.copy(tickedHere = run.tickedHere + step.item.itemId, finishedAt = if (step.last) clock.instant() else null)
     }
@@ -119,7 +135,7 @@ class RoutineRuns(private val routines: Routines, private val clock: Clock) {
     suspend fun back(run: Run, step: RunView.Step): Run {
         val item = run.lastTicked(step) ?: return run
         routines.tick(run.occurrenceId, item, ticked = false)
-        return run.copy(tickedHere = run.tickedHere.subList(0, run.tickedHere.lastIndexOf(item)))
+        return run.copy(tickedHere = run.tickedHere.take(run.tickedHere.lastIndexOf(item)))
     }
 
     /** Why the occurrence of [routine] is gone: it was set aside, or deleted with it. */
@@ -130,12 +146,12 @@ class RoutineRuns(private val routines: Routines, private val clock: Clock) {
     }
 
     /** What an occurrence not done shows: its next step while it is open, why it ended otherwise. */
-    private fun viewOf(of: RunOccurrence): RunView {
-        val (occurrence, routine, checklist) = of
+    private fun viewOf(open: RunOccurrence): RunView {
+        val (occurrence, routine, checklist) = open
         val why = when {
             routine.status == RoutineStatus.Paused -> RunEnd.Paused
             routine.status == RoutineStatus.Archived -> RunEnd.Archived
-            of.coveredBy != null -> RunEnd.Covered(of.coveredBy)
+            open.coveredBy != null -> RunEnd.Covered(open.coveredBy)
             occurrence.status == OccurrenceStatus.Skipped -> RunEnd.Skipped
             occurrence.status == OccurrenceStatus.Dropped -> RunEnd.Dropped
             occurrence.status == OccurrenceStatus.Missed -> RunEnd.Missed

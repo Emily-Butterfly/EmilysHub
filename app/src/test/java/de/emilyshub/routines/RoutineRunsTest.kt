@@ -7,9 +7,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.ByteArrayOutputStream
+import java.io.ObjectOutputStream
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -70,6 +77,29 @@ class RoutineRunsTest {
         assertEquals(listOf("Wasser" to true, "Zähne" to false, "Dehnen" to false), checklist())
         assertEquals("Zähne", (view(run) as RunView.Step).item.text)
         assertEquals(true, run.canGoBack(view(run) as RunView.Step))
+    }
+
+    @Test
+    fun `a run gone back a step can still be kept, as Android keeps a screen's state`() = runBlocking {
+        val occurrence = routine("Morgens", "Wasser", "Zähne", "Dehnen")
+        var run = start(occurrence)
+        run = runs.done(run, view(run) as RunView.Step)
+        run = runs.done(run, view(run) as RunView.Step)
+        run = runs.back(run, view(run) as RunView.Step)
+
+        ObjectOutputStream(ByteArrayOutputStream()).writeObject(run)
+    }
+
+    @Test
+    fun `Fertig tapped twice on the same step ticks it off once`() = runBlocking {
+        val occurrence = routine("Morgens", "Wasser", "Zähne")
+        var run = start(occurrence)
+        val step = view(run) as RunView.Step
+
+        run = runs.done(runs.done(run, step), step)
+
+        assertEquals(1, run.tickedHere.size)
+        assertNull(run.finishedAt)
     }
 
     @Test
@@ -171,6 +201,23 @@ class RoutineRunsTest {
 
         routines.markMissed(since = Instant.parse("2026-10-23T05:00:00Z"))
         assertEquals(RunEnd.Missed, (view(run) as RunView.Ended).why)
+    }
+
+    @Test
+    fun `a step showing ends as the time window does, with nothing written`() = runTest {
+        val occurrence = routine("Morgens", "Wasser", time = "07:30")
+        val views = mutableListOf<RunView>()
+        val collecting = launch { runs.view(start(occurrence)).collect { views += it } }
+        runCurrent()
+        assertEquals(1, views.size)
+
+        // The window of four hours ends at 11:30, four and a half hours from now.
+        advanceTimeBy(Duration.ofMinutes(270).toMillis() - 1)
+        assertEquals(1, views.size)
+        clock.now = Instant.parse("2026-10-23T09:30:00Z")
+        advanceTimeBy(2)
+        assertEquals(RunEnd.Missed, (views.last() as RunView.Ended).why)
+        collecting.cancel()
     }
 
     @Test

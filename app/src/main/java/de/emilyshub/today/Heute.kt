@@ -198,6 +198,12 @@ val DueRoutine.offer: RoutineOffer
         OccurrenceStatus.Done, OccurrenceStatus.Missed -> RoutineOffer.None
     }
 
+/**
+ * Whether it can be run through step by step (SPEC.md §2, Ablauf-Modus): open, with a checklist. Only on Heute, not
+ * when catching up on yesterday.
+ */
+val DueRoutine.startable: Boolean get() = offer == RoutineOffer.SkipOrDrop && checklist.isNotEmpty()
+
 /** Ticking entries of one day off, or unticking them: whether a routine's occurrence or a to-do, by its id. */
 class Ticking internal constructor(
     private val routineDone: suspend (occurrenceId: Long, done: Boolean) -> Unit,

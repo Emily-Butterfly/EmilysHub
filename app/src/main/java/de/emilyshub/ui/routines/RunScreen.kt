@@ -92,7 +92,8 @@ fun RunScreen(runs: RoutineRuns, day: Day, run: Run, onRunChange: (Run) -> Unit,
                 onBack = { scope.launchNow { onRunChange(runs.back(latestRun, view)) } },
                 modifier = modifier,
             )
-            is RunView.Done -> DoneView(view, took = run.took(day.now()), onClose = onClose, modifier = modifier)
+            // Done otherwise, from its reminder say, it took until it was seen done.
+            is RunView.Done -> DoneView(view, took = remember(run) { run.took(day.now()) }, onClose = onClose, modifier = modifier)
             is RunView.Ended -> Ended(view.why, onClose)
         }
     }

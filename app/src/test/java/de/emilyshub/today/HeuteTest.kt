@@ -9,6 +9,7 @@ import de.emilyshub.ledger.SubscriptionDraft
 import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.routine
+import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
@@ -274,6 +275,17 @@ class HeuteTest {
         entries.filterIsInstance<TodayEntry.OfRoutine>().map { it.routine.dueAt.toLocalDateTime() }
 
     private fun HeuteDay.doneToday() = heatmap.weeks.flatten().single { it.date == date }.done
+
+    @Test
+    fun `only an open one with a checklist can be run through step by step`() {
+        val item = ChecklistEntry(itemId = 1, text = "Wasser", ticked = false)
+        assertTrue(due(OccurrenceStatus.Open).copy(checklist = listOf(item)).startable)
+        assertFalse(due(OccurrenceStatus.Open).startable)
+        OccurrenceStatus.entries.filter { it != OccurrenceStatus.Open }.forEach { status ->
+            assertFalse(status.name, due(status).copy(checklist = listOf(item)).startable)
+        }
+        assertFalse(due(OccurrenceStatus.Skipped).copy(checklist = listOf(item), coveredBy = "Laufen").startable)
+    }
 
     private fun due(status: OccurrenceStatus) = DueRoutine(
         occurrenceId = 1, routineId = 1, name = "Vitamine",

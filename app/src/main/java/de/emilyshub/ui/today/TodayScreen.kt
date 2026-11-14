@@ -57,6 +57,7 @@ import de.emilyshub.today.TodayEntry
 import de.emilyshub.today.catchUpTickable
 import de.emilyshub.today.covered
 import de.emilyshub.today.offer
+import de.emilyshub.today.startable
 import de.emilyshub.today.tickable
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.DueTodo
@@ -413,8 +414,7 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
             onUndo = { act { undo(routine) } },
             onLongClick = onHeute?.let { { menuOpen = true } },
             // Today's, and yesterday's still in its time window; not when catching up on yesterday (SPEC.md §2).
-            onStart = onHeute?.takeIf { routine.offer == RoutineOffer.SkipOrDrop && routine.checklist.isNotEmpty() }
-                ?.let { { it.startRun(routine) } },
+            onStart = onHeute?.takeIf { routine.startable }?.let { { it.startRun(routine) } },
         ) {
             onHeute ?: return@DueRoutineRow
             MoreMenu(routine.name, menuOpen, onExpandedChange = { menuOpen = it }) { close ->
