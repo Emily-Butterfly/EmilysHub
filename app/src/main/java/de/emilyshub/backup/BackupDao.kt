@@ -38,6 +38,7 @@ import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.routines.RunRow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
@@ -181,4 +182,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM inbox")
     fun inbox(): List<InboxEntry>
+
+    @Query("SELECT * FROM runs")
+    fun runs(): List<RunRow>
 }

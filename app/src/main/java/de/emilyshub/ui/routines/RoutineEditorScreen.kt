@@ -259,7 +259,7 @@ fun RoutineEditorScreen(
                     draft = draft.copy(endsOn = (it as? RecurrenceEnd.OnDate)?.date)
                 })
             }
-            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
+            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) }, withMinutes = true)
             MoreOptions(
                 expanded = moreOptions,
                 onExpandedChange = { moreOptions = it },
@@ -333,6 +333,7 @@ private val UNFOLDED = setOf(
     DraftProblem.GoneBy,
     DraftProblem.ChecklistTooLong,
     DraftProblem.ChecklistItemTooLong,
+    DraftProblem.ChecklistMinutesOutOfRange,
 )
 
 /** What under "Mehr Optionen" differs from a new routine, in the order of its fields. */

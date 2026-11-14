@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
@@ -26,9 +27,12 @@ import de.emilyshub.routines.ChecklistDraftItem
 import de.emilyshub.routines.Checklists
 import de.emilyshub.ui.SectionTitle
 
-/** The checklist's sub-items in their order (SPEC.md §2, §5): each can be changed or taken away, and more added. */
+/**
+ * The checklist's sub-items in their order (SPEC.md §2, §5): each can be changed or taken away, and more added; a
+ * routine's, [withMinutes], each with the minutes it is to take in the Ablauf-Modus, if any.
+ */
 @Composable
-fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDraftItem>) -> Unit) {
+fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDraftItem>) -> Unit, withMinutes: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.field_checklist))
         items.forEachIndexed { index, item ->
@@ -49,6 +53,10 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
                     },
                     modifier = Modifier.weight(1f),
                 )
+                if (withMinutes) {
+                    Spacer(Modifier.width(8.dp))
+                    MinutesField(item.minutes) { minutes -> onChange(items.toMutableList().also { it[index] = item.copy(minutes = minutes) }) }
+                }
                 IconButton(onClick = { onChange(items.toMutableList().also { it.removeAt(index) }) }) {
                     Icon(
                         Icons.Filled.Close,
@@ -69,3 +77,33 @@ fun ChecklistFields(items: List<ChecklistDraftItem>, onChange: (List<ChecklistDr
         }
     }
 }
+
+/**
+ * An item's minutes for the Ablauf-Modus (SPEC.md §2): digits only, empty for none; out of 1 to 180, it says so, and the
+ * routine is not saved.
+ */
+@Composable
+private fun MinutesField(minutes: Int?, onChange: (Int?) -> Unit) {
+    val outOfRange = minutes != null && minutes !in Checklists.MINUTES
+    OutlinedTextField(
+        value = minutes?.toString().orEmpty(),
+        onValueChange = { typed ->
+            val digits = typed.filter(Char::isDigit).take(MINUTES_DIGITS)
+            onChange(digits.toIntOrNull())
+        },
+        label = { Text(stringResource(R.string.checklist_minutes)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        isError = outOfRange,
+        supportingText = if (outOfRange) {
+            { Text(stringResource(R.string.checklist_minutes_range)) }
+        } else {
+            null
+        },
+        modifier = Modifier.width(MINUTES_WIDTH),
+    )
+}
+
+/** Up to 180, and no more digits than that has. */
+private const val MINUTES_DIGITS = 3
+private val MINUTES_WIDTH = 96.dp

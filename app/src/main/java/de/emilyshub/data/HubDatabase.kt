@@ -52,6 +52,8 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineDao
 import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.routines.RunDao
+import de.emilyshub.routines.RunRow
 import de.emilyshub.search.SearchDao
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.TagDao
@@ -86,6 +88,7 @@ import java.io.File
         Language::class, Teacher::class, TeacherLanguage::class, Lesson::class, Exam::class, Topic::class, LessonTopic::class,
         LessonAttachment::class,
         InboxEntry::class,
+        RunRow::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -113,12 +116,14 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun inbox(): InboxDao
 
+    abstract fun runs(): RunDao
+
     abstract fun search(): SearchDao
 
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 50
+        const val VERSION = 51
         internal const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -153,7 +158,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
             MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44,
             MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49,
-            MIGRATION_49_50,
+            MIGRATION_49_50, MIGRATION_50_51,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

@@ -120,6 +120,7 @@ import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
 import de.emilyshub.ui.routines.RunScreen
+import de.emilyshub.ui.routines.rememberStartRun
 import de.emilyshub.ui.search.SearchScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
@@ -404,9 +405,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                     hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
                     onClose = back, onOpenNote = openNote,
                 )
-                is Destination.Run -> RunScreen(
-                    hub.runs, hub.day, top.run, onRunChange = { stack = stack.replaceTop(Destination.Run(it)) }, onClose = back,
-                )
+                is Destination.Run -> RunScreen(hub.runs, hub.day, top.occurrenceId, top.routineId, onClose = back)
                 Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
                 is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
                 Destination.Statistics ->
@@ -454,7 +453,8 @@ private fun TopLevelScaffold(
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
+    // "Starten" on Heute (SPEC.md §2), asking first should another run be running.
+    val startRun = rememberStartRun(hub.runs, hub.routines) { occurrence, routine -> open(Destination.Run(occurrence, routine)) }
     // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together; none until
     // all of it is there.
     val heuteDay = if (current == TopLevelDestination.Today) rememberHeute(hub.heute) else null
@@ -580,10 +580,7 @@ private fun TopLevelScaffold(
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
-                    onStartRun = { routine ->
-                        // Opened once it is known since when it runs: the first start, if it was started before.
-                        scope.launchNow { open(Destination.Run(hub.runs.start(routine.occurrenceId, routine.routineId))) }
-                    },
+                    onStartRun = startRun,
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

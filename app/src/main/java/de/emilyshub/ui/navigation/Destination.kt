@@ -63,8 +63,8 @@ sealed interface Destination : Serializable {
     /** A routine's editor (SPEC.md §2). */
     data class RoutineEditor(override val target: RoutineEditorTarget) : Editor
 
-    /** A run through a routine's checklist, step by step (SPEC.md §2, Ablauf-Modus), as far as it is. */
-    data class Run(val run: de.emilyshub.routines.Run) : Destination
+    /** The run through the checklist of an occurrence of the routine, step by step (SPEC.md §2, Ablauf-Modus). */
+    data class Run(val occurrenceId: Long, val routineId: Long) : Destination
 
     /** The routines archived (SPEC.md §2). */
     data object RoutineArchive : Destination

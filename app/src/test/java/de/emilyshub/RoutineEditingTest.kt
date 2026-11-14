@@ -28,6 +28,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
@@ -593,6 +594,37 @@ class RoutineEditingTest {
         }
         val teeth = savedRoutines().single()
         assertEquals(listOf("Zahnseide"), runBlocking { app.routines.checklist(teeth.id) }.map { it.text })
+    }
+
+    @Test
+    fun `each item of a routine's checklist may have minutes for the Ablauf-Modus, from 1 to 180`() {
+        launchApp().use {
+            newRoutine("Morgens")
+            compose.onNodeWithText("Unterpunkt hinzufügen").tap()
+            field("Unterpunkt").performTextInput("Dehnen")
+            field("Minuten").performScrollTo().performTextInput("181")
+            compose.onNodeWithText("1 bis 180").assertExists()
+            compose.onNodeWithText("Speichern").performClick()
+            assertEquals(emptyList<Any>(), savedRoutines())
+
+            field("Minuten").performTextClearance()
+            field("Minuten").performTextInput("1x0")
+            compose.onNodeWithText("Speichern").performClick()
+            heading("Routinen").assertIsDisplayed()
+        }
+        val routine = savedRoutines().single()
+        assertEquals(listOf<Int?>(10), runBlocking { app.routines.checklist(routine.id) }.map { it.minutes })
+    }
+
+    @Test
+    fun `a to-do's checklist has no minutes`() {
+        launchApp().use {
+            tab("To-dos").performClick()
+            compose.onNodeWithContentDescription("To-do anlegen").performClick()
+            compose.openMoreOptions()
+            compose.onNodeWithText("Unterpunkt hinzufügen").tap()
+            field("Minuten").assertDoesNotExist()
+        }
     }
 
     @Test

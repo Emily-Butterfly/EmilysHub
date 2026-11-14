@@ -7,8 +7,8 @@ import de.emilyshub.EmilysHubApplication
 
 /**
  * Sets the reminder alarm and the one for the night's backup anew when Android has dropped them (restart, app update)
- * or their time has moved (clock or time zone changed, exact alarms allowed again); and "Gedanke festhalten", which
- * Android drops with a restart. Not exported: the system's broadcasts still
+ * or their time has moved (clock or time zone changed, exact alarms allowed again); and "Gedanke festhalten" and a
+ * running run's notification, which Android drops with a restart. Not exported: the system's broadcasts still
  * arrive, other apps' do not, and any other action is ignored (SPEC.md §9).
  */
 class RescheduleReceiver : BroadcastReceiver() {
@@ -24,6 +24,8 @@ class RescheduleReceiver : BroadcastReceiver() {
                 } finally {
                     // Android drops the notification "Gedanke festhalten" with a restart; it stands again (SPEC.md §16).
                     app.updateCaptureNotification()
+                    // And that of a run running, with the alarm for the end of its step (SPEC.md §2).
+                    app.updateRun()
                 }
             }
         }

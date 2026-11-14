@@ -150,6 +150,17 @@ class RoutineDraftTest {
         assertEquals(setOf(DraftProblem.ChecklistItemTooLong), draft(checklist = listOf(tooLong)).problems)
     }
 
+    @Test
+    fun `an item's minutes for the Ablauf-Modus are optional, and from 1 to 180`() {
+        val items = listOf(ChecklistDraftItem(text = "Putzen", minutes = 1), ChecklistDraftItem(text = "Dehnen", minutes = 180))
+        assertEquals(emptySet<DraftProblem>(), draft(checklist = items + ChecklistDraftItem(text = "Spülen")).problems)
+
+        listOf(0, 181).forEach { minutes ->
+            val outOfRange = listOf(ChecklistDraftItem(text = "Putzen", minutes = minutes))
+            assertEquals("$minutes", setOf(DraftProblem.ChecklistMinutesOutOfRange), draft(checklist = outOfRange).problems)
+        }
+    }
+
     private fun draft(
         name: String = "Zähne putzen",
         description: String = "",

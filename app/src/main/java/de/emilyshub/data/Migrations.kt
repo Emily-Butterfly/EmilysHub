@@ -768,3 +768,19 @@ val MIGRATION_49_50 = object : Migration(49, 50) {
         db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `run_started_at` TEXT")
     }
 }
+
+/**
+ * Version 51: the Ablauf-Modus with times (SPEC.md §2, #102): a routine's checklist item may have minutes, none has yet;
+ * and the run that is running is kept, with the step it is at, so that it outlives the app. None is running yet.
+ */
+val MIGRATION_50_51 = object : Migration(50, 51) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `checklist_items` ADD COLUMN `minutes` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `runs` (`occurrence_id` INTEGER NOT NULL, `routine_id` INTEGER NOT NULL, " +
+                "`step_item_id` INTEGER, `step_started_at` TEXT NOT NULL, `ticked_here` TEXT NOT NULL, `finished_at` TEXT, " +
+                "`alerted` INTEGER NOT NULL, PRIMARY KEY(`occurrence_id`), " +
+                "FOREIGN KEY(`occurrence_id`) REFERENCES `occurrences`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}

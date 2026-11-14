@@ -58,7 +58,7 @@ data class OccurrenceWithChecklist(
     fun entries(): List<ChecklistEntry> {
         val ticked = ticks.map { it.itemId }.toSet()
         return checklist.sortedBy { it.position }.map {
-            ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked)
+            ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked, minutes = it.minutes)
         }
     }
 }

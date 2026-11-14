@@ -774,6 +774,19 @@ class RoutinesTest {
     }
 
     @Test
+    fun `a checklist item keeps its minutes for the Ablauf-Modus, and goes back to none`() = runBlocking {
+        val items = listOf(ChecklistDraftItem(text = "Putzen", minutes = 3), ChecklistDraftItem(text = "Spülen"))
+        val teeth = routines.create(draft("Zähne", "08:00").copy(checklist = items))
+        assertEquals(listOf(3, null), routines.checklist(teeth).map { it.minutes })
+        assertEquals(listOf(3, null), routines.editing(teeth)?.original?.checklist?.map { it.minutes })
+
+        val (brush, rinse) = routines.checklist(teeth)
+        routines.update(teeth, draft("Zähne", "08:00").copy(checklist = listOf(ChecklistDraftItem(brush.id, "Putzen"), ChecklistDraftItem(rinse.id, "Spülen", 2))))
+
+        assertEquals(listOf(null, 2), routines.checklist(teeth).map { it.minutes })
+    }
+
+    @Test
     fun `a routine is saved with its checklist, whose items keep their ticks while it is changed`() = runBlocking {
         val teeth = routines.create(draft("Zähne", "08:00", checklist = listOf("Putzen", "Zahnseide", "Spülen")))
         val (brush, floss, rinse) = routines.checklist(teeth)

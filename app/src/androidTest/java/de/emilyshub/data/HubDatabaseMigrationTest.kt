@@ -51,6 +51,8 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.routines.RunRow
+import de.emilyshub.routines.RunWithStart
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Recurrence
@@ -1080,6 +1082,32 @@ class HubDatabaseMigrationTest {
             dao.startRun(1, Instant.parse("2026-11-14T07:00:00Z"))
             dao.startRun(1, Instant.parse("2026-11-14T07:05:00Z"))
             assertEquals(Instant.parse("2026-11-14T07:00:00Z"), dao.occurrence(1)?.runStartedAt)
+        }
+    }
+
+    @Test
+    fun `version 50 moves to version 51 with items without minutes and no run, and then both are kept`() {
+        createAtVersion(50) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Morgens', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO checklist_items (id, routine_id, position, text) VALUES (1, 1, 0, 'Wasser')")
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (1, 1, '2026-11-14', '08:00', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.routines()
+            assertEquals(listOf<Int?>(null), dao.checklist(1).map { it.minutes })
+            dao.updateChecklistItems(dao.checklist(1).map { it.copy(minutes = 5) })
+            assertEquals(listOf<Int?>(5), dao.checklist(1).map { it.minutes })
+
+            val runs = database.runs()
+            assertEquals(emptyList<RunWithStart>(), runs.runs())
+            runs.save(RunRow(occurrenceId = 1, routineId = 1, stepItemId = 1, stepStartedAt = Instant.parse("2026-11-14T07:00:00Z")))
+            assertEquals(1L, runs.runs().single().row.stepItemId)
+            dao.deleteOccurrences(listOf(1))
+            assertEquals(emptyList<RunWithStart>(), runs.runs())
         }
     }
 

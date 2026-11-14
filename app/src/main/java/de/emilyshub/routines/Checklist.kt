@@ -19,6 +19,8 @@ data class ChecklistItem(
     @ColumnInfo(name = "routine_id") val routineId: Long,
     val position: Int,
     val text: String,
+    /** How long it is to take in the Ablauf-Modus (SPEC.md §2), from 1 to 180; none: no time, a stopwatch then. */
+    val minutes: Int? = null,
 )
 
 /** An item ticked off on one occurrence; each occurrence of the routine is ticked off on its own. */
@@ -38,11 +40,17 @@ data class ChecklistTick(
     @ColumnInfo(name = "item_id") val itemId: Long,
 )
 
-/** An item of the checklist on Heute: [ticked] off on this occurrence, or with all of it ticked off at once. */
-data class ChecklistEntry(val itemId: Long, val text: String, val ticked: Boolean)
+/**
+ * An item of the checklist on Heute: [ticked] off on this occurrence, or with all of it ticked off at once; with the
+ * [minutes] it is to take in the Ablauf-Modus, if any (SPEC.md §2).
+ */
+data class ChecklistEntry(val itemId: Long, val text: String, val ticked: Boolean, val minutes: Int? = null)
 
 /** How long a checklist of a routine or a to-do can be (SPEC.md §2, §5): how many items, of how many characters. */
 object Checklists {
     const val ITEMS_MAX = 20
     const val ITEM_LENGTH_MAX = 80
+
+    /** The minutes a routine's item may take in the Ablauf-Modus (SPEC.md §2). */
+    val MINUTES = 1..180
 }

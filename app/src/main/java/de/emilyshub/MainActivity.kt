@@ -59,6 +59,8 @@ class MainActivity : ComponentActivity() {
         private const val EXTRA_SUBSCRIPTION = "de.emilyshub.extra.OPEN_SUBSCRIPTION"
         private const val EXTRA_CANCEL = "de.emilyshub.extra.CANCEL"
         private const val EXTRA_CAPTURE = "de.emilyshub.extra.CAPTURE"
+        private const val EXTRA_RUN_OCCURRENCE = "de.emilyshub.extra.RUN_OCCURRENCE"
+        private const val EXTRA_RUN_ROUTINE = "de.emilyshub.extra.RUN_ROUTINE"
 
         /** The id of the shortcut "Neuer Gedanke" (SPEC.md §16). */
         const val SHORTCUT_CAPTURE = "capture"
@@ -88,6 +90,12 @@ class MainActivity : ComponentActivity() {
             context.getSystemService(ShortcutManager::class.java)?.dynamicShortcuts = listOf(shortcut)
         }
 
+        /** Opens the run through the occurrence of the routine (SPEC.md §2, Ablauf-Modus), as its notification does. */
+        fun openRun(context: Context, occurrenceId: Long, routineId: Long): Intent = Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_RUN_OCCURRENCE, occurrenceId)
+            .putExtra(EXTRA_RUN_ROUTINE, routineId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
         /** Opens the Abo [id] (#80), asking until when it was cancelled if [cancel], as its reminder does. */
         fun openSubscription(context: Context, id: Long, cancel: Boolean): Intent = Intent(context, MainActivity::class.java)
             .putExtra(EXTRA_SUBSCRIPTION, id)
@@ -95,12 +103,16 @@ class MainActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
         /**
-         * What [this] intent asks to open: the line for a thought, an Abo by a valid id, or nothing. The activity is the launcher's, so anything
+         * What [this] intent asks to open: the line for a thought, a run or an Abo by valid ids, or nothing. The activity is the launcher's, so anything
          * may send here: it opens no more than tapping through the app would, and only behind the app's lock (SPEC.md §9).
          */
         private fun Intent.opening(): Destination? {
             // The empty line for a thought, nothing else.
             if (getBooleanExtra(EXTRA_CAPTURE, false)) return Destination.Capture
+            // A run by valid ids: one not running shows that it ended, as it does in the app.
+            val occurrence = getLongExtra(EXTRA_RUN_OCCURRENCE, 0).takeIf { it > 0 }
+            val routine = getLongExtra(EXTRA_RUN_ROUTINE, 0).takeIf { it > 0 }
+            if (occurrence != null && routine != null) return Destination.Run(occurrence, routine)
             val id = getLongExtra(EXTRA_SUBSCRIPTION, 0).takeIf { it > 0 } ?: return null
             return Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(id, cancelling = getBooleanExtra(EXTRA_CANCEL, false)))
         }

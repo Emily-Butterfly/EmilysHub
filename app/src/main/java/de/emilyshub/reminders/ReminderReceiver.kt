@@ -15,7 +15,17 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
         val work: (suspend () -> Unit)? = when (intent.action) {
-            ACTION_REMIND -> suspend { app.reminders.remind() }
+            // Marking missed may end the occurrence a run is running through.
+            ACTION_REMIND -> suspend {
+                try {
+                    app.reminders.remind()
+                } finally {
+                    app.updateRun()
+                }
+            }
+            ACTION_RUN_STEP_END -> suspend { app.updateRun() }
+            ACTION_RUN_DONE -> intent.runStep()?.let { (occurrence, item) -> suspend { app.runs.done(occurrence, item) } }
+            ACTION_RUN_STOP -> suspend { app.runs.stop() }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
@@ -57,6 +67,15 @@ class ReminderReceiver : BroadcastReceiver() {
         /** The reminder to try out is due. */
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"
 
+        /** The time of a run's step is over (SPEC.md §2, Ablauf-Modus). */
+        const val ACTION_RUN_STEP_END = "de.emilyshub.action.RUN_STEP_END"
+
+        /** "Fertig" in a run's notification: the step it shows is ticked off. */
+        const val ACTION_RUN_DONE = "de.emilyshub.action.RUN_DONE"
+
+        /** "Beenden" in a run's notification: the run ends, its ticks staying as they are. */
+        const val ACTION_RUN_STOP = "de.emilyshub.action.RUN_STOP"
+
         /** The key of a choice "Später" offers ([PutOffChoice.key]). */
         const val EXTRA_PUT_OFF = "put-off"
     }
@@ -80,6 +99,13 @@ private fun Intent.answer(): Pair<Alarmed, Answer>? {
         else -> null
     }
     return answer?.let { about to it }
+}
+
+/** The occurrence and the step of its run that an action of a run's notification is about; none without valid ones. */
+private fun Intent.runStep(): Pair<Long, Long>? {
+    val occurrence = occurrenceId() ?: return null
+    val item = getLongExtra(RunNotification.EXTRA_ITEM, 0).takeIf { it > 0 } ?: return null
+    return occurrence to item
 }
 
 /** The occurrence that the intents of a reminder, its actions and its alarm, are about. */

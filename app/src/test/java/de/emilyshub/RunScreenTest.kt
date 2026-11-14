@@ -9,8 +9,10 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.OccurrenceStatus
@@ -126,6 +128,64 @@ class RunScreenTest {
             start()
 
             compose.onNodeWithText("Schritt 1 von 2 · 2:05").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a step with minutes shows a ring with its time left, and when all is done by`() {
+        app.routine("Morgens", "08:00", checklist = listOf("Wasser", "Zähne"), minutes = listOf(5, 3))
+
+        launchApp().use {
+            start()
+
+            compose.onNodeWithContentDescription("5:00").assertIsDisplayed()
+            compose.onNodeWithText("noch 2 Schritte, fertig gegen 07:08").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `its time over, the ring counts on as overtime, and only Fertig goes on`() {
+        app.routine("Morgens", "08:00", checklist = listOf("Wasser", "Zähne"), minutes = listOf(1, null))
+
+        launchApp().use {
+            start()
+            app.clock.now = app.clock.now.plusSeconds(105)
+            compose.mainClock.advanceTimeBy(2_000)
+
+            compose.onNodeWithContentDescription("Überzeit +0:45").assertIsDisplayed()
+            compose.onNodeWithText("Wasser").assertIsDisplayed()
+            compose.onNodeWithText("noch 2 Schritte").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `Starten at another routine asks whether to end the run running`() {
+        app.routine("Morgens", "08:00", checklist = listOf("Wasser"))
+        app.routine("Abends", "20:00", checklist = listOf("Lesen"))
+
+        launchApp().use { scenario ->
+            compose.onAllNodes(hasText("Starten") and hasClickAction())[0].performClick()
+            compose.waitForIdle()
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            compose.onAllNodes(hasText("Starten") and hasClickAction())[1].performClick()
+
+            compose.onNodeWithText("„Morgens“ läuft noch. Beenden und „Abends“ starten?", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Beenden und starten").performClick()
+
+            compose.onNodeWithText("Lesen").assertIsDisplayed()
+            assertEquals("Abends", runBlocking { app.routines.get(checkNotNull(app.runs.current()).routineId) }?.name)
+        }
+    }
+
+    @Test
+    fun `tapping the notification opens the run behind the lock`() {
+        app.routine("Morgens", "08:00", checklist = listOf("Wasser"))
+        val due = runBlocking { app.routines.dueOn(app.routines.today()).first().single() }
+        runBlocking { app.runs.start(due.occurrenceId, due.routineId) }
+
+        ActivityScenario.launch<MainActivity>(MainActivity.openRun(app, due.occurrenceId, due.routineId)).use {
+            compose.onNodeWithText("Wasser").assertIsDisplayed()
+            compose.onNodeWithText("Fertig").assertIsDisplayed()
         }
     }
 

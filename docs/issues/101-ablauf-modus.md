@@ -33,5 +33,5 @@ Aus dem Gutachten vom 12.11.2026 (Feature 2); die Einzelheiten sind nicht in ein
 - Der Ablauf hat keine eigenen Daten: Er zeigt die Checkliste der Fälligkeit. So stimmen Heute und Ablauf immer überein.
 - Kein Überspringen einzelner Schritte: Erledigt ist die Routine, wenn alle Unterpunkte abgehakt sind; wer abkürzen will, hakt sie in Heute als Ganzes ab.
 - Nur Routinen; To-dos mit Checkliste bleiben, wie sie sind.
-- Beim Umsetzen (14.11.2026) entschieden: Die Stoppuhr zählt vom ersten „Starten“ der Fälligkeit an, auch wenn der Ablauf zwischendurch verlassen wurde; die Fälligkeit hält dafür den Start (`run_started_at`, Version 50). Welche Haken der Ablauf gesetzt hat, merkt er sich nur, solange er offen ist; „Schritt zurück“ nimmt nur diese zurück.
+- Beim Umsetzen (14.11.2026) entschieden: Die Stoppuhr zählt vom ersten „Starten“ der Fälligkeit an, auch wenn der Ablauf zwischendurch verlassen wurde; die Fälligkeit hält dafür den Start (`run_started_at`, Version 50). „Schritt zurück“ nimmt nur Haken zurück, die der Ablauf selbst gesetzt hat; seit #102 merkt er sie sich, solange er läuft, auch über das Verlassen hinweg, nicht aber über „Beenden“.
 - Endet die Fälligkeit, schließt der Ablauf und nennt den Grund in einer Toast-Meldung über Heute.

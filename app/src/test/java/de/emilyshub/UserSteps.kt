@@ -81,7 +81,8 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
 
 /**
  * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups, time
- * window and priority unless given others, without a [fullScreen] alarm and with a [checklist], [tags],
+ * window and priority unless given others, without a [fullScreen] alarm and with a [checklist] (its [minutes] for the
+ * Ablauf-Modus), [tags],
  * [places], a [goal] and a [target] only if given, set up before the test opens the app.
  */
 fun TestApplication.routine(
@@ -93,6 +94,7 @@ fun TestApplication.routine(
     window: TimeWindow = TimeWindow(),
     priority: Priority = Priority.Normal,
     checklist: List<String> = emptyList(),
+    minutes: List<Int?> = emptyList(),
     tags: Set<Long> = emptySet(),
     places: Set<Long> = emptySet(),
     goal: Long? = null,
@@ -105,7 +107,8 @@ fun TestApplication.routine(
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps,
         RemindingStyle(fullScreen, nameOnLockScreen, tone), window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, coupledWith,
+        checklist.mapIndexed { i, text -> ChecklistDraftItem(text = text, minutes = minutes.getOrNull(i)) }, tags, places, goal, target, endsOn,
+        coupledWith,
     )
     routines.create(draft)
 }

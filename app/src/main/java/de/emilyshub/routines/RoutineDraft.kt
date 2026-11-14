@@ -20,6 +20,9 @@ enum class DraftProblem {
     WindowOutOfRange,
     ChecklistTooLong,
     ChecklistItemTooLong,
+
+    /** An item's minutes for the Ablauf-Modus (SPEC.md §2) are a whole number from 1 to 180. */
+    ChecklistMinutesOutOfRange,
     TargetOutOfRange,
     EndDateTooEarly,
 
@@ -83,6 +86,7 @@ data class RoutineDraft(
                 if (window.hours !in TimeWindow.HOURS) add(DraftProblem.WindowOutOfRange)
                 if (checklist.size > CHECKLIST_MAX) add(DraftProblem.ChecklistTooLong)
                 if (checklist.any { InputText.lengthOf(it.text) > CHECKLIST_ITEM_MAX }) add(DraftProblem.ChecklistItemTooLong)
+                if (checklist.any { it.minutes != null && it.minutes !in Checklists.MINUTES }) add(DraftProblem.ChecklistMinutesOutOfRange)
                 target?.let { if (it.count !in RoutineTarget.COUNTS) add(DraftProblem.TargetOutOfRange) }
                 if (coupledWith.isNotEmpty() && times.size != 1) add(DraftProblem.CoupledNeedsOneTime)
             }
@@ -125,8 +129,11 @@ data class RoutineDraft(
     }
 }
 
-/** An item of a checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. */
-data class ChecklistDraftItem(val id: Long = 0, val text: String) : Serializable {
+/**
+ * An item of a checklist as typed into the editor; [id] if it is saved already, so that it keeps its ticks. A routine's
+ * item may have [minutes] for the Ablauf-Modus (SPEC.md §2); a to-do's never has.
+ */
+data class ChecklistDraftItem(val id: Long = 0, val text: String, val minutes: Int? = null) : Serializable {
     /** On a single line, without surrounding spaces. */
     fun cleaned() = copy(text = InputText.singleLine(text))
 }
@@ -139,5 +146,5 @@ fun Routine.toDraft(
     coupledWith: Set<Long> = emptySet(),
 ) = RoutineDraft(
     name, description, times, repetition, followUps, style, window, priority,
-    checklist.map { ChecklistDraftItem(it.id, it.text) }, tagIds, placeIds, goalId, target, endsOn, coupledWith,
+    checklist.map { ChecklistDraftItem(it.id, it.text, it.minutes) }, tagIds, placeIds, goalId, target, endsOn, coupledWith,
 )

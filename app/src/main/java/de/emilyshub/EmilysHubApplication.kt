@@ -53,6 +53,7 @@ import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
 import de.emilyshub.reminders.RoutineReminding
+import de.emilyshub.reminders.RunNotification
 import de.emilyshub.reminders.Sounds
 import de.emilyshub.reminders.SubscriptionReminding
 import de.emilyshub.reminders.TodoReminding
@@ -61,6 +62,7 @@ import de.emilyshub.reminders.ToneFiles
 import de.emilyshub.reminders.ToneLibrary
 import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
+import de.emilyshub.routines.RunStore
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.AppLockLifecycle
@@ -227,7 +229,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val heute: Heute by lazy { Heute(routines, todos, notes, subscriptions, day) }
 
     /** The Ablauf-Modus (SPEC.md §2), ticking off through the routines as Heute does. */
-    final override val runs: RoutineRuns by lazy { RoutineRuns(routines, clock) }
+    final override val runs: RoutineRuns by lazy { RoutineRuns(routines, RunStore({ database }, io), clock, onChange = ::updateRun) }
 
     final override val routines: Routines by lazy { Routines({ database }, clock, io, onChange = ::updateReminders) }
 
@@ -342,6 +344,23 @@ open class EmilysHubApplication : Application(), Hub {
             reminders.update()
         } catch (e: Exception) {
             Log.e(TAG, "Could not update the reminders: ${e.logged}")
+        }
+        // A routine changed may have ended the occurrence a run runs through.
+        updateRun()
+    }
+
+    /** The notification of a run running (SPEC.md §2, Ablauf-Modus), with the alarm for the end of its step. */
+    open val runNotification: RunNotification by lazy { RunNotification(this, runs, clock) }
+
+    /** One after the other, so that one that read the run before it changed cannot show it after it did. */
+    private val runUpdates = Mutex()
+
+    /** Shows the run running as it stands, or takes its notification away; after a restart or an update too. */
+    suspend fun updateRun() {
+        try {
+            runUpdates.withLock { runNotification.update() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not update the run's notification: ${e.logged}")
         }
     }
 

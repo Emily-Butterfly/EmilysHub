@@ -1417,6 +1417,25 @@
         <item quantity="other">Streak: %d Tage</item>
     </plurals>
     <string name="run_to_today">Zu Heute</string>
+    <string name="run_stop">Beenden</string>
+    <string name="run_notification_title">Ablauf läuft</string>
+    <string name="run_overtime">Überzeit</string>
+    <string name="run_channel">Laufender Ablauf</string>
+    <string name="run_alert_channel">Ablauf: Zeit um</string>
+    <plurals name="run_left">
+        <item quantity="one">noch %d Schritt</item>
+        <item quantity="other">noch %d Schritte</item>
+    </plurals>
+    <plurals name="run_left_done_by">
+        <item quantity="one">noch %1$d Schritt, fertig gegen %2$s</item>
+        <item quantity="other">noch %1$d Schritte, fertig gegen %2$s</item>
+    </plurals>
+    <string name="run_ended_stopped">Der Ablauf ist beendet.</string>
+    <string name="run_other_title">Ein Ablauf läuft noch</string>
+    <string name="run_other_text">„%1$s“ läuft noch. Beenden und „%2$s“ starten? Die Haken bleiben, wie sie sind.</string>
+    <string name="run_other_confirm">Beenden und starten</string>
+    <string name="checklist_minutes">Minuten</string>
+    <string name="checklist_minutes_range">1 bis 180</string>
     <string name="run_ended_missed">Der Ablauf ist beendet: Das Zeitfenster ist abgelaufen.</string>
     <string name="run_ended_skipped">Der Ablauf ist beendet: Die Routine wurde übersprungen.</string>
     <string name="run_ended_covered">Der Ablauf ist beendet: Die Routine gilt durch %1$s als erledigt.</string>

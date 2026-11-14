@@ -749,7 +749,10 @@ class Routines(
     private suspend fun saveChecklist(routineId: Long, items: List<ChecklistDraftItem>) {
         val unclaimed = dao.checklist(routineId).map { it.id }.toMutableSet()
         val checklist = items.mapIndexed { position, item ->
-            ChecklistItem(id = item.id.takeIf(unclaimed::remove) ?: 0, routineId = routineId, position = position, text = item.text)
+            ChecklistItem(
+                id = item.id.takeIf(unclaimed::remove) ?: 0, routineId = routineId, position = position, text = item.text,
+                minutes = item.minutes,
+            )
         }
         val (saved, new) = checklist.partition { it.id != 0L }
         dao.deleteChecklistItemsBut(routineId, kept = saved.map { it.id })
