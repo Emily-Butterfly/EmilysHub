@@ -74,6 +74,13 @@ class CardImportTest {
     }
 
     @Test
+    fun `a quote within a field is a letter like any other, and does not hide the tab`() {
+        val read = CardImport.fromFile("5\" Zoll\tinch\nsie sagt \"ja\";yes".toByteArray()) as CardFile.Read
+
+        assertEquals(listOf(CardDraft("5\" Zoll", "inch"), CardDraft("sie sagt \"ja\"", "yes")), read.cards.map { it.draft })
+    }
+
+    @Test
     fun `a line with one field, more than four, an empty side or a field too long is not readable, and nothing is cut`() {
         val text = listOf("nur eins", "a;b;c;d;e", ";leer vorn", "a".repeat(201) + ";zu lang", "gut;ok", "kitab;\"offen").joinToString("\n")
 

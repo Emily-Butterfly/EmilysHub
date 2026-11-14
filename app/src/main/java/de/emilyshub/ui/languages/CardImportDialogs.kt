@@ -49,17 +49,27 @@ import de.emilyshub.ui.launchNow
 /**
  * "Karten aus der Notiz" (SPEC.md §15, Anlegen; #105): the lines of a lesson's [note] that read as cards of the
  * language [languageId], each to tick, those its language has not yet ticked; "Seiten tauschen" turns all of them round.
- * With one of the lesson's [topics] the cards get it; with several, one or none is chosen. Making them says how many
- * were made and how many skipped as there already. The note stays as it is.
+ * With one topic of the lesson, saved ([topics]), the cards get it; with several, one or none is chosen, and those typed
+ * anew ([unsavedTopics]) are there to choose only once the lesson is saved. Making them says how many were made and how
+ * many skipped as there already. The note stays as it is.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CardsFromNoteDialog(flashcards: Flashcards, languageId: Long, note: String, topics: List<Topic>, onDismiss: () -> Unit) {
+fun CardsFromNoteDialog(
+    flashcards: Flashcards,
+    languageId: Long,
+    note: String,
+    topics: List<Topic>,
+    unsavedTopics: Int,
+    onDismiss: () -> Unit,
+) {
     var swapped by rememberSaveable { mutableStateOf(false) }
     val drafts = remember(note, swapped) { CardImport.fromNote(note).let { read -> if (swapped) read.map(CardDraft::swapped) else read } }
     val taken by produceState<List<Boolean>?>(null, flashcards, languageId, drafts) { value = flashcards.taken(languageId, drafts) }
     var ticked by remember(drafts, taken) { mutableStateOf(taken?.let { t -> drafts.indices.filter { !t[it] }.toSet() }.orEmpty()) }
-    var topicId by rememberSaveable(topics) { mutableStateOf(topics.singleOrNull()?.id) }
+    // Its only topic, if it has but one.
+    var topicId by rememberSaveable(topics) { mutableStateOf(topics.singleOrNull()?.id?.takeIf { unsavedTopics == 0 }) }
+    var making by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -101,14 +111,18 @@ fun CardsFromNoteDialog(flashcards: Flashcards, languageId: Long, note: String, 
                         }
                     }
                 }
-                if (topics.size > 1) TopicChoice(topics, topicId, onChoose = { topicId = it })
+                if (topics.size + unsavedTopics > 1 && topics.isNotEmpty()) TopicChoice(topics, topicId, onChoose = { topicId = it })
+                if (unsavedTopics > 0) {
+                    Text(stringResource(R.string.cards_topics_unsaved), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = ticked.isNotEmpty(),
+                enabled = ticked.isNotEmpty() && !making,
                 onClick = {
                     val chosen = drafts.filterIndexed { index, _ -> index in ticked }
+                    making = true
                     scope.launchNow {
                         tellMade(context, flashcards.createAll(languageId, chosen, topicId))
                         onDismiss()
@@ -137,6 +151,7 @@ fun CardFilePreviewDialog(
     val drafts = remember(read) { read.cards.map { it.draft } }
     val taken by produceState<List<Boolean>?>(null, flashcards, languageId, drafts) { value = flashcards.taken(languageId, drafts) }
     var topicId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var making by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val takenCount = taken?.count { it } ?: 0
@@ -165,8 +180,9 @@ fun CardFilePreviewDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = taken != null && toMake > 0,
+                enabled = taken != null && toMake > 0 && !making,
                 onClick = {
+                    making = true
                     scope.launchNow {
                         tellMade(context, flashcards.createAll(languageId, drafts, topicId))
                         onDismiss()
@@ -178,19 +194,19 @@ fun CardFilePreviewDialog(
     )
 }
 
-/** Why a file of cards is not read; [CardFile.Read] without any card included. */
+/** Why no card of a [file] picked is to make: it was refused, or none of its lines reads as one, which it names. */
 @Composable
-fun CardFileRefusedDialog(why: CardFile, onDismiss: () -> Unit) {
-    val text = when (why) {
-        CardFile.TooLarge -> R.string.cards_import_too_large
-        CardFile.TooManyLines -> R.string.cards_import_too_many_lines
-        CardFile.NotText -> R.string.cards_import_not_text
-        is CardFile.Read -> R.string.cards_import_none
+fun CardFileRefusedDialog(file: CardFile, onDismiss: () -> Unit) {
+    val text = when (file) {
+        CardFile.TooLarge -> stringResource(R.string.cards_import_too_large)
+        CardFile.TooManyLines -> stringResource(R.string.cards_import_too_many_lines)
+        CardFile.NotText -> stringResource(R.string.cards_import_not_text)
+        is CardFile.Read -> listOfNotNull(stringResource(R.string.cards_import_none), unreadableText(file.unreadable)).joinToString("\n\n")
     }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.cards_import)) },
-        text = { Text(stringResource(text)) },
+        text = { Text(text) },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
     )
 }
@@ -200,12 +216,14 @@ fun CardFileRefusedDialog(why: CardFile, onDismiss: () -> Unit) {
 private fun summary(cards: Int, taken: Int, unreadable: List<Int>): String {
     val parts = mutableListOf(pluralStringResource(R.plurals.cards_import_found, cards, cards))
     if (taken > 0) parts += pluralStringResource(R.plurals.cards_import_taken, taken, taken)
-    when (unreadable.size) {
-        0 -> Unit
-        1 -> parts += stringResource(R.string.cards_import_unreadable_one, unreadable.single().toString())
-        else -> parts += stringResource(R.string.cards_import_unreadable, unreadable.size, unreadable.joinToString(", "))
-    }
+    unreadableText(unreadable)?.let { parts += it }
     return parts.joinToString(", ")
+}
+
+/** "2 Zeilen nicht lesbar (Zeile 17, 40)"; none if every line reads. */
+@Composable
+private fun unreadableText(unreadable: List<Int>): String? = unreadable.takeIf { it.isNotEmpty() }?.let {
+    pluralStringResource(R.plurals.cards_import_unreadable, it.size, it.size, it.joinToString(", "))
 }
 
 /** One side of a card, from the right if it is written right to left. */

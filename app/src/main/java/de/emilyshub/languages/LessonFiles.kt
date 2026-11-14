@@ -100,7 +100,7 @@ class LessonFiles(
     suspend fun importText(address: String, note: String): TextImport = withContext(io) {
         val picked = documents.read(address, TEXT_MAX_BYTES + 1) ?: return@withContext TextImport.NotText
         if (picked.bytes.size > TEXT_MAX_BYTES) return@withContext TextImport.TooLong
-        val text = decode(picked.bytes)?.takeUnless { '\u0000' in it } ?: return@withContext TextImport.NotText
+        val text = utf8Text(picked.bytes)?.takeUnless { '\u0000' in it } ?: return@withContext TextImport.NotText
         // Line ends as typed ones are, whatever system wrote the file.
         val added = InputText.multiLine(text.replace("\r\n", "\n").replace('\r', '\n')).trim('\n')
         val joined = InputText.multiLine(
@@ -202,20 +202,23 @@ class LessonFiles(
         /** The longest name an attachment keeps, in characters. */
         private const val NAME_MAX = 120
 
-        /** [bytes] read strictly as UTF-8, a byte order mark ahead dropped; none if they are not. */
-        private fun decode(bytes: ByteArray): String? = try {
-            Charsets.UTF_8.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT)
-                .decode(ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF")
-        } catch (e: CharacterCodingException) {
-            null
-        }
-
         /** Whether [bytes] start as a PDF does, "%PDF-" within the first kilobyte. */
         private fun looksLikePdf(bytes: ByteArray): Boolean {
             val head = String(bytes, 0, minOf(bytes.size, 1024), Charsets.ISO_8859_1)
             return "%PDF-" in head
         }
     }
+}
+
+/**
+ * [bytes] read strictly as UTF-8, a byte order mark ahead dropped, as a lesson's note and a file of cards are read; none
+ * if they are not.
+ */
+internal fun utf8Text(bytes: ByteArray): String? = try {
+    Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF")
+} catch (e: CharacterCodingException) {
+    null
 }

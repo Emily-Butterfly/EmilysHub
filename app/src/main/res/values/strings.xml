@@ -1501,8 +1501,11 @@
     <string name="cards_import_too_many_lines">Die Datei hat mehr als 2 000 Zeilen und wird nicht gelesen.</string>
     <string name="cards_import_not_text">Die Datei ist kein Text in UTF-8 und wird nicht gelesen.</string>
     <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon.</string>
-    <string name="cards_import_unreadable">%1$d Zeilen nicht lesbar (Zeile %2$s)</string>
-    <string name="cards_import_unreadable_one">1 Zeile nicht lesbar (Zeile %1$s)</string>
+    <plurals name="cards_import_unreadable">
+        <item quantity="one">%1$d Zeile nicht lesbar (Zeile %2$s)</item>
+        <item quantity="other">%1$d Zeilen nicht lesbar (Zeile %2$s)</item>
+    </plurals>
+    <string name="cards_topics_unsaved">Neu eingetippte Themen gibt es erst, wenn die Session gespeichert ist.</string>
     <string name="cards_topic_for_all">Thema für alle</string>
     <plurals name="cards_import_found">
         <item quantity="one">%d Karte</item>

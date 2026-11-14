@@ -52,12 +52,12 @@ import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentRef
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonChoices
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
-import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.LessonProblem
 import de.emilyshub.languages.Teacher
@@ -305,6 +305,7 @@ fun LessonEditorScreen(
         CardsFromNoteDialog(
             flashcards, cardsLanguage, draft.note,
             topics = choices.topics.filter { it.id in draft.topicIds && it.languageId == cardsLanguage },
+            unsavedTopics = draft.newTopics.size,
             onDismiss = { makingCards = false },
         )
     }

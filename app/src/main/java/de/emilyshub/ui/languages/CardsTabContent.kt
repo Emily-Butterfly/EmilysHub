@@ -68,10 +68,10 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
     var topicFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var settingNew by rememberSaveable { mutableStateOf(false) }
     // A file picked and read, to look at before its cards are made; not kept past the screen.
-    var imported by remember { mutableStateOf<CardFile?>(null) }
+    var picked by remember { mutableStateOf<CardFile?>(null) }
     val scope = rememberCoroutineScope()
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launchNow { imported = flashcards.readFile(uri.toString()) }
+        if (uri != null) scope.launchNow { picked = flashcards.readFile(uri.toString()) }
     }
     val shown = tab ?: return
 
@@ -112,14 +112,11 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
         items(cards, key = { it.card.id }) { row -> CardLine(row, today, onClick = { onOpenCard(row.card.id) }) }
     }
 
-    when (val file = imported) {
+    when (val file = picked) {
         null -> Unit
-        is CardFile.Read -> if (file.cards.isEmpty()) {
-            CardFileRefusedDialog(file, onDismiss = { imported = null })
-        } else {
-            CardFilePreviewDialog(flashcards, languageId, file, shown.topics, onDismiss = { imported = null })
-        }
-        else -> CardFileRefusedDialog(file, onDismiss = { imported = null })
+        is CardFile.Read if file.cards.isNotEmpty() ->
+            CardFilePreviewDialog(flashcards, languageId, file, shown.topics, onDismiss = { picked = null })
+        else -> CardFileRefusedDialog(file, onDismiss = { picked = null })
     }
 
     if (settingNew) {

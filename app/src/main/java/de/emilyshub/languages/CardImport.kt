@@ -1,9 +1,5 @@
 package de.emilyshub.languages
 
-import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.CodingErrorAction
-
 /** A card read from line [line] of a file, as it is to be made. */
 data class FileCard(val line: Int, val draft: CardDraft)
 
@@ -26,7 +22,7 @@ sealed interface CardFile {
  * Cards from where the words stand already (SPEC.md §15, Anlegen; #105): the lines of a lesson's note with two sides
  * split by " – ", " - ", " = " or a tab, Markdown at their start and bold type aside; and a text file, a card on each
  * line, its front, back, transcription and note split by tab or semicolon, the last two optional, a field in quotes
- * allowed to hold the separator. Nothing read is cut short: a field too long leaves its line unread.
+ * allowed to hold the separator; a quote opens a field only at its start, elsewhere it is a letter like any other. Nothing read is cut short: a field too long leaves its line unread.
  */
 object CardImport {
     /** The largest file read, in bytes. */
@@ -41,6 +37,7 @@ object CardImport {
     /** Markdown a line may start with: a heading, a quote, a bullet, a box to tick. */
     private val LEADING_MARKDOWN = Regex("""^\s*(?:#{1,6}\s+|>\s?|[-*+]\s+|\[[ xX]]\s+)""")
 
+    /** Bold type, in either way Markdown writes it. */
     private val BOLD = Regex("""\*\*|__""")
 
     /** The lines of [note] that read as a card, in their order, with front and back only. */
@@ -61,7 +58,7 @@ object CardImport {
     /** The cards of a file of [bytes], or why it is refused. */
     fun fromFile(bytes: ByteArray): CardFile {
         if (bytes.size > FILE_MAX_BYTES) return CardFile.TooLarge
-        val text = decode(bytes)?.removePrefix("﻿")?.takeUnless { '\u0000' in it } ?: return CardFile.NotText
+        val text = utf8Text(bytes)?.takeUnless { '\u0000' in it } ?: return CardFile.NotText
         val lines = text.replace("\r\n", "\n").replace('\r', '\n').removeSuffix("\n").split('\n')
         if (lines.size > FILE_MAX_LINES) return CardFile.TooManyLines
         val cards = mutableListOf<FileCard>()
@@ -78,22 +75,11 @@ object CardImport {
 
     /** The card a line of a file reads as; none if it does not, or has a field too long. */
     private fun cardOf(line: String): CardDraft? {
-        val separator = if (outsideQuotes(line, '\t')) '\t' else ';'
-        val fields = fields(line, separator)?.takeIf { it.size in 2..4 } ?: return null
+        // A tab splits, if one stands outside quotes; else a semicolon. Both read quotes alike.
+        val byTab = fields(line, '\t')
+        val fields = (if (byTab != null && byTab.size > 1) byTab else fields(line, ';'))?.takeIf { it.size in 2..4 } ?: return null
         val draft = CardDraft(fields[0], fields[1], fields.getOrElse(2) { "" }, fields.getOrElse(3) { "" }).cleaned()
         return draft.takeIf { it.problems.isEmpty() }
-    }
-
-    /** Whether [char] stands in [line] outside any quotes. */
-    private fun outsideQuotes(line: String, char: Char): Boolean {
-        var quoted = false
-        line.forEach {
-            when {
-                it == '"' -> quoted = !quoted
-                it == char && !quoted -> return true
-            }
-        }
-        return false
     }
 
     /** The fields of [line] split by [separator], a field in quotes as written within them; none if a quote is left open. */
@@ -124,15 +110,5 @@ object CardImport {
         if (quoted) return null
         fields += field.toString()
         return fields
-    }
-
-    private fun decode(bytes: ByteArray): String? = try {
-        Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(bytes))
-            .toString()
-    } catch (_: CharacterCodingException) {
-        null
     }
 }
