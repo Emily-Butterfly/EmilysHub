@@ -21,7 +21,7 @@ Die beiden langen Editoren beginnen mit dem, was jeder Eintrag braucht. Alles We
 - [x] Auch beim Bearbeiten öffnet der Editor zugeklappt; die Zusammenfassung zeigt, was gesetzt ist. Auf- und Zuklappen bleibt beim Drehen und über die App-Sperre erhalten
 - [x] Liegt beim Speichern ein Problem in einem zugeklappten Feld (z. B. Beschreibung zu lang, Ende vor heute), klappt der Abschnitt von selbst auf und zeigt das Feld
 - [x] An den Feldern selbst, ihren Regeln und den gespeicherten Daten ändert sich nichts
-- [ ] Auf dem A52 bei normaler Schriftgröße sind bei einer neuen Routine Name und Uhrzeiten ohne Scrollen sichtbar, bei einem neuen To-do Titel und Fälligkeit, jeweils mit offener Tastatur
+- [x] Auf dem A52 bei normaler Schriftgröße sind bei einer neuen Routine Name und Uhrzeiten ohne Scrollen sichtbar, bei einem neuen To-do Titel und Fälligkeit, jeweils mit offener Tastatur
 - [x] UI-Tests: Reihenfolge der Felder in beiden Editoren; die Zusammenfassung nennt Gesetztes; ein Problem in einem zugeklappten Feld klappt auf; der Zustand übersteht Drehen
 
 ## Entscheidungen
@@ -37,4 +37,4 @@ Bei der Umsetzung festgelegt (13.11.2026):
 - Die Zusammenfassung folgt der Reihenfolge der Felder; Orte und Ziel nennt sie mit Namen („Ort: Gym“, „Ziel: …“), Tags und Unterpunkte als Anzahl, Ton, Erneut erinnern und Zeitfenster nur, wenn sie vom Standard abweichen.
 - Die verknüpften Notizen liegen bei beiden Editoren unter „Mehr Optionen“; die Zusammenfassung nennt sie nicht, da sie keine Einstellung des Eintrags sind.
 - Ein zu langer Text holt sich, wie die übrigen Probleme seit #91, beim Speichern selbst in den sichtbaren Bereich; so zeigt sich auch die Beschreibung, wenn der Abschnitt dafür aufklappt.
-- Geprüft auf der Bildschirmgröße des A52 in den UI-Tests, ohne Tastatur; mit offener Tastatur am Gerät noch nachzusehen.
+- Geprüft auf der Bildschirmgröße des A52 in den UI-Tests, ohne Tastatur; mit offener Tastatur am Gerät nachgesehen am 14.11.2026.

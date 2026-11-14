@@ -34,7 +34,7 @@ Geht die Datenbank beim Start nicht auf, zeigt die App einen Bildschirm mit Ausw
 ### Tests
 
 - [x] Robolectric: Eine Datenbank, die beim Öffnen wirft, zeigt je Grund den Bildschirm; Erneut versuchen; Backup laden führt in die App mit den Daten des Backups; Neu beginnen legt beiseite und startet leer; ein fehlgeschlagenes Einspielen lässt alles; die Dokumentation bleibt
-- [ ] Auf dem Emulator: beschädigte Schlüsseldatei; Schema-Version höher als die der App (geschrieben in `OpenOnPhoneTest`, noch nicht auf einem Gerät gelaufen)
+- [x] Auf dem Emulator: beschädigte Schlüsseldatei; Schema-Version höher als die der App (`OpenOnPhoneTest`, grün auf dem Emulator der CI seit `edabf26`)
 
 ## Entscheidungen
 
