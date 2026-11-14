@@ -58,14 +58,14 @@ fun StatisticsScreen(
     onBack: () -> Unit,
 ) {
     val history by remember(routines) { routines.history() }.collectAsState(initial = null)
-    val ticked by remember(todos) { todos.archived() }.collectAsState(initial = null)
+    val ticked by remember(todos) { todos.ticked() }.collectAsState(initial = null)
     val allRoutines by remember(routines) { routines.all() }.collectAsState(initial = null)
     StatisticsScaffold(stringResource(R.string.statistics_title), onBack) { contentPadding ->
         val all = history ?: return@StatisticsScaffold
         val todosDone = ticked ?: return@StatisticsScaffold
         val everyRoutine = allRoutines ?: return@StatisticsScaffold
         // Ticked-off to-dos alone have an overall streak too (#109).
-        if (everyRoutine.isEmpty() && todosDone.none { it.doneAt != null }) {
+        if (everyRoutine.isEmpty() && todosDone.isEmpty()) {
             PlaceholderScreen(stringResource(R.string.statistics_empty), contentPadding)
             return@StatisticsScaffold
         }
@@ -73,7 +73,7 @@ fun StatisticsScreen(
         val overall = remember(all) { RoutineHistory(all) }
         // A to-do counts on the day it was ticked off, as in the heatmap.
         val overallStreak = remember(all, todosDone, streakRule, today) {
-            OverallHistory(all, todosDone.mapNotNull { it.doneAt }.map(day::dayOf), streakRule, today)
+            OverallHistory(all, todosDone.map(day::dayOf), streakRule, today)
         }
         val byRoutine = remember(all) { all.groupBy { it.routineId }.mapValues { (_, outcomes) -> RoutineHistory(outcomes) } }
         Column(

@@ -116,6 +116,18 @@ interface RoutineDao {
     @Query("SELECT routine_id, date, status FROM occurrences")
     fun observeOutcomes(): Flow<List<OccurrenceOutcome>>
 
+    /** How the occurrences from [from] on ended, for the flame (#108). */
+    @Query("SELECT routine_id, date, status FROM occurrences WHERE date >= :from")
+    suspend fun outcomesFrom(from: LocalDate): List<OccurrenceOutcome>
+
+    /** The day of the first occurrence, if there is one. */
+    @Query("SELECT MIN(date) FROM occurrences")
+    suspend fun firstDate(): LocalDate?
+
+    /** The days of the occurrences done from [from] on, once for each, for the heatmap (#108). */
+    @Query("SELECT date FROM occurrences WHERE status = :done AND date >= :from")
+    fun observeDoneFrom(from: LocalDate, done: OccurrenceStatus = OccurrenceStatus.Done): Flow<List<LocalDate>>
+
     @Query("SELECT routine_id, date, status FROM occurrences WHERE routine_id = :routineId")
     fun observeOutcomesOf(routineId: Long): Flow<List<OccurrenceOutcome>>
 

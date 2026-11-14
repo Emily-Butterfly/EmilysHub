@@ -48,7 +48,7 @@ sealed interface Due : Serializable {
         ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.SET_NULL),
         ForeignKey(entity = Todo::class, parentColumns = ["id"], childColumns = ["next_id"], onDelete = ForeignKey.SET_NULL),
     ],
-    indices = [Index(value = ["goal_id"]), Index(value = ["next_id"])],
+    indices = [Index(value = ["goal_id"]), Index(value = ["next_id"]), Index(value = ["done_at"])],
 )
 data class Todo(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

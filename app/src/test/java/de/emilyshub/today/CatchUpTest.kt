@@ -17,6 +17,7 @@ import de.emilyshub.stats.StreakFlame
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -49,7 +50,7 @@ class CatchUpTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val clockChanges = MutableSharedFlow<Unit>()
-    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges))
+    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges), Dispatchers.Unconfined)
 
     @Test
     fun `yesterday shows its routines by time, with their status, and its to-dos, but nothing of today`() = runTest {

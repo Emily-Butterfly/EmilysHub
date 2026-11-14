@@ -110,11 +110,50 @@ class OverallHistory(
     /** While no overall streak runs, the one before (#99). */
     fun lastStreak(): LastStreak? = lastStreakOf(days)
 
-    /** The flame for [today]; none while nothing ever counted for or against a day. */
+    /** The flame for [today]; none while nothing ever counted for or against a day. The longest streak it leaves out. */
     fun flame(): StreakFlame? {
         if (!anything) return null
         val todayCounts = days[today] == DayOutcome.Done
-        return StreakFlame(days = streaks().current, todayOpen = !todayCounts, last = lastStreak())
+        return StreakFlame(days = currentStreakOf(days), todayOpen = !todayCounts, last = lastStreak())
+    }
+
+    /**
+     * Whether these days, read from one on only, hold all the [flame] needs (#108): a day that breaks the streak, and
+     * one done after it. Then the streak now began after that break, or the last one did, should none run now.
+     */
+    internal val holdsFlame: Boolean
+        get() {
+            var broken = false
+            days.values.forEach { outcome ->
+                when (outcome) {
+                    DayOutcome.Missed, DayOutcome.Dropped, DayOutcome.Short -> broken = true
+                    DayOutcome.Done -> if (broken) return true
+                    DayOutcome.Skipped, DayOutcome.Open -> Unit
+                }
+            }
+            return false
+        }
+}
+
+/** The days the flame first reads back from today (#108); then twice as many each time, as [flameOf] has it. */
+internal const val FLAME_WINDOW = 32L
+
+/**
+ * The flame for [today], as [OverallHistory.flame] has it over the whole history, but [read] from only as far back as
+ * it needs (#108): from a day ever further back, until what was read [OverallHistory.holdsFlame], or reaches back to
+ * the [first] day anything is on, if there is one.
+ */
+internal suspend fun flameOf(
+    today: LocalDate,
+    first: LocalDate?,
+    read: suspend (from: LocalDate) -> OverallHistory,
+): StreakFlame? {
+    var days = FLAME_WINDOW
+    while (true) {
+        val from = today.minusDays(days)
+        val history = read(from)
+        if (first == null || !first.isBefore(from) || history.holdsFlame) return history.flame()
+        days *= 2
     }
 }
 

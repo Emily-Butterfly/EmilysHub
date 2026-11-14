@@ -826,3 +826,13 @@ val MIGRATION_52_53 = object : Migration(52, 53) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_goals_language_id` ON `card_goals` (`language_id`)")
     }
 }
+
+/**
+ * Version 54: Heute and the to-dos read only what they show (#108): the open to-dos, those ticked off of late, and how
+ * many are in the archive, by when they were ticked off.
+ */
+val MIGRATION_53_54 = object : Migration(53, 54) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_done_at` ON `todos` (`done_at`)")
+    }
+}

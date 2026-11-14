@@ -53,6 +53,20 @@ class Routines(
      */
     fun history(): Flow<List<OccurrenceOutcome>> = flow { emitAll(dao.observeOutcomes().distinctUntilChanged()) }.flowOn(io)
 
+    /** How the occurrences from [from] on ended, as [history] has it, once: for the flame (#108). */
+    suspend fun historyFrom(from: LocalDate): List<OccurrenceOutcome> = withContext(io) { dao.outcomesFrom(from) }
+
+    /** The day of the first occurrence, if there is one. */
+    suspend fun firstDay(): LocalDate? = withContext(io) { dao.firstDate() }
+
+    /** The days of the occurrences done from [from] on, once for each: for the heatmap (#108). Anew only once they change. */
+    fun doneFrom(from: LocalDate): Flow<List<LocalDate>> =
+        flow { emitAll(dao.observeDoneFrom(from).distinctUntilChanged()) }.flowOn(io)
+
+    /** Once at once, then each time an occurrence changes. */
+    fun historyChanges(): Flow<Unit> =
+        flow { emitAll(database().invalidationTracker.createFlow("occurrences").map {}) }.flowOn(io)
+
     /** How the routine's occurrences ended, as [history] has it. */
     fun history(routineId: Long): Flow<List<OccurrenceOutcome>> =
         flow { emitAll(dao.observeOutcomesOf(routineId).distinctUntilChanged()) }.flowOn(io)

@@ -17,6 +17,7 @@ import de.emilyshub.routines.Priority
 import de.emilyshub.stats.StreakFlame
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -48,7 +49,7 @@ class HeuteTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val clockChanges = MutableSharedFlow<Unit>()
-    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges))
+    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges), Dispatchers.Unconfined)
 
     @Test
     fun `the day's routines and to-dos come in their order, with those shown before their day and the notes pinned`() = runTest {

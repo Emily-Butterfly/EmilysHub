@@ -57,7 +57,6 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.offerUndo
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberNow
-import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
 /**
@@ -82,7 +81,7 @@ fun TodosScreen(
     onOpenArchive: () -> Unit,
 ) {
     val open by remember(todos) { todos.open() }.collectAsState(initial = null)
-    val archivedCount by remember(todos) { todos.archived().map { it.size } }.collectAsState(initial = 0)
+    val archivedCount by remember(todos) { todos.archivedCount() }.collectAsState(initial = 0)
     val allTags by remember(tags) { tags.all() }.collectAsState(initial = emptyList())
     // One deleted meanwhile no longer filters.
     val filter = allTags.find { it.id == tagFilter }

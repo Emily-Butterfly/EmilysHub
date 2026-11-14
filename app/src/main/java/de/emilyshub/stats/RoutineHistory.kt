@@ -126,6 +126,19 @@ fun streaksOf(days: SortedMap<LocalDate, DayOutcome>): Streaks {
     return Streaks(current, longest)
 }
 
+/** The days done in a row up to now over [days], as [streaksOf] counts them, without the longest. */
+fun currentStreakOf(days: SortedMap<LocalDate, DayOutcome>): Int {
+    var current = 0
+    days.values.forEach { outcome ->
+        when (outcome) {
+            DayOutcome.Done -> current++
+            DayOutcome.Missed, DayOutcome.Dropped, DayOutcome.Short -> current = 0
+            DayOutcome.Skipped, DayOutcome.Open -> Unit
+        }
+    }
+    return current
+}
+
 /**
  * While no streak runs over [days], the one before (#99): the days done in a row before the latest break that ended
  * one, counted as [streaksOf] counts, so skipped and open days neither count nor break it. None while a streak runs, or

@@ -42,6 +42,7 @@ class TestApplication : EmilysHubApplication() {
 
     /** On the spot, so that the tests and Compose see every change at once. */
     override val io = Dispatchers.Unconfined
+    override val work = Dispatchers.Unconfined
 
     /** In memory, open to the tests, such as for the history of days gone by; or failing for [openFails] (#100). */
     override fun openDatabase(): HubDatabase = openFails?.let { throw DataUnavailable(it) } ?: inMemoryDatabase()

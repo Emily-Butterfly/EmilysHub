@@ -131,6 +131,9 @@ open class EmilysHubApplication : Application(), Hub {
     /** Where the modules read and write. */
     protected open val io: CoroutineContext = Dispatchers.IO
 
+    /** Where what is reckoned from the data is put together, off the main thread: Heute, for one (#108). */
+    protected open val work: CoroutineContext = Dispatchers.Default
+
     override val authenticator: DeviceAuthenticator by lazy { SystemAuthenticator(this) }
 
     /** What rings while a full-screen alarm is up. */
@@ -230,7 +233,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val day: Day by lazy { Day(clock, clockChanges(this)) }
 
     /** Heute (SPEC.md §1), from the routines, to-dos and notes, for the day it is. */
-    final override val heute: Heute by lazy { Heute(routines, todos, notes, subscriptions, day) }
+    final override val heute: Heute by lazy { Heute(routines, todos, notes, subscriptions, day, work) }
 
     /** The Ablauf-Modus (SPEC.md §2), ticking off through the routines as Heute does. */
     final override val runs: RoutineRuns by lazy { RoutineRuns(routines, RunStore({ database }, io), clock, onChange = ::updateRun) }

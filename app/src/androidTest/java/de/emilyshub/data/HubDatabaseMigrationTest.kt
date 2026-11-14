@@ -375,18 +375,18 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            assertEquals(emptyList<TodoWithDetails>(), database.todos().observeAll().first())
+            assertEquals(emptyList<TodoWithDetails>(), database.allTodos())
 
             val id = database.todos().insert(Todo(title = "Steuer", description = "", dueDate = LocalDate.parse("2026-10-30")))
             database.todos().insertChecklistItems(listOf(TodoChecklistItem(todoId = id, position = 0, text = "Belege")))
             database.todos().tag(id, listOf(1L))
-            val saved = database.todos().observeAll().first().single()
+            val saved = database.allTodos().single()
             assertEquals(listOf("Belege"), saved.checklistItems.map { it.text })
             assertEquals(setOf(1L), saved.tagIds)
 
             // A tag deleted is taken off the to-dos.
             database.tags().delete(1)
-            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single().tagIds)
+            assertEquals(emptySet<Long>(), database.allTodos().single().tagIds)
         }
     }
 
@@ -402,18 +402,18 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            val todos = database.todos().observeAll().first().associateBy { it.todo.title }
+            val todos = database.allTodos().associateBy { it.todo.title }
             assertEquals(Reminding(remindsAtDueTime = true), todos.getValue("Arzt").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Müll").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Steuer").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Vorbei").todo.reminding)
 
             database.todos().bind(1, listOf(1L))
-            assertEquals(setOf(1L), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
+            assertEquals(setOf(1L), database.allTodos().single { it.todo.id == 1L }.placeIds)
 
             // A place deleted is taken off the to-dos.
             database.places().delete(1)
-            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
+            assertEquals(emptySet<Long>(), database.allTodos().single { it.todo.id == 1L }.placeIds)
         }
     }
 
@@ -429,7 +429,7 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            val post = database.todos().observeAll().first().single()
+            val post = database.allTodos().single()
             assertEquals(Reminding(waiting = true), post.todo.reminding)
             assertEquals(setOf(1L), post.placeIds)
         }
@@ -1158,6 +1158,30 @@ class HubDatabaseMigrationTest {
             assertEquals(null, cards.goal(1))
         }
     }
+
+    @Test
+    fun `version 53 moves to version 54 with the to-dos kept and read by when they were ticked off`() {
+        createAtVersion(53) {
+            it.execSQL("INSERT INTO todos (id, title, description, priority, done_at) VALUES (1, 'Müll', '', 'normal', NULL)")
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, done_at) VALUES (2, 'Arzt', '', 'normal', '2026-11-13T09:00:00Z')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val todos = database.todos()
+            assertEquals(listOf(1L), todos.open().map { it.todo.id })
+            assertEquals(1, todos.observeArchivedCount().first())
+            assertEquals(listOf(Instant.parse("2026-11-13T09:00:00Z")), todos.doneSince(Instant.parse("2026-11-13T00:00:00Z")))
+            val indices = database.openHelper.readableDatabase.query("PRAGMA index_list(`todos`)").use { cursor ->
+                buildList { while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name"))) }
+            }
+            assertTrue("index_todos_done_at" in indices)
+        }
+    }
+
+    /** Every to-do, open or ticked off, with its checklist, tags and places. */
+    private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
