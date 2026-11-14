@@ -106,9 +106,8 @@ class GoalRoutine(
 
 /**
  * A goal (SPEC.md §6): a wish with the [subgoals], [todos], [routines], [exams] and its Karten-Ziel ([cards]) hanging
- * under it, its parts. How far
- * it has come, its [progress], is worked out from them, all the way down, unless set by hand ([Wish.manualProgress]); a
- * goal done has come all the way. A routine counts only with a target.
+ * under it, its parts. How far it has come, its [progress], is worked out from them, all the way down, unless set by
+ * hand ([Wish.manualProgress]); a goal done has come all the way. A routine counts only with a target.
  */
 class Goal(
     private val withTags: WishWithTags,
@@ -168,8 +167,8 @@ object GoalTree {
 
     /**
      * The goals at the top, each with its parts below it, subgoals by title, then to-dos by title, then routines by name,
-     * then exams by title, and its Karten-Ziel. A goal whose parent is gone, or that is caught in a cycle, which the app never makes, is at the
-     * top too, so that each shows once.
+     * then exams by title, and its Karten-Ziel. A goal whose parent is gone, or that is caught in a cycle, which the app
+     * never makes, is at the top too, so that each shows once.
      */
     fun build(
         wishes: List<WishWithTags>,

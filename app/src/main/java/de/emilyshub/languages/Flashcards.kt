@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.wishes.GoalWatch
 import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -83,9 +84,9 @@ data class Round(val again: List<Long> = emptyList()) : Serializable {
  * front, planned by [Fsrs] in days of the phone's calendar: [clock]'s, in its time zone. Each day a language's workload
  * is what is due and up to its number of new cards; an archived language's cards stay, but are neither asked nor
  * counted. Every answer is kept on its card at once and logged ([CardReview]); the Karten-Ziele of goals follow how
- * many cards are sure, and a workload done by the day's answers is told ([onWorkloadDone]), for the routines it does. Cards are made one by one, or many at
- * once from a lesson's note or a text file read through [documents] and kept nowhere (#105). [database] is only called
- * on [io]; writes run to the end once started.
+ * many cards are sure, and the answer that does a day's workload tells so ([onWorkloadDone]), for the routines it does.
+ * Cards are made one by one, or many at once from a lesson's note or a text file read through [documents] and kept
+ * nowhere (#105). [database] is only called on [io]; writes run to the end once started.
  */
 class Flashcards(
     private val database: () -> HubDatabase,
@@ -202,7 +203,7 @@ class Flashcards(
         database().withTransaction {
             val card = dao.card(id) ?: return@withTransaction
             database().watchingGoals(today()) { watch ->
-                dao.goalsOf(card.languageId).forEach { watch.cardGoal(it.goalId) }
+                watchGoalsOf(card.languageId, watch)
                 dao.delete(id)
             }
         }
@@ -219,12 +220,15 @@ class Flashcards(
      */
     suspend fun answer(cardId: Long, rating: Rating) = write {
         val today = today()
+        val languageOf = dao.card(cardId)?.languageId ?: return@write
+        // Only the answer that does it tells: those asked again after it, as "Nochmal" brings them, do not.
+        val doneBefore = workloadDoneByAnswers(languageOf, today)
         val languageId = database().withTransaction {
             val card = dao.card(cardId) ?: return@withTransaction null
             val planned = plan(card, rating, today)
             database().watchingGoals(today) { watch ->
                 // How sure its cards are may reach a Karten-Ziel, or fall below it again (#106).
-                dao.goalsOf(card.languageId).forEach { watch.cardGoal(it.goalId) }
+                watchGoalsOf(card.languageId, watch)
                 dao.update(
                     card.copy(
                         stability = planned.memory.stability,
@@ -239,8 +243,12 @@ class Flashcards(
             dao.insert(CardReview(cardId = cardId, at = clock.instant(), grade = rating.grade))
             card.languageId
         } ?: return@write
-        if (workloadDoneByAnswers(languageId, today)) onWorkloadDone(languageId)
+        if (!doneBefore && workloadDoneByAnswers(languageId, today)) onWorkloadDone(languageId)
     }
+
+    /** Names the Karten-Ziele on the cards of the language [languageId] to [watch], as how sure they are may change. */
+    private suspend fun watchGoalsOf(languageId: Long, watch: GoalWatch) =
+        dao.goalsOf(languageId).forEach { watch.cardGoal(it.goalId) }
 
     /**
      * Whether the workload of the language [languageId] on [today] is done by what was answered that day: nothing of it

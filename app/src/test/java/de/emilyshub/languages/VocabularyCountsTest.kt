@@ -75,6 +75,24 @@ class VocabularyCountsTest {
     }
 
     @Test
+    fun `only the answer that does the workload does the routine, not those asked again after it`() = runBlocking {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab")
+        card(arabic, "qalam")
+        routine("Vokabeln", "14:00", "18:00", vocabulary = arabic)
+
+        answer(arabic, "kitab", Rating.Again)
+        answer(arabic, "qalam", Rating.Good)
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), statuses("Vokabeln"))
+        routines.reopen(today("Vokabeln").first().occurrenceId)
+
+        // "Nochmal" brings kitab again at the end of the round.
+        answer(arabic, "kitab", Rating.Good)
+
+        assertEquals("taken back stays so", listOf(OccurrenceStatus.Open, OccurrenceStatus.Open), statuses("Vokabeln"))
+    }
+
+    @Test
     fun `a day with nothing due and nothing new leaves the routine open, and other routines are not touched`() = runBlocking {
         val arabic = language("Arabisch")
         card(arabic, "kitab")

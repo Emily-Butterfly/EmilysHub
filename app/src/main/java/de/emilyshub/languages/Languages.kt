@@ -221,7 +221,11 @@ class Languages(
                 return@withTransaction false
             }
             dao.releaseRoutines(id)
-            dao.deleteLanguage(id)
+            // A Karten-Ziel on it goes with it, as a part of its goal.
+            watchingGoals { watch ->
+                database().cards().goalsOf(id).forEach { watch.cardGoal(it.goalId) }
+                dao.deleteLanguage(id)
+            }
             true
         }
     }
