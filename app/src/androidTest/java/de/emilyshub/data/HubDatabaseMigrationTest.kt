@@ -1058,7 +1058,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 48 moves to version 49 with the inbox empty, and then a thought is kept in it`() {
+    fun `version 48 moves to version 49 with the inbox empty and then a thought is kept in it`() {
         createAtVersion(48) {}
 
         withMigratedDatabase { database ->
@@ -1070,7 +1070,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 49 moves to version 50 with no run started, and then a run's first start is kept`() {
+    fun `version 49 moves to version 50 with no run started and then the first start of a run is kept`() {
         createAtVersion(49) {
             it.execSQL(
                 "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
@@ -1089,7 +1089,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 50 moves to version 51 with items without minutes and no run, and then both are kept`() {
+    fun `version 50 moves to version 51 with items without minutes and no run and then both are kept`() {
         createAtVersion(50) {
             it.execSQL(
                 "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
@@ -1115,7 +1115,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 51 moves to version 52 with no cards and ten new a day, and then a card and an answer are kept`() {
+    fun `version 51 moves to version 52 with no cards and ten new a day and then a card and an answer are kept`() {
         createAtVersion(51) {
             it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
         }
@@ -1134,7 +1134,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 52 moves to version 53 with no routine done by cards and no Karten-Ziel, and then both are kept`() {
+    fun `version 52 moves to version 53 with no routine done by cards and no Karten-Ziel and then both are kept`() {
         createAtVersion(52) {
             it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
             it.execSQL(

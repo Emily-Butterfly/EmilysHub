@@ -35,14 +35,14 @@ class OpenOnPhoneTest {
     }
 
     @Test
-    fun `new data open, and open again with their key`() {
+    fun `new data open and open again with their key`() {
         openOnPhone(context, keyFile, name).close()
 
         openOnPhone(context, keyFile, name).close()
     }
 
     @Test
-    fun `a damaged key file is the key, and the database stays as it was`() {
+    fun `a damaged key file is the key and the database stays as it was`() {
         openOnPhone(context, keyFile, name).close()
         val before = databaseFile.readBytes()
         keyFile.writeBytes(keyFile.readBytes().also { it[it.size - 1] = (it[it.size - 1] + 1).toByte() })
@@ -53,7 +53,7 @@ class OpenOnPhoneTest {
     }
 
     @Test
-    fun `a key file missing beside a database is the key, and none is made anew`() {
+    fun `a key file missing beside a database is the key and none is made anew`() {
         openOnPhone(context, keyFile, name).close()
         keyFile.delete()
 
@@ -63,7 +63,7 @@ class OpenOnPhoneTest {
     }
 
     @Test
-    fun `a damaged database file is the file, and it is not deleted`() {
+    fun `a damaged database file is the file and it is not deleted`() {
         openOnPhone(context, keyFile, name).close()
         val damaged = ByteArray(databaseFile.length().toInt()) { it.toByte() }
         databaseFile.writeBytes(damaged)
@@ -74,7 +74,7 @@ class OpenOnPhoneTest {
     }
 
     @Test
-    fun `data of a newer version say so, and their version stays as it was`() {
+    fun `data of a newer version say so and their version stays as it was`() {
         openOnPhone(context, keyFile, name).apply { openHelper.writableDatabase.version = HubDatabase.VERSION + 1 }.close()
 
         assertFailsFor(Unopenable.NewerVersion)
