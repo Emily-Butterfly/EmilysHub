@@ -22,7 +22,8 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen", and after
+ * The reminders on the screen (SPEC.md §3, §9): heads-up with "Erledigt · Später · Überspringen", for a routine with a
+ * checklist "Starten · Erledigt · Später" (#103), and after
  * "Später" the choice when to come back, "10 Min. · 30 Min. · Heute nicht", in the same place. On a
  * locked phone the actions only work once it is unlocked (from Android 12 on), and the lock screen shows
  * the public version, "Erinnerung fällig" without the name or actions, as long as Android is set to hide
@@ -216,11 +217,16 @@ class ReminderNotifications(
             Offering.Actions -> {
                 text = face.text
                 val done = if (joint) ReminderReceiver.ACTION_OFFER_DONE else ReminderReceiver.ACTION_DONE
-                actions = listOf(
+                val doneOrLater = listOf(
                     action(context.getString(R.string.reminder_done), done, about),
                     action(context.getString(R.string.reminder_put_off), ReminderReceiver.ACTION_OFFER_PUT_OFF, about),
-                    action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about),
                 )
+                // With a checklist, "Starten" in the place of "Überspringen", as Android shows three at most (#103).
+                actions = if (face.startable) {
+                    listOf(startAction(reminder.occurrenceId)) + doneOrLater
+                } else {
+                    doneOrLater + action(context.getString(R.string.reminder_skip), ReminderReceiver.ACTION_SKIP, about)
+                }
             }
         }
         return builder(channel, face.title, text, alert, offering, publicVersion(face.onLockScreen))
@@ -346,6 +352,20 @@ class ReminderNotifications(
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val operation = PendingIntent.getBroadcast(context, 0, intent, flags)
         return Notification.Action.Builder(null, title, operation)
+            .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true) }
+            .build()
+    }
+
+    /**
+     * "Starten" (#103): opens the app at the run through the occurrence, behind its lock if that is on, as only an activity
+     * may be opened from a notification; like the other actions, only once the phone is unlocked.
+     */
+    private fun startAction(occurrenceId: Long): Notification.Action {
+        val intent = MainActivity.startFromReminder(context, occurrenceId)
+            // Tells the intents of different occurrences apart, so that each keeps its own extras.
+            .setIdentifier("${tagOf(occurrenceId)}:start")
+        val operation = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        return Notification.Action.Builder(null, context.getString(R.string.run_start), operation)
             .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true) }
             .build()
     }

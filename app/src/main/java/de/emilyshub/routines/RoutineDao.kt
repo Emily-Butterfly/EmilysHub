@@ -18,11 +18,16 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** An occurrence with its routine, which says how it is reminded of, where, and how long it stays open. */
+/**
+ * An occurrence with its routine, which says how it is reminded of, where, and how long it stays open, and the ids of
+ * its routine's checklist items, which tell whether it can be run through (SPEC.md §2, Ablauf-Modus).
+ */
 data class OccurrenceOfRoutine(
     @Embedded val occurrence: Occurrence,
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
     @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val routinePlaces: List<RoutinePlace>,
+    @Relation(parentColumn = "routine_id", entityColumn = "routine_id", entity = ChecklistItem::class, projection = ["id"])
+    val checklistItemIds: List<Long> = emptyList(),
 ) {
     /** The places it pops up at; none: everywhere. */
     val placeIds: Set<Long> get() = routinePlaces.map { it.placeId }.toSet()

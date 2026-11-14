@@ -48,10 +48,12 @@ import de.emilyshub.places.Places
 import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
+import de.emilyshub.reminders.Alarmed
 import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.RunToOpen
 import de.emilyshub.reminders.RoutineReminding
 import de.emilyshub.reminders.RunNotification
 import de.emilyshub.reminders.Sounds
@@ -317,6 +319,8 @@ open class EmilysHubApplication : Application(), Hub {
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })
 
     final override fun probe() = reminders.probe()
+
+    final override suspend fun startFromReminder(occurrenceId: Long): RunToOpen? = reminders.start(Alarmed.Occurrence(occurrenceId))
 
     override fun onCreate() {
         super.onCreate()

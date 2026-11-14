@@ -11,6 +11,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.Wish
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -182,7 +183,19 @@ data class Reminder(
     val windowEnd: Instant,
     val style: RemindingStyle = RemindingStyle(),
     val together: List<JointOccurrence> = emptyList(),
+    /** The routine of its own occurrence. */
+    val routineId: Long = 0,
+    /** Whether its routine has a checklist, to run through (SPEC.md §2, Ablauf-Modus). */
+    val hasChecklist: Boolean = false,
+    /** How far apart its routine's follow-ups come, which "Starten" puts it off by. */
+    val followUpEvery: Duration = Duration.ofMinutes(FollowUps().everyMinutes.toLong()),
 ) {
+    /**
+     * Whether "Starten" can run through its checklist (SPEC.md §2, Ablauf-Modus): of a routine with a checklist alone; a
+     * joint reminder has none.
+     */
+    val startable: Boolean get() = hasChecklist && together.isEmpty()
+
     /** Each occurrence it reminds of, its own first, with its routine's name. */
     val occurrences: List<JointOccurrence>
         get() = listOf(JointOccurrence(occurrenceId, name, style.nameOnLockScreen)) + together

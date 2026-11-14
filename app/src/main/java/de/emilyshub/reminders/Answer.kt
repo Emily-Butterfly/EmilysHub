@@ -23,6 +23,12 @@ sealed interface Answer {
     /** "Heute nicht", for all a joint reminder reminds of; a to-do has none. */
     data object Drop : Answer
 
+    /**
+     * "Starten", on a routine's with a checklist (#103): it is put off by the routine's follow-up time, and its run opens
+     * ([Reminders.start]).
+     */
+    data object Start : Answer
+
     /** "Läuft weiter", on an Abo's (#80): it runs on, and reminds no more of this term. */
     data object RunOn : Answer
 }

@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
+import de.emilyshub.MainActivity
 import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
@@ -111,6 +112,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                         silence()
                         finish()
                     },
+                    onStart = ::start,
                 )
             }
         }
@@ -249,6 +251,17 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         silence()
         drop(alarmed)
         app.background.launch { app.reminders.answer(about ?: alarmed, answer) }
+    }
+
+    /**
+     * "Starten" (#103): the alarm goes on to the next in the queue, and the app opens, behind its lock, to answer the one
+     * shown so and open its run, as from its notification.
+     */
+    private fun start() {
+        val alarmed = showing?.alarmed as? Alarmed.Occurrence ?: return
+        silence()
+        drop(alarmed)
+        startActivity(MainActivity.startFromReminder(this, alarmed.id))
     }
 
     /** What the alarm shows of [alarmed]: its [screen], and what "Später" offers now. */

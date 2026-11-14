@@ -106,6 +106,7 @@ import de.emilyshub.ui.ledger.SubscriptionListScreen
 import de.emilyshub.ui.lock.LockScreen
 import de.emilyshub.ui.navigation.BackStack
 import de.emilyshub.ui.navigation.Destination
+import de.emilyshub.ui.navigation.Opening
 import de.emilyshub.ui.notes.NoteArchiveScreen
 import de.emilyshub.ui.notes.NoteEditorScreen
 import de.emilyshub.ui.notes.NoteEditorTarget
@@ -150,10 +151,11 @@ import kotlin.math.roundToInt
  * The whole UI. Nothing is drawn before the data are opened and the settings known, not even the theme, and nothing but
  * the lock screen while the app is locked (SPEC.md §9). Data that cannot be opened show the way out instead (#100),
  * behind the lock all the same, which counts as on then, as its setting cannot be read. What a reminder tapped asks to
- * open ([opening]) opens once the app is unlocked, over what was open, and [onOpened] says so.
+ * open ([opening]) opens once the app is unlocked, over what was open, and [onOpened] says so; "Starten" on a reminder
+ * answers it first, then opens its run, or Heute should it be answered already (#103).
  */
 @Composable
-fun EmilysHubApp(hub: Hub, opening: Destination? = null, onOpened: () -> Unit = {}) {
+fun EmilysHubApp(hub: Hub, opening: Opening? = null, onOpened: () -> Unit = {}) {
     val settings = hub.settings
     val lock = hub.appLock
     val authenticator = hub.authenticator
@@ -220,7 +222,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 }
 
 @Composable
-private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpened: () -> Unit) {
+private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: () -> Unit) {
     // Saves to its end by itself, though the shell is gone meanwhile behind the lock (AppSettings).
     val scope = rememberCoroutineScope()
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }
@@ -228,13 +230,6 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
     var stack by rememberSaveable { mutableStateOf(BackStack()) }
     val open = { destination: Destination -> stack = stack.push(destination) }
     val back = { stack = stack.pop() }
-    LaunchedEffect(opening) {
-        if (opening != null) {
-            // Asked for again while it shows, it is not opened twice.
-            if (stack.top != opening) stack = stack.push(opening)
-            onOpened()
-        }
-    }
     // Here, so that they stay while an entry is open and while another tab shows.
     var tabs by rememberSaveable { mutableStateOf(TabViews()) }
     // Whether Heute shows yesterday, to catch up on (SPEC.md §1): kept while a screen is open over it, but not past
@@ -243,6 +238,27 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
     // Which of Heute's blocks are open (SPEC.md §1): likewise kept while a screen is open over it, but folded again past
     // another tab, a new start or the lock, so that the first look at Heute is always the same.
     var folds by remember { mutableStateOf(HeuteFolds()) }
+    // "Starten" on Heute and on a reminder (SPEC.md §2), asking first should another run be running.
+    val startRun = rememberStartRun(hub.runs, hub.routines) { occurrence, routine ->
+        // Started again from its reminder while it shows, it is not opened twice.
+        Destination.Run(occurrence, routine).let { if (stack.top != it) open(it) }
+    }
+    LaunchedEffect(opening) {
+        when (opening) {
+            null -> return@LaunchedEffect
+            // Asked for again while it shows, it is not opened twice.
+            is Opening.Show -> if (stack.top != opening.destination) stack = stack.push(opening.destination)
+            is Opening.StartRun -> when (val run = hub.startFromReminder(opening.occurrenceId)) {
+                // Answered meanwhile: Heute, under what may be open over it, a draft in an editor say.
+                null -> {
+                    current = TopLevelDestination.Today
+                    yesterday = false
+                }
+                else -> startRun(run.occurrenceId, run.routineId)
+            }
+        }
+        onOpened()
+    }
 
     // What a screen over the tabs keeps while one opened from it covers it: what was typed in an editor a note was
     // opened from, say. The tabs keep only what is kept here above.
@@ -279,6 +295,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
             tabs = tabs,
             onTabsChange = { tabs = it },
             open = open,
+            startRun = startRun,
         )
         if (!settings.remindersAsked) {
             AskOnceSomethingReminds(hub.routines, hub.todos, hub.subscriptions) { scope.launchNow { hub.settings.setRemindersAsked() } }
@@ -437,7 +454,7 @@ private fun AskOnceSomethingReminds(routines: Routines, todos: Todos, subscripti
  * The tabs ([current], [onSelect]) with the bar above them, each tab shown as [tabs] has it ([onTabsChange]); what is
  * tapped there opens over them ([open]). What is open in Sonstiges shows its name in the bar, with the arrow back to the
  * list, back within it as [TabViews.backInMore] has it. Heute shows [yesterday] instead, to catch up on, as [onYesterdayChange] has it,
- * and its blocks open as [folds] has it ([onFoldsChange]).
+ * and its blocks open as [folds] has it ([onFoldsChange]); "Starten" there starts a run ([startRun]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -452,9 +469,8 @@ private fun TopLevelScaffold(
     tabs: TabViews,
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
+    startRun: (occurrenceId: Long, routineId: Long) -> Unit,
 ) {
-    // "Starten" on Heute (SPEC.md §2), asking first should another run be running.
-    val startRun = rememberStartRun(hub.runs, hub.routines) { occurrence, routine -> open(Destination.Run(occurrence, routine)) }
     // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together; none until
     // all of it is there.
     val heuteDay = if (current == TopLevelDestination.Today) rememberHeute(hub.heute) else null
@@ -580,7 +596,7 @@ private fun TopLevelScaffold(
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
-                    onStartRun = startRun,
+                    onStartRun = { startRun(it.occurrenceId, it.routineId) },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

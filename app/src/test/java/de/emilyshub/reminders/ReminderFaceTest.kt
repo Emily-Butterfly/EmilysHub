@@ -34,10 +34,17 @@ class ReminderFaceTest {
         override fun subscriptionOnLockScreen() = "an Abo to cancel"
     }
 
-    private fun routine(name: String = "Yoga", onLockScreen: Boolean = false, together: List<JointOccurrence> = emptyList()) =
-        DueReminder.OfOccurrence(
-            Reminder(1, name, dueAt, dueAt.plusHours(1).toInstant(), RemindingStyle(nameOnLockScreen = onLockScreen), together),
-        )
+    private fun routine(
+        name: String = "Yoga",
+        onLockScreen: Boolean = false,
+        together: List<JointOccurrence> = emptyList(),
+        checklist: Boolean = false,
+    ) = DueReminder.OfOccurrence(
+        Reminder(
+            1, name, dueAt, dueAt.plusHours(1).toInstant(), RemindingStyle(nameOnLockScreen = onLockScreen), together,
+            routineId = 5, hasChecklist = checklist,
+        ),
+    )
 
     private fun todo(due: Due = Due.On(today), places: List<String> = emptyList(), onLockScreen: Boolean = false) =
         DueReminder.OfTodo(TodoReminder(7, "Steuer", due, places, RemindingStyle(nameOnLockScreen = onLockScreen)))
@@ -89,5 +96,14 @@ class ReminderFaceTest {
         assertEquals(ReminderFace.OnLockScreen("Steuer", null), somewhere.onLockScreen)
 
         assertNull(ReminderFace.of(todo(), today, words).onLockScreen)
+    }
+
+    @Test
+    fun `a routine's with a checklist can be started, one without, a joint one, a to-do's and an Abo's cannot`() {
+        assertTrue(ReminderFace.of(routine(checklist = true), today, words).startable)
+        assertFalse(ReminderFace.of(routine(), today, words).startable)
+        val joint = routine(checklist = true, together = listOf(JointOccurrence(2, "Atmen", nameOnLockScreen = false)))
+        assertFalse(ReminderFace.of(joint, today, words).startable)
+        assertFalse(ReminderFace.of(todo(), today, words).startable)
     }
 }

@@ -20,6 +20,8 @@ import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
+import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.RunToOpen
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
@@ -96,4 +98,10 @@ interface Hub {
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()
+
+    /**
+     * "Starten" on the reminder of the occurrence [occurrenceId] (#103), as [Reminders.start] has it: the run to open, or
+     * none once it is answered.
+     */
+    suspend fun startFromReminder(occurrenceId: Long): RunToOpen?
 }

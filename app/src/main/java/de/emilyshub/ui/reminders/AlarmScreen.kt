@@ -38,7 +38,8 @@ data class AlarmShown(val key: String, val face: ReminderFace)
  * of one that allows them there, and offers to unlock or close; once unlocked, it shows what it rings for, [shown],
  * with "Erledigt · Später", and "Überspringen · Heute nicht" for a routine; for coupled routines due together, a
  * "done" for each of them ([onDoneOf]) instead of "Erledigt", the rest for all of them; after "Später" the choice
- * when to come back, out of [putOffChoices]; without any, there is no "Später".
+ * when to come back, out of [putOffChoices]; without any, there is no "Später". A routine with a checklist offers
+ * "Starten" too ([onStart], #103), never a joint alarm.
  */
 @Composable
 fun AlarmScreen(
@@ -52,6 +53,7 @@ fun AlarmScreen(
     onSkip: () -> Unit,
     onDrop: () -> Unit,
     onClose: () -> Unit,
+    onStart: () -> Unit = {},
 ) {
     // For the reminder shown: another one coming first starts with its actions again.
     var choosingPutOff by rememberSaveable(shown?.key) { mutableStateOf(false) }
@@ -90,6 +92,7 @@ fun AlarmScreen(
                 else -> {
                     Title(shown.face.title)
                     shown.face.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center) }
+                    if (shown.face.startable) WideButton(stringResource(R.string.run_start), onStart, primary = true)
                     if (shown.face.each.isEmpty()) {
                         WideButton(stringResource(R.string.reminder_done), onDone, primary = true)
                     } else {

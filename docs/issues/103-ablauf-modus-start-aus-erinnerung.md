@@ -13,16 +13,16 @@ Die Erinnerung an eine Routine mit Checkliste führt mit einem Tipp in ihren Abl
 
 ## Akzeptanzkriterien
 
-- [ ] Die Benachrichtigung einer Routine mit Checkliste bietet **Starten · Erledigt · Später** statt „Erledigt · Später · Überspringen“; Routinen ohne Checkliste bleiben, wie sie sind
-- [ ] „Später“ bietet dort wie bisher 10 min, 30 min und „Heute nicht“
-- [ ] Der Vollbild-Alarm einer Routine mit Checkliste bietet entsperrt zusätzlich **Starten**, neben Erledigt, Später, Überspringen und Heute nicht
-- [ ] „Starten“ öffnet die App hinter ihrer Sperre direkt im Ablauf dieser Fälligkeit (#101); das Klingeln endet, und die Erinnerung ist zurückgestellt wie nach „Später“, um den Abstand des Nachfassens der Routine. Ist die Routine dann noch offen, erinnert sie wieder
-- [ ] Auf dem Sperrbildschirm wirkt „Starten“ wie die anderen Aktionen erst nach dem Entsperren
-- [ ] Ist die Fälligkeit inzwischen beantwortet, öffnet „Starten“ Heute und nimmt die Erinnerung weg
-- [ ] Der gemeinsame Alarm gekoppelter Routinen und seine Benachrichtigung bleiben ohne „Starten“; To-dos und Abos bleiben, wie sie sind
-- [ ] Das Aussehen läuft über `ReminderFace`, die Antwort über denselben Weg wie die anderen (`Answer`), damit Benachrichtigung und Alarm gleich antworten
-- [ ] Was den Ablauf öffnet, wird geprüft wie die anderen Intents: nur eine gültige, offene Fälligkeit, über die Launcher-Activity mit einem Zusatz, wie beim Abo; keine weitere exportierte Komponente
-- [ ] Tests: Knöpfe mit und ohne Checkliste; „Starten“ öffnet den Ablauf nach dem Entsperren und stellt zurück; beantwortete Fälligkeit; gemeinsamer Alarm unverändert
+- [x] Die Benachrichtigung einer Routine mit Checkliste bietet **Starten · Erledigt · Später** statt „Erledigt · Später · Überspringen“; Routinen ohne Checkliste bleiben, wie sie sind
+- [x] „Später“ bietet dort wie bisher 10 min, 30 min und „Heute nicht“
+- [x] Der Vollbild-Alarm einer Routine mit Checkliste bietet entsperrt zusätzlich **Starten**, neben Erledigt, Später, Überspringen und Heute nicht
+- [x] „Starten“ öffnet die App hinter ihrer Sperre direkt im Ablauf dieser Fälligkeit (#101); das Klingeln endet, und die Erinnerung ist zurückgestellt wie nach „Später“, um den Abstand des Nachfassens der Routine. Ist die Routine dann noch offen, erinnert sie wieder
+- [x] Auf dem Sperrbildschirm wirkt „Starten“ wie die anderen Aktionen erst nach dem Entsperren
+- [x] Ist die Fälligkeit inzwischen beantwortet, öffnet „Starten“ Heute und nimmt die Erinnerung weg
+- [x] Der gemeinsame Alarm gekoppelter Routinen und seine Benachrichtigung bleiben ohne „Starten“; To-dos und Abos bleiben, wie sie sind
+- [x] Das Aussehen läuft über `ReminderFace`, die Antwort über denselben Weg wie die anderen (`Answer`), damit Benachrichtigung und Alarm gleich antworten
+- [x] Was den Ablauf öffnet, wird geprüft wie die anderen Intents: nur eine gültige, offene Fälligkeit, über die Launcher-Activity mit einem Zusatz, wie beim Abo; keine weitere exportierte Komponente
+- [x] Tests: Knöpfe mit und ohne Checkliste; „Starten“ öffnet den Ablauf nach dem Entsperren und stellt zurück; beantwortete Fälligkeit; gemeinsamer Alarm unverändert
 
 ## Entscheidungen
 

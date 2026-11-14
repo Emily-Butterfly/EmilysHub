@@ -123,7 +123,8 @@ class Reminders internal constructor(
      * - "Später" asks when to come back, and the choice puts it off then, and its follow-ups after that: only one that has
      *   come due and is still open, and only by a choice it offers now, else it stays as it is;
      * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do;
-     * - "Läuft weiter" lets an Abo run on, and is nothing for anything else.
+     * - "Läuft weiter" lets an Abo run on, and is nothing for anything else;
+     * - "Starten" puts a routine's off for its run, as [start] has it.
      *
      * Asking anything of one answered meanwhile takes it down. What writes to the routines or to-dos runs outside the
      * lock, as their change brings the reminders up to date, which takes it.
@@ -138,7 +139,24 @@ class Reminders internal constructor(
             Answer.Skip -> source.skip(about.id)
             Answer.Drop -> source.drop(about.id)
             Answer.RunOn -> source.runOn(about.id)
+            Answer.Start -> start(about)
         }
+    }
+
+    /**
+     * "Starten" on the reminder about [about] (#103): one still due that can be run through is put off by its routine's
+     * follow-up time, as after "Später", so that it reminds again should the routine still be open then; returns the run
+     * to open. Anything else opens none: one answered meanwhile goes away, and one that cannot be run through, as a
+     * joint one, stays as it is.
+     */
+    suspend fun start(about: Alarmed): RunToOpen? {
+        val reminder = (stillDue(about) as? DueReminder.OfOccurrence)?.reminder?.takeIf { it.startable }
+        if (reminder == null) {
+            update()
+            return null
+        }
+        sourceOf(about).putOff(about.id, until = clock.instant() + reminder.followUpEvery)
+        return RunToOpen(reminder.occurrenceId, reminder.routineId)
     }
 
     /**
@@ -271,3 +289,6 @@ class Reminders internal constructor(
 
 /** What "Später" offers at [now] in [zone]: those of the [PutOffChoice.MINUTES] that come back before the time window ends. */
 fun Reminder.putOffChoices(now: Instant, zone: ZoneId): List<PutOffChoice> = DueReminder.OfOccurrence(this).putOffChoices(now, zone)
+
+/** The run "Starten" on a reminder opens (#103): through the occurrence [occurrenceId] of the routine [routineId]. */
+data class RunToOpen(val occurrenceId: Long, val routineId: Long)

@@ -13,13 +13,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.os.BundleCompat
 import de.emilyshub.ui.EmilysHubApp
 import de.emilyshub.ui.ledger.SubscriptionEditorTarget
+import de.emilyshub.reminders.AlarmRingService
 import de.emilyshub.ui.navigation.Destination
+import de.emilyshub.ui.navigation.Opening
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     /** What a reminder tapped asks to open, until the app has opened it, behind its lock if that is on. */
-    private val opening = mutableStateOf<Destination?>(null)
+    private val opening = mutableStateOf<Opening?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -30,8 +32,9 @@ class MainActivity : ComponentActivity() {
         opening.value = if (savedInstanceState == null) {
             intent.opening()
         } else {
-            BundleCompat.getSerializable(savedInstanceState, OPENING, Destination::class.java)
+            BundleCompat.getSerializable(savedInstanceState, OPENING, Opening::class.java)
         }
+        if (savedInstanceState == null) intent.silenceIfStarting()
         publishShortcuts(this)
         setContent {
             EmilysHubApp(app, opening = opening.value, onOpened = { opening.value = null })
@@ -53,6 +56,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.opening()?.let { opening.value = it }
+        intent.silenceIfStarting()
+    }
+
+    /**
+     * "Starten" on a reminder ends its ringing at once (#103), before the app's lock; the answer waits behind it. Anything
+     * may send here, but silencing is all it does before the lock, as "Stumm" does.
+     */
+    private fun Intent.silenceIfStarting() {
+        if (startOccurrence() != null) AlarmRingService.silence(this@MainActivity)
     }
 
     companion object {
@@ -61,6 +73,7 @@ class MainActivity : ComponentActivity() {
         private const val EXTRA_CAPTURE = "de.emilyshub.extra.CAPTURE"
         private const val EXTRA_RUN_OCCURRENCE = "de.emilyshub.extra.RUN_OCCURRENCE"
         private const val EXTRA_RUN_ROUTINE = "de.emilyshub.extra.RUN_ROUTINE"
+        private const val EXTRA_START_OCCURRENCE = "de.emilyshub.extra.START_OCCURRENCE"
 
         /** The id of the shortcut "Neuer Gedanke" (SPEC.md §16). */
         const val SHORTCUT_CAPTURE = "capture"
@@ -96,6 +109,17 @@ class MainActivity : ComponentActivity() {
             .putExtra(EXTRA_RUN_ROUTINE, routineId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
+        /**
+         * "Starten" on the reminder of the occurrence (#103), from its notification or its full-screen alarm: answers it so
+         * once the app is unlocked, and opens its run there.
+         */
+        fun startFromReminder(context: Context, occurrenceId: Long): Intent = Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_START_OCCURRENCE, occurrenceId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        /** The occurrence whose reminder "Starten" was tapped on; none without a valid one. */
+        private fun Intent.startOccurrence(): Long? = getLongExtra(EXTRA_START_OCCURRENCE, 0).takeIf { it > 0 }
+
         /** Opens the Abo [id] (#80), asking until when it was cancelled if [cancel], as its reminder does. */
         fun openSubscription(context: Context, id: Long, cancel: Boolean): Intent = Intent(context, MainActivity::class.java)
             .putExtra(EXTRA_SUBSCRIPTION, id)
@@ -103,18 +127,22 @@ class MainActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
         /**
-         * What [this] intent asks to open: the line for a thought, a run or an Abo by valid ids, or nothing. The activity is the launcher's, so anything
-         * may send here: it opens no more than tapping through the app would, and only behind the app's lock (SPEC.md §9).
+         * What [this] intent asks to open: the line for a thought, a run or an Abo by valid ids, "Starten" on a reminder by
+         * a valid occurrence, or nothing. The activity is the launcher's, so anything may send here: it opens no more than
+         * tapping through the app would, and only behind the app's lock (SPEC.md §9); "Starten" answers only a reminder
+         * still due that can be run through, and only once the app is unlocked.
          */
-        private fun Intent.opening(): Destination? {
+        private fun Intent.opening(): Opening? {
             // The empty line for a thought, nothing else.
-            if (getBooleanExtra(EXTRA_CAPTURE, false)) return Destination.Capture
+            if (getBooleanExtra(EXTRA_CAPTURE, false)) return Opening.Show(Destination.Capture)
+            startOccurrence()?.let { return Opening.StartRun(it) }
             // A run by valid ids: one not running shows that it ended, as it does in the app.
             val occurrence = getLongExtra(EXTRA_RUN_OCCURRENCE, 0).takeIf { it > 0 }
             val routine = getLongExtra(EXTRA_RUN_ROUTINE, 0).takeIf { it > 0 }
-            if (occurrence != null && routine != null) return Destination.Run(occurrence, routine)
+            if (occurrence != null && routine != null) return Opening.Show(Destination.Run(occurrence, routine))
             val id = getLongExtra(EXTRA_SUBSCRIPTION, 0).takeIf { it > 0 } ?: return null
-            return Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(id, cancelling = getBooleanExtra(EXTRA_CANCEL, false)))
+            val target = SubscriptionEditorTarget.Edit(id, cancelling = getBooleanExtra(EXTRA_CANCEL, false))
+            return Opening.Show(Destination.SubscriptionEditor(target))
         }
     }
 }

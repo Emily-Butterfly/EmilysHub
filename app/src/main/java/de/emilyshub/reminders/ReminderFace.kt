@@ -15,7 +15,8 @@ import java.time.ZonedDateTime
  * How a due reminder shows (SPEC.md §3, §5, §9), in its notification and in its full-screen alarm alike: its [title] and
  * [text]; what the lock screen shows of it, where it allows that ([onLockScreen]), else only that one is due; for a
  * joint reminder of coupled routines, each of them by name ([each]), to say which one was done; and whether it can be
- * skipped, as a routine's can and a to-do's and an Abo's cannot ([skippable]). An Abo's says until when to cancel it,
+ * skipped, as a routine's can and a to-do's and an Abo's cannot ([skippable]); and whether "Starten" runs through its
+ * checklist, as only a routine's with one can, never a joint one ([startable], #103). An Abo's says until when to cancel it,
  * and on the lock screen only that one is to be cancelled (#80). The one place that decides it; the notification and
  * the alarm only render it.
  */
@@ -25,6 +26,7 @@ data class ReminderFace(
     val skippable: Boolean,
     val onLockScreen: OnLockScreen? = null,
     val each: List<Choice> = emptyList(),
+    val startable: Boolean = false,
 ) {
     /** What the lock screen shows of a reminder that allows its name there: the name as [title], and when, [text]. */
     data class OnLockScreen(val title: String, val text: String?)
@@ -48,6 +50,7 @@ data class ReminderFace(
                     } else {
                         emptyList()
                     },
+                    startable = reminder.startable,
                 )
             }
             is DueReminder.OfSubscription -> ReminderFace(

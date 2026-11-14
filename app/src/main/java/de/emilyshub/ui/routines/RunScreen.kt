@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.emilyshub.Day
 import de.emilyshub.R
-import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.Outlook
 import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
@@ -225,41 +224,54 @@ private fun RunEnd.sentence(): String = when (this) {
 }
 
 /**
- * "Starten" at an open routine on Heute (SPEC.md §2): starts the run through its occurrence, or takes it up, and opens it
- * ([onOpen]). Another running, it asks first whether to end that one, naming its routine; one run runs at a time.
+ * "Starten" at an open routine on Heute or on its reminder (SPEC.md §2, #103): starts the run through its occurrence, or
+ * takes it up, and opens it ([onOpen]). Another running, it asks first whether to end that one, naming both routines; one
+ * run runs at a time.
  */
 @Composable
-fun rememberStartRun(runs: RoutineRuns, routines: Routines, onOpen: (occurrenceId: Long, routineId: Long) -> Unit): (DueRoutine) -> Unit {
+fun rememberStartRun(
+    runs: RoutineRuns,
+    routines: Routines,
+    onOpen: (occurrenceId: Long, routineId: Long) -> Unit,
+): (occurrenceId: Long, routineId: Long) -> Unit {
     val scope = rememberCoroutineScope()
-    var asking by remember { mutableStateOf<Pair<DueRoutine, String>?>(null) }
-    val start = { routine: DueRoutine ->
+    var asking by remember { mutableStateOf<Asking?>(null) }
+    val start = { occurrenceId: Long, routineId: Long ->
         scope.launchNow {
-            runs.start(routine.occurrenceId, routine.routineId)
-            onOpen(routine.occurrenceId, routine.routineId)
+            runs.start(occurrenceId, routineId)
+            onOpen(occurrenceId, routineId)
         }
         Unit
     }
-    asking?.let { (routine, running) ->
+    asking?.let { ask ->
         AlertDialog(
             onDismissRequest = { asking = null },
             title = { Text(stringResource(R.string.run_other_title)) },
-            text = { Text(stringResource(R.string.run_other_text, running, routine.name)) },
+            text = { Text(stringResource(R.string.run_other_text, ask.running, ask.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     asking = null
-                    start(routine)
+                    start(ask.occurrenceId, ask.routineId)
                 }) { Text(stringResource(R.string.run_other_confirm)) }
             },
             dismissButton = { TextButton(onClick = { asking = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
-    return { routine ->
+    return { occurrenceId, routineId ->
         scope.launchNow {
-            val other = runs.other(routine.occurrenceId)
-            if (other == null) start(routine) else asking = routine to routines.get(other.routineId)?.name.orEmpty()
+            val other = runs.other(occurrenceId)
+            if (other == null) {
+                start(occurrenceId, routineId)
+            } else {
+                val name = routines.get(routineId)?.name.orEmpty()
+                asking = Asking(occurrenceId, routineId, name, running = routines.get(other.routineId)?.name.orEmpty())
+            }
         }
     }
 }
+
+/** Asking whether to end the run through the routine [running] to start the one through [name]'s occurrence. */
+private data class Asking(val occurrenceId: Long, val routineId: Long, val name: String, val running: String)
 
 /** The time now by [day], anew each second. */
 @Composable
