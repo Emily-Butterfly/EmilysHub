@@ -809,3 +809,20 @@ val MIGRATION_51_52 = object : Migration(51, 52) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_reviews_card_id` ON `card_reviews` (`card_id`)")
     }
 }
+
+/**
+ * Version 53: the Vokabeltrainer counts (SPEC.md §2, §6, §15; #106): a routine may be done by the day's workload of a
+ * language's cards, none is yet; and a goal may have a Karten-Ziel, none has yet.
+ */
+val MIGRATION_52_53 = object : Migration(52, 53) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `vocabulary_language_id` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `card_goals` (`goal_id` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`count` INTEGER NOT NULL, PRIMARY KEY(`goal_id`), " +
+                "FOREIGN KEY(`goal_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_goals_language_id` ON `card_goals` (`language_id`)")
+    }
+}

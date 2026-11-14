@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -24,6 +25,9 @@ import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
+import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.routines.RoutineStatus
+import de.emilyshub.wishes.WishDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -164,6 +168,66 @@ class VocabularyScreenTest {
         }
         val bab = runBlocking { app.flashcards.tab(arabic).first() }?.cards?.single { it.card.front == "bab" }?.card
         assertEquals(listOf("Tür", "bāb", "offen"), listOf(bab?.back, bab?.transcription, bab?.note))
+    }
+
+    @Test
+    fun `a routine is done by the cards of a language chosen in its editor, under Mehr Optionen`() {
+        val arabic = language("Arabisch")
+
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithContentDescription("Routine anlegen").performClick()
+            field("Name").performTextInput("Vokabeln")
+            compose.openMoreOptions()
+            compose.onNodeWithText("Erledigt durch Vokabeln").performScrollTo().assertIsDisplayed()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            heading("Routinen").assertIsDisplayed()
+        }
+        assertEquals(listOf(arabic), runBlocking { app.testDatabase.routines().withStatus(RoutineStatus.Active) }.map { it.vocabularyLanguageId })
+    }
+
+    @Test
+    fun `on Heute such a routine says by which cards, and its menu practises them, which does it`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        app.routine("Vokabeln", "18:00")
+        runBlocking {
+            val routine = app.testDatabase.routines().withStatus(RoutineStatus.Active).single()
+            app.testDatabase.routines().update(routine.copy(vocabularyLanguageId = arabic))
+        }
+
+        launchApp().use {
+            compose.onNodeWithText("durch Vokabeln: Arabisch").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Mehr zu „Vokabeln“", substring = true).performClick()
+            compose.onNodeWithText("Üben").performClick()
+            compose.onNodeWithText("1 von 1").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("Für heute geschafft: 1 Karte").assertIsDisplayed()
+        }
+        assertEquals(
+            listOf(OccurrenceStatus.Done),
+            runBlocking { app.routines.dueOn(app.routines.today()).first() }.map { it.status },
+        )
+    }
+
+    @Test
+    fun `a goal's Karten-Ziel has a line of its own in the tree, which opens the cards of its language`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        runBlocking { app.wishes.create(WishDraft("Wortschatz", cardLanguageId = arabic, cardCount = "1000")) }
+
+        launchApp().use {
+            compose.openGoals()
+            compose.onNodeWithContentDescription("„Wortschatz“ aufklappen").performClick()
+            compose.onNodeWithText("Karten: Arabisch · 0 von 1\u202F000").performClick()
+
+            heading("Arabisch").assertIsDisplayed()
+            tab("Karten").assertIsSelected()
+            compose.onNodeWithText("kitab").assertIsDisplayed()
+        }
     }
 
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }

@@ -46,6 +46,8 @@ import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
 import de.emilyshub.inbox.Inbox
 import de.emilyshub.inbox.Sorting
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.Languages
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
@@ -76,6 +78,8 @@ import de.emilyshub.ui.fields.priorityOption
 import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.fields.styleOptions
 import de.emilyshub.ui.fields.tagsOption
+import de.emilyshub.ui.languages.VocabularyField
+import de.emilyshub.ui.languages.rememberOfferedLanguages
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -110,6 +114,7 @@ fun RoutineEditorScreen(
     places: Places,
     notes: Notes,
     inbox: Inbox,
+    languages: Languages,
     target: RoutineEditorTarget,
     tones: ToneCollection,
     onClose: () -> Unit,
@@ -260,10 +265,11 @@ fun RoutineEditorScreen(
                 })
             }
             ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) }, withMinutes = true)
+            val offeredLanguages = rememberOfferedLanguages(languages)
             MoreOptions(
                 expanded = moreOptions,
                 onExpandedChange = { moreOptions = it },
-                summary = optionsSet(cleaned, places, wishes),
+                summary = optionsSet(cleaned, places, wishes, offeredLanguages),
                 available = stringResource(R.string.more_options_routine),
             ) {
                 OutlinedTextField(
@@ -294,6 +300,7 @@ fun RoutineEditorScreen(
                 )
                 if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
                 CouplingField(routines, routineId, draft.times.size, draft.coupledWith, onChange = { draft = draft.copy(coupledWith = it) })
+                VocabularyField(offeredLanguages, draft.vocabularyLanguageId, onChange = { draft = draft.copy(vocabularyLanguageId = it) })
                 FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
                 RemindingStyleFields(draft.style, tones, onChange = { draft = draft.copy(style = it) })
                 TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
@@ -338,13 +345,14 @@ private val UNFOLDED = setOf(
 
 /** What under "Mehr Optionen" differs from a new routine, in the order of its fields. */
 @Composable
-private fun optionsSet(draft: RoutineDraft, places: Places, wishes: Wishes): List<String> = listOfNotNull(
+private fun optionsSet(draft: RoutineDraft, places: Places, wishes: Wishes, languages: List<Language>): List<String> = listOfNotNull(
     stringResource(R.string.option_description).takeIf { InputText.isVisible(draft.description) },
     priorityOption(draft.priority),
     tagsOption(draft.tagIds),
     placesOption(places, draft.placeIds),
     goalOption(wishes, draft.goalId),
     draft.coupledWith.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.option_coupled, it, it) },
+    languages.find { it.id == draft.vocabularyLanguageId }?.let { stringResource(R.string.option_vocabulary, it.name) },
     when {
         draft.followUps == FollowUps() -> null
         draft.followUps.count == 0 -> stringResource(R.string.option_follow_ups_never)

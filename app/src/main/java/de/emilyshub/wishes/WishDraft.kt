@@ -1,6 +1,7 @@
 package de.emilyshub.wishes
 
 import de.emilyshub.data.InputText
+import de.emilyshub.languages.CardGoal
 import java.io.Serializable
 import java.time.LocalDate
 
@@ -11,6 +12,9 @@ enum class WishProblem {
     DescriptionTooLong,
     PeriodTooLong,
     ProgressOutOfRange,
+
+    /** A Karten-Ziel's number of sure cards is not one of [CardGoal.COUNTS]. */
+    CardCountOutOfRange,
 }
 
 /**
@@ -32,6 +36,10 @@ data class WishDraft(
     val parentId: Long? = null,
     /** How far it has come in percent, set by hand; none: worked out from its parts. */
     val manualProgress: Int? = null,
+    /** The language of its Karten-Ziel (SPEC.md §15; #106); none: it has none. One deleted meanwhile is left out on saving. */
+    val cardLanguageId: Long? = null,
+    /** How many sure cards its Karten-Ziel asks for, as typed. */
+    val cardCount: String = "",
 ) : Serializable {
 
     val problems: Set<WishProblem>
@@ -42,14 +50,19 @@ data class WishDraft(
                 if (InputText.lengthOf(description) > DESCRIPTION_MAX) add(WishProblem.DescriptionTooLong)
                 if (InputText.lengthOf(period) > PERIOD_MAX) add(WishProblem.PeriodTooLong)
                 if (manualProgress != null && manualProgress !in 0..PROGRESS_MAX) add(WishProblem.ProgressOutOfRange)
+                if (cardLanguageId != null && cardGoalCount == null) add(WishProblem.CardCountOutOfRange)
             }
         }
 
-    /** Without surrounding spaces; the title and the period on a single line. */
+    /** How many sure cards its Karten-Ziel asks for; none without one, or if what is typed is no such number. */
+    val cardGoalCount: Int? get() = cardCount.trim().toIntOrNull()?.takeIf { it in CardGoal.COUNTS }
+
+    /** Without surrounding spaces; the title and the period on a single line; without a language, no number of cards. */
     fun cleaned() = copy(
         title = InputText.singleLine(title),
         description = InputText.multiLine(description).trimStart(),
         period = InputText.singleLine(period),
+        cardCount = if (cardLanguageId == null) "" else cardCount.trim(),
     )
 
     /**
@@ -75,5 +88,7 @@ data class WishDraft(
     }
 }
 
-/** The wish with its [tagIds] as the editor starts out with it. */
-fun Wish.toDraft(tagIds: Set<Long>) = WishDraft(title, description, period, status, doneOn, tagIds, parentId, manualProgress)
+/** The wish with its [tagIds] and its Karten-Ziel [cards], if it has one, as the editor starts out with it. */
+fun Wish.toDraft(tagIds: Set<Long>, cards: CardGoal? = null) = WishDraft(
+    title, description, period, status, doneOn, tagIds, parentId, manualProgress, cards?.languageId, cards?.count?.toString().orEmpty(),
+)

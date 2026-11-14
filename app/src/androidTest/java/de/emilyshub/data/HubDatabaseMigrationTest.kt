@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardGoal
 import de.emilyshub.languages.CardReview
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
@@ -1129,6 +1130,32 @@ class HubDatabaseMigrationTest {
             assertEquals(listOf(3), cards.reviewsOf(id).map { it.grade })
             cards.delete(id)
             assertEquals(emptyList<CardReview>(), cards.reviewsOf(id))
+        }
+    }
+
+    @Test
+    fun `version 52 moves to version 53 with no routine done by cards and no Karten-Ziel, and then both are kept`() {
+        createAtVersion(52) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Vokabeln', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO wishes (id, title, description, period, status) VALUES (1, 'Wortschatz', '', '', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val routines = database.routines()
+            assertEquals(null, routines.get(1)?.vocabularyLanguageId)
+            routines.update(checkNotNull(routines.get(1)).copy(vocabularyLanguageId = 1))
+            assertEquals(1L, routines.get(1)?.vocabularyLanguageId)
+
+            val cards = database.cards()
+            assertEquals(null, cards.goal(1))
+            cards.setGoal(CardGoal(goalId = 1, languageId = 1, count = 1000))
+            assertEquals(1000, cards.goal(1)?.count)
+            database.wishes().delete(1)
+            assertEquals(null, cards.goal(1))
         }
     }
 

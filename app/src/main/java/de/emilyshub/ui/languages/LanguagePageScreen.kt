@@ -64,7 +64,8 @@ import kotlinx.coroutines.flow.map
  * ([onOpenCard]); and "Auswertung", what each teacher's lessons of it come to for
  * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]),
  * on "Karten" a card ([onCreateCard]).
- * Gone meanwhile, it closes. Opened from an exam at a goal ([examId]), it opens on "Themen" at that exam's topics.
+ * Gone meanwhile, it closes. Opened from an exam at a goal ([examId]), it opens on "Themen" at that exam's topics; from
+ * a Karten-Ziel ([cards]), on "Karten".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +76,7 @@ fun LanguagePageScreen(
     day: Day,
     languageId: Long,
     examId: Long?,
+    cards: Boolean = false,
     onOpenLesson: (Long) -> Unit,
     onCreateLesson: () -> Unit,
     onOpenCard: (Long) -> Unit,
@@ -83,7 +85,15 @@ fun LanguagePageScreen(
 ) {
     val page by remember(languages, languageId) { languages.page(languageId).map<LanguagePage?, PageState?> { it?.let(::Shown) } }
         .collectAsState(initial = Loading)
-    var tab by rememberSaveable { mutableIntStateOf(if (examId != null) TOPICS_TAB else LESSONS_TAB) }
+    var tab by rememberSaveable {
+        mutableIntStateOf(
+            when {
+                examId != null -> TOPICS_TAB
+                cards -> CARDS_TAB
+                else -> LESSONS_TAB
+            },
+        )
+    }
     var teacherFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     val shown = page
     if (shown == null) {

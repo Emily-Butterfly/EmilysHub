@@ -1527,4 +1527,16 @@
         <item quantity="one">, %d schon vorhanden und übersprungen</item>
         <item quantity="other">, %d schon vorhanden und übersprungen</item>
     </plurals>
+
+    <!-- Routine und Ziel zählen mit (SPEC.md §15, #106) -->
+    <string name="routine_vocabulary">Erledigt durch Vokabeln</string>
+    <string name="routine_vocabulary_none">Nein</string>
+    <string name="routine_vocabulary_hint">Ist das Tagespensum der Sprache geschafft, ist die Routine heute erledigt.</string>
+    <string name="option_vocabulary">durch Vokabeln: %1$s</string>
+    <string name="today_by_vocabulary">durch Vokabeln: %1$s</string>
+    <string name="wish_card_goal">Karten-Ziel</string>
+    <string name="wish_card_goal_none">Keins</string>
+    <string name="wish_card_goal_count">Sichere Karten</string>
+    <string name="wish_card_goal_count_invalid">Eine Zahl von 1 bis 100 000.</string>
+    <string name="goal_cards_line">Karten: %1$s · %2$s von %3$s</string>
 </resources>

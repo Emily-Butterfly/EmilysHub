@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardGoal
 import de.emilyshub.languages.CardReview
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
@@ -193,4 +194,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM card_reviews")
     fun cardReviews(): List<CardReview>
+
+    @Query("SELECT * FROM card_goals")
+    fun cardGoals(): List<CardGoal>
 }

@@ -93,6 +93,10 @@ interface LanguageDao {
     @Query("UPDATE languages SET new_cards_per_day = :count WHERE id = :languageId")
     suspend fun setNewCardsPerDay(languageId: Long, count: Int)
 
+    /** The routines done by the cards of the language are so no more (SPEC.md §15; #106). */
+    @Query("UPDATE routines SET vocabulary_language_id = NULL WHERE vocabulary_language_id = :languageId")
+    suspend fun releaseRoutines(languageId: Long)
+
     /** The languages that have cards. */
     @Query("SELECT DISTINCT language_id FROM cards")
     fun observeLanguagesWithCards(): Flow<List<Long>>

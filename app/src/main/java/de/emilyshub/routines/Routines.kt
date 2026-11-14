@@ -267,6 +267,8 @@ class Routines(
         plan(date)
         val list = dao.observeOccurrencesWithChecklists(from = date.minusDays(1), to = date).map { all ->
             val now = now()
+            // Those not archived, which alone do a routine.
+            val vocabulary = database().languages().languages().filter { !it.archived }.associate { it.id to VocabularyLanguage(it.id, it.name) }
             // One done that skipped others is due the same day, so it is among them.
             val names = all.associate { it.occurrence.id to it.routine.name }
             val catchingUp = today(now, clock.zone) == date
@@ -283,6 +285,7 @@ class Routines(
                         waitingFor = due.waitingFor(),
                         endsOn = routine.endsOn,
                         coveredBy = occurrence.coveredBy?.let(names::get),
+                        vocabulary = routine.vocabularyLanguageId?.let(vocabulary::get),
                     )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
@@ -314,6 +317,22 @@ class Routines(
     }
 
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
+
+    /**
+     * The day's workload of cards of the language [languageId] is done (SPEC.md §2, §15; #106): each active routine done
+     * by it has its earliest occurrence of today still open done, as if ticked off, its checklist with it. What is
+     * missed, skipped or dropped stays as it is.
+     */
+    suspend fun doneByVocabulary(languageId: Long) {
+        val open = withContext(io) {
+            val today = today()
+            plan(today)
+            dao.withStatus(RoutineStatus.Active).filter { it.vocabularyLanguageId == languageId }.mapNotNull { routine ->
+                dao.occurrencesOn(routine.id, today).filter { it.status == OccurrenceStatus.Open }.minByOrNull { it.time }?.id
+            }
+        }
+        open.forEach { markDone(it) }
+    }
 
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 

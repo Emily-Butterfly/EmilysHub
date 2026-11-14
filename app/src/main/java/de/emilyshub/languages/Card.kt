@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import de.emilyshub.data.InputText
+import de.emilyshub.wishes.Wish
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
@@ -147,5 +148,28 @@ data class CardDraft(
     companion object {
         /** [card] as its editor opens it. */
         fun of(card: Card) = CardDraft(card.front, card.back, card.transcription, card.note, card.topicId)
+    }
+}
+
+/**
+ * A goal's Karten-Ziel (SPEC.md §6, §15; #106): [count] cards of the language [languageId] "sicher". One a goal at most;
+ * gone with its goal, or with its language.
+ */
+@Entity(
+    tableName = "card_goals",
+    foreignKeys = [
+        ForeignKey(entity = Wish::class, parentColumns = ["id"], childColumns = ["goal_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = Language::class, parentColumns = ["id"], childColumns = ["language_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("language_id")],
+)
+data class CardGoal(
+    @PrimaryKey @ColumnInfo(name = "goal_id") val goalId: Long,
+    @ColumnInfo(name = "language_id") val languageId: Long,
+    val count: Int,
+) {
+    companion object {
+        /** How many sure cards a Karten-Ziel may ask for. */
+        val COUNTS = 1..100_000
     }
 }

@@ -204,7 +204,11 @@ class Languages(
 
     /** Archives the language [id], or takes it back. */
     suspend fun setLanguageArchived(id: Long, archived: Boolean) = write {
-        database().withTransaction { dao.language(id)?.let { dao.updateLanguage(it.copy(archived = archived)) } }
+        database().withTransaction {
+            dao.language(id)?.let { dao.updateLanguage(it.copy(archived = archived)) }
+            // Archived, its routines are ordinary ones again (#106).
+            if (archived) dao.releaseRoutines(id)
+        }
     }
 
     /**
@@ -216,6 +220,7 @@ class Languages(
             if (dao.languageHasLessons(id) || dao.languageHasStudies(id) || id in onlyLanguages(dao.teaching())) {
                 return@withTransaction false
             }
+            dao.releaseRoutines(id)
             dao.deleteLanguage(id)
             true
         }

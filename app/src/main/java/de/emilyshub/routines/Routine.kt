@@ -67,6 +67,11 @@ data class Routine(
      * enough for all of them. Set by [Routines] from [RoutineDraft.coupledWith], never by the draft itself.
      */
     val coupling: Long? = null,
+    /**
+     * The language whose day's workload of cards, once done, does its open occurrence of that day (SPEC.md §2, §15;
+     * #106); none: it is ticked off by hand only. Let go of when that language is archived or deleted.
+     */
+    @ColumnInfo(name = "vocabulary_language_id") val vocabularyLanguageId: Long? = null,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
     fun timesOn(date: LocalDate): List<LocalTime> =
@@ -230,4 +235,9 @@ data class DueRoutine(
     val waitingFor: List<String> = emptyList(),
     val endsOn: LocalDate? = null,
     val coveredBy: String? = null,
+    /** The language whose day's workload of cards does it, if any (SPEC.md §15; #106). */
+    val vocabulary: VocabularyLanguage? = null,
 )
+
+/** The language a routine is done by, its cards' workload done (SPEC.md §15; #106): by its id and [name]. */
+data class VocabularyLanguage(val languageId: Long, val name: String)

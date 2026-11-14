@@ -36,6 +36,9 @@ internal class GoalWatch private constructor(
     /** The exam [id] of Sprachen is about to change, taken or not, or moved to another goal (SPEC.md §6, §15). */
     suspend fun exam(id: Long) = watch(Part.Exam(id))
 
+    /** The Karten-Ziel of the goal [goalId] is about to change, set, or its cards' sureness (SPEC.md §6, §15; #106). */
+    suspend fun cardGoal(goalId: Long) = watch(Part.Cards(goalId))
+
     /** The exam [id] was just made: part of no goal before (SPEC.md §15). */
     fun examAdded(id: Long) = added(Part.Exam(id))
 
@@ -94,6 +97,10 @@ internal class GoalWatch private constructor(
         is Part.Goal -> database.wishes().get(part.id)?.let { GoalPart(it.parentId, open = it.status != WishStatus.Done) }
         // Done once taken, whatever its topics.
         is Part.Exam -> database.languages().exam(part.id)?.let { GoalPart(it.goalId, open = !it.taken) }
+        // Done once as many cards are sure as it asks for.
+        is Part.Cards -> database.cards().goal(part.goalId)?.let { goal ->
+            GoalPart(goal.goalId, open = database.cards().sureCount(goal.languageId) < goal.count)
+        }
     } ?: GoalPart.None
 
     /** A part of a goal, by what it is (SPEC.md §6). */
@@ -109,6 +116,9 @@ internal class GoalWatch private constructor(
 
         /** An exam of Sprachen, of the goal it is part of. */
         data class Exam(val id: Long) : Part
+
+        /** The Karten-Ziel of the goal [goalId]. */
+        data class Cards(val goalId: Long) : Part
     }
 
     /** Finds the watch running in a change, as the change's coroutines carry it. */

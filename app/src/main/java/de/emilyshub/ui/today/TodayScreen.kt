@@ -115,6 +115,7 @@ fun TodayScreen(
     onOpenTodo: (Long) -> Unit = {},
     onOpenRoutine: (Long) -> Unit = {},
     onStartRun: (DueRoutine) -> Unit = {},
+    onPractise: (languageId: Long) -> Unit = {},
     capture: @Composable () -> Unit = {},
 ) {
     day ?: return
@@ -125,7 +126,7 @@ fun TodayScreen(
     val movedMessage = stringResource(R.string.move_done)
     val undoLabel = stringResource(R.string.undo)
     val today = day.date
-    val onHeute = remember(heute, scope, snackbar, tickedMessage, movedMessage, undoLabel, today, onOpenTodo, onOpenRoutine, onStartRun) {
+    val onHeute = remember(heute, scope, snackbar, tickedMessage, movedMessage, undoLabel, today, onOpenTodo, onOpenRoutine, onStartRun, onPractise) {
         OnHeute(
             today = today,
             // Ticked off, it goes to what is over; the bar brings it back.
@@ -144,6 +145,7 @@ fun TodayScreen(
             openTodo = onOpenTodo,
             openRoutine = onOpenRoutine,
             startRun = onStartRun,
+            practise = onPractise,
         )
     }
     val blocks = day.blocks
@@ -378,8 +380,9 @@ private typealias Act = (suspend Heute.() -> Unit) -> Unit
 /**
  * What an entry on Heute offers besides its box (SPEC.md §1): ticking it off, with a bar to undo that ([tickOff]), and
  * its menu, to [move] a to-do to another day from [today], with a bar to undo that too, and to open a to-do or routine in
- * its editor ([openTodo], [openRoutine]), and to run through an open routine's checklist step by step ([startRun], SPEC.md §2,
- * Ablauf-Modus). Yesterday's entries, caught up on, offer none of it.
+ * its editor ([openTodo], [openRoutine]), to run through an open routine's checklist step by step ([startRun], SPEC.md §2,
+ * Ablauf-Modus), and to practise the cards of the language one is done by ([practise], #106). Yesterday's entries,
+ * caught up on, offer none of it.
  */
 private class OnHeute(
     val today: LocalDate,
@@ -388,6 +391,7 @@ private class OnHeute(
     val openTodo: (Long) -> Unit,
     val openRoutine: (Long) -> Unit,
     val startRun: (DueRoutine) -> Unit,
+    val practise: (languageId: Long) -> Unit,
 )
 
 /** Ticks [entry] off through [onHeute] where there is one, or unticks it; otherwise as [catchingUp] has it. */
@@ -421,6 +425,9 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
                 if (routine.offer == RoutineOffer.SkipOrDrop) {
                     MoreMenuItem(stringResource(R.string.today_skip), close) { act { skip(routine) } }
                     MoreMenuItem(stringResource(R.string.today_drop), close) { act { drop(routine) } }
+                }
+                routine.vocabulary?.let { language ->
+                    MoreMenuItem(stringResource(R.string.cards_practice), close) { onHeute.practise(language.languageId) }
                 }
                 MoreMenuItem(stringResource(R.string.entry_open), close) { onHeute.openRoutine(routine.routineId) }
             }
@@ -606,6 +613,7 @@ private fun DueRoutineRow(
                 textDecoration = if (done || covered) TextDecoration.LineThrough else null,
             )
             routine.endsOn?.let { endText(RecurrenceEnd.OnDate(it))?.let { until -> Hint(until) } }
+            routine.vocabulary?.let { Hint(stringResource(R.string.today_by_vocabulary, it.name)) }
             PriorityNote(routine.priority)
             // Due elsewhere: it pops up on arrival at one of its places (SPEC.md §4).
             if (routine.waitingFor.isNotEmpty()) {

@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.languages.CardGoal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -70,7 +71,9 @@ class Wishes(
 
     /** The wish [id] as it is saved, to edit (SPEC.md §6), read at once with its tags; null once it is deleted. */
     suspend fun editing(id: Long): WishEditing? = withContext(io) {
-        database().withTransaction { dao.get(id)?.let { WishEditing(id, it.toDraft(dao.tagIdsOf(id).toSet())) } }
+        database().withTransaction {
+            dao.get(id)?.let { WishEditing(id, it.toDraft(dao.tagIdsOf(id).toSet(), database().cards().goal(id))) }
+        }
     }
 
     /**
@@ -97,6 +100,8 @@ class Wishes(
                 val id = dao.insert(cleaned.copy(parentId = parentId).toWish(today()))
                 watch.goalAdded(id)
                 saveTags(id, cleaned.tagIds)
+                watch.cardGoal(id)
+                saveCardGoal(id, cleaned)
                 id
             }
         }
@@ -117,8 +122,10 @@ class Wishes(
             }
             database().watchingGoals(today()) { watch ->
                 watch.goal(id)
+                watch.cardGoal(id)
                 dao.update(cleaned.copy(parentId = parentId).toWish(today(), id))
                 saveTags(id, cleaned.tagIds)
+                saveCardGoal(id, cleaned)
             }
         }
     }
@@ -144,6 +151,8 @@ class Wishes(
     suspend fun deleteMovingPartsUp(id: Long) = write {
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
+            // Its Karten-Ziel goes with it, and is no part to move up.
+            database().cards().deleteGoal(id)
             val partsOpen = database().partsDoneOf(id).any { !it }
             dao.moveSubgoals(from = id, to = wish.parentId)
             dao.moveTodos(from = id, to = wish.parentId)
@@ -159,7 +168,9 @@ class Wishes(
     private fun today(): LocalDate = LocalDate.now(clock)
 
     private fun tree(): Flow<List<Goal>> =
-        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), dao.observeGoalExams(), GoalTree::build)) }
+        flow {
+            emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), dao.observeGoalExams(), dao.observeGoalCards(), GoalTree::build))
+        }
             .flowOn(io)
 
     /**
@@ -170,6 +181,14 @@ class Wishes(
         database().routines().observeWithGoal().distinctUntilChanged().map { all -> all.mapNotNull(GoalRoutine::of) }
 
     private fun Wish.asPart() = GoalPart(parentId, open = status != WishStatus.Done)
+
+    /** The Karten-Ziel of the wish [wishId] as [draft] has it, of a language still there; none without one. */
+    private suspend fun saveCardGoal(wishId: Long, draft: WishDraft) {
+        val cards = database().cards()
+        val languageId = draft.cardLanguageId?.takeIf { database().languages().language(it) != null }
+        val count = draft.cardGoalCount
+        if (languageId == null || count == null) cards.deleteGoal(wishId) else cards.setGoal(CardGoal(wishId, languageId, count))
+    }
 
     private suspend fun saveTags(wishId: Long, tagIds: Set<Long>) {
         dao.untagAll(wishId)

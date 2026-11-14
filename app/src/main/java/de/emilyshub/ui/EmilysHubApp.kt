@@ -326,6 +326,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     todos = hub.todos,
                     tags = hub.tags,
                     notes = hub.notes,
+                    languages = hub.languages,
                     target = top.target,
                     onClose = back,
                     onOpenNote = openNote,
@@ -351,6 +352,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     day = hub.day,
                     languageId = top.languageId,
                     examId = top.examId,
+                    cards = top.cards,
                     onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
                     onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
                     onOpenCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
@@ -428,7 +430,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onBack = back,
                 )
                 is Destination.RoutineEditor -> RoutineEditorScreen(
-                    hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
+                    hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, hub.languages, top.target, hub.toneCollection,
                     onClose = back, onOpenNote = openNote,
                 )
                 is Destination.Run -> RunScreen(hub.runs, hub.day, top.occurrenceId, top.routineId, onClose = back)
@@ -606,6 +608,7 @@ private fun TopLevelScaffold(
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
                     onStartRun = { startRun(it.occurrenceId, it.routineId) },
+                    onPractise = { open(Destination.Practice(it)) },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(
@@ -645,6 +648,7 @@ private fun TopLevelScaffold(
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
                     onOpenExam = { exam -> open(Destination.LanguagePage(exam.languageId, exam.id)) },
+                    onOpenCards = { languageId -> open(Destination.LanguagePage(languageId, cards = true)) },
                     onCreate = { openWish(WishEditorTarget.New()) },
                     onOpenReview = { open(Destination.WishReview) },
                 )

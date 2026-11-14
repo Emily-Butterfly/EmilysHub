@@ -271,6 +271,21 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps the Karten-Ziele, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(52, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("card_goals"), everything().getValue("card_goals"))
+        assertEquals(1, everything().getValue("card_goals").size)
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("card_goals"))
+    }
+
+    @Test
     fun `a backup keeps the Abos, and one from before them loads without any`() {
         val made = someOfEverything()
         val now = exported()
@@ -706,6 +721,10 @@ class BackupsTest {
             app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")
             val book = app.flashcards.create(arabicLessons, CardDraft("كتاب", "Buch", "kitāb", "Plural: كتب", numbers.id)) as Saving.Saved
             app.flashcards.answer(book.id, Rating.Good)
+            app.wishes.update(
+                northernLights,
+                checkNotNull(app.wishes.editing(northernLights)?.original).copy(cardLanguageId = arabicLessons, cardCount = "500"),
+            )
             app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)

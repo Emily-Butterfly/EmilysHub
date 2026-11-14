@@ -49,6 +49,7 @@ import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.languages.Languages
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
@@ -63,6 +64,8 @@ import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.rememberFirstField
+import de.emilyshub.ui.languages.CardGoalField
+import de.emilyshub.ui.languages.rememberOfferedLanguages
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
@@ -101,6 +104,7 @@ fun WishEditorScreen(
     todos: Todos,
     tags: Tags,
     notes: Notes,
+    languages: Languages,
     target: WishEditorTarget,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
@@ -277,6 +281,14 @@ fun WishEditorScreen(
                 status = draft.status,
                 manual = draft.manualProgress,
                 onChange = { draft = draft.copy(manualProgress = it) },
+            )
+            CardGoalField(
+                offered = rememberOfferedLanguages(languages),
+                language = draft.cardLanguageId,
+                count = draft.cardCount,
+                invalid = WishProblem.CardCountOutOfRange in problems && (draft.cardCount.isNotBlank() || showMissingTitle),
+                onLanguageChange = { draft = draft.copy(cardLanguageId = it) },
+                onCountChange = { draft = draft.copy(cardCount = it) },
             )
             if (wishId != null) {
                 LinkedNotes(notes, NoteLink.Goal(wishId), onOpen = onOpenNote)

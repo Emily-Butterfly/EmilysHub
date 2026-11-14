@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -81,7 +82,8 @@ data class Round(val again: List<Long> = emptyList()) : Serializable {
  * The Vokabeltrainer of Sprachen (SPEC.md §15): the cards of each language, no two of one reading the same on their
  * front, planned by [Fsrs] in days of the phone's calendar: [clock]'s, in its time zone. Each day a language's workload
  * is what is due and up to its number of new cards; an archived language's cards stay, but are neither asked nor
- * counted. Every answer is kept on its card at once and logged ([CardReview]). Cards are made one by one, or many at
+ * counted. Every answer is kept on its card at once and logged ([CardReview]); the Karten-Ziele of goals follow how
+ * many cards are sure, and a workload done by the day's answers is told ([onWorkloadDone]), for the routines it does. Cards are made one by one, or many at
  * once from a lesson's note or a text file read through [documents] and kept nowhere (#105). [database] is only called
  * on [io]; writes run to the end once started.
  */
@@ -90,6 +92,7 @@ class Flashcards(
     private val clock: Clock,
     private val documents: LessonDocuments,
     private val io: CoroutineContext = Dispatchers.IO,
+    private val onWorkloadDone: suspend (languageId: Long) -> Unit = {},
 ) {
     private val dao get() = database().cards()
     private val languages get() = database().languages()
@@ -195,7 +198,15 @@ class Flashcards(
     suspend fun card(id: Long): Card? = withContext(io) { dao.card(id) }
 
     /** Deletes the card [id], and the answers to it. The screen asks first. */
-    suspend fun delete(id: Long) = write { dao.delete(id) }
+    suspend fun delete(id: Long) = write {
+        database().withTransaction {
+            val card = dao.card(id) ?: return@withTransaction
+            database().watchingGoals(today()) { watch ->
+                dao.goalsOf(card.languageId).forEach { watch.cardGoal(it.goalId) }
+                dao.delete(id)
+            }
+        }
+    }
 
     /** How many new cards a day the language [languageId] takes, kept within [Language.NEW_CARDS]. */
     suspend fun setNewPerDay(languageId: Long, count: Int) = write {
@@ -207,22 +218,38 @@ class Flashcards(
      * makes it due the next day, as it comes again in the round only. Kept at once, and logged.
      */
     suspend fun answer(cardId: Long, rating: Rating) = write {
-        database().withTransaction {
-            val card = dao.card(cardId) ?: return@withTransaction
-            val today = today()
+        val today = today()
+        val languageId = database().withTransaction {
+            val card = dao.card(cardId) ?: return@withTransaction null
             val planned = plan(card, rating, today)
-            dao.update(
-                card.copy(
-                    stability = planned.memory.stability,
-                    difficulty = planned.memory.difficulty,
-                    firstReview = card.firstReview ?: today,
-                    lastReview = today,
-                    due = today.plusDays(planned.interval.toLong()),
-                    interval = planned.interval,
-                ),
-            )
+            database().watchingGoals(today) { watch ->
+                // How sure its cards are may reach a Karten-Ziel, or fall below it again (#106).
+                dao.goalsOf(card.languageId).forEach { watch.cardGoal(it.goalId) }
+                dao.update(
+                    card.copy(
+                        stability = planned.memory.stability,
+                        difficulty = planned.memory.difficulty,
+                        firstReview = card.firstReview ?: today,
+                        lastReview = today,
+                        due = today.plusDays(planned.interval.toLong()),
+                        interval = planned.interval,
+                    ),
+                )
+            }
             dao.insert(CardReview(cardId = cardId, at = clock.instant(), grade = rating.grade))
-        }
+            card.languageId
+        } ?: return@write
+        if (workloadDoneByAnswers(languageId, today)) onWorkloadDone(languageId)
+    }
+
+    /**
+     * Whether the workload of the language [languageId] on [today] is done by what was answered that day: nothing of it
+     * open, and something asked; a day with nothing due and nothing new is not one. Never for an archived language.
+     */
+    private suspend fun workloadDoneByAnswers(languageId: Long, today: LocalDate): Boolean {
+        val language = languages.language(languageId)?.takeIf { !it.archived } ?: return false
+        val workload = Workload.of(dao.of(languageId), language.newCardsPerDay, today)
+        return workload.done && workload.doneToday.isNotEmpty()
     }
 
     /** The interval in days each answer to [card] would give now, as each button shows it and [answer] then plans it. */

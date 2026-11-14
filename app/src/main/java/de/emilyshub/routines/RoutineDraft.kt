@@ -65,6 +65,8 @@ data class RoutineDraft(
      * day, as are they: one with several is left out on saving, as is one deleted meanwhile.
      */
     val coupledWith: Set<Long> = emptySet(),
+    /** "Erledigt durch Vokabeln" (SPEC.md §2, §15): the language whose day's workload done does it; none: "Nein". */
+    val vocabularyLanguageId: Long? = null,
 ) : Serializable {
 
     /** What keeps it from being saved, whenever it is; [Routines.problems] adds what depends on the day. */
@@ -112,6 +114,7 @@ data class RoutineDraft(
     fun toRoutine(id: Long = 0, plannedFrom: Instant, status: RoutineStatus = RoutineStatus.Active) =
         Routine(
             id, name, description, times, repetition, plannedFrom, followUps, style, window, priority, status, goalId, target, endsOn,
+            vocabularyLanguageId = vocabularyLanguageId,
         )
 
     companion object {
@@ -147,4 +150,5 @@ fun Routine.toDraft(
 ) = RoutineDraft(
     name, description, times, repetition, followUps, style, window, priority,
     checklist.map { ChecklistDraftItem(it.id, it.text, it.minutes) }, tagIds, placeIds, goalId, target, endsOn, coupledWith,
+    vocabularyLanguageId,
 )

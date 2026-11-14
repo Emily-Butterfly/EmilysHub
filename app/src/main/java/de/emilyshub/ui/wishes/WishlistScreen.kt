@@ -50,6 +50,7 @@ import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.wishes.Goal
+import de.emilyshub.wishes.GoalCards
 import de.emilyshub.wishes.GoalExam
 import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.GoalTodo
@@ -77,6 +78,7 @@ fun WishlistScreen(
     onOpenTodo: (Long) -> Unit,
     onOpenRoutine: (Long) -> Unit,
     onOpenExam: (GoalExam) -> Unit,
+    onOpenCards: (languageId: Long) -> Unit,
     onCreate: () -> Unit,
     onOpenReview: () -> Unit,
 ) {
@@ -94,7 +96,8 @@ fun WishlistScreen(
         goal.subgoals.flatMap { lines(it, depth + 1) } +
             goal.todos.map { TreeLine.OfTodo(it, depth + 1) } +
             goal.routines.map { TreeLine.OfRoutine(it, depth + 1) } +
-            goal.exams.map { TreeLine.OfExam(it, depth + 1) }
+            goal.exams.map { TreeLine.OfExam(it, depth + 1) } +
+            listOfNotNull(goal.cards?.let { TreeLine.OfCards(it, depth + 1) })
     } else {
         emptyList()
     }
@@ -147,6 +150,7 @@ fun WishlistScreen(
                             is TreeLine.OfRoutine ->
                                 RoutinePartRow(line.routine, line.depth, onClick = { onOpenRoutine(line.routine.id) })
                             is TreeLine.OfExam -> ExamPartRow(line.exam, line.depth, onClick = { onOpenExam(line.exam) })
+                            is TreeLine.OfCards -> CardsPartRow(line.cards, line.depth, onClick = { onOpenCards(line.cards.languageId) })
                         }
                     }
                 }
@@ -189,6 +193,10 @@ private sealed interface TreeLine {
 
     data class OfExam(val exam: GoalExam, val depth: Int) : TreeLine {
         override val key get() = "exam ${exam.id}"
+    }
+
+    data class OfCards(val cards: GoalCards, val depth: Int) : TreeLine {
+        override val key get() = "cards ${cards.goalId}"
     }
 }
 
@@ -278,6 +286,23 @@ private fun ExamPartRow(exam: GoalExam, depth: Int, onClick: () -> Unit) {
             .padding(start = treeIndent(depth, INDENT)),
     )
 }
+
+/**
+ * A goal's Karten-Ziel (SPEC.md §15; #106), on a line of its own: "Karten: Arabisch · 412 von 1 000", the sure cards
+ * of those it asks for; tapped, the tab Karten of its language.
+ */
+@Composable
+private fun CardsPartRow(cards: GoalCards, depth: Int, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.goal_cards_line, cards.language, grouped(cards.sure), grouped(cards.count))) },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(start = treeIndent(depth, INDENT)),
+    )
+}
+
+/** [number] with its thousands set apart by a narrow space, as in "1 000". */
+private fun grouped(number: Int): String = number.toString().reversed().chunked(3).joinToString("\u202F").reversed()
 
 /**
  * "Routine · 12 von 30 Tagen am Stück", "Routine · Pausiert · Erreicht: 100 Mal erledigt", or "Routine" for one without

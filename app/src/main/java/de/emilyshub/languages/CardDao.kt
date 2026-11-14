@@ -2,6 +2,7 @@ package de.emilyshub.languages
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,22 @@ interface CardDao {
 
     @Insert
     suspend fun insert(review: CardReview): Long
+
+    @Query("SELECT * FROM card_goals WHERE goal_id = :goalId")
+    suspend fun goal(goalId: Long): CardGoal?
+
+    @Query("SELECT * FROM card_goals WHERE language_id = :languageId")
+    suspend fun goalsOf(languageId: Long): List<CardGoal>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setGoal(goal: CardGoal)
+
+    @Query("DELETE FROM card_goals WHERE goal_id = :goalId")
+    suspend fun deleteGoal(goalId: Long)
+
+    /** How many cards of the language are "sicher" (SPEC.md §15). */
+    @Query("SELECT COUNT(*) FROM cards WHERE language_id = :languageId AND interval >= ${Card.SURE_DAYS}")
+    suspend fun sureCount(languageId: Long): Int
 
     @Query("SELECT * FROM card_reviews WHERE card_id = :cardId ORDER BY id")
     suspend fun reviewsOf(cardId: Long): List<CardReview>

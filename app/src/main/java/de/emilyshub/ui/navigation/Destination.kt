@@ -134,10 +134,10 @@ sealed interface Destination : Serializable {
     data class SubscriptionEditor(override val target: SubscriptionEditorTarget) : Editor
 
     /**
-     * A language's page, with its lessons, topics and their evaluation (SPEC.md §15); opened on the topics of the exam
-     * [examId], if given.
+     * A language's page, with its lessons, topics, cards and their evaluation (SPEC.md §15); opened on the topics of the
+     * exam [examId], if given, or on its cards, if [cards].
      */
-    data class LanguagePage(val languageId: Long, val examId: Long? = null) : Destination
+    data class LanguagePage(val languageId: Long, val examId: Long? = null, val cards: Boolean = false) : Destination
 
     /** A card's editor (SPEC.md §15, Vokabeltrainer). */
     data class CardEditor(override val target: CardEditorTarget) : Editor
