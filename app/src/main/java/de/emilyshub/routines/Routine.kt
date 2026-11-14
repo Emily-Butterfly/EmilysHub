@@ -146,6 +146,11 @@ data class Occurrence(
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
     /** Skipped as one of its coupled routines was done that day (SPEC.md §2): that one's occurrence, by its id. */
     @ColumnInfo(name = "covered_by") val coveredBy: Long? = null,
+    /**
+     * When a run through its checklist was first started (SPEC.md §2, Ablauf-Modus), for the stopwatch to count on from
+     * it when the run is taken up again; none while none was.
+     */
+    @ColumnInfo(name = "run_started_at") val runStartedAt: Instant? = null,
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()

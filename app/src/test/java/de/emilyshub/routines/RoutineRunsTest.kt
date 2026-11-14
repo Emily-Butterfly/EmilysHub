@@ -159,6 +159,33 @@ class RoutineRunsTest {
     }
 
     @Test
+    fun `the run taken up again counts on from its first start`() = runBlocking {
+        val occurrence = routine("Morgens", "Wasser", "Zähne")
+        val first = start(occurrence)
+        clock.now = clock.now.plus(Duration.ofMinutes(3))
+
+        val again = start(occurrence)
+
+        assertEquals(first.startedAt, again.startedAt)
+        assertEquals(Duration.ofMinutes(3), again.took(clock.now))
+    }
+
+    @Test
+    fun `a run of another occurrence of the routine starts afresh`() = runBlocking {
+        routines.create(
+            RoutineDraft(
+                "Zähne", description = "", listOf(LocalTime.of(8, 0), LocalTime.of(20, 0)), Repetition.Daily,
+                checklist = listOf(ChecklistDraftItem(text = "Putzen")),
+            ),
+        )
+        val (morning, evening) = routines.dueOn(today).first().map { it.occurrenceId }
+        start(morning)
+        clock.now = clock.now.plus(Duration.ofMinutes(3))
+
+        assertEquals(clock.now, start(evening).startedAt)
+    }
+
+    @Test
     fun `the run ends, saying why, once the occurrence ends otherwise`() = runBlocking {
         val skipped = routine("Morgens", "Wasser")
         routines.skip(skipped)
@@ -242,7 +269,7 @@ class RoutineRunsTest {
         return routines.dueOn(today).first().single { it.routineId == id }.occurrenceId
     }
 
-    private fun start(occurrence: Long) = runs.start(occurrence, routineIdOf(occurrence))
+    private fun start(occurrence: Long) = runBlocking { runs.start(occurrence, routineIdOf(occurrence)) }
 
     private suspend fun view(run: Run): RunView = runs.view(run).first()
 

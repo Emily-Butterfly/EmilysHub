@@ -94,8 +94,11 @@ sealed interface RunEnd {
  */
 class RoutineRuns(private val routines: Routines, private val clock: Clock) {
 
-    /** A run through the occurrence's checklist, started now; one started before is taken up where its checklist is. */
-    fun start(occurrenceId: Long, routineId: Long): Run = Run(occurrenceId, routineId, startedAt = clock.instant())
+    /**
+     * A run through the occurrence's checklist, started now; one started before is taken up where its checklist is, its
+     * stopwatch counting on from its first start. What it ticked off then, "Schritt zurück" leaves.
+     */
+    suspend fun start(occurrenceId: Long, routineId: Long): Run = Run(occurrenceId, routineId, startedAt = routines.startRun(occurrenceId))
 
     /** What the [run] shows, anew as its occurrence, its routine and its history change. */
     @OptIn(ExperimentalCoroutinesApi::class)

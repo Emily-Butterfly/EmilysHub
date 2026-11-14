@@ -454,6 +454,7 @@ private fun TopLevelScaffold(
     onTabsChange: (TabViews) -> Unit,
     open: (Destination) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together; none until
     // all of it is there.
     val heuteDay = if (current == TopLevelDestination.Today) rememberHeute(hub.heute) else null
@@ -579,7 +580,10 @@ private fun TopLevelScaffold(
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
-                    onStartRun = { open(Destination.Run(hub.runs.start(it.occurrenceId, it.routineId))) },
+                    onStartRun = { routine ->
+                        // Opened once it is known since when it runs: the first start, if it was started before.
+                        scope.launchNow { open(Destination.Run(hub.runs.start(routine.occurrenceId, routine.routineId))) }
+                    },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

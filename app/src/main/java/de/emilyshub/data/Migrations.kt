@@ -758,3 +758,13 @@ val MIGRATION_48_49 = object : Migration(48, 49) {
         )
     }
 }
+
+/**
+ * Version 50: an occurrence keeps when a run through its checklist was first started (SPEC.md §2, Ablauf-Modus, #101).
+ * None was yet.
+ */
+val MIGRATION_49_50 = object : Migration(49, 50) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `run_started_at` TEXT")
+    }
+}

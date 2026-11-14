@@ -113,6 +113,23 @@ class RunScreenTest {
     }
 
     @Test
+    fun `taken up again, the stopwatch counts on from the first start`() {
+        app.routine("Morgens", "08:00", checklist = listOf("Wasser", "Zähne"))
+
+        launchApp().use { scenario ->
+            start()
+            compose.onNodeWithText("Schritt 1 von 2 · 0:00").assertIsDisplayed()
+            compose.waitForIdle()
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            app.clock.now = app.clock.now.plusSeconds(125)
+
+            start()
+
+            compose.onNodeWithText("Schritt 1 von 2 · 2:05").assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `the run outlives the activity being made anew`() {
         app.routine("Morgens", "08:00", checklist = listOf("Wasser", "Zähne", "Dehnen"))
 

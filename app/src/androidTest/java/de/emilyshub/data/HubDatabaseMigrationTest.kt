@@ -1064,6 +1064,25 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 49 moves to version 50 with no run started, and then a run's first start is kept`() {
+        createAtVersion(49) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Morgens', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (1, 1, '2026-11-14', '08:00', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.routines()
+            assertEquals(null, dao.occurrence(1)?.runStartedAt)
+            dao.startRun(1, Instant.parse("2026-11-14T07:00:00Z"))
+            dao.startRun(1, Instant.parse("2026-11-14T07:05:00Z"))
+            assertEquals(Instant.parse("2026-11-14T07:00:00Z"), dao.occurrence(1)?.runStartedAt)
+        }
+    }
+
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
     private fun withMigratedDatabase(block: suspend (HubDatabase) -> Unit) {

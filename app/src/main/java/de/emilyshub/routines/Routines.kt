@@ -303,6 +303,16 @@ class Routines(
         emitAll(occurrences)
     }.flowOn(io)
 
+    /**
+     * When the run through the occurrence's checklist started (SPEC.md §2, Ablauf-Modus): now, the first time, and the
+     * same each time it is taken up again. Now, too, for one gone meanwhile.
+     */
+    suspend fun startRun(occurrenceId: Long): Instant = withContext(io + NonCancellable) {
+        val now = now()
+        dao.startRun(occurrenceId, now)
+        dao.occurrence(occurrenceId)?.runStartedAt ?: now
+    }
+
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
 
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)

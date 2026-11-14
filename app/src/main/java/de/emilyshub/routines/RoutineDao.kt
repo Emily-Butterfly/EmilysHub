@@ -160,6 +160,10 @@ interface RoutineDao {
     @Query("UPDATE occurrences SET time = :time, remind_at = NULL WHERE id = :id")
     suspend fun moveOccurrence(id: Long, time: LocalTime)
 
+    /** Keeps [at] as when the occurrence's run was first started, unless one was started before. */
+    @Query("UPDATE occurrences SET run_started_at = :at WHERE id = :id AND run_started_at IS NULL")
+    suspend fun startRun(id: Long, at: Instant)
+
     @Query("UPDATE occurrences SET remind_at = :until WHERE id = :id")
     suspend fun putOff(id: Long, until: Instant)
 
