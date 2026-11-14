@@ -95,7 +95,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
         val workload = when (shown) {
             is Practising -> shown.workload
             // Each card of the topic once, and again after "Nochmal".
-            is PractisingTopic -> Workload.ofTopic(shown.cards, round)
+            is PractisingTopic -> Workload.ofTopic(shown.cards, round, day.today())
             else -> return@Scaffold
         }
         val card = answering ?: round.current(workload)

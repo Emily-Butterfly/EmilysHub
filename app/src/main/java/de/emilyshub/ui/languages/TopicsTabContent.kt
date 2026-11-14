@@ -62,8 +62,8 @@ import de.emilyshub.languages.ExamProblem
 import de.emilyshub.languages.ExamStatus
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
-import de.emilyshub.languages.TopicCards
 import de.emilyshub.languages.Topic
+import de.emilyshub.languages.TopicCards
 import de.emilyshub.languages.TopicGroup
 import de.emilyshub.languages.TopicRow
 import de.emilyshub.languages.TopicsTab
@@ -167,8 +167,7 @@ internal fun TopicsTabContent(
                             Text(stringResource(R.string.exam_next, next.exam.name), style = MaterialTheme.typography.titleMedium)
                             Text(examStatusText(next), style = MaterialTheme.typography.bodyMedium)
                             // The cards of its topics, if they have any (#107).
-                            val ownTopics = groups.firstOrNull { it.exam?.exam?.id == next.exam.id }?.topics.orEmpty().map { it.topic.id }
-                            val sum = TopicCards.sumOf(ownTopics, cardCounts)
+                            val sum = TopicCards.sumOf(tab.topicIdsOf(next.exam.id), cardCounts)
                             if (sum.cards > 0) {
                                 Text(stringResource(R.string.exam_cards, sum.sure, sum.cards), style = MaterialTheme.typography.bodyMedium)
                             }
@@ -358,10 +357,10 @@ private class TopicActions(
     val onRename: (TopicRow) -> Unit,
     val onMove: (TopicRow) -> Unit,
     val onDelete: (TopicRow) -> Unit,
-    /** How many cards each topic has, and how many are sure, by topic (#107). */
-    val cards: Map<Long, TopicCards> = emptyMap(),
-    val onShowCards: (TopicRow) -> Unit = {},
-    val onPractise: (TopicRow) -> Unit = {},
+    /** How many cards each topic has, and how many are sure, by topic (SPEC.md §15; #107). */
+    val cards: Map<Long, TopicCards>,
+    val onShowCards: (TopicRow) -> Unit,
+    val onPractise: (TopicRow) -> Unit,
 )
 
 /** An exam's heading, with its menu, and its topics unless [folded]; [onFold] folds or unfolds one taken. */
@@ -515,7 +514,7 @@ private fun TopicLine(row: TopicRow, checkable: Boolean, actions: TopicActions) 
                 actions.cards[topic.id]?.let { counts ->
                     val open = stringResource(R.string.topic_cards_open, topic.name)
                     Text(
-                        stringResource(R.string.topic_cards, counts.cards, counts.sure),
+                        pluralStringResource(R.plurals.topic_cards, counts.cards, counts.cards, counts.sure),
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .clickable(onClickLabel = open) { actions.onShowCards(row) }

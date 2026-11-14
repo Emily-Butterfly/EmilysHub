@@ -17,16 +17,15 @@ data class SearchHit(val id: Long, val title: String, val date: LocalDate? = nul
 data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more: Int = 0)
 
 /**
- * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
- * notes and their tags; the bookings of the household book (SPEC.md §13), by their descriptions and categories; and its
- * Abos, by their names and notes; and the lessons of Sprachen (SPEC.md §15), by their notes, topics and teachers,
+ * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text
+ * of notes and their tags; the bookings of the household book (SPEC.md §13), by their descriptions and categories; and
+ * its Abos, by their names and notes; and the lessons of Sprachen (SPEC.md §15), by their notes, topics and teachers,
  * each by its language and teacher, the newest first; the cards of the Vokabeltrainer, by their front, back,
- * transcription and note, each by its sides and language (#107); and the entries of the Eingang (SPEC.md §16), by their text, each
- * by its first line, the newest first.
- * Every word typed has to be there, in whatever case, and however its letters were typed, as [InputText.searchable]
- * compares. The database looks for the longest word, as a value of the query, its wildcards
- * escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those stand for anything
- * there, and what it finds is then looked at closely here. [database] is only called on [io].
+ * transcription and note, each by its sides and language (#107); and the entries of the Eingang (SPEC.md §16), by their
+ * text, each by its first line, the newest first. Every word typed has to be there, in whatever case, and however its
+ * letters were typed, as [InputText.searchable] compares. The database looks for the longest word, as a value of the
+ * query, its wildcards escaped; as it tells case apart in letters such as "Ü", and may hold them in two parts, those
+ * stand for anything there, and what it finds is then looked at closely here. [database] is only called on [io].
  */
 class Search(
     private val database: () -> HubDatabase,

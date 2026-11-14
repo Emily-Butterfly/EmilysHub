@@ -351,7 +351,7 @@ class FlashcardsTest {
         var round = Round()
         val seen = mutableListOf<String>()
         while (true) {
-            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round)
+            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round, today)
             val card = round.current(workload) ?: break
             seen += card.front
             cards.answer(card.id, Rating.Good, countsAsNew = false)
@@ -384,6 +384,50 @@ class FlashcardsTest {
             assertTrue(early < Fsrs.review(red.memory, 2, Rating.Good).memory.stability)
             assertEquals("blau counts not, so neu is still the one new today", listOf("neu"), workload(arabic, LocalDate.parse("2026-11-13")).remaining.map { it.front })
         }
+
+    @Test
+    fun `a new card first asked in its topic never counts against the new cards of a day, also once due`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        cards.setNewPerDay(arabic, 1)
+        cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours))
+        card(arabic, "neu 1")
+        card(arabic, "neu 2")
+        val red = database.cards().of(arabic).single { it.front == "rot" }.id
+        cards.answer(red, Rating.Hard, countsAsNew = false) // due tomorrow
+        clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+        val tomorrow = LocalDate.parse("2026-11-13")
+        cards.answer(red, Rating.Good) // in the day's workload now
+
+        assertEquals("still one new card that day", listOf("neu 1"), workload(arabic, tomorrow).remaining.map { it.front })
+    }
+
+    @Test
+    fun `a topic practised goes on where it was, those asked today counting as asked`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        listOf("rot", "blau", "grün").forEach { cards.create(arabic, CardDraft(it, "$it?", topicId = colours)) }
+        val first = checkNotNull(cards.topicPractice(colours, today).first()).first()
+        cards.answer(first.id, Rating.Good, countsAsNew = false)
+
+        // Left, and taken up again.
+        val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), Round(), today)
+
+        assertEquals(listOf("blau", "grün"), workload.remaining.map { it.front })
+        assertEquals(2 to 3, Round().position(workload))
+    }
+
+    @Test
+    fun `practising a topic only once, the day's practice is the first no more`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours))
+        card(arabic, "neu")
+        cards.answer(database.cards().of(arabic).single { it.front == "rot" }.id, Rating.Good, countsAsNew = false)
+        clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+
+        assertFalse(workload(arabic, LocalDate.parse("2026-11-13")).firstTime)
+    }
 
     @Test
     fun `the cards of the tab are searched in all their fields, Arabic with or without vowel marks`() {

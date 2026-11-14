@@ -93,6 +93,20 @@ class VocabularyCountsTest {
     }
 
     @Test
+    fun `practising a topic on a day with nothing due and nothing new leaves the routine open`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = (languages.createTopic(arabic, "Farben") as Saving.Saved).id
+        val red = (cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours)) as Saving.Saved).id
+        cards.answer(red, Rating.Easy) // due in 8 days
+        clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+        routine("Vokabeln", "18:00", vocabulary = arabic)
+
+        cards.answer(red, Rating.Good, countsAsNew = false)
+
+        assertEquals(listOf(OccurrenceStatus.Open), statuses("Vokabeln"))
+    }
+
+    @Test
     fun `a day with nothing due and nothing new leaves the routine open, and other routines are not touched`() = runBlocking {
         val arabic = language("Arabisch")
         card(arabic, "kitab")

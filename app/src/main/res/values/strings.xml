@@ -1542,7 +1542,10 @@
 
     <!-- Themen, Thema üben, Suche (SPEC.md §15, #107) -->
     <string name="search_cards">Sprachen · Karten</string>
-    <string name="topic_cards">%1$d Karten · %2$d sicher</string>
+    <plurals name="topic_cards">
+        <item quantity="one">%1$d Karte · %2$d sicher</item>
+        <item quantity="other">%1$d Karten · %2$d sicher</item>
+    </plurals>
     <string name="topic_cards_open">Karten von „%1$s“ zeigen</string>
     <string name="exam_cards">Karten: %1$d von %2$d sicher</string>
     <string name="topic_practise">Thema üben</string>

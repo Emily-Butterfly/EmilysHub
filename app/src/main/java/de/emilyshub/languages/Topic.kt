@@ -148,6 +148,10 @@ data class TopicsTab(
     /** Every exam of the language, by id. */
     val exams: Map<Long, Exam> get() = (upcoming + taken).mapNotNull { it.exam?.exam }.associateBy { it.id }
 
+    /** The topics of the exam [examId], by id; none if it has none or is not of the language. */
+    fun topicIdsOf(examId: Long): List<Long> =
+        (upcoming + taken).firstOrNull { it.exam?.exam?.id == examId }?.topics.orEmpty().map { it.topic.id }
+
     companion object {
         /** The tab of the language whose [topics] and [exams] these are, with what [lessonTopics] of [lessons] treated them. */
         fun of(topics: List<Topic>, exams: List<Exam>, lessons: List<Lesson>, lessonTopics: List<LessonTopic>, today: LocalDate): TopicsTab {
