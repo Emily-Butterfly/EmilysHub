@@ -39,6 +39,7 @@ import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Dropped
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.routines.RunRow
 import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
@@ -600,7 +601,7 @@ class BackupsTest {
     }
 
     /**
-     * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, notes
+     * Two routines, one with a checklist ticked in part today and its run running, tags, places by WLAN and GPS, to-dos at them, wishes, notes
      * in a folder of a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
      * off once, and a routine under a goal, aiming at a streak; a thought in the inbox.
      */
@@ -609,12 +610,23 @@ class BackupsTest {
         val shop = app.place("Supermarkt", area = Area(Coordinates(52.52, 13.405), radius = 150))
         val health = app.tag("Gesundheit")
         val sport = app.tag("Sport")
-        val vitamins = app.routine("Vitamine", "07:30", checklist = listOf("Vitamin D", "Magnesium"), tags = setOf(health))
+        val vitamins = app.routine("Vitamine", "07:30", checklist = listOf("Vitamin D", "Magnesium"),
+            // Minutes came with version 51: data as an older version made them have none.
+            minutes = if (before19) emptyList() else listOf(null, 2), tags = setOf(health),
+        )
         app.routine("Yoga", "18:00", tags = setOf(sport), places = setOf(home))
         app.history(vitamins, "2026-10-20" to Dropped, "2026-10-21" to Missed, "2026-10-22" to Done)
         runBlocking {
             val occurrence = app.testDatabase.routines().occurrencesOn(vitamins, LocalDate.parse("2026-10-23")).single()
             app.routines.tick(occurrence.id, app.routines.checklist(vitamins).first().id, ticked = true)
+            // Its run running (SPEC.md §2, Ablauf-Modus), at the step left. For data as an older version made them, without
+            // the occurrence's first start, which came with version 50; the run itself, of 51, such a backup leaves out.
+            if (before19) {
+                val left = app.routines.checklist(vitamins).last().id
+                app.testDatabase.runs().save(RunRow(occurrence.id, vitamins, stepItemId = left, stepStartedAt = app.clock.now))
+            } else {
+                app.runs.start(occurrence.id, vitamins)
+            }
         }
         val milk = app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
