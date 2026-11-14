@@ -89,8 +89,8 @@ class Flashcards(
     private val dao get() = database().cards()
     private val languages get() = database().languages()
 
-    /** Today, by the phone's calendar. */
-    fun today(): LocalDate = clock.instant().atZone(clock.zone).toLocalDate()
+    /** Today, by the phone's calendar, the day an answer counts on. */
+    private fun today(): LocalDate = clock.instant().atZone(clock.zone).toLocalDate()
 
     /** The name of the language [languageId], as it changes; empty once it is gone. */
     fun languageName(languageId: Long): Flow<String> = flow {
@@ -136,9 +136,7 @@ class Flashcards(
             val clean = draft.cleaned()
             val problems = problemsOf(languageId, clean, except = null)
             if (problems.isNotEmpty()) return@withTransaction Saving.Refused(problems)
-            Saving.Saved(
-                dao.insert(Card(languageId = languageId, front = clean.front, back = clean.back, transcription = clean.transcription, note = clean.note, topicId = clean.topicId)),
-            )
+            Saving.Saved(dao.insert(clean.applyTo(Card(languageId = languageId, front = "", back = ""))))
         }
     }
 
@@ -149,13 +147,10 @@ class Flashcards(
             val clean = draft.cleaned()
             val problems = problemsOf(saved.languageId, clean, except = id)
             if (problems.isNotEmpty()) return@withTransaction Saving.Refused(problems)
-            dao.update(saved.copy(front = clean.front, back = clean.back, transcription = clean.transcription, note = clean.note, topicId = clean.topicId))
+            dao.update(clean.applyTo(saved))
             Saving.Saved(id)
         }
     }
-
-    /** The card [id] as its editor opens it; none once it is gone. */
-    suspend fun draft(id: Long): CardDraft? = withContext(io) { dao.card(id)?.let(CardDraft::of) }
 
     /** The card [id] as it is saved; none once it is gone. */
     suspend fun card(id: Long): Card? = withContext(io) { dao.card(id) }
@@ -165,7 +160,7 @@ class Flashcards(
 
     /** How many new cards a day the language [languageId] takes, kept within [Language.NEW_CARDS]. */
     suspend fun setNewPerDay(languageId: Long, count: Int) = write {
-        dao.setNewCardsPerDay(languageId, count.coerceIn(Language.NEW_CARDS))
+        languages.setNewCardsPerDay(languageId, count.coerceIn(Language.NEW_CARDS))
     }
 
     /**
@@ -191,8 +186,8 @@ class Flashcards(
         }
     }
 
-    /** The interval in days each answer to [card] would give on [today], as each button shows it. */
-    fun intervals(card: Card, today: LocalDate): Map<Rating, Int> = Rating.entries.associateWith { plan(card, it, today).interval }
+    /** The interval in days each answer to [card] would give now, as each button shows it and [answer] then plans it. */
+    fun intervals(card: Card): Map<Rating, Int> = Rating.entries.associateWith { plan(card, it, today()).interval }
 
     /** What answering [card] [rating] on [today] plans: "Nochmal" the next day, whatever FSRS would give. */
     private fun plan(card: Card, rating: Rating, today: LocalDate): Scheduled {
@@ -201,6 +196,7 @@ class Flashcards(
         return if (rating == Rating.Again) scheduled.copy(interval = 1) else scheduled
     }
 
+    /** What keeps [draft] from being saved as a card of the language [languageId], the card [except] aside. */
     private suspend fun problemsOf(languageId: Long, draft: CardDraft, except: Long?): Set<CardProblem> = buildSet {
         addAll(draft.problems)
         if (dao.of(languageId).any { it.id != except && InputText.readTheSame(it.front, draft.front) }) add(CardProblem.FrontTaken)
@@ -208,5 +204,6 @@ class Flashcards(
         if (topicId != null && languages.topic(topicId)?.languageId != languageId) add(CardProblem.TopicNotOffered)
     }
 
+    /** Writes on [io], to the end once started. */
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 }

@@ -36,9 +36,4 @@ interface CardDao {
     @Query("SELECT * FROM card_reviews WHERE card_id = :cardId ORDER BY id")
     suspend fun reviewsOf(cardId: Long): List<CardReview>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM cards WHERE language_id = :languageId)")
-    suspend fun languageHasCards(languageId: Long): Boolean
-
-    @Query("UPDATE languages SET new_cards_per_day = :count WHERE id = :languageId")
-    suspend fun setNewCardsPerDay(languageId: Long, count: Int)
 }

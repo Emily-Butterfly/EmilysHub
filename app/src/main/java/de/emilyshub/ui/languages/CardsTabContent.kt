@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,7 @@ import de.emilyshub.languages.CardsTab
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Language
 import de.emilyshub.ui.ChoiceChip
+import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
@@ -125,14 +127,21 @@ private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
     }
     val details = listOfNotNull(due, stringResource(R.string.card_sure).takeIf { card.sure }, row.topic?.name).joinToString(" · ")
     ListItem(
-        headlineContent = { Text(card.front, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Text(card.back, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
+        // Each side at the right if it is written right to left, as in the notes.
+        headlineContent = { DirectedLine(card.front, maxLines = 2) },
+        supportingContent = { DirectedLine(card.back, maxLines = 1) },
         trailingContent = { Text(details, style = MaterialTheme.typography.labelMedium) },
         modifier = Modifier.clickable(onClick = onClick),
     )
     HorizontalDivider()
+}
+
+/** [text] on a line of its own, from the right if it is written right to left. */
+@Composable
+private fun DirectedLine(text: String, maxLines: Int) {
+    DirectedBy(text) {
+        Box(Modifier.fillMaxWidth()) { Text(text, maxLines = maxLines, overflow = TextOverflow.Ellipsis) }
+    }
 }
 
 /** The menu of the tab: how many new cards a day takes. */

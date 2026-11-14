@@ -109,14 +109,9 @@ fun LanguagePageScreen(
             )
         },
         floatingActionButton = {
-            if (tab == CARDS_TAB) {
-                FloatingActionButton(onClick = onCreateCard) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.card_create))
-                }
-            } else {
-                FloatingActionButton(onClick = onCreateLesson) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.lesson_create))
-                }
+            val cards = tab == CARDS_TAB
+            FloatingActionButton(onClick = if (cards) onCreateCard else onCreateLesson) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(if (cards) R.string.card_create else R.string.lesson_create))
             }
         },
     ) { contentPadding ->

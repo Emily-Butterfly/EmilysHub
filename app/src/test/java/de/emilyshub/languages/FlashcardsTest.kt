@@ -57,7 +57,7 @@ class FlashcardsTest {
         val pen = card(arabic, "Stift")
         assertEquals(Saving.Refused(setOf(CardProblem.FrontTaken)), cards.save(pen, CardDraft("BUCH", "qalam")))
         assertEquals(Saving.Saved(pen), cards.save(pen, CardDraft("Stift", "qalam", transcription = "qalam")))
-        assertEquals(CardDraft("Stift", "qalam", transcription = "qalam"), cards.draft(pen))
+        assertEquals(CardDraft("Stift", "qalam", transcription = "qalam"), cards.card(pen)?.let(CardDraft::of))
     }
 
     @Test
@@ -71,7 +71,7 @@ class FlashcardsTest {
         val red = checkNotNull((cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours)) as Saving.Saved).id)
         languages.deleteTopic(colours)
 
-        assertNull(cards.draft(red)?.topicId)
+        assertNull(cards.card(red)?.topicId)
     }
 
     @Test
@@ -152,7 +152,7 @@ class FlashcardsTest {
         val book = card(arabic, "Buch")
         val new = checkNotNull(database.cards().card(book))
 
-        assertEquals(mapOf(Rating.Again to 1, Rating.Hard to 1, Rating.Good to 2, Rating.Easy to 8), cards.intervals(new, today))
+        assertEquals(mapOf(Rating.Again to 1, Rating.Hard to 1, Rating.Good to 2, Rating.Easy to 8), cards.intervals(new))
     }
 
     @Test
@@ -260,9 +260,7 @@ class FlashcardsTest {
     private suspend fun answer(front: String, rating: Rating) =
         cards.answer(database.cards().of(languageOf(front)).single { it.front == front }.id, rating)
 
-    private suspend fun languageOf(front: String) = database.cards().card(
-        database.cards().observeAll().first().single { it.front == front }.id,
-    )!!.languageId
+    private suspend fun languageOf(front: String) = database.cards().observeAll().first().single { it.front == front }.languageId
 
     /** Answers the card the [round] shows of the only language, and returns the round after it. */
     private suspend fun answerInRound(round: Round, rating: Rating): Round {

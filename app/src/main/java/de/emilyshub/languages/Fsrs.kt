@@ -49,8 +49,13 @@ object Fsrs {
     /** The longest interval, in days. */
     const val MAX_INTERVAL = 36_500
 
+    /** The least a stability may be, in days. */
     private const val MIN_STABILITY = 0.001
+
+    /** The power of the curve of forgetting. */
     private val DECAY = -W[20]
+
+    /** Set so that the curve of forgetting is at 90 % after a card's stability in days. */
     private val FACTOR = 0.9.pow(1 / DECAY) - 1
 
     /**
@@ -84,28 +89,33 @@ object Fsrs {
     /** How likely the card is still known [days] after it was last. */
     private fun retrievability(days: Double, stability: Double) = (1 + FACTOR * days / stability).pow(DECAY)
 
+    /** S0: the stability of a new card after its first answer. */
     private fun initialStability(rating: Rating) = max(W[rating.grade - 1], MIN_STABILITY)
 
-    /** Not yet kept within 1 and 10, as the difficulty's mean reversion wants it. */
+    /** D0: the difficulty of a new card after its first answer, not yet kept within 1 and 10, as the mean reversion wants it. */
     private fun initialDifficulty(rating: Rating) = W[4] - exp(W[5] * (rating.grade - 1)) + 1
 
+    /** D': the difficulty after another answer, drawn a little towards that of a new card answered "Leicht". */
     private fun nextDifficulty(difficulty: Double, rating: Rating): Double {
         val delta = -W[6] * (rating.grade - 3)
         val damped = difficulty + (10 - difficulty) * delta / 9
         return (W[7] * initialDifficulty(Rating.Easy) + (1 - W[7]) * damped).coerceIn(1.0, 10.0)
     }
 
+    /** S'r: the stability after a card was known, by how likely that was ([r]). */
     private fun recallStability(difficulty: Double, stability: Double, r: Double, rating: Rating): Double {
         val hard = if (rating == Rating.Hard) W[15] else 1.0
         val easy = if (rating == Rating.Easy) W[16] else 1.0
         return stability * (1 + exp(W[8]) * (11 - difficulty) * stability.pow(-W[9]) * (exp((1 - r) * W[10]) - 1) * hard * easy)
     }
 
+    /** S'f: the stability after a card was forgotten, never more than before. */
     private fun forgetStability(difficulty: Double, stability: Double, r: Double): Double {
         val long = W[11] * difficulty.pow(-W[12]) * ((stability + 1).pow(W[13]) - 1) * exp((1 - r) * W[14])
         return min(long, stability / exp(W[17] * W[18]))
     }
 
+    /** S's: the stability after another answer the same day. */
     private fun sameDayStability(stability: Double, rating: Rating): Double {
         val growth = exp(W[17] * (rating.grade - 3 + W[18])) * stability.pow(-W[19])
         return stability * if (rating.grade >= 2) max(growth, 1.0) else growth

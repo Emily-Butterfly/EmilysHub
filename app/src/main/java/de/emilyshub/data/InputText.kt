@@ -22,6 +22,15 @@ object InputText {
     /** Whether it shows anything: zero-width spaces and joiners are "format" characters, which print nothing on their own. */
     fun isVisible(text: String): Boolean = text.any { !it.isWhitespace() && !isFormat(it) }
 
+    /** Whether the first letter of [text] with a direction of its own, as Arabic or Hebrew letters have, goes right to left. */
+    fun startsRightToLeft(text: String): Boolean = text.firstNotNullOfOrNull { char ->
+        when (Character.getDirectionality(char)) {
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> true
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT -> false
+            else -> null
+        }
+    } ?: false
+
     /** Whether [a] and [b] read the same: in whatever case, however their letters were typed, and leaving out what prints nothing. */
     fun readTheSame(a: String, b: String): Boolean = comparable(a) == comparable(b)
 

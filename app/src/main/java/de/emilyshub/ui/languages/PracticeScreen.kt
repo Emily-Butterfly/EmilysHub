@@ -49,7 +49,6 @@ import de.emilyshub.ui.launchNow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import java.time.LocalDate
 
 /**
  * Practising the cards of the language [languageId] (SPEC.md §15): its workload of today, one card at a time, "7 von 23"
@@ -61,12 +60,13 @@ import java.time.LocalDate
 @Composable
 fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: () -> Unit) {
     val state by remember(flashcards, day, languageId) {
-        day.dates().flatMapLatest { today -> flashcards.workload(languageId, today).map { it?.let { workload -> Practising(workload, today) } } }
+        day.dates().flatMapLatest { today -> flashcards.workload(languageId, today).map { it?.let(::Practising) } }
             .map<Practising?, PracticeState> { it ?: Gone }
     }.collectAsState(initial = Reading)
     var round by rememberSaveable { mutableStateOf(Round()) }
     val scope = rememberCoroutineScope()
-    var answering by remember { mutableStateOf(false) }
+    // The card being answered, shown until the round has taken the answer in: the workload may come first.
+    var answering by remember { mutableStateOf<Card?>(null) }
 
     val shown = state
     if (shown == Gone) {
@@ -88,7 +88,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
     ) { contentPadding ->
         val practising = shown as? Practising ?: return@Scaffold
         val workload = practising.workload
-        val card = round.current(workload)
+        val card = answering ?: round.current(workload)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,15 +112,15 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
             Text(stringResource(R.string.practice_position, position, total), color = MaterialTheme.colorScheme.onSurfaceVariant)
             CardFace(
                 card = card,
-                intervals = flashcards.intervals(card, practising.today),
+                intervals = flashcards.intervals(card),
                 hint = workload.firstTime,
-                enabled = !answering,
+                enabled = answering == null,
                 onAnswer = { rating ->
-                    answering = true
+                    answering = card
                     scope.launchNow {
                         flashcards.answer(card.id, rating)
                         round = round.answered(card.id, rating)
-                        answering = false
+                        answering = null
                     }
                 },
             )
@@ -172,11 +172,11 @@ private val ANSWERS = listOf(
     Rating.Easy to R.string.practice_easy,
 )
 
-/** The practice as it is read: not yet, the workload of a day, or nothing once the language is archived or gone. */
+/** The practice as it is read: not yet, the workload of the day, or nothing once the language is archived or gone. */
 private sealed interface PracticeState
 
 private data object Reading : PracticeState
 
 private data object Gone : PracticeState
 
-private data class Practising(val workload: Workload, val today: LocalDate) : PracticeState
+private data class Practising(val workload: Workload) : PracticeState

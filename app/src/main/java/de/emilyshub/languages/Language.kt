@@ -29,6 +29,7 @@ data class Language(
         /** How many new cards a day may take. */
         val NEW_CARDS = 0..50
 
+        /** How many new cards a day a language takes until set otherwise. */
         const val NEW_CARDS_DEFAULT = 10
     }
 }

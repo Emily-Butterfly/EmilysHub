@@ -48,6 +48,7 @@ import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.CardProblem
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.ui.ChoiceChip
+import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
@@ -69,7 +70,8 @@ sealed interface CardEditorTarget : Serializable {
 /**
  * A card of the Vokabeltrainer (SPEC.md §15), new or saved: its front and back, needed, its transcription and note, and
  * one of its language's topics if wished. A front another card of the language has already is refused ("Diese Karte
- * gibt es schon"). A saved one is deleted here, after asking, with all it learnt.
+ * gibt es schon"). Each field is laid out right to left while what is typed starts so, as in the notes. A saved one is
+ * deleted here, after asking, with all it learnt.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -171,50 +173,58 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
                 CardProblem.FrontTaken in problems -> stringResource(R.string.card_front_taken)
                 else -> null
             }
-            OutlinedTextField(
-                value = draft.front,
-                onValueChange = { change(draft.copy(front = it)) },
-                label = { Text(stringResource(R.string.card_front)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                isError = frontProblem != null || CardProblem.FrontTooLong in problems,
-                supportingText = { if (frontProblem != null) Text(frontProblem) else LengthHint(InputText.lengthOf(clean.front), Card.FRONT_MAX) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(firstField.requester),
-            )
+            DirectedBy(draft.front) {
+                OutlinedTextField(
+                    value = draft.front,
+                    onValueChange = { change(draft.copy(front = it)) },
+                    label = { Text(stringResource(R.string.card_front)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    isError = frontProblem != null || CardProblem.FrontTooLong in problems,
+                    supportingText = { if (frontProblem != null) Text(frontProblem) else LengthHint(InputText.lengthOf(clean.front), Card.FRONT_MAX) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(firstField.requester),
+                )
+            }
             val backMissing = showProblems && CardProblem.BackMissing in problems
-            OutlinedTextField(
-                value = draft.back,
-                onValueChange = { change(draft.copy(back = it)) },
-                label = { Text(stringResource(R.string.card_back)) },
-                minLines = 2,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                isError = backMissing || CardProblem.BackTooLong in problems,
-                supportingText = {
-                    if (backMissing) Text(stringResource(R.string.card_back_missing)) else LengthHint(InputText.lengthOf(clean.back), Card.BACK_MAX)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = draft.transcription,
-                onValueChange = { change(draft.copy(transcription = it)) },
-                label = { Text(stringResource(R.string.card_transcription)) },
-                singleLine = true,
-                isError = CardProblem.TranscriptionTooLong in problems,
-                supportingText = { LengthHint(InputText.lengthOf(clean.transcription), Card.TRANSCRIPTION_MAX) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = draft.note,
-                onValueChange = { change(draft.copy(note = it)) },
-                label = { Text(stringResource(R.string.card_note)) },
-                minLines = 2,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                isError = CardProblem.NoteTooLong in problems,
-                supportingText = { LengthHint(InputText.lengthOf(clean.note), Card.NOTE_MAX) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            DirectedBy(draft.back) {
+                OutlinedTextField(
+                    value = draft.back,
+                    onValueChange = { change(draft.copy(back = it)) },
+                    label = { Text(stringResource(R.string.card_back)) },
+                    minLines = 2,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    isError = backMissing || CardProblem.BackTooLong in problems,
+                    supportingText = {
+                        if (backMissing) Text(stringResource(R.string.card_back_missing)) else LengthHint(InputText.lengthOf(clean.back), Card.BACK_MAX)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            DirectedBy(draft.transcription) {
+                OutlinedTextField(
+                    value = draft.transcription,
+                    onValueChange = { change(draft.copy(transcription = it)) },
+                    label = { Text(stringResource(R.string.card_transcription)) },
+                    singleLine = true,
+                    isError = CardProblem.TranscriptionTooLong in problems,
+                    supportingText = { LengthHint(InputText.lengthOf(clean.transcription), Card.TRANSCRIPTION_MAX) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            DirectedBy(draft.note) {
+                OutlinedTextField(
+                    value = draft.note,
+                    onValueChange = { change(draft.copy(note = it)) },
+                    label = { Text(stringResource(R.string.card_note)) },
+                    minLines = 2,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    isError = CardProblem.NoteTooLong in problems,
+                    supportingText = { LengthHint(InputText.lengthOf(clean.note), Card.NOTE_MAX) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (topics.isNotEmpty() || draft.topicId != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.card_topic), style = MaterialTheme.typography.titleSmall)

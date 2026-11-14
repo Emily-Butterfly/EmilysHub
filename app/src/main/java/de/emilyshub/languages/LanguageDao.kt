@@ -89,6 +89,10 @@ interface LanguageDao {
     )
     suspend fun languageHasStudies(languageId: Long): Boolean
 
+    /** How many new cards a day the language takes (SPEC.md §15). */
+    @Query("UPDATE languages SET new_cards_per_day = :count WHERE id = :languageId")
+    suspend fun setNewCardsPerDay(languageId: Long, count: Int)
+
     /** The languages that have cards. */
     @Query("SELECT DISTINCT language_id FROM cards")
     fun observeLanguagesWithCards(): Flow<List<Long>>

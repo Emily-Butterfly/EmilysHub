@@ -14,8 +14,9 @@ import java.time.LocalDate
  * A card of the Vokabeltrainer (SPEC.md §15): of the language [languageId], its [front] in the language, which no other
  * card of it reads the same as, its [back], the translation, and optionally a [transcription], a [note] and a [topicId]
  * of the language's topics, none once that topic is deleted. What FSRS-6 planned for it ([Fsrs]): its [stability] and
- * [difficulty], the day it was first asked ([firstReview]), for the limit of new cards a day, and last ([lastReview]), the day it is due ([due]) and the interval planned last, in
- * days ([interval]); a new card has none of them. Its language cannot be deleted while it is there.
+ * [difficulty], the day it was first asked ([firstReview]), for the limit of new cards a day, the day it was asked last
+ * ([lastReview]), the day it is due ([due]) and the interval planned last, in days ([interval]); a new card has none of
+ * them. Its language cannot be deleted while it is there.
  */
 @Entity(
     tableName = "cards",
@@ -53,9 +54,16 @@ data class Card(
     fun dueOn(today: LocalDate): Boolean = due?.let { !it.isAfter(today) } == true
 
     companion object {
+        /** The longest a card's front may be, in characters. */
         const val FRONT_MAX = 200
+
+        /** The longest a card's back may be, in characters. */
         const val BACK_MAX = 500
+
+        /** The longest a card's transcription may be, in characters. */
         const val TRANSCRIPTION_MAX = 200
+
+        /** The longest a card's note may be, in characters. */
         const val NOTE_MAX = 500
 
         /** From how long an interval on a card is "sicher", in days, as Anki calls a card "mature". */
@@ -112,6 +120,9 @@ data class CardDraft(
         transcription = InputText.singleLine(transcription),
         note = InputText.multiLine(note).trim(),
     )
+
+    /** [card] with what is typed here: its sides, transcription, note and topic; what was planned for it stays. */
+    fun applyTo(card: Card) = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId)
 
     /** What keeps it from being saved, as far as it alone tells; none if it can be. */
     val problems: Set<CardProblem>
