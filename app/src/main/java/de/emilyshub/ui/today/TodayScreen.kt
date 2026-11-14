@@ -113,6 +113,7 @@ fun TodayScreen(
     onOpenSubscription: (Long) -> Unit = {},
     onOpenTodo: (Long) -> Unit = {},
     onOpenRoutine: (Long) -> Unit = {},
+    onStartRun: (DueRoutine) -> Unit = {},
     capture: @Composable () -> Unit = {},
 ) {
     day ?: return
@@ -123,7 +124,7 @@ fun TodayScreen(
     val movedMessage = stringResource(R.string.move_done)
     val undoLabel = stringResource(R.string.undo)
     val today = day.date
-    val onHeute = remember(heute, scope, snackbar, tickedMessage, movedMessage, undoLabel, today, onOpenTodo, onOpenRoutine) {
+    val onHeute = remember(heute, scope, snackbar, tickedMessage, movedMessage, undoLabel, today, onOpenTodo, onOpenRoutine, onStartRun) {
         OnHeute(
             today = today,
             // Ticked off, it goes to what is over; the bar brings it back.
@@ -141,6 +142,7 @@ fun TodayScreen(
             },
             openTodo = onOpenTodo,
             openRoutine = onOpenRoutine,
+            startRun = onStartRun,
         )
     }
     val blocks = day.blocks
@@ -375,7 +377,8 @@ private typealias Act = (suspend Heute.() -> Unit) -> Unit
 /**
  * What an entry on Heute offers besides its box (SPEC.md §1): ticking it off, with a bar to undo that ([tickOff]), and
  * its menu, to [move] a to-do to another day from [today], with a bar to undo that too, and to open a to-do or routine in
- * its editor ([openTodo], [openRoutine]). Yesterday's entries, caught up on, offer none of it.
+ * its editor ([openTodo], [openRoutine]), and to run through an open routine's checklist step by step ([startRun], SPEC.md §2,
+ * Ablauf-Modus). Yesterday's entries, caught up on, offer none of it.
  */
 private class OnHeute(
     val today: LocalDate,
@@ -383,6 +386,7 @@ private class OnHeute(
     val move: (DueTodo, LocalDate) -> Unit,
     val openTodo: (Long) -> Unit,
     val openRoutine: (Long) -> Unit,
+    val startRun: (DueRoutine) -> Unit,
 )
 
 /** Ticks [entry] off through [onHeute] where there is one, or unticks it; otherwise as [catchingUp] has it. */
@@ -408,6 +412,9 @@ private fun RoutineEntry(entry: TodayEntry.OfRoutine, today: LocalDate, act: Act
             onDoneChange = { done -> setDone(entry, done, act, onHeute, catchingUp) },
             onUndo = { act { undo(routine) } },
             onLongClick = onHeute?.let { { menuOpen = true } },
+            // Today's, and yesterday's still in its time window; not when catching up on yesterday (SPEC.md §2).
+            onStart = onHeute?.takeIf { routine.offer == RoutineOffer.SkipOrDrop && routine.checklist.isNotEmpty() }
+                ?.let { { it.startRun(routine) } },
         ) {
             onHeute ?: return@DueRoutineRow
             MoreMenu(routine.name, menuOpen, onExpandedChange = { menuOpen = it }) { close ->
@@ -556,7 +563,7 @@ private val TodayEntry.key: String
 
 /**
  * Ticking the box marks it done, unticking undoes that, while [tickable]; "Rückgängig" undoes a skip or drop, where it
- * [offer]s that; a long press opens its [menu], if it has one ([onLongClick]).
+ * [offer]s that; "Starten" runs through its checklist, where it offers that ([onStart]); a long press opens its [menu], if it has one ([onLongClick]).
  */
 @Composable
 private fun DueRoutineRow(
@@ -567,6 +574,7 @@ private fun DueRoutineRow(
     onDoneChange: (Boolean) -> Unit,
     onUndo: () -> Unit,
     onLongClick: (() -> Unit)?,
+    onStart: (() -> Unit)?,
     menu: @Composable () -> Unit,
 ) {
     val done = routine.status == OccurrenceStatus.Done
@@ -618,6 +626,10 @@ private fun DueRoutineRow(
         }
         // Skipping and dropping are in the menu; undoing them stays at hand.
         if (offer == RoutineOffer.Undo) TextButton(onClick = onUndo) { Text(stringResource(R.string.today_undo)) }
+        // The Ablauf-Modus, for an open routine with a checklist (SPEC.md §2).
+        onStart?.let { start ->
+            TextButton(onClick = start) { Text(stringResource(R.string.run_start)) }
+        }
         menu()
     }
 }

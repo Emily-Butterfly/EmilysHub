@@ -1406,4 +1406,22 @@
     <string name="settings_capture">Gedanke festhalten in den Benachrichtigungen</string>
     <string name="settings_capture_needs_notifications">Dafür braucht die App die Erlaubnis für Benachrichtigungen. Antippen öffnet Androids Einstellungen dazu.</string>
     <string name="settings_capture_summary">Eine stille Benachrichtigung bleibt stehen. Was du dort schreibst, landet im Eingang, ohne die App zu öffnen; sie zeigt nie, was darin liegt.</string>
+    <string name="run_start">Starten</string>
+    <string name="run_step">Schritt %1$d von %2$d</string>
+    <string name="run_done">Fertig</string>
+    <string name="run_back">Schritt zurück</string>
+    <string name="run_finished">Geschafft</string>
+    <string name="run_took">Dauer: %1$s</string>
+    <plurals name="run_streak">
+        <item quantity="one">Streak: %d Tag</item>
+        <item quantity="other">Streak: %d Tage</item>
+    </plurals>
+    <string name="run_to_today">Zu Heute</string>
+    <string name="run_ended_missed">Der Ablauf ist beendet: Das Zeitfenster ist abgelaufen.</string>
+    <string name="run_ended_skipped">Der Ablauf ist beendet: Die Routine wurde übersprungen.</string>
+    <string name="run_ended_covered">Der Ablauf ist beendet: Die Routine gilt durch %1$s als erledigt.</string>
+    <string name="run_ended_dropped">Der Ablauf ist beendet: Die Routine ist für heute ausgelassen.</string>
+    <string name="run_ended_paused">Der Ablauf ist beendet: Die Routine wurde pausiert.</string>
+    <string name="run_ended_archived">Der Ablauf ist beendet: Die Routine wurde archiviert.</string>
+    <string name="run_ended_gone">Der Ablauf ist beendet: Die Routine wurde gelöscht oder hat keine Unterpunkte mehr.</string>
 </resources>

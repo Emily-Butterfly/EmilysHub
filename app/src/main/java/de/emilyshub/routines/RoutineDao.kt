@@ -221,6 +221,11 @@ interface RoutineDao {
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
     fun observeOccurrencesWithChecklists(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
 
+    /** The occurrence with its routine and checklist; none once it is gone. */
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE id = :id")
+    fun observeOccurrenceWithChecklist(id: Long): Flow<OccurrenceWithChecklist?>
+
     @Query("SELECT place_id FROM routine_places WHERE routine_id = :routineId")
     suspend fun placeIdsOf(routineId: Long): List<Long>
 

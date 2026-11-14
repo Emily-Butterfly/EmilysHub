@@ -119,6 +119,7 @@ import de.emilyshub.ui.routines.ArchiveScreen
 import de.emilyshub.ui.routines.RoutineEditorScreen
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.routines.RoutinesScreen
+import de.emilyshub.ui.routines.RunScreen
 import de.emilyshub.ui.search.SearchScreen
 import de.emilyshub.ui.settings.SettingsScreen
 import de.emilyshub.ui.stats.RoutineStatisticsScreen
@@ -403,6 +404,9 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Destination?, onOpen
                     hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
                     onClose = back, onOpenNote = openNote,
                 )
+                is Destination.Run -> RunScreen(
+                    hub.runs, hub.day, top.run, onRunChange = { stack = stack.replaceTop(Destination.Run(it)) }, onClose = back,
+                )
                 Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
                 is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
                 Destination.Statistics ->
@@ -575,6 +579,7 @@ private fun TopLevelScaffold(
                     onOpenSubscription = { open(Destination.SubscriptionEditor(SubscriptionEditorTarget.Edit(it))) },
                     onOpenTodo = { openTodo(TodoEditorTarget.Edit(it)) },
                     onOpenRoutine = { openRoutine(RoutineEditorTarget.Edit(it)) },
+                    onStartRun = { open(Destination.Run(hub.runs.start(it.occurrenceId, it.routineId))) },
                 )
             }
             TopLevelDestination.Routines -> RoutinesScreen(

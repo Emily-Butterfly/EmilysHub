@@ -21,6 +21,7 @@ import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
@@ -71,6 +72,9 @@ interface Hub {
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute
+
+    /** The Ablauf-Modus: a routine's checklist, step by step (SPEC.md §2). */
+    val runs: RoutineRuns
 
     /** The Doku (SPEC.md §14), with its own lock. */
     val doku: Doku

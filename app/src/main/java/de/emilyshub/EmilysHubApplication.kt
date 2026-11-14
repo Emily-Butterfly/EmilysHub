@@ -59,6 +59,7 @@ import de.emilyshub.reminders.TodoReminding
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.reminders.ToneFiles
 import de.emilyshub.reminders.ToneLibrary
+import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
@@ -224,6 +225,9 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Heute (SPEC.md §1), from the routines, to-dos and notes, for the day it is. */
     final override val heute: Heute by lazy { Heute(routines, todos, notes, subscriptions, day) }
+
+    /** The Ablauf-Modus (SPEC.md §2), ticking off through the routines as Heute does. */
+    final override val runs: RoutineRuns by lazy { RoutineRuns(routines, clock) }
 
     final override val routines: Routines by lazy { Routines({ database }, clock, io, onChange = ::updateReminders) }
 

@@ -290,6 +290,19 @@ class Routines(
         emitAll(list)
     }.flowOn(io)
 
+    /**
+     * The occurrence as a run through its checklist sees it (SPEC.md §2, Ablauf-Modus), anew as it, its routine or its
+     * checklist changes; none once it is gone, with its routine deleted.
+     */
+    fun forRun(occurrenceId: Long): Flow<RunOccurrence?> = flow {
+        val occurrences = dao.observeOccurrenceWithChecklist(occurrenceId).map { due ->
+            due ?: return@map null
+            val coveredBy = due.occurrence.coveredBy?.let { dao.occurrencesWithRoutines(listOf(it)).singleOrNull()?.routine?.name }
+            RunOccurrence(due.occurrence, due.routine, due.entries(), coveredBy)
+        }
+        emitAll(occurrences)
+    }.flowOn(io)
+
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
 
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
