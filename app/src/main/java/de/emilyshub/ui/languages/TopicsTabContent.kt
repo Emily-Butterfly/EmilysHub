@@ -60,7 +60,9 @@ import de.emilyshub.languages.Exam
 import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.ExamProblem
 import de.emilyshub.languages.ExamStatus
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
+import de.emilyshub.languages.TopicCards
 import de.emilyshub.languages.Topic
 import de.emilyshub.languages.TopicGroup
 import de.emilyshub.languages.TopicRow
@@ -124,11 +126,15 @@ private sealed interface TopicsDialog : Serializable {
 internal fun TopicsTabContent(
     languages: Languages,
     wishes: Wishes,
+    flashcards: Flashcards,
     languageId: Long,
     tab: TopicsTab,
     onOpenLesson: (Long) -> Unit,
+    onShowCards: (topicId: Long) -> Unit,
+    onPractiseTopic: (topicId: Long) -> Unit,
     focusExam: Long? = null,
 ) {
+    val cardCounts by remember(flashcards, languageId) { flashcards.topicCounts(languageId) }.collectAsState(initial = emptyMap())
     var dialog by rememberSaveable { mutableStateOf<TopicsDialog?>(null) }
     var unfolded by rememberSaveable { mutableStateOf(setOfNotNull(focusExam)) }
     val listState = rememberLazyListState()
@@ -160,6 +166,12 @@ internal fun TopicsTabContent(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(R.string.exam_next, next.exam.name), style = MaterialTheme.typography.titleMedium)
                             Text(examStatusText(next), style = MaterialTheme.typography.bodyMedium)
+                            // The cards of its topics, if they have any (#107).
+                            val ownTopics = groups.firstOrNull { it.exam?.exam?.id == next.exam.id }?.topics.orEmpty().map { it.topic.id }
+                            val sum = TopicCards.sumOf(ownTopics, cardCounts)
+                            if (sum.cards > 0) {
+                                Text(stringResource(R.string.exam_cards, sum.sure, sum.cards), style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
@@ -188,6 +200,9 @@ internal fun TopicsTabContent(
             onRename = { dialog = TopicsDialog.RenameTopic(it.topic.id) },
             onMove = { dialog = TopicsDialog.MoveTopic(it.topic.id) },
             onDelete = { dialog = TopicsDialog.DeleteTopic(it.topic.id) },
+            cards = cardCounts,
+            onShowCards = { onShowCards(it.topic.id) },
+            onPractise = { onPractiseTopic(it.topic.id) },
         )
         tab.upcoming.forEach { group ->
             examGroup(group, folded = false, onFold = null, exams = exams, actions = onTopic, onTakeBack = takeBack) { dialog = it }
@@ -343,6 +358,10 @@ private class TopicActions(
     val onRename: (TopicRow) -> Unit,
     val onMove: (TopicRow) -> Unit,
     val onDelete: (TopicRow) -> Unit,
+    /** How many cards each topic has, and how many are sure, by topic (#107). */
+    val cards: Map<Long, TopicCards> = emptyMap(),
+    val onShowCards: (TopicRow) -> Unit = {},
+    val onPractise: (TopicRow) -> Unit = {},
 )
 
 /** An exam's heading, with its menu, and its topics unless [folded]; [onFold] folds or unfolds one taken. */
@@ -487,13 +506,26 @@ private fun TopicLine(row: TopicRow, checkable: Boolean, actions: TopicActions) 
         },
         headlineContent = { Text(topic.name) },
         supportingContent = {
-            Text(
-                row.last?.let { pluralStringResource(R.plurals.topic_lessons, row.lessons, row.lessons, it.numericDate()) }
-                    ?: stringResource(R.string.topic_no_lessons),
-            )
+            Column {
+                Text(
+                    row.last?.let { pluralStringResource(R.plurals.topic_lessons, row.lessons, row.lessons, it.numericDate()) }
+                        ?: stringResource(R.string.topic_no_lessons),
+                )
+                // Tapped, its cards (#107).
+                actions.cards[topic.id]?.let { counts ->
+                    val open = stringResource(R.string.topic_cards_open, topic.name)
+                    Text(
+                        stringResource(R.string.topic_cards, counts.cards, counts.sure),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable(onClickLabel = open) { actions.onShowCards(row) }
+                            .padding(vertical = 4.dp),
+                    )
+                }
+            }
         },
         trailingContent = {
-            if (checkable || !topic.done) TopicMenu(row, checkable, actions)
+            if (checkable || !topic.done || topic.id in actions.cards) TopicMenu(row, checkable, actions)
         },
         modifier = Modifier.clickable { actions.onOpen(row) },
     )
@@ -509,8 +541,10 @@ private fun TopicMenu(row: TopicRow, checkable: Boolean, actions: TopicActions) 
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val entries = buildList {
+                // Also one done, and one of an exam taken (#107).
+                if (row.topic.id in actions.cards) add(R.string.topic_practise to actions.onPractise)
                 if (checkable) add(R.string.language_rename to actions.onRename)
-                add(R.string.topic_move to actions.onMove)
+                if (checkable || !row.topic.done) add(R.string.topic_move to actions.onMove)
                 if (checkable) add(R.string.delete to actions.onDelete)
             }
             entries.forEach { (label, action) ->

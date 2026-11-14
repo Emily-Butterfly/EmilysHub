@@ -18,6 +18,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 /**
  * The Vokabeltrainer (SPEC.md §15; #104): cards of a language, unique by their front; the day's workload of cards due
@@ -310,6 +311,108 @@ class FlashcardsTest {
         assertEquals(CardFile.NotText, cards.readFile("content://test/missing"))
         assertEquals(CardFile.TooLarge, cards.readFile(documents.put("gross.txt", ByteArray(CardImport.FILE_MAX_BYTES + 1) { 'a'.code.toByte() })))
         assertEquals(emptyMap<String, ByteArray>(), documents.written)
+    }
+
+    @Test
+    fun `each topic counts its cards and those sure, and an exam the sum of its topics`() = runBlocking {
+        val arabic = language("Arabisch")
+        val exam = (languages.createExam(arabic, ExamDraft("A2", LocalDate.parse("2026-12-20"))) as Saving.Saved).id
+        val colours = (languages.createTopic(arabic, "Farben", exam) as Saving.Saved).id
+        val numbers = (languages.createTopic(arabic, "Zahlen", exam) as Saving.Saved).id
+        topic(arabic, "Leer")
+        cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours))
+        cards.create(arabic, CardDraft("blau", "azraq", topicId = colours))
+        cards.create(arabic, CardDraft("eins", "wahid", topicId = numbers))
+        card(arabic, "ohne")
+        makeSure("rot")
+
+        val counts = cards.topicCounts(arabic).first()
+
+        assertEquals(mapOf(colours to TopicCards(2, 1), numbers to TopicCards(1, 0)), counts)
+        assertEquals(TopicCards(3, 1), TopicCards.sumOf(listOf(colours, numbers), counts))
+        assertEquals(TopicCards(0, 0), TopicCards.sumOf(emptyList(), counts))
+    }
+
+    @Test
+    fun `a topic is practised whole, those due first, then the new, then those due soonest, each once in the round`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        listOf("rot", "blau", "grün", "gelb").forEach { cards.create(arabic, CardDraft(it, "$it?", topicId = colours)) }
+        card(arabic, "anders")
+        answer("rot", Rating.Easy) // due in 8 days
+        answer("blau", Rating.Good) // due in 2 days
+        answer("grün", Rating.Hard) // due tomorrow
+        clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+        val today = LocalDate.parse("2026-11-13")
+
+        val ordered = cards.topicPractice(colours, today).first().orEmpty()
+        assertEquals(listOf("grün", "gelb", "blau", "rot"), ordered.map { it.front })
+
+        var round = Round()
+        val seen = mutableListOf<String>()
+        while (true) {
+            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round)
+            val card = round.current(workload) ?: break
+            seen += card.front
+            cards.answer(card.id, Rating.Good, countsAsNew = false)
+            round = round.answered(card.id, Rating.Good)
+        }
+        assertEquals("each once, also those not due", listOf("grün", "gelb", "blau", "rot"), seen)
+    }
+
+    @Test
+    fun `a card asked early grows little, and a new one practised in its topic does not count against the new cards of the day`() =
+        runBlocking {
+            val arabic = language("Arabisch")
+            val colours = topic(arabic, "Farben")
+            cards.setNewPerDay(arabic, 1)
+            cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours))
+            card(arabic, "neu")
+            answer("rot", Rating.Good) // due in 2 days, through the daily workload, so it counts
+            assertEquals(emptyList<Card>(), workload(arabic).remaining)
+
+            // As D of the research has it: Gut, then Gut one day later, early.
+            clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+            cards.create(arabic, CardDraft("blau", "azraq", topicId = colours))
+            cards.answer(database.cards().of(arabic).single { it.front == "blau" }.id, Rating.Good, countsAsNew = false)
+            val red = database.cards().of(arabic).single { it.front == "rot" }
+            cards.answer(red.id, Rating.Good, countsAsNew = false)
+
+            // Asked a day early, as FSRS-6 reckons it: less than on the day it was due.
+            val early = Fsrs.review(red.memory, 1, Rating.Good).memory.stability
+            assertEquals(early, checkNotNull(database.cards().card(red.id)?.stability), 0.0001)
+            assertTrue(early < Fsrs.review(red.memory, 2, Rating.Good).memory.stability)
+            assertEquals("blau counts not, so neu is still the one new today", listOf("neu"), workload(arabic, LocalDate.parse("2026-11-13")).remaining.map { it.front })
+        }
+
+    @Test
+    fun `the cards of the tab are searched in all their fields, Arabic with or without vowel marks`() {
+        val row = CardRow(Card(languageId = 1, front = "كِتَاب", back = "Buch", transcription = "kitāb", note = "Plural kutub"), topic = null)
+
+        listOf("كتاب", "buch", "KITĀB", "kutub", "plural kut", "").forEach { assertTrue(it, row.matches(it)) }
+        listOf("Stift", "buch stift").forEach { assertFalse(it, row.matches(it)) }
+    }
+
+    @Test
+    fun `the evaluation counts the language's cards, those sure, and those due today`() = runBlocking {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab")
+        card(arabic, "qalam")
+        card(arabic, "bab")
+        makeSure("kitab")
+        val now = clock.now.atZone(clock.zone).toLocalDate()
+
+        assertEquals("the two new ones due", CardsSummary(total = 3, sure = 1, dueToday = 2), cards.summary(arabic, now).first())
+    }
+
+    /** Asks the card [front] until it is sure, the days going by as it is due. */
+    private suspend fun makeSure(front: String) {
+        repeat(5) {
+            val card = database.cards().observeAll().first().single { it.front == front }
+            if (card.sure) return
+            card.due?.let { due -> clock.now = due.atTime(10, 0).atZone(clock.zone).toInstant() }
+            cards.answer(card.id, Rating.Easy)
+        }
     }
 
     private suspend fun answer(front: String, rating: Rating) =

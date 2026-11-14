@@ -155,6 +155,8 @@ private val SearchArea.label: Int
         SearchArea.Bookings -> R.string.ledger_title
         SearchArea.Subscriptions -> R.string.subscriptions_title
         SearchArea.Lessons -> R.string.destination_languages
+        // In the area Sprachen too, each with its language (#107).
+        SearchArea.Cards -> R.string.search_cards
         SearchArea.Inbox -> R.string.inbox_title
     }
 

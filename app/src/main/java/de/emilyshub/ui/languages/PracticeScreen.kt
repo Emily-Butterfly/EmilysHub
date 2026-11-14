@@ -55,13 +55,19 @@ import kotlinx.coroutines.flow.map
  * above it, its front large; "Aufdecken" shows the back, the transcription and the note, then the four answers, each
  * with the interval it would give. Each answer is kept at once; "Nochmal" brings the card again at the end of the round.
  * Left any time, "Üben" goes on where it was. At the end, "Für heute geschafft". Archived or gone meanwhile, it closes.
+ * With a [topicId], it asks all the cards of that topic instead, each once, those due first (#107).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
-fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: () -> Unit) {
-    val state by remember(flashcards, day, languageId) {
-        day.dates().flatMapLatest { today -> flashcards.workload(languageId, today).map { it?.let(::Practising) } }
-            .map<Practising?, PracticeState> { it ?: Gone }
+fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: () -> Unit, topicId: Long? = null) {
+    val state by remember(flashcards, day, languageId, topicId) {
+        day.dates().flatMapLatest { today ->
+            if (topicId == null) {
+                flashcards.workload(languageId, today).map { it?.let(::Practising) }
+            } else {
+                flashcards.topicPractice(topicId, today).map { it?.let(::PractisingTopic) }
+            }
+        }.map<PracticeState?, PracticeState> { it ?: Gone }
     }.collectAsState(initial = Reading)
     var round by rememberSaveable { mutableStateOf(Round()) }
     val scope = rememberCoroutineScope()
@@ -86,8 +92,12 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
             )
         },
     ) { contentPadding ->
-        val practising = shown as? Practising ?: return@Scaffold
-        val workload = practising.workload
+        val workload = when (shown) {
+            is Practising -> shown.workload
+            // Each card of the topic once, and again after "Nochmal".
+            is PractisingTopic -> Workload.ofTopic(shown.cards, round)
+            else -> return@Scaffold
+        }
         val card = answering ?: round.current(workload)
         Column(
             modifier = Modifier
@@ -100,8 +110,9 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
         ) {
             if (card == null) {
                 Spacer(Modifier.padding(top = 48.dp))
+                val done = if (topicId == null) R.plurals.practice_done else R.plurals.practice_topic_done
                 Text(
-                    pluralStringResource(R.plurals.practice_done, workload.doneToday.size, workload.doneToday.size),
+                    pluralStringResource(done, workload.doneToday.size, workload.doneToday.size),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
@@ -118,7 +129,8 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                 onAnswer = { rating ->
                     answering = card
                     scope.launchNow {
-                        flashcards.answer(card.id, rating)
+                        // Practising a topic, its new cards do not count against those of the day (#107).
+                        flashcards.answer(card.id, rating, countsAsNew = topicId == null)
                         round = round.answered(card.id, rating)
                         answering = null
                     }
@@ -180,3 +192,6 @@ private data object Reading : PracticeState
 private data object Gone : PracticeState
 
 private data class Practising(val workload: Workload) : PracticeState
+
+/** A topic practised (#107): all its [cards], in their order. */
+private data class PractisingTopic(val cards: List<Card>) : PracticeState

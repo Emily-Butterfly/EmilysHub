@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -24,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,14 +60,22 @@ import kotlin.math.roundToInt
 
 /**
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
- * "sicher", shown for one topic only if one is chosen; tapped, a card opens in its editor ([onOpenCard]). Its menu sets
- * how many new cards a day takes, and imports cards from a text file picked in Android's file dialog, after a preview.
+ * "sicher", shown for one topic only if one is chosen ([topicFilter], [onTopicFilterChange]), and only those a search
+ * typed finds (#107); tapped, a card opens in its editor ([onOpenCard]). Its menu sets how many new cards a day takes,
+ * and imports cards from a text file picked in Android's file dialog, after a preview.
  */
 @Composable
-internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long, onOpenCard: (Long) -> Unit) {
+internal fun CardsTabContent(
+    flashcards: Flashcards,
+    day: Day,
+    languageId: Long,
+    topicFilter: Long?,
+    onTopicFilterChange: (Long?) -> Unit,
+    onOpenCard: (Long) -> Unit,
+) {
     val tab by remember(flashcards, languageId) { flashcards.tab(languageId) }.collectAsState(initial = null)
     val today by remember(day) { day.dates() }.collectAsState(initial = day.today())
-    var topicFilter by rememberSaveable { mutableStateOf<Long?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
     var settingNew by rememberSaveable { mutableStateOf(false) }
     // A file picked and read, to look at before its cards are made; not kept past the screen.
     var picked by remember { mutableStateOf<CardFile?>(null) }
@@ -77,7 +87,7 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
 
     // One deleted meanwhile filters no more.
     val filter = shown.topics.find { it.id == topicFilter }
-    val cards = if (filter == null) shown.cards else shown.cards.filter { it.card.topicId == filter.id }
+    val cards = (if (filter == null) shown.cards else shown.cards.filter { it.card.topicId == filter.id }).filter { it.matches(query) }
     LazyColumn(contentPadding = PaddingValues().plusFabSpace()) {
         item(key = "bar") {
             Row(
@@ -92,15 +102,36 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (shown.topics.isNotEmpty()) {
-                        ChoiceChip(stringResource(R.string.cards_all_topics), chosen = filter == null) { topicFilter = null }
-                        shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { topicFilter = topic.id } }
+                        ChoiceChip(stringResource(R.string.cards_all_topics), chosen = filter == null) { onTopicFilterChange(null) }
+                        shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { onTopicFilterChange(topic.id) } }
                     }
                 }
                 CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })
             }
         }
+        if (shown.cards.isNotEmpty()) {
+            item(key = "search") {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text(stringResource(R.string.cards_search)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+        }
         when {
             shown.cards.isEmpty() -> item(key = "empty") { PlaceholderScreen(stringResource(R.string.cards_empty), PaddingValues()) }
+            cards.isEmpty() && query.isNotBlank() -> item(key = "none") {
+                Text(
+                    stringResource(R.string.cards_search_none, query.trim()),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
             cards.isEmpty() && filter != null -> item(key = "none") {
                 Text(
                     stringResource(R.string.cards_filtered_empty, filter.name),

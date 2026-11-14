@@ -230,6 +230,75 @@ class VocabularyScreenTest {
         }
     }
 
+    @Test
+    fun `a topic counts its cards, which open filtered on it, and its menu practises it whole`() {
+        val arabic = language("Arabisch")
+        val colours = runBlocking { (app.languages.createTopic(arabic, "Farben") as Saving.Saved).id }
+        runBlocking {
+            app.flashcards.create(arabic, CardDraft("ahmar", "rot", topicId = colours))
+            app.flashcards.create(arabic, CardDraft("azraq", "blau", topicId = colours))
+        }
+        card(arabic, "kitab", "Buch")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Themen").performClick()
+            compose.onNodeWithText("2 Karten · 0 sicher").performClick()
+
+            tab("Karten").assertIsSelected()
+            compose.onNodeWithText("ahmar").assertIsDisplayed()
+            compose.onNodeWithText("kitab").assertDoesNotExist()
+
+            tab("Themen").performClick()
+            compose.onNodeWithContentDescription("Menü für Farben").performClick()
+            compose.onNodeWithText("Thema üben").performClick()
+
+            compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            compose.onNodeWithText("ahmar").assertIsDisplayed()
+            repeat(2) {
+                compose.onNodeWithText("Aufdecken").performClick()
+                compose.onNodeWithText("Gut").performClick()
+            }
+            compose.onNodeWithText("Thema geübt: 2 Karten").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the search over all areas finds a card, and its hit opens it`() {
+        val arabic = language("Arabisch")
+        card(arabic, "كِتَاب", "Buch")
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Suchen").performClick()
+            compose.onNode(hasSetTextAction()).performTextInput("كتاب")
+            // The search waits for a pause in typing.
+            compose.waitUntil(timeoutMillis = 5_000) { compose.onAllNodesWithText("كِتَاب – Buch · Arabisch").fetchSemanticsNodes().isNotEmpty() }
+
+            compose.onNode(isHeading() and hasText("Sprachen · Karten")).assertIsDisplayed()
+            compose.onNodeWithText("كِتَاب – Buch · Arabisch").performClick()
+
+            heading("Karte ändern").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the tab Karten searches its cards, and the evaluation names them in a line`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        card(arabic, "qalam", "Stift")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            field("Karten durchsuchen").performTextInput("stift")
+            compose.onNodeWithText("qalam").assertIsDisplayed()
+            compose.onNodeWithText("kitab").assertDoesNotExist()
+
+            tab("Auswertung").performClick()
+            compose.onNodeWithText("Karten: 2 · sicher 0 · heute fällig 2").assertIsDisplayed()
+        }
+    }
+
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 
     private fun card(languageId: Long, front: String, back: String) = runBlocking { app.flashcards.create(languageId, CardDraft(front, back)) }

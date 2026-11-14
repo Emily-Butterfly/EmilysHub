@@ -1539,4 +1539,18 @@
     <string name="wish_card_goal_count">Sichere Karten</string>
     <string name="wish_card_goal_count_invalid">Eine Zahl von 1 bis 100 000.</string>
     <string name="goal_cards_line">Karten: %1$s · %2$s von %3$s</string>
+
+    <!-- Themen, Thema üben, Suche (SPEC.md §15, #107) -->
+    <string name="search_cards">Sprachen · Karten</string>
+    <string name="topic_cards">%1$d Karten · %2$d sicher</string>
+    <string name="topic_cards_open">Karten von „%1$s“ zeigen</string>
+    <string name="exam_cards">Karten: %1$d von %2$d sicher</string>
+    <string name="topic_practise">Thema üben</string>
+    <plurals name="practice_topic_done">
+        <item quantity="one">Thema geübt: %d Karte</item>
+        <item quantity="other">Thema geübt: %d Karten</item>
+    </plurals>
+    <string name="cards_search">Karten durchsuchen</string>
+    <string name="cards_search_none">Keine Karte passt zu „%1$s“.</string>
+    <string name="evaluation_cards">Karten: %1$d · sicher %2$d · heute fällig %3$d</string>
 </resources>

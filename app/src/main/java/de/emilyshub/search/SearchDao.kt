@@ -64,6 +64,14 @@ interface SearchDao {
     )
     suspend fun lessons(pattern: String): List<LessonCandidate>
 
+    /** The cards of the Vokabeltrainer, by their front, back, transcription and note, titled by their sides and language (#107). */
+    @Query(
+        "SELECT * FROM (SELECT c.id, c.front || ' – ' || c.back || ' · ' || l.name AS title, " +
+            "c.front || ' ' || c.back || ' ' || c.transcription || ' ' || c.note AS text " +
+            "FROM cards c JOIN languages l ON l.id = c.language_id) WHERE text LIKE :pattern ESCAPE '\\'",
+    )
+    suspend fun cards(pattern: String): List<Candidate>
+
     /** The entries of the Eingang (SPEC.md §16), by their text, which [Search] titles by its first line. */
     @Query("SELECT id, text AS title, text FROM inbox WHERE text LIKE :pattern ESCAPE '\\'")
     suspend fun inbox(pattern: String): List<Candidate>

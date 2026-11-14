@@ -142,8 +142,8 @@ sealed interface Destination : Serializable {
     /** A card's editor (SPEC.md §15, Vokabeltrainer). */
     data class CardEditor(override val target: CardEditorTarget) : Editor
 
-    /** Practising the cards of a language due today (SPEC.md §15, Vokabeltrainer). */
-    data class Practice(val languageId: Long) : Destination
+    /** Practising the cards of a language due today, or all of the topic [topicId] (SPEC.md §15, Vokabeltrainer). */
+    data class Practice(val languageId: Long, val topicId: Long? = null) : Destination
 
     /** A lesson's editor (SPEC.md §15). */
     data class LessonEditor(override val target: LessonEditorTarget) : Editor
@@ -176,6 +176,7 @@ sealed interface Destination : Serializable {
             SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
             SearchArea.Subscriptions -> SubscriptionEditor(SubscriptionEditorTarget.Edit(id))
             SearchArea.Lessons -> LessonEditor(LessonEditorTarget.Edit(id))
+            SearchArea.Cards -> CardEditor(CardEditorTarget.Edit(id))
             // The inbox as a whole, where it is sorted in.
             SearchArea.Inbox -> Inbox
         }

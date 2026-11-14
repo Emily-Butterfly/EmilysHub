@@ -8,7 +8,7 @@ import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
 /** The areas the search looks through, in the order their results show in. */
-enum class SearchArea { Routines, Todos, Wishes, Notes, Bookings, Subscriptions, Lessons, Inbox }
+enum class SearchArea { Routines, Todos, Wishes, Notes, Bookings, Subscriptions, Lessons, Cards, Inbox }
 
 /** An entry found, by its [title], and its [date] where it has one, such as a lesson: [id] opens it in its area. */
 data class SearchHit(val id: Long, val title: String, val date: LocalDate? = null)
@@ -20,7 +20,8 @@ data class SearchGroup(val area: SearchArea, val hits: List<SearchHit>, val more
  * The search over all areas (SPEC.md §8): routines, to-dos, wishes and notes, by their titles, descriptions, the text of
  * notes and their tags; the bookings of the household book (SPEC.md §13), by their descriptions and categories; and its
  * Abos, by their names and notes; and the lessons of Sprachen (SPEC.md §15), by their notes, topics and teachers,
- * each by its language and teacher, the newest first; and the entries of the Eingang (SPEC.md §16), by their text, each
+ * each by its language and teacher, the newest first; the cards of the Vokabeltrainer, by their front, back,
+ * transcription and note, each by its sides and language (#107); and the entries of the Eingang (SPEC.md §16), by their text, each
  * by its first line, the newest first.
  * Every word typed has to be there, in whatever case, and however its letters were typed, as [InputText.searchable]
  * compares. The database looks for the longest word, as a value of the query, its wildcards
@@ -53,10 +54,13 @@ class Search(
         val lessons = SearchArea.Lessons to dao.lessons(pattern).filter { matches(it.text) }
             .map { SearchHit(it.id, "${it.language} · ${it.teacher}", it.date) }
             .sortedWith(compareByDescending<SearchHit> { it.date }.thenByDescending { it.id })
+        val cards = SearchArea.Cards to dao.cards(pattern).filter { matches(it.text) }
+            .map { SearchHit(it.id, it.title) }
+            .sortedWith(compareBy(InputText.byName) { it.title })
         val inbox = SearchArea.Inbox to dao.inbox(pattern).filter { matches(it.text) }
             .sortedByDescending { it.id }
             .map { SearchHit(it.id, it.title.lineSequence().first()) }
-        (byTitle + lessons + inbox).mapNotNull { (area, hits) ->
+        (byTitle + lessons + cards + inbox).mapNotNull { (area, hits) ->
             if (hits.isEmpty()) null else SearchGroup(area, hits.take(MAX_HITS), more = maxOf(hits.size - MAX_HITS, 0))
         }
     }

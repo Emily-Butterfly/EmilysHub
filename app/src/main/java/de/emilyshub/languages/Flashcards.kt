@@ -25,7 +25,31 @@ import kotlin.coroutines.CoroutineContext
 data class CardsMade(val created: Int, val skipped: Int)
 
 /** A card on the tab Karten, with its [topic], if it has one. */
-data class CardRow(val card: Card, val topic: Topic?)
+data class CardRow(val card: Card, val topic: Topic?) {
+    /**
+     * Whether [query] finds it (#107): every word typed in its front, back, transcription or note, in whatever case, and
+     * Arabic with or without its vowel marks, as the search over all areas compares; anything for nothing typed.
+     */
+    fun matches(query: String): Boolean {
+        val words = InputText.searchable(InputText.singleLine(query)).split(' ').filter(String::isNotEmpty)
+        val text = InputText.searchable(listOf(card.front, card.back, card.transcription, card.note).joinToString(" "))
+        return words.all { it in text }
+    }
+}
+
+/** How many [cards] a topic has, and how many of them are [sure] (#107). */
+data class TopicCards(val cards: Int, val sure: Int) {
+    companion object {
+        /** What the topics [topicIds] of [counts] come to together, as an exam's topics do. */
+        fun sumOf(topicIds: Collection<Long>, counts: Map<Long, TopicCards>): TopicCards {
+            val own = topicIds.mapNotNull(counts::get)
+            return TopicCards(own.sumOf { it.cards }, own.sumOf { it.sure })
+        }
+    }
+}
+
+/** A language's cards as its evaluation tells them (#107): all of them ([total]), those [sure], and those [dueToday]. */
+data class CardsSummary(val total: Int, val sure: Int, val dueToday: Int)
 
 /**
  * The tab Karten of a language (SPEC.md §15): its [cards] by front, the [topics] of the language to filter them by, by
@@ -51,14 +75,24 @@ data class Workload(val remaining: List<Card>, val doneToday: List<Card>, val fi
             val askedBefore = cards.any { first -> first.firstReview?.isBefore(today) == true }
             return Workload(due + new, cards.filter { it.lastReview == today }, firstTime = !askedBefore)
         }
+
+        /**
+         * A topic practised (#107): all its [cards], in the order [Flashcards.topicPractice] gives them, those of them
+         * asked in the [round] already done, so that each comes once, and again only after "Nochmal".
+         */
+        fun ofTopic(cards: List<Card>, round: Round): Workload {
+            val asked = round.asked.toSet()
+            return Workload(cards.filter { it.id !in asked }, cards.filter { it.id in asked })
+        }
     }
 }
 
 /**
  * A round of practice (SPEC.md §15): the cards answered "Nochmal" in it, which come again at its end, in that order
- * ([again]). Kept by the screen, not saved: left, the round is over, and such a card is due the next day.
+ * ([again]), and all those it [asked], for a topic practised (#107). Kept by the screen, not saved: left, the round is
+ * over, and such a card is due the next day.
  */
-data class Round(val again: List<Long> = emptyList()) : Serializable {
+data class Round(val again: List<Long> = emptyList(), val asked: List<Long> = emptyList()) : Serializable {
     /** The card to show of [workload]: the next of it, then those answered "Nochmal"; none once all are done. */
     fun current(workload: Workload): Card? =
         workload.remaining.firstOrNull() ?: again.firstNotNullOfOrNull { id -> workload.doneToday.find { it.id == id } }
@@ -75,8 +109,10 @@ data class Round(val again: List<Long> = emptyList()) : Serializable {
     }
 
     /** After the card [cardId] was answered [rating]: "Nochmal" puts it at the end, anything else takes it out. */
-    fun answered(cardId: Long, rating: Rating) =
-        Round(again.filter { it != cardId } + listOfNotNull(cardId.takeIf { rating == Rating.Again }))
+    fun answered(cardId: Long, rating: Rating) = Round(
+        again = again.filter { it != cardId } + listOfNotNull(cardId.takeIf { rating == Rating.Again }),
+        asked = if (cardId in asked) asked else asked + cardId,
+    )
 }
 
 /**
@@ -127,6 +163,43 @@ class Flashcards(
             all.find { it.id == languageId }?.takeIf { !it.archived }?.let { Workload.of(cards, it.newCardsPerDay, today) }
         }
         emitAll(workload)
+    }.flowOn(io)
+
+    /** How many cards of each topic of the language [languageId] there are, and how many are sure, by topic (#107). */
+    fun topicCounts(languageId: Long): Flow<Map<Long, TopicCards>> = flow {
+        emitAll(
+            dao.observeOf(languageId).map { cards ->
+                cards.filter { it.topicId != null }.groupBy { checkNotNull(it.topicId) }
+                    .mapValues { (_, own) -> TopicCards(own.size, own.count { it.sure }) }
+            },
+        )
+    }.flowOn(io)
+
+    /**
+     * All the cards of the topic [topicId] to practise on [today] (#107), done or not, of an exam taken or not: those due
+     * first, the longest due first, then the new ones in the order made, then the others, the soonest due first. None
+     * once the topic is gone or its language archived.
+     */
+    fun topicPractice(topicId: Long, today: LocalDate): Flow<List<Card>?> = flow {
+        val practice = combine(languages.observeTopics(), languages.observeLanguages(), dao.observeAll()) { topics, all, cards ->
+            val topic = topics.find { it.id == topicId } ?: return@combine null
+            all.find { it.id == topic.languageId }?.takeIf { !it.archived } ?: return@combine null
+            val own = cards.filter { it.topicId == topicId }
+            val (due, notDue) = own.partition { it.dueOn(today) }
+            val (new, later) = notDue.partition { it.new }
+            due.sortedWith(compareBy<Card> { it.due }.thenBy { it.id }) + new.sortedBy { it.id } +
+                later.sortedWith(compareBy<Card> { it.due }.thenBy { it.id })
+        }
+        emitAll(practice)
+    }.flowOn(io)
+
+    /** The cards of the language [languageId] as its evaluation counts them on [today] (#107), as they change. */
+    fun summary(languageId: Long, today: LocalDate): Flow<CardsSummary> = flow {
+        val summary = combine(languages.observeLanguages(), dao.observeOf(languageId)) { all, cards ->
+            val newPerDay = all.find { it.id == languageId }?.newCardsPerDay ?: Language.NEW_CARDS_DEFAULT
+            CardsSummary(cards.size, cards.count { it.sure }, Workload.of(cards, newPerDay, today).remaining.size)
+        }
+        emitAll(summary)
     }.flowOn(io)
 
     /** The workload on [today] of each language not archived that has cards, by its id, as they change. */
@@ -216,9 +289,10 @@ class Flashcards(
 
     /**
      * The card [cardId] answered [rating] now: planned anew by [Fsrs], from the days since it was last asked; "Nochmal"
-     * makes it due the next day, as it comes again in the round only. Kept at once, and logged.
+     * makes it due the next day, as it comes again in the round only. Kept at once, and logged. A new one asked in a topic
+ * practised (not [countsAsNew]) leaves the new cards of the day as they were.
      */
-    suspend fun answer(cardId: Long, rating: Rating) = write {
+    suspend fun answer(cardId: Long, rating: Rating, countsAsNew: Boolean = true) = write {
         val today = today()
         val languageOf = dao.card(cardId)?.languageId ?: return@write
         // Only the answer that does it tells: those asked again after it, as "Nochmal" brings them, do not.
@@ -233,7 +307,8 @@ class Flashcards(
                     card.copy(
                         stability = planned.memory.stability,
                         difficulty = planned.memory.difficulty,
-                        firstReview = card.firstReview ?: today,
+                        // Practised in its topic, a new one does not count against the new cards of the day (#107).
+                        firstReview = card.firstReview ?: today.takeIf { countsAsNew },
                         lastReview = today,
                         due = today.plusDays(planned.interval.toLong()),
                         interval = planned.interval,

@@ -5,6 +5,8 @@ import de.emilyshub.TestClock
 import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.inbox.Inbox
+import de.emilyshub.languages.CardDraft
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDraft
@@ -183,6 +185,23 @@ class SearchTest {
     }
 
     @Test
+    fun `cards are found by front, back, transcription and note, with their language, Arabic with or without its vowel marks`() =
+        runBlocking {
+            val languages = Languages(
+                { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+            )
+            val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined)
+            val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
+            val book = (cards.create(arabic, CardDraft("كِتَاب", "Buch", "kitāb", "Plural kutub")) as Saving.Saved).id
+
+            assertEquals(listOf(book), search.find("كتاب").cardIds())
+            assertEquals(listOf(book), search.find("buch").cardIds())
+            assertEquals(listOf(book), search.find("kitāb").cardIds())
+            assertEquals(listOf(book), search.find("kutub").cardIds())
+            assertEquals(SearchHit(book, "كِتَاب – Buch · Arabisch"), search.find("buch").single { it.area == SearchArea.Cards }.hits.single())
+        }
+
+    @Test
     fun `entries of the inbox are found by their text, in an area of their own, each by its first line`() = runBlocking {
         val inbox = Inbox({ database }, clock, Dispatchers.Unconfined)
         inbox.capture("Einkaufen\nMilch und Brot")
@@ -195,6 +214,8 @@ class SearchTest {
         assertEquals(listOf("Brot backen"), titles(found, SearchArea.Todos))
         assertEquals(inbox.entries().first().last().id, found.single { it.area == SearchArea.Inbox }.hits.single().id)
     }
+
+    private fun List<SearchGroup>.cardIds() = single { it.area == SearchArea.Cards }.hits.map { it.id }
 
     private fun List<SearchGroup>.lessonIds() = single { it.area == SearchArea.Lessons }.hits.map { it.id }
 

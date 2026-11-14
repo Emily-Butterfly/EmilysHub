@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.CardsSummary
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguagePage
 import de.emilyshub.languages.Languages
@@ -55,6 +56,8 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.wishes.Wishes
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
 /**
@@ -67,7 +70,7 @@ import kotlinx.coroutines.flow.map
  * Gone meanwhile, it closes. Opened from an exam at a goal ([examId]), it opens on "Themen" at that exam's topics; from
  * a Karten-Ziel ([cards]), on "Karten".
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
 fun LanguagePageScreen(
     languages: Languages,
@@ -81,8 +84,13 @@ fun LanguagePageScreen(
     onCreateLesson: () -> Unit,
     onOpenCard: (Long) -> Unit,
     onCreateCard: () -> Unit,
+    onPractiseTopic: (topicId: Long) -> Unit,
     onBack: () -> Unit,
 ) {
+    // Here, so that a topic's number of cards opens them filtered (#107).
+    var cardsTopic by rememberSaveable { mutableStateOf<Long?>(null) }
+    val summary by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.summary(languageId, it) } }
+        .collectAsState(initial = null)
     val page by remember(languages, languageId) { languages.page(languageId).map<LanguagePage?, PageState?> { it?.let(::Shown) } }
         .collectAsState(initial = Loading)
     var tab by rememberSaveable {
@@ -140,9 +148,17 @@ fun LanguagePageScreen(
             }
             when (tab) {
                 LESSONS_TAB -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
-                TOPICS_TAB -> TopicsTabContent(languages, wishes, languageId, loaded.topics, onOpenLesson, focusExam = examId)
-                CARDS_TAB -> CardsTabContent(flashcards, day, languageId, onOpenCard)
-                else -> EvaluationTab(loaded)
+                TOPICS_TAB -> TopicsTabContent(
+                    languages, wishes, flashcards, languageId, loaded.topics, onOpenLesson,
+                    onShowCards = { topicId ->
+                        cardsTopic = topicId
+                        tab = CARDS_TAB
+                    },
+                    onPractiseTopic = onPractiseTopic,
+                    focusExam = examId,
+                )
+                CARDS_TAB -> CardsTabContent(flashcards, day, languageId, cardsTopic, onTopicFilterChange = { cardsTopic = it }, onOpenCard)
+                else -> EvaluationTab(loaded, summary)
             }
         }
     }
@@ -202,15 +218,29 @@ private fun LessonLine(row: LessonRow, onClick: () -> Unit) {
 
 /** What each teacher's lessons of it come to, for the month, the year and in all. */
 @Composable
-private fun EvaluationTab(page: LanguagePage) {
+private fun EvaluationTab(page: LanguagePage, cards: CardsSummary?) {
+    // Its cards in a line, once it has any (#107).
+    val cardsLine: @Composable () -> Unit = {
+        cards?.takeIf { it.total > 0 }?.let {
+            Text(
+                stringResource(R.string.evaluation_cards, it.total, it.sure, it.dueToday),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
+    }
     if (page.byTeacher.isEmpty()) {
-        PlaceholderScreen(stringResource(R.string.language_lessons_empty), PaddingValues())
+        Column {
+            cardsLine()
+            PlaceholderScreen(stringResource(R.string.language_lessons_empty), PaddingValues())
+        }
         return
     }
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "cards") { cardsLine() }
         items(page.byTeacher, key = { it.teacher.id }) { tally ->
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
