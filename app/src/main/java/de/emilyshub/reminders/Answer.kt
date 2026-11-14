@@ -25,7 +25,7 @@ sealed interface Answer {
 
     /**
      * "Starten", on a routine's with a checklist (#103): it is put off by the routine's follow-up time, and its run opens
-     * ([Reminders.start]).
+     * ([Reminders.answer] returns which).
      */
     data object Start : Answer
 

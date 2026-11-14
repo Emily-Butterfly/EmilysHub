@@ -53,7 +53,7 @@ fun AlarmScreen(
     onSkip: () -> Unit,
     onDrop: () -> Unit,
     onClose: () -> Unit,
-    onStart: () -> Unit = {},
+    onStart: () -> Unit,
 ) {
     // For the reminder shown: another one coming first starts with its actions again.
     var choosingPutOff by rememberSaveable(shown?.key) { mutableStateOf(false) }

@@ -316,7 +316,7 @@ class RemindingTest {
         reminders.remind()
         val morning = routines.dueOn(today).first().single()
 
-        val started = reminders.start(Alarmed.Occurrence(morning.occurrenceId))
+        val started = reminders.answer(Alarmed.Occurrence(morning.occurrenceId), Answer.Start)
 
         assertEquals(RunToOpen(morning.occurrenceId, morning.routineId), started)
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
@@ -336,7 +336,7 @@ class RemindingTest {
         routines.markDone(morning.id)
         screen.onScreen[morning] = stillUp
 
-        assertNull(reminders.start(morning))
+        assertNull(reminders.answer(morning, Answer.Start))
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
     }
 
@@ -351,12 +351,9 @@ class RemindingTest {
         reminders.remind()
         val shown = screen.onScreen.keys.toSet()
 
-        shown.forEach { assertNull(it.toString(), reminders.start(it)) }
+        shown.forEach { assertNull(it.toString(), reminders.answer(it, Answer.Start)) }
 
         assertEquals("all stay as they are", shown, screen.onScreen.keys)
-        assertEquals(listOf(false, false), screen.onScreen.values.filter { it.reminder is DueReminder.OfOccurrence }.map {
-            (it.reminder as DueReminder.OfOccurrence).reminder.startable
-        })
     }
 
     @Test

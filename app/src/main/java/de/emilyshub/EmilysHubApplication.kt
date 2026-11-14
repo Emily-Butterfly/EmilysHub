@@ -49,6 +49,7 @@ import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
 import de.emilyshub.reminders.Alarmed
+import de.emilyshub.reminders.Answer
 import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
@@ -320,7 +321,8 @@ open class EmilysHubApplication : Application(), Hub {
 
     final override fun probe() = reminders.probe()
 
-    final override suspend fun startFromReminder(occurrenceId: Long): RunToOpen? = reminders.start(Alarmed.Occurrence(occurrenceId))
+    final override suspend fun startFromReminder(occurrenceId: Long): RunToOpen? =
+        reminders.answer(Alarmed.Occurrence(occurrenceId), Answer.Start)
 
     override fun onCreate() {
         super.onCreate()

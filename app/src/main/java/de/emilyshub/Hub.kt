@@ -100,8 +100,8 @@ interface Hub {
     fun probe()
 
     /**
-     * "Starten" on the reminder of the occurrence [occurrenceId] (#103), as [Reminders.start] has it: the run to open, or
-     * none once it is answered.
+     * "Starten" on the reminder of the occurrence [occurrenceId] (#103), answered as [Reminders.answer] has it: the run to
+     * open, or none once it is answered otherwise.
      */
     suspend fun startFromReminder(occurrenceId: Long): RunToOpen?
 }

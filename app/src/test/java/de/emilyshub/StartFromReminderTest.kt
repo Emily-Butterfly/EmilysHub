@@ -167,8 +167,9 @@ class StartFromReminderTest {
             assertTrue("silent", !app.ringer.ringing)
             val opened = checkNotNull(shadowOf(app).nextStartedActivity)
             assertEquals(MainActivity::class.java.name, opened.component?.className)
-            assertEquals(startIntent().extras?.keySet(), opened.extras?.keySet())
-            assertEquals(occurrence(), opened.extras?.let { extras -> extras.keySet().single().let { extras.getLong(it) } })
+            val asFromNotification = MainActivity.startFromReminder(app, occurrence())
+            assertEquals(asFromNotification.extras?.keySet(), opened.extras?.keySet())
+            assertTrue(asFromNotification.extras?.keySet().orEmpty().all { opened.extras?.get(it) == asFromNotification.extras?.get(it) })
         }
     }
 

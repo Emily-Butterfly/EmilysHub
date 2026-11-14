@@ -127,10 +127,12 @@ class Reminders internal constructor(
      * - "Starten" puts a routine's off for its run, as [start] has it.
      *
      * Asking anything of one answered meanwhile takes it down. What writes to the routines or to-dos runs outside the
-     * lock, as their change brings the reminders up to date, which takes it.
+     * lock, as their change brings the reminders up to date, which takes it. Returns the run to open after "Starten";
+     * none after anything else.
      */
-    suspend fun answer(about: Alarmed, answer: Answer) {
+    suspend fun answer(about: Alarmed, answer: Answer): RunToOpen? {
         val source = sourceOf(about)
+        if (answer == Answer.Start) return start(about)
         when (answer) {
             Answer.Done -> source.done(about.id)
             Answer.OfferDone -> offer(about, Offering.Done, onlyIf = DueReminder::joint)
@@ -139,17 +141,18 @@ class Reminders internal constructor(
             Answer.Skip -> source.skip(about.id)
             Answer.Drop -> source.drop(about.id)
             Answer.RunOn -> source.runOn(about.id)
-            Answer.Start -> start(about)
+            Answer.Start -> Unit
         }
+        return null
     }
 
     /**
-     * "Starten" on the reminder about [about] (#103): one still due that can be run through is put off by its routine's
+     * "Starten" on the reminder about [about] (#103), as [answer] gives it: one still due that can be run through is put off by its routine's
      * follow-up time, as after "Später", so that it reminds again should the routine still be open then; returns the run
      * to open. Anything else opens none: one answered meanwhile goes away, and one that cannot be run through, as a
      * joint one, stays as it is.
      */
-    suspend fun start(about: Alarmed): RunToOpen? {
+    private suspend fun start(about: Alarmed): RunToOpen? {
         val reminder = (stillDue(about) as? DueReminder.OfOccurrence)?.reminder?.takeIf { it.startable }
         if (reminder == null) {
             update()

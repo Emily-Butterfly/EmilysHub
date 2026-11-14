@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.os.BundleCompat
 import de.emilyshub.ui.EmilysHubApp
 import de.emilyshub.ui.ledger.SubscriptionEditorTarget
-import de.emilyshub.reminders.AlarmRingService
 import de.emilyshub.ui.navigation.Destination
 import de.emilyshub.ui.navigation.Opening
 import kotlinx.coroutines.launch
@@ -34,7 +33,6 @@ class MainActivity : ComponentActivity() {
         } else {
             BundleCompat.getSerializable(savedInstanceState, OPENING, Opening::class.java)
         }
-        if (savedInstanceState == null) intent.silenceIfStarting()
         publishShortcuts(this)
         setContent {
             EmilysHubApp(app, opening = opening.value, onOpened = { opening.value = null })
@@ -56,15 +54,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.opening()?.let { opening.value = it }
-        intent.silenceIfStarting()
-    }
-
-    /**
-     * "Starten" on a reminder ends its ringing at once (#103), before the app's lock; the answer waits behind it. Anything
-     * may send here, but silencing is all it does before the lock, as "Stumm" does.
-     */
-    private fun Intent.silenceIfStarting() {
-        if (startOccurrence() != null) AlarmRingService.silence(this@MainActivity)
     }
 
     companion object {
@@ -111,7 +100,8 @@ class MainActivity : ComponentActivity() {
 
         /**
          * "Starten" on the reminder of the occurrence (#103), from its notification or its full-screen alarm: answers it so
-         * once the app is unlocked, and opens its run there.
+         * once the app is unlocked, which ends its ringing, and opens its run there. Nothing is done before the app's lock,
+         * as anything may send here.
          */
         fun startFromReminder(context: Context, occurrenceId: Long): Intent = Intent(context, MainActivity::class.java)
             .putExtra(EXTRA_START_OCCURRENCE, occurrenceId)

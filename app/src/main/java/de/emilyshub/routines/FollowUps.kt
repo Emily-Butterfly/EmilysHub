@@ -16,9 +16,11 @@ data class FollowUps(
     @ColumnInfo(name = "minutes", defaultValue = "30") val everyMinutes: Int = 30,
 ) : Serializable {
 
+    /** How far apart they come. */
+    val every: Duration get() = Duration.ofMinutes(everyMinutes.toLong())
+
     /** A reminder at [first] and the follow-ups after it. */
-    fun from(first: Instant): List<Instant> =
-        (0..count).map { first + Duration.ofMinutes(everyMinutes.toLong()).multipliedBy(it.toLong()) }
+    fun from(first: Instant): List<Instant> = (0..count).map { first + every.multipliedBy(it.toLong()) }
 
     companion object {
         /** None, or up to five (SPEC.md §2). */

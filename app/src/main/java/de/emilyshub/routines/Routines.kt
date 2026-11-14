@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -683,7 +682,7 @@ class Routines(
             occurrence.id, routine.name, dueAt, windowEnd, routine.style,
             routineId = routine.id,
             hasChecklist = of.checklistItemIds.isNotEmpty(),
-            followUpEvery = Duration.ofMinutes(routine.followUps.everyMinutes.toLong()),
+            followUpEvery = routine.followUps.every,
         )
     }
 

@@ -184,11 +184,11 @@ data class Reminder(
     val style: RemindingStyle = RemindingStyle(),
     val together: List<JointOccurrence> = emptyList(),
     /** The routine of its own occurrence. */
-    val routineId: Long = 0,
+    val routineId: Long,
     /** Whether its routine has a checklist, to run through (SPEC.md §2, Ablauf-Modus). */
     val hasChecklist: Boolean = false,
     /** How far apart its routine's follow-ups come, which "Starten" puts it off by. */
-    val followUpEvery: Duration = Duration.ofMinutes(FollowUps().everyMinutes.toLong()),
+    val followUpEvery: Duration = FollowUps().every,
 ) {
     /**
      * Whether "Starten" can run through its checklist (SPEC.md §2, Ablauf-Modus): of a routine with a checklist alone; a
