@@ -34,7 +34,8 @@ class FlashcardsTest {
     private val languages = Languages(
         { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
-    private val cards = Flashcards({ database }, clock, Dispatchers.Unconfined)
+    private val documents = FakeLessonDocuments()
+    private val cards = Flashcards({ database }, clock, documents, Dispatchers.Unconfined)
 
     @After
     fun closeDatabase() {
@@ -255,6 +256,60 @@ class FlashcardsTest {
 
         assertEquals(emptyList<CardReview>(), database.cards().reviewsOf(book))
         assertTrue(languages.deleteLanguage(arabic))
+    }
+
+    @Test
+    fun `of cards to make, those whose front the language has, or an earlier one of them, are taken`() = runBlocking {
+        val arabic = language("Arabisch")
+        card(arabic, "Buch")
+
+        val taken = cards.taken(arabic, listOf(CardDraft("buch", "x"), CardDraft("Stift", "y"), CardDraft("STIFT", "z"), CardDraft("Tür", "w")))
+
+        assertEquals(listOf(true, false, true, false), taken)
+    }
+
+    @Test
+    fun `cards made at once are new, with the topic chosen, and those taken are counted as skipped`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        card(arabic, "rot")
+
+        val made = cards.createAll(arabic, listOf(CardDraft("rot", "ahmar"), CardDraft("blau", "azraq"), CardDraft("grün", "akhdar")), colours)
+
+        assertEquals(CardsMade(created = 2, skipped = 1), made)
+        val tab = checkNotNull(cards.tab(arabic).first())
+        assertEquals(listOf("blau", "grün", "rot"), tab.cards.map { it.card.front })
+        assertEquals(listOf("Farben", "Farben", null), tab.cards.map { it.topic?.name })
+        assertTrue(tab.cards.take(2).all { it.card.new })
+        assertEquals("they come with the workload", listOf("rot", "blau", "grün"), workload(arabic).remaining.map { it.front })
+    }
+
+    @Test
+    fun `made at once, all or nothing, and a topic not of the language leaves them without one`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val numbers = topic(italian, "Zahlen")
+
+        assertEquals(CardsMade(created = 1, skipped = 0), cards.createAll(arabic, listOf(CardDraft("eins", "wahid")), numbers))
+        assertNull(database.cards().of(arabic).single().topicId)
+        assertEquals(
+            "one that cannot be saved makes none",
+            CardsMade(created = 0, skipped = 0),
+            cards.createAll(arabic, listOf(CardDraft("zwei", "ithnan"), CardDraft("", "leer")), topicId = null),
+        )
+        assertEquals(listOf("eins"), database.cards().of(arabic).map { it.front })
+    }
+
+    @Test
+    fun `a file picked is read as cards, and kept nowhere`() = runBlocking {
+        val address = documents.put("vokabeln.txt", "kitab;Buch\nqalam;Stift".toByteArray())
+
+        val read = cards.readFile(address) as CardFile.Read
+
+        assertEquals(listOf("kitab", "qalam"), read.cards.map { it.draft.front })
+        assertEquals(CardFile.NotText, cards.readFile("content://test/missing"))
+        assertEquals(CardFile.TooLarge, cards.readFile(documents.put("gross.txt", ByteArray(CardImport.FILE_MAX_BYTES + 1) { 'a'.code.toByte() })))
+        assertEquals(emptyMap<String, ByteArray>(), documents.written)
     }
 
     private suspend fun answer(front: String, rating: Rating) =

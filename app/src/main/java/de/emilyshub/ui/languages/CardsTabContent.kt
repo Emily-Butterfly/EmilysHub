@@ -1,5 +1,7 @@
 package de.emilyshub.ui.languages
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.CardFile
 import de.emilyshub.languages.CardRow
 import de.emilyshub.languages.CardsTab
 import de.emilyshub.languages.Flashcards
@@ -56,7 +59,7 @@ import kotlin.math.roundToInt
 /**
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
  * "sicher", shown for one topic only if one is chosen; tapped, a card opens in its editor ([onOpenCard]). Its menu sets
- * how many new cards a day takes.
+ * how many new cards a day takes, and imports cards from a text file picked in Android's file dialog, after a preview.
  */
 @Composable
 internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long, onOpenCard: (Long) -> Unit) {
@@ -64,7 +67,12 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
     val today by remember(day) { day.dates() }.collectAsState(initial = day.today())
     var topicFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var settingNew by rememberSaveable { mutableStateOf(false) }
+    // A file picked and read, to look at before its cards are made; not kept past the screen.
+    var imported by remember { mutableStateOf<CardFile?>(null) }
     val scope = rememberCoroutineScope()
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launchNow { imported = flashcards.readFile(uri.toString()) }
+    }
     val shown = tab ?: return
 
     // One deleted meanwhile filters no more.
@@ -88,7 +96,7 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
                         shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { topicFilter = topic.id } }
                     }
                 }
-                CardsMenu(shown, onSetNew = { settingNew = true })
+                CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })
             }
         }
         when {
@@ -102,6 +110,16 @@ internal fun CardsTabContent(flashcards: Flashcards, day: Day, languageId: Long,
             }
         }
         items(cards, key = { it.card.id }) { row -> CardLine(row, today, onClick = { onOpenCard(row.card.id) }) }
+    }
+
+    when (val file = imported) {
+        null -> Unit
+        is CardFile.Read -> if (file.cards.isEmpty()) {
+            CardFileRefusedDialog(file, onDismiss = { imported = null })
+        } else {
+            CardFilePreviewDialog(flashcards, languageId, file, shown.topics, onDismiss = { imported = null })
+        }
+        else -> CardFileRefusedDialog(file, onDismiss = { imported = null })
     }
 
     if (settingNew) {
@@ -144,9 +162,9 @@ private fun DirectedLine(text: String, maxLines: Int) {
     }
 }
 
-/** The menu of the tab: how many new cards a day takes. */
+/** The menu of the tab: how many new cards a day takes, and cards from a file of the phone ([onImport]). */
 @Composable
-private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit) {
+private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit, onImport: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -158,6 +176,13 @@ private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit) {
                 onClick = {
                     expanded = false
                     onSetNew()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.cards_import)) },
+                onClick = {
+                    expanded = false
+                    onImport()
                 },
             )
         }

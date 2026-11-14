@@ -124,6 +124,9 @@ data class CardDraft(
     /** [card] with what is typed here: its sides, transcription, note and topic; what was planned for it stays. */
     fun applyTo(card: Card) = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId)
 
+    /** With front and back swapped, for a list written the other way round. */
+    fun swapped() = copy(front = back, back = front)
+
     /** What keeps it from being saved, as far as it alone tells; none if it can be. */
     val problems: Set<CardProblem>
         get() = with(cleaned()) {

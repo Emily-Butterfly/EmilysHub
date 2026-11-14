@@ -262,7 +262,7 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }
-    final override val flashcards: Flashcards by lazy { Flashcards({ database }, clock, io) }
+    final override val flashcards: Flashcards by lazy { Flashcards({ database }, clock, lessonDocuments, io) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 

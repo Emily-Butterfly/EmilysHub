@@ -1490,4 +1490,38 @@
         <item quantity="other">Für heute geschafft: %d Karten</item>
     </plurals>
     <string name="practice_back">Zurück</string>
+
+    <!-- Karten anlegen aus Notiz und Datei (SPEC.md §15, #105) -->
+    <string name="cards_from_note">Karten aus der Notiz</string>
+    <string name="cards_from_note_none">Keine Zeile der Notiz liest sich als Karte. Eine Karte steht auf einer Zeile, ihre Seiten getrennt mit „ – “, „ - “, „ = “ oder einem Tabulator.</string>
+    <string name="cards_swap_sides">Seiten tauschen</string>
+    <string name="cards_taken_mark">gibt es schon</string>
+    <string name="cards_import">Karten importieren</string>
+    <string name="cards_import_too_large">Die Datei ist größer als 1 MB und wird nicht gelesen.</string>
+    <string name="cards_import_too_many_lines">Die Datei hat mehr als 2 000 Zeilen und wird nicht gelesen.</string>
+    <string name="cards_import_not_text">Die Datei ist kein Text in UTF-8 und wird nicht gelesen.</string>
+    <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon.</string>
+    <string name="cards_import_unreadable">%1$d Zeilen nicht lesbar (Zeile %2$s)</string>
+    <string name="cards_import_unreadable_one">1 Zeile nicht lesbar (Zeile %1$s)</string>
+    <string name="cards_topic_for_all">Thema für alle</string>
+    <plurals name="cards_import_found">
+        <item quantity="one">%d Karte</item>
+        <item quantity="other">%d Karten</item>
+    </plurals>
+    <plurals name="cards_import_taken">
+        <item quantity="one">%d schon vorhanden</item>
+        <item quantity="other">%d schon vorhanden</item>
+    </plurals>
+    <plurals name="cards_create_n">
+        <item quantity="one">%d Karte anlegen</item>
+        <item quantity="other">%d Karten anlegen</item>
+    </plurals>
+    <plurals name="cards_made">
+        <item quantity="one">%d Karte angelegt</item>
+        <item quantity="other">%d Karten angelegt</item>
+    </plurals>
+    <plurals name="cards_made_skipped">
+        <item quantity="one">, %d schon vorhanden und übersprungen</item>
+        <item quantity="other">, %d schon vorhanden und übersprungen</item>
+    </plurals>
 </resources>

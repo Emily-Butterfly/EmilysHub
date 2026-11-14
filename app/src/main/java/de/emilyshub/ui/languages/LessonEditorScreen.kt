@@ -57,6 +57,7 @@ import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonChoices
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.LessonProblem
 import de.emilyshub.languages.Teacher
@@ -102,6 +103,7 @@ sealed interface LessonEditorTarget : Serializable {
 fun LessonEditorScreen(
     languages: Languages,
     files: LessonFiles,
+    flashcards: Flashcards,
     target: LessonEditorTarget,
     onClose: () -> Unit,
     onOpenAttachment: (AttachmentRef) -> Unit,
@@ -112,6 +114,7 @@ fun LessonEditorScreen(
     // The form as a new one starts out, to tell whether anything was typed.
     val fresh = rememberSaveable { draft }
     var showProblems by rememberSaveable { mutableStateOf(false) }
+    var makingCards by rememberSaveable { mutableStateOf(false) }
     // What saving was refused for, as the editor alone cannot tell: a language or teacher no longer offered.
     var refused by rememberSaveable { mutableStateOf(emptySet<LessonProblem>()) }
     var previewing by rememberSaveable { mutableStateOf(false) }
@@ -283,6 +286,10 @@ fun LessonEditorScreen(
             NoteField(draft.note, previewing, onPreviewingChange = { previewing = it }, tooLong = LessonProblem.NoteTooLong in problems) {
                 draft = draft.copy(note = it)
             }
+            // Cards of the Vokabeltrainer from the note's lines (#105), once its language is chosen.
+            OutlinedButton(onClick = { makingCards = true }, enabled = draft.languageId != null) {
+                Text(stringResource(R.string.cards_from_note))
+            }
             LessonAttachments(
                 files = files,
                 draft = draft,
@@ -291,6 +298,15 @@ fun LessonEditorScreen(
                 onOpen = onOpenAttachment,
             )
         }
+    }
+
+    val cardsLanguage = draft.languageId
+    if (makingCards && cardsLanguage != null) {
+        CardsFromNoteDialog(
+            flashcards, cardsLanguage, draft.note,
+            topics = choices.topics.filter { it.id in draft.topicIds && it.languageId == cardsLanguage },
+            onDismiss = { makingCards = false },
+        )
     }
 
     if (choosingDate) {

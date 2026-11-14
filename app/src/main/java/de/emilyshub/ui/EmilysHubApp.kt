@@ -358,7 +358,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onBack = back,
                 )
                 is Destination.LessonEditor -> LessonEditorScreen(
-                    hub.languages, hub.lessonFiles, top.target, onClose = back,
+                    hub.languages, hub.lessonFiles, hub.flashcards, top.target, onClose = back,
                     onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
                 )
                 is Destination.CardEditor -> CardEditorScreen(hub.flashcards, top.target, onClose = back)

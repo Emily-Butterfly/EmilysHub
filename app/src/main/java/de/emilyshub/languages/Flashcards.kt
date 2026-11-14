@@ -19,6 +19,9 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
 
+/** What making many cards at once came to: how many were [created], and how many [skipped] as there already. */
+data class CardsMade(val created: Int, val skipped: Int)
+
 /** A card on the tab Karten, with its [topic], if it has one. */
 data class CardRow(val card: Card, val topic: Topic?)
 
@@ -78,12 +81,14 @@ data class Round(val again: List<Long> = emptyList()) : Serializable {
  * The Vokabeltrainer of Sprachen (SPEC.md §15): the cards of each language, no two of one reading the same on their
  * front, planned by [Fsrs] in days of the phone's calendar: [clock]'s, in its time zone. Each day a language's workload
  * is what is due and up to its number of new cards; an archived language's cards stay, but are neither asked nor
- * counted. Every answer is kept on its card at once and logged ([CardReview]). [database] is only called on [io]; writes
- * run to the end once started.
+ * counted. Every answer is kept on its card at once and logged ([CardReview]). Cards are made one by one, or many at
+ * once from a lesson's note or a text file read through [documents] and kept nowhere (#105). [database] is only called
+ * on [io]; writes run to the end once started.
  */
 class Flashcards(
     private val database: () -> HubDatabase,
     private val clock: Clock,
+    private val documents: LessonDocuments,
     private val io: CoroutineContext = Dispatchers.IO,
 ) {
     private val dao get() = database().cards()
@@ -150,6 +155,40 @@ class Flashcards(
             dao.update(clean.applyTo(saved))
             Saving.Saved(id)
         }
+    }
+
+    /**
+     * Of [drafts] to make as cards of the language [languageId], in their order, whether each is taken: its front reads as
+     * that of a card of the language, or of one before it among them.
+     */
+    suspend fun taken(languageId: Long, drafts: List<CardDraft>): List<Boolean> = withContext(io) { takenNow(languageId, drafts) }
+
+    /** [taken], on the thread it is called on, as a transaction needs it. */
+    private suspend fun takenNow(languageId: Long, drafts: List<CardDraft>): List<Boolean> {
+        val fronts = dao.of(languageId).map { InputText.comparable(it.front) }.toMutableSet()
+        return drafts.map { !fronts.add(InputText.comparable(it.cleaned().front)) }
+    }
+
+    /**
+     * Makes [drafts] cards of the language [languageId], new ones, all with the topic [topicId] if it is of the language,
+     * else with none; those [taken] are skipped and counted. All at once or, should one of them not be fit to save, none.
+     */
+    suspend fun createAll(languageId: Long, drafts: List<CardDraft>, topicId: Long?): CardsMade = write {
+        val clean = drafts.map { it.cleaned() }
+        if (clean.any { it.problems.isNotEmpty() }) return@write CardsMade(created = 0, skipped = 0)
+        database().withTransaction {
+            val topic = topicId?.takeIf { languages.topic(it)?.languageId == languageId }
+            val taken = takenNow(languageId, clean)
+            val made = clean.filterIndexed { i, _ -> !taken[i] }
+            made.forEach { dao.insert(it.copy(topicId = topic).applyTo(Card(languageId = languageId, front = "", back = ""))) }
+            CardsMade(created = made.size, skipped = clean.size - made.size)
+        }
+    }
+
+    /** The cards of the text file at [address], picked in Android's file dialog: read, never kept. */
+    suspend fun readFile(address: String): CardFile = withContext(io) {
+        val picked = documents.read(address, CardImport.FILE_MAX_BYTES + 1) ?: return@withContext CardFile.NotText
+        CardImport.fromFile(picked.bytes)
     }
 
     /** The card [id] as it is saved; none once it is gone. */

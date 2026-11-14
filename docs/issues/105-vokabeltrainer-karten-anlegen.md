@@ -15,26 +15,26 @@ Karten entstehen dort, wo die Wörter schon stehen: aus den Zeilen einer Session
 
 ### Aus der Session-Notiz
 
-- [ ] Im Session-Editor steht bei der Notiz „Karten aus der Notiz“; ohne gewählte Sprache ist der Knopf aus
-- [ ] Er zeigt die Zeilen der Notiz, die sich als Karte lesen lassen: mit „ – “, „ - “, „ = “ oder einem Tabulator zwischen zwei Teilen. Markdown-Zeichen am Zeilenanfang (`-`, `*`, `>`, `#`, `[ ]`) und Fettung zählen nicht mit
-- [ ] Jede Zeile zeigt Vorderseite und Rückseite, zum Ankreuzen; angekreuzt sind alle, die es in der Sprache noch nicht gibt. „Seiten tauschen“ dreht alle um
-- [ ] Hat die Session genau ein Thema, bekommen die Karten es; bei mehreren lässt sich eins oder keins wählen
-- [ ] „N Karten anlegen“ legt sie an und sagt, wie viele angelegt und wie viele als schon vorhanden übersprungen wurden
-- [ ] Die Notiz bleibt unverändert; Karten und Notiz hängen danach nicht zusammen
+- [x] Im Session-Editor steht bei der Notiz „Karten aus der Notiz“; ohne gewählte Sprache ist der Knopf aus
+- [x] Er zeigt die Zeilen der Notiz, die sich als Karte lesen lassen: mit „ – “, „ - “, „ = “ oder einem Tabulator zwischen zwei Teilen. Markdown-Zeichen am Zeilenanfang (`-`, `*`, `>`, `#`, `[ ]`) und Fettung zählen nicht mit
+- [x] Jede Zeile zeigt Vorderseite und Rückseite, zum Ankreuzen; angekreuzt sind alle, die es in der Sprache noch nicht gibt. „Seiten tauschen“ dreht alle um
+- [x] Hat die Session genau ein Thema, bekommen die Karten es; bei mehreren lässt sich eins oder keins wählen
+- [x] „N Karten anlegen“ legt sie an und sagt, wie viele angelegt und wie viele als schon vorhanden übersprungen wurden
+- [x] Die Notiz bleibt unverändert; Karten und Notiz hängen danach nicht zusammen
 
 ### Aus einer Textdatei
 
-- [ ] Im Reiter Karten öffnet „Karten importieren“ den Dateiwähler des Handys, wie beim Import einer Session-Notiz (`LessonDocuments`)
-- [ ] Format: je Zeile eine Karte, die Felder Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon, die letzten beiden optional; UTF-8; Leerzeilen und Zeilen, die mit `#` beginnen, werden übergangen; ein Feld in Anführungszeichen darf das Trennzeichen enthalten
-- [ ] Grenzen: bis 1 MB und 2 000 Zeilen; darüber wird die Datei mit dem Grund abgelehnt
-- [ ] Vor dem Anlegen eine Vorschau: „312 Karten, 5 schon vorhanden, 2 Zeilen nicht lesbar (Zeile 17, 40)“, die ersten Karten zur Kontrolle und die Wahl eines Themas für alle
-- [ ] Ein zu langes Feld macht seine Zeile nicht lesbar; nichts wird stillschweigend gekürzt
-- [ ] Angelegt wird alles in einem Zug oder nichts; die neuen Karten gelten als neu und kommen mit dem Tagespensum (#104)
-- [ ] Die Datei wird nur gelesen und nicht behalten
+- [x] Im Reiter Karten öffnet „Karten importieren“ den Dateiwähler des Handys, wie beim Import einer Session-Notiz (`LessonDocuments`)
+- [x] Format: je Zeile eine Karte, die Felder Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon, die letzten beiden optional; UTF-8; Leerzeilen und Zeilen, die mit `#` beginnen, werden übergangen; ein Feld in Anführungszeichen darf das Trennzeichen enthalten
+- [x] Grenzen: bis 1 MB und 2 000 Zeilen; darüber wird die Datei mit dem Grund abgelehnt
+- [x] Vor dem Anlegen eine Vorschau: „312 Karten, 5 schon vorhanden, 2 Zeilen nicht lesbar (Zeile 17, 40)“, die ersten Karten zur Kontrolle und die Wahl eines Themas für alle
+- [x] Ein zu langes Feld macht seine Zeile nicht lesbar; nichts wird stillschweigend gekürzt
+- [x] Angelegt wird alles in einem Zug oder nichts; die neuen Karten gelten als neu und kommen mit dem Tagespensum (#104)
+- [x] Die Datei wird nur gelesen und nicht behalten
 
 ### Tests
 
-- [ ] Unit-Tests: Zeilen erkennen mit jedem Trennzeichen und mit Markdown am Anfang, Seiten tauschen, schon Vorhandenes, Dateiformat mit Tabulator, Semikolon und Anführungszeichen, Grenzen, nicht lesbare Zeilen, Arabisch; UI-Tests: Karten aus einer Notiz anlegen, Datei importieren mit Vorschau
+- [x] Unit-Tests: Zeilen erkennen mit jedem Trennzeichen und mit Markdown am Anfang, Seiten tauschen, schon Vorhandenes, Dateiformat mit Tabulator, Semikolon und Anführungszeichen, Grenzen, nicht lesbare Zeilen, Arabisch; UI-Tests: Karten aus einer Notiz anlegen, Datei importieren mit Vorschau
 
 ## Entscheidungen
 
