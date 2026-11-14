@@ -145,6 +145,9 @@ class StreakFlameScreenTest {
             compose.onNodeWithContentDescription("Weniger").performScrollTo().assertIsNotEnabled()
             compose.onNodeWithContentDescription("Mehr").performScrollTo().performClick()
             compose.onNodeWithText("ab 2 Erledigungen").performScrollTo().assertIsDisplayed()
+            // Chosen again, it keeps its number.
+            compose.onNodeWithText("ab einer Anzahl Erledigungen").performScrollTo().performClick()
+            compose.onNodeWithText("ab 2 Erledigungen").performScrollTo().assertIsDisplayed()
             compose.onNodeWithContentDescription("Zurück").performClick()
             compose.onNodeWithContentDescription("Kein Streak", substring = true).assertIsDisplayed()
         }

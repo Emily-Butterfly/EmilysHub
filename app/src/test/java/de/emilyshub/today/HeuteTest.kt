@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.Day
 import de.emilyshub.TestApplication
 import de.emilyshub.data.Saving
+import de.emilyshub.history
 import de.emilyshub.ledger.SubscriptionDraft
 import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.notes.NoteDraft
@@ -25,8 +26,8 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,6 +127,37 @@ class HeuteTest {
         runCurrent()
         assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
+    }
+
+    @Test
+    fun `a to-do ticked off lights the flame, taken back or deleted for good it counts no more`() = runTest {
+        val call = app.todo("Arzt anrufen", due = Due.On(FRIDAY))
+        val seen = collect()
+        assertNull(seen.last().flame)
+
+        app.todos.markDone(call)
+        runCurrent()
+        assertEquals(StreakFlame(days = 1, todayOpen = false), seen.last().flame)
+
+        app.todos.reopen(call)
+        runCurrent()
+        assertNull("taken back", seen.last().flame)
+
+        app.todos.markDone(call)
+        app.todos.delete(call)
+        runCurrent()
+        assertNull("deleted for good", seen.last().flame)
+    }
+
+    @Test
+    fun `an overdue to-do never counts against a day`() = runTest {
+        val vitamins = app.routine("Vitamine", "07:30")
+        app.history(vitamins, FRIDAY.minusDays(1).toString() to OccurrenceStatus.Done)
+        app.todo("Steuer", due = Due.On(FRIDAY.minusDays(2)))
+
+        val seen = collect()
+
+        assertEquals("yesterday counts, the to-do overdue since before", StreakFlame(days = 1, todayOpen = true), seen.last().flame)
     }
 
     @Test

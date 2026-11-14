@@ -1567,7 +1567,8 @@
         <item quantity="other">ab %d Erledigungen</item>
     </plurals>
     <string name="streak_rule_share_value">ab %d %%</string>
-    <string name="streak_rule_count_hint">Routinen und To-dos zählen zusammen. Verpasstes ändert daran nichts.</string>
+    <string name="streak_rule_count_hint">Routinen und To-dos zählen zusammen. Verpasstes und Ausgelassenes ändern daran nichts.</string>
+    <string name="statistics_short_day">zu wenig</string>
     <string name="streak_rule_share_hint">Der Anteil der Erledigungen, Routinen und To-dos, an allem, was dafür oder dagegen zählt: gegen einen Tag zählen nur verpasste und ausgelassene Routinen. 100 %% heißt: nichts verpasst.</string>
     <string name="streak_rule_less">Weniger</string>
     <string name="streak_rule_more">Mehr</string>

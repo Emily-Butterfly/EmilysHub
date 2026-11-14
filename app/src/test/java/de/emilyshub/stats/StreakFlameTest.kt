@@ -36,7 +36,7 @@ class StreakFlameTest {
         assertEquals(1, overall(three, yesterday to Done, yesterday to Done, yesterday to Done).streaks().current)
         val short = overall(three, "2026-10-21" to Done, "2026-10-21" to Done, "2026-10-21" to Done, yesterday to Done, yesterday to Done)
         assertEquals(Streaks(current = 0, longest = 1), short.streaks())
-        assertEquals(DayOutcome.Missed, short.days[LocalDate.parse(yesterday)])
+        assertEquals("nothing missed, but too little", DayOutcome.Short, short.days[LocalDate.parse(yesterday)])
     }
 
     @Test

@@ -29,7 +29,7 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 - Angepinnte Notizen
 - Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5), und Abos, deren Kündigungsfrist näher rückt (§13)
 - **Heatmap** der letzten 6 Monate unter den Einträgen: je Tag ein Kästchen, je mehr Routinen und To-dos erledigt, desto kräftiger
-- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau mit dem Streak bis gestern, solange der heutige Tag noch nicht zählt, und grau mit „0“, wenn kein Streak läuft; Tippen öffnet die Statistik
+- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau mit dem Streak bis gestern, solange der heutige Tag noch nicht zählt, und grau mit „0“, wenn kein Streak läuft; es gibt sie, sobald in der Geschichte etwas für oder gegen einen Tag zählt; Tippen öffnet die Statistik
 - **„€“** in der oberen Leiste links neben der Flamme: öffnet den laufenden Monat im Haushaltsbuch (§13)
 - **„‹ Gestern“** über der Liste: der Vortag zum Nachtragen (unten)
 - Warnbanner bei fehlenden Berechtigungen, fehlgeschlagenem oder veraltetem Backup und wenn die Backups zu lange nicht vom Handy wegkopiert wurden (§10)

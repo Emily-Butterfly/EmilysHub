@@ -60,8 +60,8 @@ sealed interface StreakRule {
 
 /**
  * The overall streak (SPEC.md §8; #109) over the occurrences of all [routines] and the days the [todosDone] were ticked
- * off on, by [rule]: what was done, occurrences done and to-dos ticked off, counts for a day; only occurrences missed or
- * dropped count against it; what was skipped or is still open counts neither way, and a to-do never against one. A
+ * off on, by [rule]: what was done, occurrences done and to-dos ticked off, counts for a day; only occurrences missed
+ * or dropped count against it; what was skipped or is still open counts neither way, and a to-do never against one. A
  * past day that something counts for or against, and that does not keep the rule, breaks the streak; one that nothing
  * counts for or against neither counts nor breaks it. [today] counts once it keeps the rule, and does not break the
  * streak before it is over. A routine's own streak is [RoutineHistory]'s.
@@ -74,16 +74,16 @@ class OverallHistory(
 ) {
     private val done: Map<LocalDate, Int> =
         (routines.filter { it.status == OccurrenceStatus.Done }.map { it.date } + todosDone).groupingBy { it }.eachCount()
-    private val missed: Map<LocalDate, Int> = routines.filter { it.status == OccurrenceStatus.Missed }.groupingBy { it.date }.eachCount()
-    private val dropped: Map<LocalDate, Int> = routines.filter { it.status == OccurrenceStatus.Dropped }.groupingBy { it.date }.eachCount()
+    private val missed: Map<LocalDate, Int> = routines.countBy(OccurrenceStatus.Missed)
+    private val dropped: Map<LocalDate, Int> = routines.countBy(OccurrenceStatus.Dropped)
 
     /** Whether anything ever counted for or against a day. */
     private val anything = done.isNotEmpty() || missed.isNotEmpty() || dropped.isNotEmpty()
 
     /**
-     * How each day ended for the overall streak, as the calendar of the statistics shows it: done where it counts; missed,
-     * or dropped with nothing missed, where it broke the streak; skipped where nothing counted for or against it, and
-     * today, not counting yet, still open.
+     * How each day ended for the overall streak, as the calendar of the statistics shows it: done where it counts;
+     * missed, or dropped with nothing missed, where it broke the streak; skipped where nothing counted for or against
+     * it, and today, not counting yet, still open.
      */
     val days: SortedMap<LocalDate, DayOutcome> =
         (routines.map { it.date } + todosDone).distinct().associateWith(::outcomeOf).toSortedMap()
@@ -99,7 +99,8 @@ class OverallHistory(
             done == 0 && missed + dropped == 0 -> DayOutcome.Skipped
             missed > 0 -> DayOutcome.Missed
             dropped > 0 -> DayOutcome.Dropped
-            else -> DayOutcome.Missed
+            // Done, but not enough: nothing was missed.
+            else -> DayOutcome.Short
         }
     }
 
@@ -116,3 +117,7 @@ class OverallHistory(
         return StreakFlame(days = streaks().current, todayOpen = !todayCounts, last = lastStreak())
     }
 }
+
+/** How many of these occurrences ended as [status], by day. */
+private fun List<OccurrenceOutcome>.countBy(status: OccurrenceStatus): Map<LocalDate, Int> =
+    filter { it.status == status }.groupingBy { it.date }.eachCount()

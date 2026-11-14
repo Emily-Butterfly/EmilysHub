@@ -1,5 +1,6 @@
 package de.emilyshub.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,8 +24,8 @@ import de.emilyshub.R
 import de.emilyshub.stats.StreakRule
 
 /**
- * "Ein Tag zählt für den Gesamt-Streak" (SPEC.md §8; #109): from a number of things done, 1 to 30, or from a share,
- * 10 % to 100 % in tens, as [rule] has it, with what it means under it. Changing it reckons the streaks anew ([onChange]).
+ * "Ein Tag zählt für den Gesamt-Streak" (SPEC.md §8; #109): from a number of things done, 1 to 30, or from a share, 10
+ * % to 100 % in tens, as [rule] has it, with what it means under it. Changing it reckons the streaks anew ([onChange]).
  */
 @Composable
 internal fun StreakRuleSetting(rule: StreakRule, onChange: (StreakRule) -> Unit) {
@@ -35,8 +36,13 @@ internal fun StreakRuleSetting(rule: StreakRule, onChange: (StreakRule) -> Unit)
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         Column(Modifier.selectableGroup()) {
-            KindRow(R.string.streak_rule_count, selected = rule is StreakRule.Count) { onChange(StreakRule.DEFAULT) }
-            KindRow(R.string.streak_rule_share, selected = rule is StreakRule.Share) { onChange(StreakRule.Share(StreakRule.SHARE_DEFAULT)) }
+            // Chosen again, a kind keeps its number.
+            KindRow(R.string.streak_rule_count, selected = rule is StreakRule.Count) {
+                if (rule !is StreakRule.Count) onChange(StreakRule.DEFAULT)
+            }
+            KindRow(R.string.streak_rule_share, selected = rule is StreakRule.Share) {
+                if (rule !is StreakRule.Share) onChange(StreakRule.Share(StreakRule.SHARE_DEFAULT))
+            }
         }
         when (rule) {
             is StreakRule.Count -> {
@@ -64,7 +70,7 @@ internal fun StreakRuleSetting(rule: StreakRule, onChange: (StreakRule) -> Unit)
 
 /** One of the two kinds of rule, to choose. */
 @Composable
-private fun KindRow(label: Int, selected: Boolean, onSelect: () -> Unit) {
+private fun KindRow(@StringRes label: Int, selected: Boolean, onSelect: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -93,6 +99,7 @@ private fun Stepper(value: String, onLess: (() -> Unit)?, onMore: (() -> Unit)?)
     }
 }
 
+/** What the rule chosen means, under it. */
 @Composable
 private fun Hint(text: String) {
     Text(

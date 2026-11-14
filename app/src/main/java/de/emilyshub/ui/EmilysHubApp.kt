@@ -66,10 +66,10 @@ import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
-import de.emilyshub.stats.StreakRule
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.backups.RescueScreen
@@ -82,9 +82,9 @@ import de.emilyshub.ui.inbox.CaptureScreen
 import de.emilyshub.ui.inbox.InboxLine
 import de.emilyshub.ui.inbox.InboxScreen
 import de.emilyshub.ui.languages.AttachmentViewerScreen
-import de.emilyshub.ui.languages.LanguageListScreen
 import de.emilyshub.ui.languages.CardEditorScreen
 import de.emilyshub.ui.languages.CardEditorTarget
+import de.emilyshub.ui.languages.LanguageListScreen
 import de.emilyshub.ui.languages.LanguagePageScreen
 import de.emilyshub.ui.languages.LanguagesHomeScreen
 import de.emilyshub.ui.languages.LanguagesMenu

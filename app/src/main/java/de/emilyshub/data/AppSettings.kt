@@ -56,6 +56,7 @@ class AppSettings(
             listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND, CAPTURE, STREAK_RULE).map { dao().get(it) }
         }
         val (design, appLock, remindersAsked, lookAround, capture) = stored
+        val streakRule = stored[STORED_STREAK_RULE]
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
             appLockEnabled = isOn(appLock),
@@ -63,7 +64,7 @@ class AppSettings(
             lookAroundEnabled = isOn(lookAround),
             tones = defaultTones(),
             captureInNotifications = capture == ON,
-            streakRule = StreakRule.of(stored[5]),
+            streakRule = StreakRule.of(streakRule),
         ).also { current = it }
     }
 
@@ -132,5 +133,8 @@ class AppSettings(
         const val NOTIFICATION_TONE = "notification-tone"
         const val CAPTURE = "capture-notification"
         const val STREAK_RULE = "streak-rule"
+
+        /** Where the rule of the overall streak is among what [load] reads, past the five it takes apart. */
+        const val STORED_STREAK_RULE = 5
     }
 }

@@ -64,7 +64,8 @@ fun StatisticsScreen(
         val all = history ?: return@StatisticsScaffold
         val todosDone = ticked ?: return@StatisticsScaffold
         val everyRoutine = allRoutines ?: return@StatisticsScaffold
-        if (everyRoutine.isEmpty()) {
+        // Ticked-off to-dos alone have an overall streak too (#109).
+        if (everyRoutine.isEmpty() && todosDone.none { it.doneAt != null }) {
             PlaceholderScreen(stringResource(R.string.statistics_empty), contentPadding)
             return@StatisticsScaffold
         }
@@ -87,7 +88,9 @@ fun StatisticsScreen(
                 SectionTitle(stringResource(R.string.statistics_calendar))
                 HistoryCalendar(overallStreak.days, today)
             }
-            Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.statistics_each)) }
+            if (everyRoutine.isNotEmpty()) {
+                Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.statistics_each)) }
+            }
             everyRoutine.forEach { routine ->
                 val routineHistory = byRoutine[routine.id] ?: RoutineHistory(emptyList())
                 ListItem(
@@ -138,8 +141,8 @@ fun RoutineStatisticsScreen(routines: Routines, day: Day, routineId: Long, onBac
 }
 
 /**
- * The current and longest [streaks], without a current one the [last] one, if there was one (#99), and the done rates of
- * the last 7, 30 and 90 days of [history].
+ * The current and longest [streaks], without a current one the [last] one, if there was one (#99), and the done rates
+ * of the last 7, 30 and 90 days of [history].
  */
 @Composable
 private fun Summary(streaks: Streaks, last: LastStreak?, history: RoutineHistory, today: LocalDate) {
