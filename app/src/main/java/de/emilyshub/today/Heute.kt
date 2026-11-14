@@ -15,7 +15,6 @@ import de.emilyshub.stats.StreakRule
 import de.emilyshub.todos.DueTodo
 import de.emilyshub.todos.TodoMove
 import de.emilyshub.todos.Todos
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -66,7 +65,7 @@ class Heute(
     private val notes: Notes,
     private val subscriptions: Subscriptions,
     private val day: Day,
-    private val work: CoroutineContext = Dispatchers.Default,
+    private val work: CoroutineContext,
 ) {
     private val progress = Progress(routines, todos)
 
@@ -74,8 +73,8 @@ class Heute(
      * Heute for the day it is, once all of it is there: anew as the day turns, each minute, for to-dos turning
      * overdue, as the clock or time zone changes, and as anything on it changes. Never half of one day and half of the
      * next: all of a [HeuteDay] is of its [HeuteDay.date]. The flame and the heatmap are read anew only as the day or
-     * time zone turns, or as something on them changes, not each minute (#108); all of it is put together on [work],
-     * not on the main thread.
+     * time zone turns, or as something on them changes, not each minute (#108); its parts are read, and put together,
+     * on [work], not on the main thread, which only follows the clock.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun day(streakRule: StreakRule = StreakRule.DEFAULT): Flow<HeuteDay> = channelFlow {
@@ -89,23 +88,23 @@ class Heute(
         }
         val subscriptionsDue = dates.flatMapLatest { date -> subscriptions.upcoming(date).map { date to it } }
         // The to-dos to the days they were ticked off on in the zone it is now, so that they move in a new one.
-        val done = moments.map { it.date to it.zone }.distinctUntilChanged().flatMapLatest { (date, zone) ->
+        val progressed = moments.map { it.date to it.zone }.distinctUntilChanged().flatMapLatest { (date, zone) ->
             combine(progress.flame(date, zone, streakRule), progress.heatmap(date, zone)) { flame, heatmap ->
-                Done(date, flame, heatmap)
+                Progressed(date, flame, heatmap)
             }
         }
-        combine(routinesDue, todosDue, notes.onToday(), done, subscriptionsDue) {
-                (date, dueRoutines), dueTodos, pinned, done, (subscriptionsDate, dueSubscriptions) ->
+        combine(routinesDue, todosDue, notes.onToday(), progressed, subscriptionsDue) {
+                (date, dueRoutines), dueTodos, pinned, progressed, (subscriptionsDate, dueSubscriptions) ->
             // Until all are of the same day, as one of them may not have followed the clock yet.
-            if (dueTodos.date != date || done.date != date || subscriptionsDate != date) return@combine null
+            if (dueTodos.date != date || progressed.date != date || subscriptionsDate != date) return@combine null
             HeuteDay(
                 date = date,
                 blocks = todayBlocks(dueRoutines, dueTodos.due, date),
                 upcoming = dueTodos.upcoming.map { TodayEntry.OfTodo(it) },
                 pinned = pinned,
                 // By the rule of the overall streak (#109): to-dos count for a day on the one they were ticked off.
-                flame = done.flame,
-                heatmap = done.heatmap,
+                flame = progressed.flame,
+                heatmap = progressed.heatmap,
                 subscriptions = dueSubscriptions,
             )
         }.filterNotNull().flowOn(work).collect { send(it) }
@@ -168,7 +167,8 @@ class Heute(
 
     private data class Moment(val now: Instant, val date: LocalDate, val zone: ZoneId)
 
-    private data class Done(val date: LocalDate, val flame: StreakFlame?, val heatmap: Heatmap)
+    /** The flame and the heatmap of [date]. */
+    private data class Progressed(val date: LocalDate, val flame: StreakFlame?, val heatmap: Heatmap)
 
     private data class TodosDue(val date: LocalDate, val due: List<DueTodo>, val upcoming: List<DueTodo>)
 }

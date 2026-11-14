@@ -95,6 +95,27 @@ class ProgressTest {
     }
 
     @Test
+    fun `in a new time zone Heute moves a to-do to the day it was ticked off there`() = runTest {
+        // 00:30 on the 23rd in Berlin, 23:30 on the 22nd in London.
+        ticked("Spät", Instant.parse("2026-10-22T22:30:00Z"))
+        val seen = mutableListOf<HeuteDay>()
+        backgroundScope.launch { heute.day().collect { seen += it } }
+        runCurrent()
+        assertEquals(1, seen.last().doneOn(FRIDAY))
+
+        // Still Friday there, at 06:00.
+        app.clock.timeZone = ZoneId.of("Europe/London")
+        clockChanges.emit(Unit)
+        runCurrent()
+
+        assertEquals(FRIDAY, seen.last().date)
+        assertEquals(0, seen.last().doneOn(FRIDAY))
+        assertEquals(1, seen.last().doneOn(FRIDAY.minusDays(1)))
+    }
+
+    private fun HeuteDay.doneOn(date: LocalDate) = heatmap.weeks.flatten().single { it.date == date }.done
+
+    @Test
     fun `the flame reads the day that broke the streak, and the same as from all of it`() = runBlocking {
         val routine = app.routine("Vitamine", "07:30")
         val broken = FRIDAY.minusDays(40)
