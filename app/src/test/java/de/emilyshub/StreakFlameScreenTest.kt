@@ -2,6 +2,7 @@ package de.emilyshub
 
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -10,17 +11,21 @@ import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Missed
+import de.emilyshub.todos.Due
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
+import java.time.LocalDate
 
 /** The streak's flame atop Heute (SPEC.md §1): the overall streak of the statistics, grey while today is open. */
 @RunWith(AndroidJUnit4::class)
@@ -84,12 +89,66 @@ class StreakFlameScreenTest {
     }
 
     @Test
-    fun `with something due but never a streak, the flame says only that there is none`() {
+    fun `with something due but nothing ever counted for or against a day, there is no flame yet`() {
         app.routine("Vitamine", "07:30")
+
+        launchApp().use {
+            compose.onNode(hasContentDescription("Streak", substring = true)).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `with something counted but never a streak, the flame says only that there is none`() {
+        val vitamins = app.routine("Vitamine", "07:30")
+        app.history(vitamins, "2026-10-22" to Missed)
 
         launchApp().use {
             compose.onNodeWithContentDescription("Kein Streak").assertIsDisplayed()
         }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h915dp")
+    fun `a to-do ticked off lights the flame, as it makes the day count from its first thing done`() {
+        app.todo("Arzt anrufen", due = Due.On(LocalDate.parse("2026-10-23")))
+
+        launchApp().use {
+            compose.onNode(isToggleable() and hasText("Arzt anrufen")).performClick()
+
+            compose.onNodeWithContentDescription("Streak 1 Tag").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the rule set in the settings, a number or a share, the flame follows it at once, over the whole history`() {
+        val vitamins = app.routine("Vitamine", "07:30")
+        val walk = app.routine("Spazieren", "07:30")
+        app.history(vitamins, "2026-10-21" to Done, "2026-10-22" to Done)
+        app.history(walk, "2026-10-21" to Missed)
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Streak 2 Tage, heute noch offen").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Einstellungen").performClick()
+            compose.onNodeWithText("Ein Tag zählt für den Gesamt-Streak").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("ab der ersten Erledigung").performScrollTo().assertIsDisplayed()
+
+            compose.onNodeWithText("ab einer Quote").performScrollTo().performClick()
+            compose.onNodeWithText("ab 50 %").performScrollTo().assertIsDisplayed()
+            repeat(5) { compose.onNodeWithContentDescription("Mehr").performScrollTo().performClick() }
+            compose.onNodeWithText("ab 100 %").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription("Mehr").performScrollTo().assertIsNotEnabled()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithContentDescription("Streak 1 Tag, heute noch offen").assertIsDisplayed()
+
+            compose.onNodeWithContentDescription("Einstellungen").performClick()
+            compose.onNodeWithText("ab einer Anzahl Erledigungen").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Weniger").performScrollTo().assertIsNotEnabled()
+            compose.onNodeWithContentDescription("Mehr").performScrollTo().performClick()
+            compose.onNodeWithText("ab 2 Erledigungen").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithContentDescription("Kein Streak", substring = true).assertIsDisplayed()
+        }
+        assertEquals("count:2", app.settingsDao.values["streak-rule"])
     }
 
     @Test

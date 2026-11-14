@@ -25,6 +25,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -112,7 +113,8 @@ class HeuteTest {
     fun `ticking off lights the flame and fills the heatmap's day, and undoing takes both back`() = runTest {
         app.routine("Vitamine", "07:30")
         val seen = collect()
-        assertEquals(StreakFlame(days = 0, todayOpen = true), seen.last().flame)
+        // Nothing ever counted for or against a day yet (#109).
+        assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
 
         heute.onToday.setDone(seen.last().entries.single(), done = true)
@@ -122,7 +124,7 @@ class HeuteTest {
 
         heute.onToday.setDone(seen.last().entries.single(), done = false)
         runCurrent()
-        assertEquals(StreakFlame(days = 0, todayOpen = true), seen.last().flame)
+        assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
     }
 

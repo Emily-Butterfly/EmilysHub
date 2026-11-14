@@ -49,6 +49,7 @@ import de.emilyshub.R
 import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.today.Heute
 import de.emilyshub.today.HeuteDay
 import de.emilyshub.today.PastSummary
@@ -371,8 +372,8 @@ private fun YesterdayHeader(date: LocalDate, onToday: () -> Unit) {
 
 /** Heute as [heute] has it while it shows, collected only then, and read anew on return to the app; null until it is all there. */
 @Composable
-fun rememberHeute(heute: Heute): HeuteDay? =
-    remember(heute) { heute.day() }.collectAsStateWithLifecycle(initialValue = null).value
+fun rememberHeute(heute: Heute, streakRule: StreakRule = StreakRule.DEFAULT): HeuteDay? =
+    remember(heute, streakRule) { heute.day(streakRule) }.collectAsStateWithLifecycle(initialValue = null).value
 
 /** Runs what is done with Heute, to the end even if Heute goes. */
 private typealias Act = (suspend Heute.() -> Unit) -> Unit

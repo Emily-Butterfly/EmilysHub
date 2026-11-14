@@ -69,6 +69,7 @@ import de.emilyshub.search.Search
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.ui.backups.BackupScreen
 import de.emilyshub.ui.backups.BackupWarningCard
 import de.emilyshub.ui.backups.RescueScreen
@@ -438,7 +439,10 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)
                 is Destination.RoutineStatistics -> RoutineStatisticsScreen(hub.routines, hub.day, top.routineId, onBack = back)
                 Destination.Statistics ->
-                    StatisticsScreen(hub.routines, hub.day, onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back)
+                    StatisticsScreen(
+                        hub.routines, hub.todos, hub.day, settings.streakRule,
+                        onOpenRoutine = { open(Destination.RoutineStatistics(it)) }, onBack = back,
+                    )
                 is Destination.Search -> SearchScreen(
                     search = hub.search,
                     query = top.query,
@@ -485,7 +489,11 @@ private fun TopLevelScaffold(
 ) {
     // Only while Heute shows, for its list and its flame alike, so that both turn to the new day together; none until
     // all of it is there.
-    val heuteDay = if (current == TopLevelDestination.Today) rememberHeute(hub.heute) else null
+    val heuteDay = if (current == TopLevelDestination.Today) {
+        rememberHeute(hub.heute, hub.settings.current?.streakRule ?: StreakRule.DEFAULT)
+    } else {
+        null
+    }
     val openRoutine = { target: RoutineEditorTarget -> open(Destination.RoutineEditor(target)) }
     val openTodo = { target: TodoEditorTarget -> open(Destination.TodoEditor(target)) }
     val openWish = { target: WishEditorTarget -> open(Destination.WishEditor(target)) }

@@ -9,9 +9,9 @@ import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.stats.Heatmap
-import de.emilyshub.stats.RoutineHistory
+import de.emilyshub.stats.OverallHistory
 import de.emilyshub.stats.StreakFlame
-import de.emilyshub.stats.flame
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.todos.DueTodo
 import de.emilyshub.todos.TodoMove
 import de.emilyshub.todos.Todos
@@ -70,7 +70,7 @@ class Heute(
      * next: all of a [HeuteDay] is of its [HeuteDay.date].
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun day(): Flow<HeuteDay> = channelFlow {
+    fun day(streakRule: StreakRule = StreakRule.DEFAULT): Flow<HeuteDay> = channelFlow {
         // One clock for all parts, so that they turn to the new day together.
         val moments = day.minutes().map { Moment(it, day.dayOf(it)) }.stateIn(this)
         // The routines' occurrences only change with the day; the to-dos turn overdue by the minute.
@@ -91,7 +91,8 @@ class Heute(
                 blocks = todayBlocks(dueRoutines, dueTodos.due, date),
                 upcoming = dueTodos.upcoming.map { TodayEntry.OfTodo(it) },
                 pinned = pinned,
-                flame = RoutineHistory(history).flame(date),
+                // By the rule of the overall streak (#109): to-dos count for a day on the one they were ticked off.
+                flame = OverallHistory(history, archived.mapNotNull { it.doneAt }.map(day::dayOf), streakRule, date).flame(),
                 heatmap = Heatmap.of(
                     today = date,
                     routinesDone = history.filter { it.status == OccurrenceStatus.Done }.map { it.date },

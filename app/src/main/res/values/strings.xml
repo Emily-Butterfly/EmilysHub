@@ -1556,4 +1556,19 @@
     <string name="cards_search">Karten durchsuchen</string>
     <string name="cards_search_none">Keine Karte passt zu „%1$s“.</string>
     <string name="evaluation_cards">Karten: %1$d · sicher %2$d · heute fällig %3$d</string>
+
+    <!-- Gesamt-Streak (SPEC.md §8, #109) -->
+    <string name="settings_statistics">Statistik</string>
+    <string name="streak_rule_title">Ein Tag zählt für den Gesamt-Streak</string>
+    <string name="streak_rule_count">ab einer Anzahl Erledigungen</string>
+    <string name="streak_rule_share">ab einer Quote</string>
+    <plurals name="streak_rule_count_value">
+        <item quantity="one">ab der ersten Erledigung</item>
+        <item quantity="other">ab %d Erledigungen</item>
+    </plurals>
+    <string name="streak_rule_share_value">ab %d %%</string>
+    <string name="streak_rule_count_hint">Routinen und To-dos zählen zusammen. Verpasstes ändert daran nichts.</string>
+    <string name="streak_rule_share_hint">Der Anteil der Erledigungen, Routinen und To-dos, an allem, was dafür oder dagegen zählt: gegen einen Tag zählen nur verpasste und ausgelassene Routinen. 100 %% heißt: nichts verpasst.</string>
+    <string name="streak_rule_less">Weniger</string>
+    <string name="streak_rule_more">Mehr</string>
 </resources>

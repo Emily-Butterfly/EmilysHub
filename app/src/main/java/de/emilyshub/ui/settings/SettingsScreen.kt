@@ -47,12 +47,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.BuildConfig
 import de.emilyshub.R
-import de.emilyshub.data.Design
 import de.emilyshub.data.AppSettings
+import de.emilyshub.data.Design
 import de.emilyshub.reminders.Tone
-import de.emilyshub.reminders.notificationsAllowed
 import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.reminders.notificationsAllowed
 import de.emilyshub.security.AppLock
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.ui.SystemSettings
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.openSettings
@@ -86,6 +87,7 @@ fun SettingsScreen(
     val onAlarmToneChange = { tone: Tone -> scope.launchNow { appSettings.setAlarmTone(tone) }; Unit }
     val onNotificationToneChange = { tone: Tone -> scope.launchNow { appSettings.setNotificationTone(tone) }; Unit }
     val onCaptureChange = { enabled: Boolean -> scope.launchNow { appSettings.setCaptureInNotifications(enabled) }; Unit }
+    val onStreakRuleChange = { rule: StreakRule -> scope.launchNow { appSettings.setStreakRule(rule) }; Unit }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -155,6 +157,9 @@ fun SettingsScreen(
 
             SectionHeader(R.string.settings_inbox)
             CaptureSwitch(on = settings.captureInNotifications, onChange = onCaptureChange)
+
+            SectionHeader(R.string.settings_statistics)
+            StreakRuleSetting(settings.streakRule, onChange = onStreakRuleChange)
 
             SectionHeader(R.string.settings_backups)
             ListItem(

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.emilyshub.reminders.DefaultTones
 import de.emilyshub.reminders.Tone
+import de.emilyshub.stats.StreakRule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -26,6 +27,8 @@ data class Settings(
     val lookAroundEnabled: Boolean,
     val tones: DefaultTones = DefaultTones(),
     val captureInNotifications: Boolean = false,
+    /** From when a day counts for the overall streak (SPEC.md §8; #109), on this device only. */
+    val streakRule: StreakRule = StreakRule.DEFAULT,
 )
 
 /**
@@ -49,9 +52,10 @@ class AppSettings(
         private set
 
     suspend fun load(): Settings {
-        val (design, appLock, remindersAsked, lookAround, capture) = withContext(io) {
-            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND, CAPTURE).map { dao().get(it) }
+        val stored = withContext(io) {
+            listOf(DESIGN, APP_LOCK, REMINDERS_ASKED, LOOK_AROUND, CAPTURE, STREAK_RULE).map { dao().get(it) }
         }
+        val (design, appLock, remindersAsked, lookAround, capture) = stored
         return Settings(
             design = Design.entries.firstOrNull { it.stored == design } ?: Design.System,
             appLockEnabled = isOn(appLock),
@@ -59,6 +63,7 @@ class AppSettings(
             lookAroundEnabled = isOn(lookAround),
             tones = defaultTones(),
             captureInNotifications = capture == ON,
+            streakRule = StreakRule.of(stored[5]),
         ).also { current = it }
     }
 
@@ -73,6 +78,9 @@ class AppSettings(
 
     suspend fun setLookAroundEnabled(enabled: Boolean) =
         save(LOOK_AROUND, if (enabled) ON else OFF, then = onLookAroundChange) { it.copy(lookAroundEnabled = enabled) }
+
+    /** From when a day counts for the overall streak (SPEC.md §8; #109), on this device only: not in the backups. */
+    suspend fun setStreakRule(rule: StreakRule) = save(STREAK_RULE, rule.stored) { it.copy(streakRule = rule) }
 
     /** "Gedanke festhalten" in the notifications (SPEC.md §16), on this device only. */
     suspend fun setCaptureInNotifications(enabled: Boolean) =
@@ -123,5 +131,6 @@ class AppSettings(
         const val ALARM_TONE = "alarm-tone"
         const val NOTIFICATION_TONE = "notification-tone"
         const val CAPTURE = "capture-notification"
+        const val STREAK_RULE = "streak-rule"
     }
 }

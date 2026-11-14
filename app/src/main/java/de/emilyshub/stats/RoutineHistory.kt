@@ -76,39 +76,10 @@ class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
         .toSortedMap()
 
     /** The days done in a row: a day missed breaks the streak, one skipped or still open neither breaks nor counts. */
-    fun streaks(): Streaks {
-        var current = 0
-        var longest = 0
-        days.values.forEach { outcome ->
-            when (outcome) {
-                DayOutcome.Done -> longest = maxOf(longest, ++current)
-                DayOutcome.Missed, DayOutcome.Dropped -> current = 0
-                DayOutcome.Skipped, DayOutcome.Open -> Unit
-            }
-        }
-        return Streaks(current, longest)
-    }
+    fun streaks(): Streaks = streaksOf(days)
 
-    /**
-     * While no streak runs, the one before (#99): the days done in a row before the latest break that ended one, counted
-     * as the streak is, so skipped and open days neither count nor break it. None while a streak runs, or if there never
-     * was one.
-     */
-    fun lastStreak(): LastStreak? {
-        var running: LastStreak? = null
-        var last: LastStreak? = null
-        days.forEach { (date, outcome) ->
-            when (outcome) {
-                DayOutcome.Done -> running = LastStreak(days = (running?.days ?: 0) + 1, until = date)
-                DayOutcome.Missed, DayOutcome.Dropped -> {
-                    running?.let { last = it }
-                    running = null
-                }
-                DayOutcome.Skipped, DayOutcome.Open -> Unit
-            }
-        }
-        return if (running == null) last else null
-    }
+    /** While no streak runs, the one before (#99), as [lastStreakOf] has it. */
+    fun lastStreak(): LastStreak? = lastStreakOf(days)
 
     /** How many times it was done: each occurrence done, however many a day. */
     val timesDone: Int get() = occurrences.count { it.status == OccurrenceStatus.Done }
@@ -130,4 +101,42 @@ class RoutineHistory(private val occurrences: List<OccurrenceOutcome>) {
         /** What the done rate counts: done ones, and those missed or dropped, which count as not done. */
         private val COUNTED = setOf(OccurrenceStatus.Done, OccurrenceStatus.Missed, OccurrenceStatus.Dropped)
     }
+}
+
+/**
+ * The days done in a row over [days] by how each ended: a day missed or dropped breaks the streak, one skipped or still
+ * open neither breaks nor counts.
+ */
+fun streaksOf(days: SortedMap<LocalDate, DayOutcome>): Streaks {
+    var current = 0
+    var longest = 0
+    days.values.forEach { outcome ->
+        when (outcome) {
+            DayOutcome.Done -> longest = maxOf(longest, ++current)
+            DayOutcome.Missed, DayOutcome.Dropped -> current = 0
+            DayOutcome.Skipped, DayOutcome.Open -> Unit
+        }
+    }
+    return Streaks(current, longest)
+}
+
+/**
+ * While no streak runs over [days], the one before (#99): the days done in a row before the latest break that ended
+ * one, counted as [streaksOf] counts, so skipped and open days neither count nor break it. None while a streak runs, or
+ * if there never was one.
+ */
+fun lastStreakOf(days: SortedMap<LocalDate, DayOutcome>): LastStreak? {
+    var running: LastStreak? = null
+    var last: LastStreak? = null
+    days.forEach { (date, outcome) ->
+        when (outcome) {
+            DayOutcome.Done -> running = LastStreak(days = (running?.days ?: 0) + 1, until = date)
+            DayOutcome.Missed, DayOutcome.Dropped -> {
+                running?.let { last = it }
+                running = null
+            }
+            DayOutcome.Skipped, DayOutcome.Open -> Unit
+        }
+    }
+    return if (running == null) last else null
 }
