@@ -784,3 +784,28 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
         )
     }
 }
+
+/**
+ * Version 52: the Vokabeltrainer (SPEC.md §15, #104): the cards of each language, the answers to them, and how many new
+ * cards a day each language takes, 10 for every language so far. No card is there yet.
+ */
+val MIGRATION_51_52 = object : Migration(51, 52) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `new_cards_per_day` INTEGER NOT NULL DEFAULT 10")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `cards` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`front` TEXT NOT NULL, `back` TEXT NOT NULL, `transcription` TEXT NOT NULL, `note` TEXT NOT NULL, `topic_id` INTEGER, " +
+                "`stability` REAL, `difficulty` REAL, `first_review` TEXT, `last_review` TEXT, `due` TEXT, `interval` INTEGER, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`topic_id`) REFERENCES `topics`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cards_language_id` ON `cards` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cards_topic_id` ON `cards` (`topic_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `card_reviews` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `card_id` INTEGER NOT NULL, " +
+                "`at` TEXT NOT NULL, `grade` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`card_id`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_reviews_card_id` ON `card_reviews` (`card_id`)")
+    }
+}

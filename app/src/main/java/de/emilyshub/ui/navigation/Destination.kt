@@ -8,6 +8,7 @@ import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.search.SearchArea
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.ui.inbox.SortInto
+import de.emilyshub.ui.languages.CardEditorTarget
 import de.emilyshub.ui.languages.LessonEditorTarget
 import de.emilyshub.ui.languages.TeacherEditorTarget
 import de.emilyshub.ui.ledger.BookingEditorTarget
@@ -137,6 +138,12 @@ sealed interface Destination : Serializable {
      * [examId], if given.
      */
     data class LanguagePage(val languageId: Long, val examId: Long? = null) : Destination
+
+    /** A card's editor (SPEC.md §15, Vokabeltrainer). */
+    data class CardEditor(override val target: CardEditorTarget) : Editor
+
+    /** Practising the cards of a language due today (SPEC.md §15, Vokabeltrainer). */
+    data class Practice(val languageId: Long) : Destination
 
     /** A lesson's editor (SPEC.md §15). */
     data class LessonEditor(override val target: LessonEditorTarget) : Editor

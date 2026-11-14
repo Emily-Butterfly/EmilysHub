@@ -81,10 +81,11 @@ private data class Snapshot(
     val topics: List<Topic>,
     val exams: List<Exam>,
     val lessonTopics: List<LessonTopic>,
+    val withCards: List<Long>,
 )
 
-/** The tables of the topics and exams, as read. */
-private data class Studies(val topics: List<Topic>, val exams: List<Exam>, val lessonTopics: List<LessonTopic>)
+/** The tables of the topics and exams, as read, and the languages with cards. */
+private data class Studies(val topics: List<Topic>, val exams: List<Exam>, val lessonTopics: List<LessonTopic>, val withCards: List<Long>)
 
 /**
  * Sprachen (SPEC.md §15): the languages, the teachers with the languages they teach, and the lessons held, each of one
@@ -155,7 +156,7 @@ class Languages(
     /** All languages, by name, those archived after the others. */
     fun languages(): Flow<List<LanguageItem>> = observe { all ->
         val kept = all.lessons.map { it.languageId }.toSet() + onlyLanguages(all.teaching) +
-            all.topics.map { it.languageId } + all.exams.map { it.languageId }
+            all.topics.map { it.languageId } + all.exams.map { it.languageId } + all.withCards
         all.languages.sortedWith(compareBy<Language> { it.archived }.thenBy(InputText.byName) { it.name })
             .map { LanguageItem(it, deletable = it.id !in kept) }
     }
@@ -207,8 +208,8 @@ class Languages(
     }
 
     /**
-     * Deletes the language [id], and who teaches it no more; refused, with nothing deleted, while it has lessons, topics or
-     * exams, or is the only language of a teacher.
+     * Deletes the language [id], and who teaches it no more; refused, with nothing deleted, while it has lessons, topics,
+     * exams or cards, or is the only language of a teacher.
      */
     suspend fun deleteLanguage(id: Long): Boolean = write {
         database().withTransaction {
@@ -578,11 +579,11 @@ class Languages(
 
     /** All tables, as they change, made into what [transform] makes of them, on [io]. */
     private fun <T> observe(transform: (Snapshot) -> T): Flow<T> = flow {
-        val studies = combine(dao.observeTopics(), dao.observeExams(), dao.observeLessonTopics(), ::Studies)
+        val studies = combine(dao.observeTopics(), dao.observeExams(), dao.observeLessonTopics(), dao.observeLanguagesWithCards(), ::Studies)
         emitAll(
             combine(dao.observeLanguages(), dao.observeTeachers(), dao.observeTeaching(), dao.observeLessons(), studies) {
-                    languages, teachers, teaching, lessons, (topics, exams, lessonTopics) ->
-                transform(Snapshot(languages, teachers, teaching, lessons, topics, exams, lessonTopics))
+                    languages, teachers, teaching, lessons, (topics, exams, lessonTopics, withCards) ->
+                transform(Snapshot(languages, teachers, teaching, lessons, topics, exams, lessonTopics, withCards))
             },
         )
     }.flowOn(io)

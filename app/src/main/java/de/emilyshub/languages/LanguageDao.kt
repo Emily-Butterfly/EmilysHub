@@ -82,8 +82,16 @@ interface LanguageDao {
     @Query("SELECT EXISTS(SELECT 1 FROM lessons WHERE teacher_id = :teacherId)")
     suspend fun teacherHasLessons(teacherId: Long): Boolean
 
-    @Query("SELECT EXISTS(SELECT 1 FROM topics WHERE language_id = :languageId UNION ALL SELECT 1 FROM exams WHERE language_id = :languageId)")
+    /** Whether the language has topics, exams or cards. */
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM topics WHERE language_id = :languageId UNION ALL SELECT 1 FROM exams WHERE language_id = :languageId " +
+            "UNION ALL SELECT 1 FROM cards WHERE language_id = :languageId)",
+    )
     suspend fun languageHasStudies(languageId: Long): Boolean
+
+    /** The languages that have cards. */
+    @Query("SELECT DISTINCT language_id FROM cards")
+    fun observeLanguagesWithCards(): Flow<List<Long>>
 
     @Query("SELECT * FROM topics")
     fun observeTopics(): Flow<List<Topic>>

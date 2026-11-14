@@ -3,6 +3,8 @@ package de.emilyshub.backup
 import androidx.room.Dao
 import androidx.room.Query
 import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardReview
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
@@ -185,4 +187,10 @@ interface BackupDao {
 
     @Query("SELECT * FROM runs")
     fun runs(): List<RunRow>
+
+    @Query("SELECT * FROM cards")
+    fun cards(): List<Card>
+
+    @Query("SELECT * FROM card_reviews")
+    fun cardReviews(): List<CardReview>
 }

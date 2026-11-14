@@ -12,17 +12,24 @@ import java.time.LocalDate
 
 /**
  * A language taught (SPEC.md §15): by its [name], which no other reads the same as. Archived, it is offered no more,
- * and its sessions stay.
+ * and its sessions and cards stay, its cards not asked.
  */
 @Entity(tableName = "languages")
 data class Language(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
+    /** How many new cards of the Vokabeltrainer a day's workload takes at most (SPEC.md §15), of [NEW_CARDS]. */
+    @ColumnInfo(name = "new_cards_per_day", defaultValue = "10") val newCardsPerDay: Int = NEW_CARDS_DEFAULT,
 ) {
     companion object {
         /** The longest a language's name may be, in characters. */
         const val NAME_MAX = 50
+
+        /** How many new cards a day may take. */
+        val NEW_CARDS = 0..50
+
+        const val NEW_CARDS_DEFAULT = 10
     }
 }
 

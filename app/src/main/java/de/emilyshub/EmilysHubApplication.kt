@@ -34,6 +34,7 @@ import de.emilyshub.inbox.CaptureNotification
 import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.languages.CameraShot
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments
 import de.emilyshub.languages.LessonFiles
@@ -261,6 +262,7 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }
+    final override val flashcards: Flashcards by lazy { Flashcards({ database }, clock, io) }
 
     final override val search: Search by lazy { Search({ database }, io) }
 

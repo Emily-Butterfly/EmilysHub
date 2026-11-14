@@ -12,6 +12,7 @@ import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.inbox.Inbox
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.ledger.Ledger
@@ -68,6 +69,9 @@ interface Hub {
 
     /** Sprachen: languages, teachers and the lessons held (SPEC.md §15). */
     val languages: Languages
+
+    /** The Vokabeltrainer of Sprachen: cards planned by FSRS-6 (SPEC.md §15). */
+    val flashcards: Flashcards
 
     /** What is imported into the lessons: text into their notes, photos and PDFs as attachments (SPEC.md §15). */
     val lessonFiles: LessonFiles

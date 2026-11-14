@@ -43,7 +43,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguagePage
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonRow
@@ -56,10 +58,12 @@ import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.flow.map
 
 /**
- * A language's page (SPEC.md §15), with three tabs: "Sessions", its lessons, the newest first, which open in their editor
+ * A language's page (SPEC.md §15), with four tabs: "Sessions", its lessons, the newest first, which open in their editor
  * ([onOpenLesson]) and can be shown for one teacher only; "Themen", its topics by exam, to do by hand
- * ([TopicsTabContent]); and "Auswertung", what each teacher's lessons of it come to for
- * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]).
+ * ([TopicsTabContent]); "Karten", its cards of the Vokabeltrainer ([CardsTabContent]), which open in their editor
+ * ([onOpenCard]); and "Auswertung", what each teacher's lessons of it come to for
+ * the month, the year and in all, with the cost where prices were given. "+" enters a lesson of it ([onCreateLesson]),
+ * on "Karten" a card ([onCreateCard]).
  * Gone meanwhile, it closes. Opened from an exam at a goal ([examId]), it opens on "Themen" at that exam's topics.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,10 +71,14 @@ import kotlinx.coroutines.flow.map
 fun LanguagePageScreen(
     languages: Languages,
     wishes: Wishes,
+    flashcards: Flashcards,
+    day: Day,
     languageId: Long,
     examId: Long?,
     onOpenLesson: (Long) -> Unit,
     onCreateLesson: () -> Unit,
+    onOpenCard: (Long) -> Unit,
+    onCreateCard: () -> Unit,
     onBack: () -> Unit,
 ) {
     val page by remember(languages, languageId) { languages.page(languageId).map<LanguagePage?, PageState?> { it?.let(::Shown) } }
@@ -101,8 +109,14 @@ fun LanguagePageScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreateLesson) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.lesson_create))
+            if (tab == CARDS_TAB) {
+                FloatingActionButton(onClick = onCreateCard) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.card_create))
+                }
+            } else {
+                FloatingActionButton(onClick = onCreateLesson) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.lesson_create))
+                }
             }
         },
     ) { contentPadding ->
@@ -113,13 +127,16 @@ fun LanguagePageScreen(
                 .padding(contentPadding),
         ) {
             PrimaryTabRow(selectedTabIndex = tab) {
-                listOf(R.string.language_tab_lessons, R.string.language_tab_topics, R.string.language_tab_evaluation).forEachIndexed { index, label ->
+                listOf(
+                    R.string.language_tab_lessons, R.string.language_tab_topics, R.string.language_tab_cards, R.string.language_tab_evaluation,
+                ).forEachIndexed { index, label ->
                     Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) })
                 }
             }
             when (tab) {
                 LESSONS_TAB -> LessonsTab(loaded, teacherFilter, onFilterChange = { teacherFilter = it }, onOpenLesson)
                 TOPICS_TAB -> TopicsTabContent(languages, wishes, languageId, loaded.topics, onOpenLesson, focusExam = examId)
+                CARDS_TAB -> CardsTabContent(flashcards, day, languageId, onOpenCard)
                 else -> EvaluationTab(loaded)
             }
         }
@@ -200,9 +217,10 @@ private fun EvaluationTab(page: LanguagePage) {
     }
 }
 
-/** Where "Sessions" and "Themen" are among the tabs, "Auswertung" after them. */
+/** Where "Sessions", "Themen" and "Karten" are among the tabs, "Auswertung" after them. */
 private const val LESSONS_TAB = 0
 private const val TOPICS_TAB = 1
+private const val CARDS_TAB = 2
 
 /** The page as it is read: not yet, or as it is; none once its language is gone. */
 private sealed interface PageState

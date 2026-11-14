@@ -12,9 +12,11 @@ import de.emilyshub.data.Saving
 import de.emilyshub.data.Setting
 import de.emilyshub.history
 import de.emilyshub.languages.AttachmentImport
+import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.Rating
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.ledger.BookingDraft
@@ -247,6 +249,25 @@ class BackupsTest {
 
         restore(older)
         assertEquals(emptyList<Any>(), everything().getValue("inbox"))
+    }
+
+    @Test
+    fun `a backup keeps the cards and their answers, and one from before them loads without any, ten new a day`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(51, contentOf(now)), attachmentsOf(now))
+        runBlocking { app.languages.languages().first().forEach { app.flashcards.setNewPerDay(it.language.id, 3) } }
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("cards"), everything().getValue("cards"))
+        assertEquals(made.getValue("card_reviews"), everything().getValue("card_reviews"))
+        assertEquals(listOf("Buch"), runBlocking { app.testDatabase.cards().observeAll().first() }.map { it.back })
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("cards"))
+        assertEquals(emptyList<Any>(), everything().getValue("card_reviews"))
+        assertEquals(listOf(10), runBlocking { app.languages.languages().first() }.map { it.language.newCardsPerDay })
     }
 
     @Test
@@ -683,6 +704,8 @@ class BackupsTest {
                 ),
             )
             app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")
+            val book = app.flashcards.create(arabicLessons, CardDraft("كتاب", "Buch", "kitāb", "Plural: كتب", numbers.id)) as Saving.Saved
+            app.flashcards.answer(book.id, Rating.Good)
             app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)

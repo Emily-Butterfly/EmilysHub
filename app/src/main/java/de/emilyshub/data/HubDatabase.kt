@@ -12,6 +12,9 @@ import de.emilyshub.backup.BackupDao
 import de.emilyshub.inbox.InboxDao
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.Exam
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardDao
+import de.emilyshub.languages.CardReview
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.LanguageDao
 import de.emilyshub.languages.Lesson
@@ -89,6 +92,7 @@ import java.io.File
         LessonAttachment::class,
         InboxEntry::class,
         RunRow::class,
+        Card::class, CardReview::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -114,6 +118,8 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun languages(): LanguageDao
 
+    abstract fun cards(): CardDao
+
     abstract fun inbox(): InboxDao
 
     abstract fun runs(): RunDao
@@ -123,7 +129,7 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 51
+        const val VERSION = 52
         internal const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -158,7 +164,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
             MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44,
             MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49,
-            MIGRATION_49_50, MIGRATION_50_51,
+            MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

@@ -15,40 +15,40 @@ Sprachen bekommt Karteikarten, die der Algorithmus FSRS-6 in wachsenden Abständ
 
 ### Karten
 
-- [ ] Eine Karte gehört zu einer Sprache: Vorderseite (Pflicht, bis 200 Zeichen), Rückseite (Pflicht, bis 500), Umschrift (optional, bis 200), Notiz (optional, bis 500), Thema (optional, aus den Themen der Sprache)
-- [ ] Die Seite einer Sprache bekommt den Reiter **Karten**, zwischen Themen und Auswertung: alle Karten mit ihrer nächsten Fälligkeit und der Marke „sicher“, nach Vorderseite geordnet, filterbar nach Thema; „+“ legt eine an, Antippen öffnet sie zum Ändern, Löschen mit Rückfrage
-- [ ] Eine Vorderseite, die es in der Sprache schon gibt, wird abgelehnt („Diese Karte gibt es schon“)
-- [ ] Text in Schriften von rechts nach links steht so wie in den Notizen
-- [ ] Wird ein Thema gelöscht, bleiben seine Karten ohne Thema
+- [x] Eine Karte gehört zu einer Sprache: Vorderseite (Pflicht, bis 200 Zeichen), Rückseite (Pflicht, bis 500), Umschrift (optional, bis 200), Notiz (optional, bis 500), Thema (optional, aus den Themen der Sprache)
+- [x] Die Seite einer Sprache bekommt den Reiter **Karten**, zwischen Themen und Auswertung: alle Karten mit ihrer nächsten Fälligkeit und der Marke „sicher“, nach Vorderseite geordnet, filterbar nach Thema; „+“ legt eine an, Antippen öffnet sie zum Ändern, Löschen mit Rückfrage
+- [x] Eine Vorderseite, die es in der Sprache schon gibt, wird abgelehnt („Diese Karte gibt es schon“)
+- [x] Text in Schriften von rechts nach links steht so wie in den Notizen
+- [x] Wird ein Thema gelöscht, bleiben seine Karten ohne Thema
 
 ### Algorithmus
 
-- [ ] Geplant wird mit **FSRS-6**: den 21 Standardparametern, einer gewünschten Behaltensquote von 90 %, einem längsten Abstand von 36 500 Tagen, ohne Lernschritte in Minuten und ohne zufällige Streuung, mit den Formeln aus `docs/research/spaced-repetition.md` §4 und der Regel aus §5
-- [ ] Die Rechnung ist ein reines Modul in Kotlin, ohne fremde Bibliothek; ein Kommentar nennt FSRS-6, das Projekt Open Spaced Repetition und die Quelle der Parameter
-- [ ] Vier Antworten: **Nochmal · Schwer · Gut · Leicht**. Unter jedem Knopf steht der Abstand, den die Antwort ergäbe („1 T“, „2 T“, „8 T“)
-- [ ] Unter den Knöpfen steht beim ersten Üben ein Satz: „Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“
-- [ ] Je Karte gespeichert: Stabilität, Schwierigkeit, Tag der letzten Abfrage, Fälligkeitstag und der zuletzt geplante Abstand; eine neue Karte hat davon nichts
-- [ ] Tage zählen nach dem Kalender des Handys (`Day`), nicht nach 24 Stunden
-- [ ] Nach „Nochmal“ kommt die Karte in derselben Runde am Ende wieder; diese Antwort zählt als Abfrage am selben Tag. Wird die Runde vorher verlassen, ist die Karte am nächsten Tag fällig
-- [ ] **Sicher** ist eine Karte, deren zuletzt geplanter Abstand mindestens 21 Tage beträgt
-- [ ] Jede Abfrage wird protokolliert (Karte, Zeitpunkt, Antwort), damit sich die Parameter später anpassen und die Karten neu durchrechnen lassen; das Protokoll wird nirgends angezeigt
+- [x] Geplant wird mit **FSRS-6**: den 21 Standardparametern, einer gewünschten Behaltensquote von 90 %, einem längsten Abstand von 36 500 Tagen, ohne Lernschritte in Minuten und ohne zufällige Streuung, mit den Formeln aus `docs/research/spaced-repetition.md` §4 und der Regel aus §5
+- [x] Die Rechnung ist ein reines Modul in Kotlin, ohne fremde Bibliothek; ein Kommentar nennt FSRS-6, das Projekt Open Spaced Repetition und die Quelle der Parameter
+- [x] Vier Antworten: **Nochmal · Schwer · Gut · Leicht**. Unter jedem Knopf steht der Abstand, den die Antwort ergäbe („1 T“, „2 T“, „8 T“)
+- [x] Unter den Knöpfen steht beim ersten Üben ein Satz: „Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“
+- [x] Je Karte gespeichert: Stabilität, Schwierigkeit, Tag der letzten Abfrage, Fälligkeitstag und der zuletzt geplante Abstand; eine neue Karte hat davon nichts
+- [x] Tage zählen nach dem Kalender des Handys (`Day`), nicht nach 24 Stunden
+- [x] Nach „Nochmal“ kommt die Karte in derselben Runde am Ende wieder; diese Antwort zählt als Abfrage am selben Tag. Wird die Runde vorher verlassen, ist die Karte am nächsten Tag fällig
+- [x] **Sicher** ist eine Karte, deren zuletzt geplanter Abstand mindestens 21 Tage beträgt
+- [x] Jede Abfrage wird protokolliert (Karte, Zeitpunkt, Antwort), damit sich die Parameter später anpassen und die Karten neu durchrechnen lassen; das Protokoll wird nirgends angezeigt
 
 ### Tagespensum & Abfrage
 
-- [ ] Das Tagespensum einer Sprache: alle Karten, die heute oder früher fällig sind, die am längsten fälligen zuerst, und dazu höchstens 10 neue, in der Reihenfolge ihres Anlegens; die Zahl ist je Sprache einstellbar (0–50), im Menü des Reiters Karten
-- [ ] Die Startseite von Sprachen zeigt je Sprache mit Karten „Heute fällig: 23“ und „Üben“; ist das Pensum geschafft, „Für heute geschafft“
-- [ ] „Üben“ öffnet die Abfrage: die Vorderseite groß, oben „7 von 23“; „Aufdecken“ zeigt Rückseite, Umschrift und Notiz; dann die vier Antworten
-- [ ] Jede Antwort ist sofort gespeichert; die Abfrage lässt sich jederzeit verlassen, und „Üben“ setzt sie fort
-- [ ] Am Ende steht „Für heute geschafft: 23 Karten“
-- [ ] Abgefragt wird nur von der Vorderseite zur Rückseite
-- [ ] Karten einer archivierten Sprache bleiben, werden aber nicht abgefragt und nicht gezählt
-- [ ] Die Abfrage erinnert an nichts, und nichts davon steht in Heute
+- [x] Das Tagespensum einer Sprache: alle Karten, die heute oder früher fällig sind, die am längsten fälligen zuerst, und dazu höchstens 10 neue, in der Reihenfolge ihres Anlegens; die Zahl ist je Sprache einstellbar (0–50), im Menü des Reiters Karten
+- [x] Die Startseite von Sprachen zeigt je Sprache mit Karten „Heute fällig: 23“ und „Üben“; ist das Pensum geschafft, „Für heute geschafft“
+- [x] „Üben“ öffnet die Abfrage: die Vorderseite groß, oben „7 von 23“; „Aufdecken“ zeigt Rückseite, Umschrift und Notiz; dann die vier Antworten
+- [x] Jede Antwort ist sofort gespeichert; die Abfrage lässt sich jederzeit verlassen, und „Üben“ setzt sie fort
+- [x] Am Ende steht „Für heute geschafft: 23 Karten“
+- [x] Abgefragt wird nur von der Vorderseite zur Rückseite
+- [x] Karten einer archivierten Sprache bleiben, werden aber nicht abgefragt und nicht gezählt
+- [x] Die Abfrage erinnert an nichts, und nichts davon steht in Heute
 
 ### Daten & Tests
 
-- [ ] Tabellen für die Karten und das Protokoll, dazu die Einstellung je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
-- [ ] Unit-Tests der Rechnung: alle Testvektoren aus `docs/research/spaced-repetition.md` §6, Stabilität und Schwierigkeit auf 0,0001 genau, die Abstände exakt
-- [ ] Unit-Tests: Tagespensum mit der Grenze für neue Karten, „Nochmal“ kommt in der Runde wieder, Runde verlassen nach „Nochmal“, Fortsetzen, Tageswechsel um Mitternacht, „sicher“ an der Grenze von 21 Tagen, archivierte Sprache, doppelte Vorderseite; UI-Tests: Karte anlegen, üben bis geschafft, Zahl auf der Startseite
+- [x] Tabellen für die Karten und das Protokoll, dazu die Einstellung je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
+- [x] Unit-Tests der Rechnung: alle Testvektoren aus `docs/research/spaced-repetition.md` §6, Stabilität und Schwierigkeit auf 0,0001 genau, die Abstände exakt
+- [x] Unit-Tests: Tagespensum mit der Grenze für neue Karten, „Nochmal“ kommt in der Runde wieder, Runde verlassen nach „Nochmal“, Fortsetzen, Tageswechsel um Mitternacht, „sicher“ an der Grenze von 21 Tagen, archivierte Sprache, doppelte Vorderseite; UI-Tests: Karte anlegen, üben bis geschafft, Zahl auf der Startseite
 
 ## Entscheidungen
 

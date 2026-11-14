@@ -6,6 +6,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.AttachmentKind
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardReview
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
@@ -1108,6 +1110,25 @@ class HubDatabaseMigrationTest {
             assertEquals(1L, runs.runs().single().row.stepItemId)
             dao.deleteOccurrences(listOf(1))
             assertEquals(emptyList<RunWithStart>(), runs.runs())
+        }
+    }
+
+    @Test
+    fun `version 51 moves to version 52 with no cards and ten new a day, and then a card and an answer are kept`() {
+        createAtVersion(51) {
+            it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(10, database.languages().language(1)?.newCardsPerDay)
+            val cards = database.cards()
+            assertEquals(emptyList<Card>(), cards.of(1))
+            val id = cards.insert(Card(languageId = 1, front = "كتاب", back = "Buch"))
+            cards.insert(CardReview(cardId = id, at = Instant.parse("2026-11-14T07:00:00Z"), grade = 3))
+            assertEquals("Buch", cards.card(id)?.back)
+            assertEquals(listOf(3), cards.reviewsOf(id).map { it.grade })
+            cards.delete(id)
+            assertEquals(emptyList<CardReview>(), cards.reviewsOf(id))
         }
     }
 

@@ -82,11 +82,14 @@ import de.emilyshub.ui.inbox.InboxLine
 import de.emilyshub.ui.inbox.InboxScreen
 import de.emilyshub.ui.languages.AttachmentViewerScreen
 import de.emilyshub.ui.languages.LanguageListScreen
+import de.emilyshub.ui.languages.CardEditorScreen
+import de.emilyshub.ui.languages.CardEditorTarget
 import de.emilyshub.ui.languages.LanguagePageScreen
 import de.emilyshub.ui.languages.LanguagesHomeScreen
 import de.emilyshub.ui.languages.LanguagesMenu
 import de.emilyshub.ui.languages.LessonEditorScreen
 import de.emilyshub.ui.languages.LessonEditorTarget
+import de.emilyshub.ui.languages.PracticeScreen
 import de.emilyshub.ui.languages.TeacherEditorScreen
 import de.emilyshub.ui.languages.TeacherListScreen
 import de.emilyshub.ui.ledger.BookingEditorScreen
@@ -344,16 +347,22 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 is Destination.LanguagePage -> LanguagePageScreen(
                     languages = hub.languages,
                     wishes = hub.wishes,
+                    flashcards = hub.flashcards,
+                    day = hub.day,
                     languageId = top.languageId,
                     examId = top.examId,
                     onOpenLesson = { open(Destination.LessonEditor(LessonEditorTarget.Edit(it))) },
                     onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
+                    onOpenCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
+                    onCreateCard = { open(Destination.CardEditor(CardEditorTarget.New(top.languageId))) },
                     onBack = back,
                 )
                 is Destination.LessonEditor -> LessonEditorScreen(
                     hub.languages, hub.lessonFiles, top.target, onClose = back,
                     onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
                 )
+                is Destination.CardEditor -> CardEditorScreen(hub.flashcards, top.target, onClose = back)
+                is Destination.Practice -> PracticeScreen(hub.flashcards, hub.day, top.languageId, onBack = back)
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
                 Destination.LanguageList ->
                     LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
@@ -641,8 +650,11 @@ private fun TopLevelScaffold(
                 )
                 MoreEntry.Languages -> LanguagesHomeScreen(
                     languages = hub.languages,
+                    flashcards = hub.flashcards,
+                    day = hub.day,
                     contentPadding = contentPadding,
                     onOpenLanguage = { open(Destination.LanguagePage(it)) },
+                    onPractice = { open(Destination.Practice(it)) },
                     onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New())) },
                 )
                 MoreEntry.Doku -> DokuArea(

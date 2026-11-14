@@ -1444,4 +1444,50 @@
     <string name="run_ended_paused">Der Ablauf ist beendet: Die Routine wurde pausiert.</string>
     <string name="run_ended_archived">Der Ablauf ist beendet: Die Routine wurde archiviert.</string>
     <string name="run_ended_gone">Der Ablauf ist beendet: Die Routine wurde gelöscht oder hat keine Unterpunkte mehr.</string>
+
+    <!-- Vokabeltrainer (SPEC.md §15, #104) -->
+    <string name="language_tab_cards">Karten</string>
+    <string name="cards_empty">Noch keine Karten in dieser Sprache.</string>
+    <string name="cards_filtered_empty">Keine Karten zum Thema „%1$s“.</string>
+    <string name="cards_all_topics">Alle</string>
+    <string name="card_create">Karte anlegen</string>
+    <string name="card_new">Neue Karte</string>
+    <string name="card_edit">Karte ändern</string>
+    <string name="card_front">Vorderseite</string>
+    <string name="card_back">Rückseite</string>
+    <string name="card_transcription">Umschrift</string>
+    <string name="card_note">Notiz</string>
+    <string name="card_topic">Thema</string>
+    <string name="card_topic_none">Ohne Thema</string>
+    <string name="card_front_missing">Die Vorderseite fehlt.</string>
+    <string name="card_front_taken">Diese Karte gibt es schon.</string>
+    <string name="card_back_missing">Die Rückseite fehlt.</string>
+    <string name="card_topic_gone">Das Thema gibt es nicht mehr.</string>
+    <string name="card_new_mark">neu</string>
+    <string name="card_due_on">fällig %1$s</string>
+    <string name="card_due_today">fällig heute</string>
+    <string name="card_sure">sicher</string>
+    <string name="card_delete">Karte löschen</string>
+    <string name="card_delete_title">Karte löschen?</string>
+    <string name="card_delete_text">„%1$s“ wird gelöscht, mit allem, was sie gelernt hat.</string>
+    <string name="cards_menu">Mehr zu den Karten</string>
+    <string name="cards_new_per_day">Neue Karten am Tag</string>
+    <string name="cards_new_per_day_value">Neue Karten am Tag: %1$d</string>
+    <string name="cards_new_per_day_text">Wie viele neue Karten das Tagespensum höchstens nimmt, von 0 bis 50.</string>
+    <string name="cards_due_today">Heute fällig: %1$d</string>
+    <string name="cards_done_today">Für heute geschafft</string>
+    <string name="cards_practice">Üben</string>
+    <string name="practice_position">%1$d von %2$d</string>
+    <string name="practice_reveal">Aufdecken</string>
+    <string name="practice_again">Nochmal</string>
+    <string name="practice_hard">Schwer</string>
+    <string name="practice_good">Gut</string>
+    <string name="practice_easy">Leicht</string>
+    <string name="practice_days">%1$d T</string>
+    <string name="practice_hint">„Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“.</string>
+    <plurals name="practice_done">
+        <item quantity="one">Für heute geschafft: %d Karte</item>
+        <item quantity="other">Für heute geschafft: %d Karten</item>
+    </plurals>
+    <string name="practice_back">Zurück</string>
 </resources>
