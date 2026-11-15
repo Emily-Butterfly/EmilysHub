@@ -45,10 +45,12 @@ import androidx.core.net.toUri
 import de.emilyshub.Hub
 import de.emilyshub.R
 import de.emilyshub.tracking.ACUTE_WARNING_SIGNS
+import de.emilyshub.tracking.HistoryRange
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.Urgency
 import de.emilyshub.tracking.WarningSigns
+import de.emilyshub.tracking.Week
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.island.IslandGate
 import de.emilyshub.ui.island.IslandTexts
@@ -109,6 +111,9 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         )
         TrackingPage.Episodes -> EpisodesPage(tracking, modules, contentPadding, onOpen = { open(TrackingPage.Episode(it)) })
         TrackingPage.Pacing -> PacingPage(tracking, modules, contentPadding, onDone = back)
+        is TrackingPage.Week -> WeekPage(tracking, modules.evaluation, page, contentPadding, onWeek = { onPagesChange(pages.replaceTop(TrackingPage.Week(it))) })
+        is TrackingPage.History -> HistoryChartsPage(tracking, modules.evaluation, page, contentPadding, onRange = { onPagesChange(pages.replaceTop(TrackingPage.History(it))) })
+        is TrackingPage.Hint -> HintPage(tracking, modules.evaluation, page, contentPadding, onDone = back)
     }
 }
 
@@ -127,7 +132,7 @@ internal val TRACKING_TEXTS = IslandTexts(
 /**
  * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
  * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis", "+ Anstrengung" and "+ Episode" with the lists of them,
- * the running episodes to end and the suggestions to decide.
+ * the running episodes to end and the suggestions to decide; the hints, and the week evaluation and the history to open.
  */
 @Composable
 private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
@@ -178,6 +183,11 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
             // Open suggestions and the running episode, so that they are at hand.
             RunningEpisodes(tracking, modules, onOpen = { onOpen(TrackingPage.Episode(it)) })
             Column(Modifier.padding(16.dp)) { Suggestions(tracking, modules.exertions) }
+            HomeHints(tracking, modules.evaluation, onOpen = { onOpen(TrackingPage.Hint(it)) })
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                OutlinedButton(onClick = { onOpen(TrackingPage.Week(Week.of(entries.suggestedDay()).monday)) }) { Text(stringResource(R.string.tracking_week)) }
+                OutlinedButton(onClick = { onOpen(TrackingPage.History(HistoryRange.Four)) }) { Text(stringResource(R.string.tracking_history)) }
+            }
         }
     }
     if (choosingEvent) {

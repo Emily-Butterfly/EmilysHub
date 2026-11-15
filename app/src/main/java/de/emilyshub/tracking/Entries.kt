@@ -102,6 +102,26 @@ interface EntryDao {
     @Query("SELECT resting_pulse FROM morning_entry WHERE date BETWEEN :from AND :to AND resting_pulse IS NOT NULL")
     suspend fun restingPulses(from: LocalDate, to: LocalDate): List<Int>
 
+    /** The morning entries from [from] to [to]. */
+    @Query("SELECT * FROM morning_entry WHERE date BETWEEN :from AND :to ORDER BY date")
+    suspend fun morningsBetween(from: LocalDate, to: LocalDate): List<MorningEntry>
+
+    /** The evening entries from [from] to [to]. */
+    @Query("SELECT * FROM evening_entry WHERE date BETWEEN :from AND :to ORDER BY date")
+    suspend fun eveningsBetween(from: LocalDate, to: LocalDate): List<EveningEntry>
+
+    /** The symptoms' values of the evenings from [from] to [to]. */
+    @Query("SELECT * FROM symptom_value WHERE date BETWEEN :from AND :to")
+    suspend fun valuesBetween(from: LocalDate, to: LocalDate): List<SymptomValue>
+
+    /** The intakes otherwise than planned from [from] to [to]. */
+    @Query("SELECT * FROM intake_deviation WHERE date BETWEEN :from AND :to")
+    suspend fun deviationsBetween(from: LocalDate, to: LocalDate): List<IntakeDeviation>
+
+    /** The answers about the exertions before of the evenings from [from] to [to]. */
+    @Query("SELECT * FROM follow_up WHERE date BETWEEN :from AND :to")
+    suspend fun followUpsBetween(from: LocalDate, to: LocalDate): List<FollowUp>
+
     /** The days from [from] to [to] that have an evening entry. */
     @Query("SELECT date FROM evening_entry WHERE date BETWEEN :from AND :to")
     suspend fun eveningDays(from: LocalDate, to: LocalDate): List<LocalDate>

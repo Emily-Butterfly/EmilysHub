@@ -10,6 +10,10 @@ enum class Source(val code: String, val citation: String) {
         "Raj SR, Fedorowski A, Sheldon RS: Diagnosis and management of postural orthostatic tachycardia syndrome. " +
             "CMAJ 2022; 194: E378–E385. doi:10.1503/cmaj.211373",
     ),
+    DegamFatigue(
+        "DEGAM-MUEDIGKEIT",
+        "DEGAM: S3-Leitlinie Müdigkeit, AWMF-Register 053-002, Stand 12/2022",
+    ),
     DiazBuschmann2014(
         "DIAZ-BUSCHMANN-2014",
         "Díaz-Buschmann I et al.: Programming exercise intensity in patients on beta-blocker treatment. " +
@@ -48,6 +52,11 @@ enum class Source(val code: String, val citation: String) {
         "Evenson KR, Spade CL: Review of validity and reliability of Garmin activity trackers. J Meas Phys Behav 2020. " +
             "doi:10.1123/jmpb.2019-0035",
     ),
+    Iom2015(
+        "IOM-2015",
+        "Institute of Medicine: Beyond Myalgic Encephalomyelitis/Chronic Fatigue Syndrome: Redefining an Illness. " +
+            "National Academies Press 2015. doi:10.17226/19012",
+    ),
     Keller2024(
         "KELLER-2024",
         "Keller et al.: Zwei-Tages-Spiroergometrie bei ME/CFS. J Transl Med 2024. doi:10.1186/s12967-024-05410-5",
@@ -56,6 +65,10 @@ enum class Source(val code: String, val citation: String) {
         "LEE-2020",
         "Lee J et al.: Hemodynamics during the 10-minute NASA Lean Test: evidence of circulatory decompensation in a " +
             "subset of ME/CFS patients. J Transl Med 2020; 18: 314. doi:10.1186/s12967-020-02481-y",
+    ),
+    NiceNg206(
+        "NICE-NG206",
+        "NICE: Myalgic encephalomyelitis (or encephalopathy)/chronic fatigue syndrome: diagnosis and management, NG206, 2021",
     ),
     NihPots2021(
         "NIH-POTS-2021",
@@ -68,6 +81,11 @@ enum class Source(val code: String, val citation: String) {
         "Sheldon RS et al.: 2015 Heart Rhythm Society Expert Consensus Statement on the Diagnosis and Treatment of " +
             "Postural Tachycardia Syndrome, Inappropriate Sinus Tachycardia, and Vasovagal Syncope. " +
             "Heart Rhythm 2015; 12: e41–e63. doi:10.1016/j.hrthm.2015.03.029",
+    ),
+    Sajjan2015(
+        "SAJJAN-2015",
+        "Sajjan VV et al.: Livedo reticularis: A review of the literature. Indian Dermatol Online J 2015; 6: 315–321. " +
+            "doi:10.4103/2229-5178.164493",
     ),
     Workwell15(
         "WORKWELL-15",

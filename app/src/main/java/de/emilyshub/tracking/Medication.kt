@@ -102,6 +102,10 @@ interface MedicationDao {
     @Query("SELECT * FROM dose_change WHERE medication_id = :medicationId ORDER BY date, id")
     suspend fun doseChanges(medicationId: Long): List<DoseChange>
 
+    /** All dose changes, of all medications. */
+    @Query("SELECT * FROM dose_change ORDER BY date, id")
+    suspend fun allDoseChanges(): List<DoseChange>
+
     /** Adds [change]: its id. */
     @Insert
     suspend fun insertDoseChange(change: DoseChange): Long

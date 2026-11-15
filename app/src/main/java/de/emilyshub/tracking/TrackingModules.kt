@@ -13,5 +13,6 @@ data class TrackingModules(
     val events: TrackingEvents,
     val exertions: TrackingExertions,
     val episodes: TrackingEpisodes,
+    val evaluation: TrackingEvaluation,
     val writes: IslandWrites<TrackingDatabase>,
 )

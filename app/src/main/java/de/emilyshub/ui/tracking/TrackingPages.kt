@@ -1,5 +1,7 @@
 package de.emilyshub.ui.tracking
 
+import de.emilyshub.tracking.HintRule
+import de.emilyshub.tracking.HistoryRange
 import java.io.Serializable
 import java.time.LocalDate
 
@@ -58,6 +60,15 @@ sealed interface TrackingPage : Serializable {
 
     /** The pacing threshold. */
     data object Pacing : TrackingPage
+
+    /** The week evaluation of the week beginning on [monday]. */
+    data class Week(val monday: LocalDate) : TrackingPage
+
+    /** The history over [range]. */
+    data class History(val range: HistoryRange) : TrackingPage
+
+    /** The hint of [rule], with its sources and "Erledigt". */
+    data class Hint(val rule: HintRule) : TrackingPage
 }
 
 /**

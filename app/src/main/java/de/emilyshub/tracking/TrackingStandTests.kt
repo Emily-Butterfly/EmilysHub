@@ -144,7 +144,7 @@ class TrackingStandTests(private val tracking: TrackingStore, private val clock:
     }
 
     /** Garmin's heart rates from lying down up to a minute after the last point, or a minute after the abort. */
-    private suspend fun curveOf(database: TrackingDatabase, test: StandTest): List<Beat> {
+    internal suspend fun curveOf(database: TrackingDatabase, test: StandTest): List<Beat> {
         val standingMinutes = when {
             test.abortCause == null -> test.variant.minutes.last()
             else -> maxOf(test.abortedMinute ?: 0, database.standTests().points(test.id).maxOfOrNull { it.minute } ?: 0)

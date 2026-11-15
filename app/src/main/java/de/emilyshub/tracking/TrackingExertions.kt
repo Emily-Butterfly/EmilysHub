@@ -104,7 +104,8 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
         database.settings().put(TrackingSetting(OWN_THRESHOLD, bpm?.takeIf { it in EntryLimits.PULSE }?.toString().orEmpty()))
     }
 
-    private suspend fun thresholdOf(database: TrackingDatabase): ThresholdView {
+    /** The pacing threshold as [threshold] gives it, from [database]: for the evaluation too. */
+    internal suspend fun thresholdOf(database: TrackingDatabase): ThresholdView {
         val own = database.settings().get(OWN_THRESHOLD)?.toIntOrNull()
         val today = entries.today()
         val mornings = database.entries().restingPulses(today.minusDays(PacingThreshold.MORNING_DAYS - 1), today)

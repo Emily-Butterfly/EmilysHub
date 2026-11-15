@@ -166,6 +166,10 @@ interface EpisodeDao {
     @Query("SELECT * FROM episode_trigger WHERE episode_id = :episodeId")
     suspend fun triggers(episodeId: Long): List<EpisodeTrigger>
 
+    /** The triggers of all episodes. */
+    @Query("SELECT * FROM episode_trigger")
+    suspend fun allTriggers(): List<EpisodeTrigger>
+
     /** Takes the triggers of episode [episodeId] off. */
     @Query("DELETE FROM episode_trigger WHERE episode_id = :episodeId")
     suspend fun clearTriggers(episodeId: Long)
