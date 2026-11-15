@@ -2,7 +2,6 @@ package de.emilyshub.ui.tracking
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import de.emilyshub.R
 import de.emilyshub.tracking.ACUTE_WARNING_SIGNS
 import de.emilyshub.tracking.Tracking
@@ -119,7 +119,7 @@ private fun CallEmergency() {
     Button(
         onClick = {
             try {
-                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$EMERGENCY_NUMBER")))
+                context.startActivity(Intent(Intent.ACTION_DIAL, "tel:$EMERGENCY_NUMBER".toUri()))
             } catch (e: ActivityNotFoundException) {
                 // A phone without a phone app, a tablet say: the number stands on the button.
                 Log.w(TAG, "No app to dial with: ${e.javaClass.simpleName}")

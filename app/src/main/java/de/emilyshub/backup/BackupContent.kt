@@ -17,12 +17,11 @@ data class BackupAttachment(val file: String, val bytes: Long)
 /**
  * All data of the app as a backup holds it (SPEC.md §10): the rows of each of the [tables], from a database of the
  * [schema] version given, as they were when [created]; the [doku] and [tracking] each in its own encryption, if it
- * has a password. As
- * JSON: {"schema": 16, "created": "2026-10-23T05:00:00Z", "tables": {"routines": {"columns": ["id", ...], "rows":
- * [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": "<Base64>", "wal": "<Base64>"}}, the
- * Doku's write-ahead log only if it has one, the Doku only if there is one, and "tracking" as "doku"; and, if there
- * are any, the [attachments]
- * that follow the content in the file, in their order: "attachments": [["<file>", 1234], ...].
+ * has a password. As JSON: {"schema": 16, "created": "2026-10-23T05:00:00Z", "tables": {"routines": {"columns":
+ * ["id", ...], "rows": [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": "<Base64>",
+ * "wal": "<Base64>"}}, the Doku's write-ahead log only if it has one, the Doku only if there is one, and "tracking"
+ * as "doku"; and, if there are any, the [attachments] that follow the content in the file, in their order:
+ * "attachments": [["<file>", 1234], ...].
  */
 class BackupContent(
     val schema: Int,

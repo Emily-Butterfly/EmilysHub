@@ -407,6 +407,29 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `a backup with the Doku and Tracking brings back Tracking alone, with only its password`() {
+        runBlocking {
+            app.tracking.load()
+            app.tracking.setUp(TRACKING_PASSWORD)
+            app.tracking.withDatabase { it.settings().put(TrackingSetting("probe", "Wert A")) }
+        }
+        aBackupWithFrauMThenHerrK()
+        runBlocking { app.tracking.withDatabase { it.settings().put(TrackingSetting("probe", "Wert B")) } }
+        app.tracking.lock()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+            compose.onNodeWithText("Ohne Dokumentation einspielen").assertIsNotEnabled()
+            enterTrackingPassword(TRACKING_PASSWORD)
+            compose.onNodeWithText("Ohne Dokumentation einspielen").performClick()
+
+            compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+        }
+        assertEquals("Wert A", trackingProbe())
+        assertEquals(listOf("Frau M.", "Herr K."), patientNames())
+    }
+
+    @Test
     fun `the backups are to be copied off the phone`() {
         launchApp().use {
             openBackups()

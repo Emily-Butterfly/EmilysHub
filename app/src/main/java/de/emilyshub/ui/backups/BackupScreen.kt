@@ -508,7 +508,7 @@ internal fun PasswordOfBackup(
  * Asks whether the [backup] is to replace all data, saying when it was made and what it holds, and whether its password
  * [takesPassword] over as the backup password here, there being none yet. With a Doku or Tracking in it, the password
  * of each that held when it was made is asked for too, the one given shown [wrongPassword] if it was not; or it is
- * restored without them ([onReplace] with nulls), which then stay as they are.
+ * restored without one or both ([onReplace] with null for each left out), which then stay as they are.
  */
 @Composable
 internal fun ConfirmReplacing(
@@ -583,15 +583,24 @@ internal fun ConfirmReplacing(
                 ) {
                     Text(stringResource(R.string.backup_replace))
                 }
-                val without = when {
+                // With both, each can come back alone, with its own password only.
+                if (backup.hasDoku && backup.hasTracking) {
+                    TextButton(onClick = { onReplace(dokuPassword, null) }, enabled = !busy && dokuPassword.isNotEmpty()) {
+                        Text(stringResource(R.string.backup_replace_without_tracking))
+                    }
+                    TextButton(onClick = { onReplace(null, trackingPassword) }, enabled = !busy && trackingPassword.isNotEmpty()) {
+                        Text(stringResource(R.string.backup_replace_without_doku))
+                    }
+                }
+                val withoutBoth = when {
                     backup.hasDoku && backup.hasTracking -> R.string.backup_replace_without_doku_and_tracking
                     backup.hasDoku -> R.string.backup_replace_without_doku
                     backup.hasTracking -> R.string.backup_replace_without_tracking
                     else -> null
                 }
-                if (without != null) {
+                if (withoutBoth != null) {
                     TextButton(onClick = { onReplace(null, null) }, enabled = !busy) {
-                        Text(stringResource(without))
+                        Text(stringResource(withoutBoth))
                     }
                 }
             }
