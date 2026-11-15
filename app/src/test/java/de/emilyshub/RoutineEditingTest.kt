@@ -713,12 +713,13 @@ class RoutineEditingTest {
     }
 
     @Test
-    fun `with no places yet, the editor says where to make them`() {
+    fun `with no places yet, the editor offers to make one right there`() {
         launchApp().use {
             newRoutine("Tabletten")
 
             compose.openMoreOptions()
-            compose.onNodeWithText("Orte legst du in den Einstellungen", substring = true).performScrollTo().assertIsDisplayed()
+            compose.onNode(hasText("Neuer Ort") and hasClickAction()).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Orte legst du in den Einstellungen", substring = true).assertDoesNotExist()
         }
     }
 

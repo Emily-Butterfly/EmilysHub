@@ -5,10 +5,23 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -22,6 +35,10 @@ import de.emilyshub.ui.places.BackgroundLocationNotice
  * The places a routine or to-do pops up at (SPEC.md §4): any of those chosen; how it reminds with none and with some,
  * [hintNone] and [hintChosen] say. Once it is bound to one, the location is asked for in the background here, and only
  * here, so that it pops up on arrival with the app closed.
+ *
+ * "Neuer Ort" opens the place editor over the editor ([onNewPlace], #112), whose draft stays as it is. A place made
+ * there is chosen here once the field shows again: one that was not there when it was tapped, which the field keeps in
+ * mind through a rotation and the lock. Left without a place, nothing changes.
  */
 @Composable
 fun PlacesField(
@@ -30,22 +47,41 @@ fun PlacesField(
     @StringRes hintNone: Int,
     @StringRes hintChosen: Int,
     onChange: (Set<Long>) -> Unit,
+    onNewPlace: () -> Unit,
 ) {
     val all by remember(places) { places.all() }.collectAsState(initial = null)
+    // The places there were when "Neuer Ort" was tapped, until one more is there.
+    var before by rememberSaveable { mutableStateOf<ArrayList<Long>?>(null) }
     val list = all ?: return
     // One deleted meanwhile is chosen no more.
     val chosen = selected.filter { id -> list.any { it.id == id } }.toSet()
+    val currentChosen by rememberUpdatedState(chosen)
+    val currentOnChange by rememberUpdatedState(onChange)
+    LaunchedEffect(list, before) {
+        val known = before ?: return@LaunchedEffect
+        val made = list.map { it.id }.filter { it !in known }
+        if (made.isNotEmpty()) {
+            before = null
+            currentOnChange(currentChosen + made)
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(stringResource(R.string.routine_places))
-        if (list.isEmpty()) {
-            Hint(stringResource(R.string.routine_places_none))
-            return@Column
-        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             list.forEach { place ->
                 val isChosen = place.id in chosen
                 ChoiceChip(place.name, isChosen, onClick = { onChange(if (isChosen) chosen - place.id else chosen + place.id) })
             }
+            AssistChip(
+                onClick = {
+                    before = ArrayList(list.map { it.id })
+                    onNewPlace()
+                },
+                label = { Text(stringResource(R.string.place_new)) },
+                leadingIcon = {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                },
+            )
         }
         Hint(stringResource(if (chosen.isEmpty()) hintNone else hintChosen))
         if (chosen.isNotEmpty()) BackgroundLocationNotice()

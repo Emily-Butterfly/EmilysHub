@@ -38,3 +38,8 @@ Das Backup-Passwort lässt sich im Backup-Bildschirm ändern. Bisher wird es ein
 
 - **Entschieden am 14.11.2026:** Zum Ändern wird das alte Passwort verlangt. Wer es vergessen hat, legt nach der App-Sperre ein neues fest, mit dem Hinweis, dass alte Backups dann nicht mehr lesbar sind.
 - Nicht einzeln bestätigt: Die App-Sperre steht beim Vergessen auch dann davor, wenn die App schon entsperrt ist, damit ein kurz unbeaufsichtigtes Handy nicht reicht, um ein fremdes Passwort unterzuschieben.
+
+Bei der Umsetzung festgelegt (15.11.2026):
+
+- Ohne Displaysperre gibt es keine App-Sperre, die fragen könnte; dann führt „Passwort vergessen?“ nach der Rückfrage direkt zum neuen Passwort.
+- Nach einem Drehen oder dem Ende des App-Prozesses kommt der Schritt nach der App-Sperre nicht von selbst zurück: Die Rückfrage erscheint wieder, und die App-Sperre wird neu gefragt.

@@ -119,6 +119,7 @@ fun RoutineEditorScreen(
     tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
+    onNewPlace: () -> Unit,
 ) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
     val sorting = (target as? RoutineEditorTarget.FromInbox)?.sorting
@@ -290,6 +291,7 @@ fun RoutineEditorScreen(
                     hintNone = R.string.routine_places_everywhere,
                     hintChosen = R.string.routine_places_chosen,
                     onChange = { draft = draft.copy(placeIds = it) },
+                    onNewPlace = onNewPlace,
                 )
                 GoalField(
                     wishes = wishes,

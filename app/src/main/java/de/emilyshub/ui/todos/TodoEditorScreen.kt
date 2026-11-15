@@ -119,6 +119,7 @@ fun TodoEditorScreen(
     tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
+    onNewPlace: () -> Unit,
 ) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
     val sorting = (target as? TodoEditorTarget.FromInbox)?.sorting
@@ -288,6 +289,7 @@ fun TodoEditorScreen(
                     hintNone = R.string.todo_places_none,
                     hintChosen = R.string.todo_places_chosen,
                     onChange = { draft = draft.copy(placeIds = it) },
+                    onNewPlace = onNewPlace,
                 )
                 RemindingStyleFields(
                     style = draft.style,

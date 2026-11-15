@@ -269,6 +269,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
     val screens = rememberSaveableStateHolder()
     ForgetClosedScreens(screens, stack)
     val openNote = { id: Long -> open(Destination.NoteEditor(NoteEditorTarget.Edit(id))) }
+    // A place made right in the field of an editor (#112), which is chosen there once saved.
+    val newPlace = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) }
     val top = stack.top
     if (top == null) {
         // Heute is the start screen: back from any other area returns there before leaving the app.
@@ -315,7 +317,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 is Destination.NoteEditor -> NoteEditorScreen(hub.notes, hub.tags, hub.inbox, top.target, onClose = back)
                 is Destination.TodoEditor -> TodoEditorScreen(
                     hub.todos, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, top.target, hub.toneCollection,
-                    onClose = back, onOpenNote = openNote,
+                    onClose = back, onOpenNote = openNote, onNewPlace = newPlace,
                 )
                 Destination.TodoArchive ->
                     TodoArchiveScreen(
@@ -433,7 +435,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 )
                 is Destination.RoutineEditor -> RoutineEditorScreen(
                     hub.routines, hub.day, hub.wishes, hub.tags, hub.places, hub.notes, hub.inbox, hub.languages, top.target, hub.toneCollection,
-                    onClose = back, onOpenNote = openNote,
+                    onClose = back, onOpenNote = openNote, onNewPlace = newPlace,
                 )
                 is Destination.Run -> RunScreen(hub.runs, hub.day, top.occurrenceId, top.routineId, onClose = back)
                 Destination.RoutineArchive -> ArchiveScreen(hub.routines, onBack = back)

@@ -237,7 +237,6 @@
     <string name="archive_empty">Nichts archiviert.</string>
     <string name="field_tags">Tags</string>
     <string name="routine_places">Orte</string>
-    <string name="routine_places_none">Orte legst du in den Einstellungen unter „Orte verwalten“ an.</string>
     <string name="routine_places_everywhere">Erinnert überall.</string>
     <string name="routine_places_chosen">Erinnert nur an diesen Orten. Anderswo wartet die Erinnerung, bis du ankommst, solange das Zeitfenster läuft.</string>
     <string name="filter_all">Alle</string>
