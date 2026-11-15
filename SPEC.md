@@ -572,7 +572,7 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 
 - **Skala** für Symptome und Belastung: 0 = nicht vorhanden, 1 = leicht, 2 = mittel, 3 = schwer. Leer heißt „nicht erfasst“ und zählt nie als 0.
 - **Morgens:** Ruhepuls im Liegen, Blutdruck (optional), Schlafdauer, Schlafqualität 0–3 (0 = sehr gut), erholt aufgewacht ja/nein; Hinweis „nach 5 Minuten ruhig liegen, vor Koffein und Medikamenten – sonst vermerken“.
-- **Abends:** jedes aktive Symptom 0–3; Belastung körperlich, kognitiv, emotional 0–3; Arbeitstag, Hitze oder langes Stehen ja/nein; Trinkmenge in Litern, Mahlzeiten, Koffein und Alkohol als Anzahl; je Medikament „wie geplant“ (vorausgewählt) oder abweichend (Uhrzeit oder vergessen); „Crash oder PEM?“ als schneller Einstieg in eine Episode (unten); Notiz (Markdown).
+- **Abends:** jedes aktive Symptom 0–3; Belastung körperlich, kognitiv, emotional, sozial 0–3; Arbeitstag, Hitze oder langes Stehen ja/nein; Trinkmenge in Litern, Mahlzeiten, Koffein und Alkohol als Anzahl; je Medikament „wie geplant“ (vorausgewählt) oder abweichend (Uhrzeit oder vergessen); „Crash oder PEM?“ als schneller Einstieg in eine Episode (unten); Notiz (Markdown).
 - **Symptome** im Menü: Startliste Erschöpfung, Konzentration, Schlafbedürfnis, Kopfschmerz, Muskelschmerzen, Gelenkschmerzen, Muskelschwäche, Atemnot, Herzrasen, Schwindel im Stehen, Übelkeit, Hautveränderungen, Kälteempfinden, Hitzeempfinden, Stimmung gedrückt, Angst/innere Unruhe; umbenennen, sortieren, ausblenden, eigene ergänzen. Ausgeblendete behalten ihre Werte.
 - **Tag:** Bis 04:00 schlägt ein neuer Eintrag den Vortag vor; das Datum lässt sich im Eintrag ändern.
 - **Nachtragen** bis 7 Tage zurück. Später als am Folgetag Erfasstes ist still als nachgetragen markiert; die Auswertung zeigt den Anteil.
@@ -624,9 +624,9 @@ Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, lange
 
 ### Anstrengungen, PEM & Crash
 
-- **Anstrengung:** Datum, Uhrzeit, Art (körperlich, kognitiv, emotional, Stehen/Wärme), Dauer, Stärke 0–3. Sie entsteht auf vier Wegen:
+- **Anstrengung:** Datum, Uhrzeit, Art (körperlich, kognitiv, emotional, sozial, Stehen/Wärme), Dauer, Stärke 0–3. Sie entsteht auf vier Wegen:
   - von Hand mit „+ Anstrengung“;
-  - **direkt aus dem Abendeintrag:** Belastung körperlich, kognitiv oder emotional ≥ 2 gilt als Anstrengung des Tages, mit dieser Art und Stärke;
+  - **direkt aus dem Abendeintrag:** Belastung körperlich, kognitiv, emotional oder sozial ≥ 2 gilt als Anstrengung des Tages, mit dieser Art und Stärke;
   - als **Vorschlag aus den Schritten**, wenn ein Tag mehr als 150 % des Mittels der letzten 14 Tage hat;
   - als **Vorschlag aus der Herzfrequenz**, wenn die Minuten über der Pacing-Schwelle mehr als 150 % des Mittels der letzten 14 Tage betragen.
   Vorschläge erscheinen im Abendeintrag und auf der Startseite; bestätigt werden sie eine Anstrengung, verworfene kommen nicht wieder. Die 150 % und die 14 Tage sind eigene Arbeitswerte.

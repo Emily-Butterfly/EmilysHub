@@ -1655,6 +1655,7 @@
     <string name="tracking_load_physical">Körperlich</string>
     <string name="tracking_load_cognitive">Kognitiv</string>
     <string name="tracking_load_emotional">Emotional</string>
+    <string name="tracking_load_social">Sozial</string>
     <string name="tracking_day_heading">Der Tag</string>
     <string name="tracking_workday">Arbeitstag</string>
     <string name="tracking_heat">Hitze oder langes Stehen</string>
@@ -1901,6 +1902,7 @@
     <string name="tracking_exertion_physical">körperlich</string>
     <string name="tracking_exertion_cognitive">kognitiv</string>
     <string name="tracking_exertion_emotional">emotional</string>
+    <string name="tracking_exertion_social">sozial</string>
     <string name="tracking_exertion_standing_heat">Stehen/Wärme</string>
     <string name="tracking_exertion_strength">Stärke</string>
     <string name="tracking_exertion_time_none">Uhrzeit (optional)</string>

@@ -82,6 +82,7 @@ object ExertionRules {
         entry.loadPhysical?.let { ExertionKind.Physical to it },
         entry.loadCognitive?.let { ExertionKind.Cognitive to it },
         entry.loadEmotional?.let { ExertionKind.Emotional to it },
+        entry.loadSocial?.let { ExertionKind.Social to it },
     ).filter { (_, level) -> level >= EVENING_FROM }.toMap()
 
     /**

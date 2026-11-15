@@ -147,3 +147,10 @@ val TRACKING_MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_episode_trigger_exertion_id` ON `episode_trigger` (`exertion_id`)")
     }
 }
+
+/** 6 → 7: the social load of the evening. */
+val TRACKING_MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `evening_entry` ADD COLUMN `load_social` INTEGER")
+    }
+}

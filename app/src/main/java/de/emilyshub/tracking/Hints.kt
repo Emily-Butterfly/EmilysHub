@@ -237,7 +237,7 @@ object Hints {
         val fromEvents = records.events.filter { (it.breathlessness ?: 0) >= HintRules.LEVEL_HIGH }.map { records.dayOf(it.at) }
         val fromTests = records.standTests.filter { test -> test.points.any { (it.breathlessness ?: 0) >= HintRules.LEVEL_HIGH } }.map { it.dayIn(records.zone) }
         val fromEvenings = records.evenings.filter { evening ->
-            val loaded = evening.heatOrStanding == true || listOfNotNull(evening.loadPhysical, evening.loadCognitive, evening.loadEmotional).any { it >= HintRules.LEVEL_HIGH }
+            val loaded = evening.heatOrStanding == true || listOfNotNull(evening.loadPhysical, evening.loadCognitive, evening.loadEmotional, evening.loadSocial).any { it >= HintRules.LEVEL_HIGH }
             loaded && records.levelsByDay[evening.date].orEmpty().any { (id, level) -> id in ids && level >= HintRules.LEVEL_HIGH }
         }.map { it.date }
         val days = (fromEvents + fromTests + fromEvenings).filter(context::inDays).distinct().sorted()

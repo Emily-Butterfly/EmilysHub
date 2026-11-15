@@ -13,8 +13,8 @@ class ExertionRulesTest {
 
     private val day = LocalDate.parse("2026-11-15")
 
-    private fun evening(physical: Int? = null, cognitive: Int? = null, emotional: Int? = null) =
-        EveningEntry(date = day, loadPhysical = physical, loadCognitive = cognitive, loadEmotional = emotional, recordedOn = day)
+    private fun evening(physical: Int? = null, cognitive: Int? = null, emotional: Int? = null, social: Int? = null) =
+        EveningEntry(date = day, loadPhysical = physical, loadCognitive = cognitive, loadEmotional = emotional, loadSocial = social, recordedOn = day)
 
     private fun exertion(date: LocalDate, strength: Int, time: LocalTime? = null, id: Long = 0) =
         Exertion(id = id, date = date, time = time, kind = ExertionKind.Physical, strength = strength, origin = ExertionOrigin.Manual)
@@ -22,8 +22,8 @@ class ExertionRulesTest {
     @Test
     fun `a load of 2 or more in the evening is an exertion of its kind and strength`() {
         assertEquals(
-            mapOf(ExertionKind.Physical to 2, ExertionKind.Emotional to 3),
-            ExertionRules.fromEvening(evening(physical = 2, cognitive = 1, emotional = 3)),
+            mapOf(ExertionKind.Physical to 2, ExertionKind.Emotional to 3, ExertionKind.Social to 2),
+            ExertionRules.fromEvening(evening(physical = 2, cognitive = 1, emotional = 3, social = 2)),
         )
         assertEquals(emptyMap<ExertionKind, Int>(), ExertionRules.fromEvening(evening()))
     }

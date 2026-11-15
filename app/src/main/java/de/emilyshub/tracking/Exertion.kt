@@ -15,7 +15,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /** What kind of load an exertion was (SPEC.md §17, "Anstrengungen, PEM & Crash"). */
-enum class ExertionKind(val stored: String) { Physical("physical"), Cognitive("cognitive"), Emotional("emotional"), StandingHeat("standing_heat") }
+enum class ExertionKind(val stored: String) { Physical("physical"), Cognitive("cognitive"), Emotional("emotional"), Social("social"), StandingHeat("standing_heat") }
 
 /** How an exertion came about: by hand, from the evening's load, or confirmed from a suggestion. */
 enum class ExertionOrigin(val stored: String) { Manual("manual"), Evening("evening"), Steps("steps"), HeartRate("heart_rate") }

@@ -70,6 +70,7 @@ internal fun EveningPage(
     var loadPhysical by remember { mutableStateOf(original.loadPhysical) }
     var loadCognitive by remember { mutableStateOf(original.loadCognitive) }
     var loadEmotional by remember { mutableStateOf(original.loadEmotional) }
+    var loadSocial by remember { mutableStateOf(original.loadSocial) }
     var workday by remember { mutableStateOf(original.workday) }
     var heat by remember { mutableStateOf(original.heatOrStanding) }
     var fluid by remember { mutableStateOf(TypedNumber.textOf(original.fluidDecilitres, tenths = true)) }
@@ -86,6 +87,7 @@ internal fun EveningPage(
         loadPhysical = loadPhysical,
         loadCognitive = loadCognitive,
         loadEmotional = loadEmotional,
+        loadSocial = loadSocial,
         workday = workday,
         heatOrStanding = heat,
         fluidDecilitres = fluidNumber.value,
@@ -122,6 +124,7 @@ internal fun EveningPage(
         LevelField(stringResource(R.string.tracking_load_physical), loadPhysical, { loadPhysical = it })
         LevelField(stringResource(R.string.tracking_load_cognitive), loadCognitive, { loadCognitive = it })
         LevelField(stringResource(R.string.tracking_load_emotional), loadEmotional, { loadEmotional = it })
+        LevelField(stringResource(R.string.tracking_load_social), loadSocial, { loadSocial = it })
         Suggestions(tracking, modules.exertions, only = day)
         // Those of the day it was opened for: a day changed asks after others once saved.
         if (sheet.followUps.isNotEmpty()) {

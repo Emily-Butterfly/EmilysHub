@@ -197,6 +197,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         loadPhysical = loadPhysical.within(EntryLimits.LEVEL),
         loadCognitive = loadCognitive.within(EntryLimits.LEVEL),
         loadEmotional = loadEmotional.within(EntryLimits.LEVEL),
+        loadSocial = loadSocial.within(EntryLimits.LEVEL),
         fluidDecilitres = fluidDecilitres.within(EntryLimits.FLUID_DECILITRES),
         meals = meals.within(EntryLimits.COUNT),
         caffeine = caffeine.within(EntryLimits.COUNT),

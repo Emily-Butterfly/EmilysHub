@@ -88,10 +88,10 @@ abstract class TrackingDatabase : RoomDatabase() {
     abstract fun episodes(): EpisodeDao
 
     companion object {
-        const val VERSION = 6
+        const val VERSION = 7
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5, TRACKING_MIGRATION_5_6)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5, TRACKING_MIGRATION_5_6, TRACKING_MIGRATION_6_7)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {

@@ -496,6 +496,7 @@ internal fun kindName(kind: ExertionKind): Int = when (kind) {
     ExertionKind.Physical -> R.string.tracking_exertion_physical
     ExertionKind.Cognitive -> R.string.tracking_exertion_cognitive
     ExertionKind.Emotional -> R.string.tracking_exertion_emotional
+    ExertionKind.Social -> R.string.tracking_exertion_social
     ExertionKind.StandingHeat -> R.string.tracking_exertion_standing_heat
 }
 

@@ -37,7 +37,7 @@ data class MorningEntry(
 /**
  * The evening's entry of [date] (SPEC.md §17, "Abends"), its symptoms apart ([SymptomValue]) and its intakes as far as
  * they went otherwise than planned ([IntakeDeviation]): null is "nicht erfasst", never 0. The load of the day, physical,
- * cognitive and emotional, 0–3; whether it was a working day and one with heat or long standing; how much was drunk, in
+ * cognitive, emotional and social, 0–3; whether it was a working day and one with heat or long standing; how much was drunk, in
  * tenths of a litre; how many meals, coffees and drinks; and a note in Markdown.
  */
 @Entity(tableName = "evening_entry")
@@ -46,6 +46,7 @@ data class EveningEntry(
     @ColumnInfo(name = "load_physical") val loadPhysical: Int? = null,
     @ColumnInfo(name = "load_cognitive") val loadCognitive: Int? = null,
     @ColumnInfo(name = "load_emotional") val loadEmotional: Int? = null,
+    @ColumnInfo(name = "load_social") val loadSocial: Int? = null,
     val workday: Boolean? = null,
     @ColumnInfo(name = "heat_or_standing") val heatOrStanding: Boolean? = null,
     @ColumnInfo(name = "fluid_decilitres") val fluidDecilitres: Int? = null,
