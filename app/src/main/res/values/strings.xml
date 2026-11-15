@@ -1668,7 +1668,6 @@
     <string name="tracking_intake_other_time">andere Uhrzeit</string>
     <string name="tracking_intake_forgotten">vergessen</string>
     <string name="tracking_intake_at">um %1$s</string>
-    <string name="tracking_symptoms_title">Symptome</string>
     <string name="tracking_symptoms_hint">Ausgeblendete werden abends nicht mehr abgefragt, behalten aber ihre Werte und erscheinen in alten Einträgen.</string>
     <string name="tracking_symptom_add">Symptom hinzufügen</string>
     <string name="tracking_symptom_name">Name</string>
@@ -1677,7 +1676,6 @@
     <string name="tracking_symptom_down">%1$s nach unten</string>
     <string name="tracking_symptom_asked">%1$s abfragen</string>
     <string name="tracking_symptom_name_problem">Leer, zu lang oder schon vorhanden</string>
-    <string name="tracking_medications_title">Medikamente</string>
     <string name="tracking_medications_empty">Noch keine Medikamente</string>
     <string name="tracking_medications_ended">Beendet</string>
     <string name="tracking_medication_add">Medikament hinzufügen</string>
@@ -1708,7 +1706,6 @@
     <string name="tracking_medication_no_name">Bitte einen Namen eingeben</string>
     <string name="tracking_medication_no_time">Bitte mindestens eine Uhrzeit</string>
     <string name="tracking_medication_end_before_start">Das Ende liegt vor dem Beginn</string>
-    <string name="tracking_base_data_title">Grunddaten</string>
     <string name="tracking_base_course">Verlauf</string>
     <string name="tracking_base_course_hint">Wann hat es begonnen? Gab es Schübe? Gingen Infekte oder Belastungen voraus? Was ging früher, was heute nicht mehr?</string>
     <string name="tracking_base_family">Familie</string>
