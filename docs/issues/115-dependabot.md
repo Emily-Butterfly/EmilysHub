@@ -13,12 +13,12 @@ Dependabot meldet neue Versionen der Bibliotheken und der GitHub Actions als Pul
 
 ## Akzeptanzkriterien
 
-- [ ] `.github/dependabot.yml` für Gradle (`gradle/libs.versions.toml`, auch die Build-Logik) und für die GitHub Actions
-- [ ] Monatlich, je Ökosystem ein gebündelter Pull Request; Sicherheitsupdates kommen sofort und einzeln
-- [ ] Die Actions bleiben auf Commit-SHAs festgelegt; Dependabot pflegt SHA und Versionskommentar
+- [x] `.github/dependabot.yml` für Gradle (`gradle/libs.versions.toml`, auch die Build-Logik) und für die GitHub Actions
+- [x] Monatlich, je Ökosystem ein gebündelter Pull Request; Sicherheitsupdates kommen sofort und einzeln
+- [x] Die Actions bleiben auf Commit-SHAs festgelegt; Dependabot pflegt SHA und Versionskommentar
 - [ ] Der Build läuft für Dependabots Pull Requests durch, ohne die Signatur-Secrets: Das Signieren wird übersprungen, wie schon ohne Secrets
-- [ ] `targetSdk` und die Versionen, die die Spezifikation festlegt, schlägt Dependabot nicht vor, oder sie sind ausgenommen
-- [ ] `docs/agents/` beschreibt in einer kurzen Datei, wie ein Pull Request von Dependabot übernommen wird: Claude prüft CI und Changelog und behebt, was bricht; Emily merged
+- [x] `targetSdk` und die Versionen, die die Spezifikation festlegt, schlägt Dependabot nicht vor, oder sie sind ausgenommen
+- [x] `docs/agents/` beschreibt in einer kurzen Datei, wie ein Pull Request von Dependabot übernommen wird: Claude prüft CI und Changelog und behebt, was bricht; Emily merged
 - [ ] Geprüft, dass Dependabot die Datei annimmt (der Tab „Dependabot“ in GitHub zeigt keine Fehler)
 
 ## Entscheidungen
