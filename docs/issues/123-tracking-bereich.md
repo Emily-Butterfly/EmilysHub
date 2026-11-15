@@ -37,6 +37,6 @@ Beim Bauen festgelegt (15.11.2026), nicht einzeln bestätigt:
 - Sperre, Schlüssel und Backup-Teil der Dokumentation sind jetzt eine gemeinsame „Insel“ im Code (`island/`), die Dokumentation und Tracking je mit eigener Datenbank, eigenem Passwort und eigenem Schlüssel für den Fingerabdruck benutzen.
 - **Alles löschen** leert die Datenbank und lässt Passwort und Fingerabdruck stehen; Tracking bleibt offen und leer. Schon gespeicherte Backups enthalten die Daten weiter, das sagt die Rückfrage.
 - **„112 anrufen“** steht direkt unter der Überschrift „Akute Beschwerden?“, vor den Warnzeichen, damit es ohne Weiterlesen zur Hand ist.
-- Beim Einspielen eines Backups mit Dokumentation und Tracking fragt der Dialog beide Passwörter ab; „Ohne Dokumentation und Tracking einspielen“ lässt beide, wie sie sind.
+- Beim Einspielen eines Backups mit Dokumentation und Tracking fragt der Dialog beide Passwörter ab; jede der beiden lässt sich auch allein mit ihrem Passwort einspielen („Ohne Dokumentation …“, „Ohne Tracking …“), und „Ohne Dokumentation und Tracking einspielen“ lässt beide, wie sie sind.
 - Die Ausnahme Messassistent ist `WhileMeasuring` (Bildschirm an, 5-Minuten-Sperre ruht); #127 und #128 benutzen sie.
 - Die UI-Tests prüfen das Sperren beim Tab-Wechsel, beim Zurück, im Hintergrund und den Neustart der 5 Minuten bei Berührung; das Sperren nach 5 Minuten selbst prüft der Unit-Test der Insel. Ob die Datenbank ohne oder mit falschem Schlüssel unlesbar ist, prüft `TrackingDatabaseTest` auf dem Gerät (SQLCipher läuft nur dort).
