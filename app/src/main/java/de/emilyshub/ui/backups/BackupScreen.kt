@@ -61,7 +61,6 @@ import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.backup.NightlyState
-import de.emilyshub.backup.PasswordProblem
 import de.emilyshub.data.HubData
 import de.emilyshub.data.SetAside
 import de.emilyshub.logged
@@ -114,7 +113,7 @@ fun BackupScreen(
     LaunchedEffect(data) { setAside = data.setAside() }
     var deleting by remember { mutableStateOf<SetAside?>(null) }
     // How far the backup password is being changed (#111), and whether the old one given was not the one set.
-    var changing by rememberSaveable { mutableStateOf<PasswordChange?>(null) }
+    var changing by rememberSaveable(stateSaver = PasswordChangeStep.Saver) { mutableStateOf<PasswordChangeStep?>(null) }
     var wrongOld by remember { mutableStateOf(false) }
     val zone = ZoneId.systemDefault()
 
@@ -197,7 +196,7 @@ fun BackupScreen(
             SectionTitle(stringResource(R.string.backup_password_title))
             if (passwordSet) {
                 Text(stringResource(R.string.backup_password_is_set))
-                OutlinedButton(onClick = { changing = PasswordChange.Changing }, enabled = !busy) {
+                OutlinedButton(onClick = { changing = PasswordChangeStep.Changing }, enabled = !busy) {
                     Text(stringResource(R.string.backup_password_change))
                 }
             } else {
@@ -257,7 +256,7 @@ fun BackupScreen(
     }
 
     when (changing) {
-        PasswordChange.Changing -> ChangePassword(
+        PasswordChangeStep.Changing -> ChangePassword(
             busy = busy,
             wrongOld = wrongOld,
             onEditOld = { wrongOld = false },
@@ -276,31 +275,31 @@ fun BackupScreen(
             },
             onForgot = {
                 wrongOld = false
-                changing = PasswordChange.Forgetting
+                changing = PasswordChangeStep.Forgetting
             },
             onDismiss = {
                 wrongOld = false
                 changing = null
             },
         )
-        PasswordChange.Forgetting -> ForgetPassword(
+        PasswordChangeStep.Forgetting -> ForgetPassword(
             onContinue = {
-                // The app lock even while the app is open, so that a phone left alone for a moment does not do; without
-                // a screen lock there is none to ask for, and the app lock is off.
-                if (authenticator.canAuthenticate() && activity != null) {
-                    authenticator.authenticate(activity) { changing = PasswordChange.Forgotten }
-                } else {
-                    changing = PasswordChange.Forgotten
+                // The app lock even while the app is open, so that a phone left alone for a moment does not do. Without
+                // a screen lock there is none to ask for, and the app lock is off; without the activity to ask over,
+                // nothing goes on.
+                when {
+                    !authenticator.canAuthenticate() -> changing = PasswordChangeStep.Forgotten
+                    activity != null -> authenticator.authenticate(activity) { changing = PasswordChangeStep.Forgotten }
                 }
             },
             onDismiss = { changing = null },
         )
-        PasswordChange.Forgotten -> PasswordInsteadOfForgotten(
+        PasswordChangeStep.Forgotten -> PasswordInsteadOfForgotten(
             busy = busy,
             onSet = { new ->
                 work {
                     outcome = failingWith(R.string.backup_password_change_failed) {
-                        backups.forgotPassword(new)
+                        backups.setForgottenPasswordAnew(new)
                         changing = null
                         R.string.backup_password_changed
                     }
@@ -453,35 +452,14 @@ private fun SetAsideSection(setAside: List<SetAside>, enabled: Boolean, onDelete
     }
 }
 
-/** The new backup password, typed twice; its problems shown once the user tries to set it. */
+/** The first backup password, typed twice; its problems shown once the user tries to set it. */
 @Composable
 private fun NewPassword(busy: Boolean, onSet: (String) -> Unit) {
     // Not saveable: a password has no place in the saved state.
-    var password by remember { mutableStateOf("") }
-    var repeated by remember { mutableStateOf("") }
-    var triedToSet by remember { mutableStateOf(false) }
-    val problem = Backups.passwordProblem(password, repeated).takeIf { triedToSet }
+    val state = remember { NewPasswordState() }
     Text(stringResource(R.string.backup_password_explanation))
-    PasswordField(
-        value = password,
-        onChange = { password = it },
-        label = stringResource(R.string.backup_password),
-        problem = stringResource(R.string.backup_password_too_short, Backups.MIN_PASSWORD_LENGTH)
-            .takeIf { problem == PasswordProblem.TooShort },
-    )
-    PasswordField(
-        value = repeated,
-        onChange = { repeated = it },
-        label = stringResource(R.string.backup_password_repeat),
-        problem = stringResource(R.string.backup_password_not_repeated).takeIf { problem == PasswordProblem.NotRepeated },
-    )
-    Button(
-        onClick = {
-            triedToSet = true
-            if (Backups.passwordProblem(password, repeated) == null) onSet(password)
-        },
-        enabled = !busy,
-    ) {
+    NewPasswordFields(state, label = R.string.backup_password, repeatLabel = R.string.backup_password_repeat)
+    Button(onClick = { if (state.tryToSet()) onSet(state.password) }, enabled = !busy) {
         Text(stringResource(R.string.backup_password_set))
     }
 }

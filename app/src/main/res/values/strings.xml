@@ -654,7 +654,7 @@
     <string name="backups_manage_summary">Alle Daten verschlüsselt sichern und wieder laden</string>
     <string name="backups_title">Backups</string>
     <string name="backup_password_title">Backup-Passwort</string>
-    <string name="backup_password_explanation">Das Backup-Passwort verschlüsselt deine Backups. Du legst es einmal fest und kannst es später mit dem alten Passwort ändern. Ohne das Passwort kann niemand ein Backup öffnen, auch du nicht. Bewahre es gut auf.</string>
+    <string name="backup_password_explanation">Das Backup-Passwort verschlüsselt deine Backups. Du legst es einmal fest und kannst es später mit dem alten Passwort ändern, oder nach der App-Sperre neu festlegen, wenn du es vergessen hast. Ohne das Passwort kann niemand ein Backup öffnen, auch du nicht. Bewahre es gut auf.</string>
     <string name="backup_password">Passwort</string>
     <string name="backup_password_repeat">Passwort wiederholen</string>
     <string name="backup_password_too_short">Mindestens %1$d Zeichen</string>

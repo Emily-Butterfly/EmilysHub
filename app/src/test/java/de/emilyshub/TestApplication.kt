@@ -70,7 +70,15 @@ class TestApplication : EmilysHubApplication() {
 
     /** Stands in for the Android Keystore key, which only exists on a device. */
     private val backupKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    override val backupWrappingKey = { backupKey }
+    /** If set, the Keystore key fails once it was asked for so many more times, as a Keystore that went away would. */
+    var backupKeyFailsAfter: Int? = null
+    override val backupWrappingKey = {
+        backupKeyFailsAfter?.let { left ->
+            check(left > 0) { "The Keystore key is gone" }
+            backupKeyFailsAfter = left - 1
+        }
+        backupKey
+    }
 
     /** Android's own SQLite, as SQLCipher's needs its native library. */
     override val backupMigration by lazy { BackupMigration(this) { FrameworkSQLiteOpenHelperFactory() } }

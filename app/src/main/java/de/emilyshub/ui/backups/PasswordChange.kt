@@ -1,5 +1,6 @@
 package de.emilyshub.ui.backups
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -20,10 +22,26 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.backup.PasswordProblem
 
 /**
- * How far changing the backup password is (SPEC.md §10; #111): asked for the old one and the new; told what forgetting
- * it means, before the app lock; and, past the app lock, asked for the new one only.
+ * The step changing the backup password is at (SPEC.md §10; #111): asked for the old one and the new; told what
+ * forgetting it means, before the app lock; and, past the app lock, asked for the new one only.
  */
-enum class PasswordChange { Changing, Forgetting, Forgotten }
+internal enum class PasswordChangeStep {
+    Changing,
+    Forgetting,
+    Forgotten,
+    ;
+
+    companion object {
+        /**
+         * Kept over a rotation or the app's process ending, but never past the app lock: [Forgotten] comes back as
+         * [Forgetting], so that the app lock is asked for again.
+         */
+        val Saver: Saver<PasswordChangeStep?, String> = Saver(
+            save = { step -> (if (step == Forgotten) Forgetting else step)?.name ?: "" },
+            restore = { name -> entries.firstOrNull { it.name == name } },
+        )
+    }
+}
 
 /**
  * Asks for the old backup password and the new one twice, saying that backups saved before stay with the old one; the
@@ -108,7 +126,7 @@ internal fun PasswordInsteadOfForgotten(busy: Boolean, onSet: (String) -> Unit, 
 }
 
 /** A new backup password typed twice, its problems shown once it was tried to be set. */
-private class NewPasswordState {
+internal class NewPasswordState {
     var password by mutableStateOf("")
     var repeated by mutableStateOf("")
     var tried by mutableStateOf(false)
@@ -122,20 +140,25 @@ private class NewPasswordState {
     }
 }
 
+/** The fields of a new backup password, by default named as the new one in place of another. */
 @Composable
-private fun NewPasswordFields(state: NewPasswordState) {
+internal fun NewPasswordFields(
+    state: NewPasswordState,
+    @StringRes label: Int = R.string.backup_password_new,
+    @StringRes repeatLabel: Int = R.string.backup_password_new_repeat,
+) {
     val problem = state.problem
     PasswordField(
         value = state.password,
         onChange = { state.password = it },
-        label = stringResource(R.string.backup_password_new),
+        label = stringResource(label),
         problem = stringResource(R.string.backup_password_too_short, Backups.MIN_PASSWORD_LENGTH)
             .takeIf { problem == PasswordProblem.TooShort },
     )
     PasswordField(
         value = state.repeated,
         onChange = { state.repeated = it },
-        label = stringResource(R.string.backup_password_new_repeat),
+        label = stringResource(repeatLabel),
         problem = stringResource(R.string.backup_password_not_repeated).takeIf { problem == PasswordProblem.NotRepeated },
     )
 }

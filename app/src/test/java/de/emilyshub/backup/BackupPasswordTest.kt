@@ -54,7 +54,7 @@ class BackupPasswordTest {
         runBlocking { backups.setPassword(OLD) }
 
         assertThrows(IllegalArgumentException::class.java) { runBlocking { backups.changePassword(OLD, "Flieder") } }
-        assertThrows(IllegalArgumentException::class.java) { runBlocking { backups.forgotPassword("Flieder") } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { backups.setForgottenPasswordAnew("Flieder") } }
 
         open(exported(), OLD)
     }
@@ -64,7 +64,7 @@ class BackupPasswordTest {
         runBlocking { backups.setPassword(OLD) }
         val before = exported()
 
-        runBlocking { backups.forgotPassword(NEW) }
+        runBlocking { backups.setForgottenPasswordAnew(NEW) }
 
         open(exported(), NEW)
         // The file was made with the old one, and still opens only with it.
@@ -73,9 +73,23 @@ class BackupPasswordTest {
     }
 
     @Test
+    fun `a failure writing the new key leaves the old password`() {
+        runBlocking { backups.setPassword(OLD) }
+        // Opening the stored key is asked for first, sealing the new one then fails.
+        app.backupKeyFailsAfter = 1
+
+        assertThrows(IllegalStateException::class.java) { runBlocking { backups.changePassword(OLD, NEW) } }
+        app.backupKeyFailsAfter = 0
+        assertThrows(IllegalStateException::class.java) { runBlocking { backups.setForgottenPasswordAnew(NEW) } }
+
+        app.backupKeyFailsAfter = null
+        open(exported(), OLD)
+    }
+
+    @Test
     fun `without a password set there is nothing to change`() {
         assertThrows(IllegalStateException::class.java) { runBlocking { backups.changePassword(OLD, NEW) } }
-        assertThrows(IllegalStateException::class.java) { runBlocking { backups.forgotPassword(NEW) } }
+        assertThrows(IllegalStateException::class.java) { runBlocking { backups.setForgottenPasswordAnew(NEW) } }
     }
 
     @Test
