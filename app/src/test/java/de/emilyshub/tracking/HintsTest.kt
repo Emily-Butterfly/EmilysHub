@@ -212,6 +212,9 @@ class HintsTest {
         assertNull(with(standRecord(1, day(1), pots, lying = 59), standRecord(2, day(2), pots, lying = 59)))
         assertNull(with(standRecord(1, day(1), pots, dizzy = 0), standRecord(2, day(2), pots, dizzy = 0)))
         assertTrue(with(standRecord(1, day(1), pots, lying = 60), standRecord(2, day(2), pots, lying = 60)) != null)
+        val low = { id: Long, back: Long -> standRecord(id, day(back), pots).let { it.copy(result = it.result.copy(systolicBelow90 = listOf(5))) } }
+        assertTrue("systolic below 90 is no 20/10 drop", with(low(1, 1), low(2, 2)) != null)
+        assertNull("a late drop of 20 is one", with(standRecord(1, day(1), pots, dropLate = 20), standRecord(2, day(2), pots, dropLate = 20)))
     }
 
     @Test
@@ -270,6 +273,19 @@ class HintsTest {
         assertEquals(setOf("exertion:1", "exertion:2"), hint.evidence)
         assertNull("one of three", hint(records(exertions = exertions, followUps = answers.take(1) + answers.drop(2)), HintRule.Pem))
         assertNull("on the third day does not count", hint(records(exertions = exertions, followUps = listOf(FollowUp(day(17), 1, FollowUpAnswer.Yes)) + answers.drop(1)), HintRule.Pem))
+    }
+
+    @Test
+    fun `an exertion confirmed from the minutes above the pacing threshold never sets off the hint`() {
+        val exertions = listOf(strong(1, 20, ExertionOrigin.HeartRate), strong(2, 10, ExertionOrigin.HeartRate), strong(3, 5, ExertionOrigin.HeartRate))
+        val answers = listOf(FollowUp(day(19), 1, FollowUpAnswer.Yes), FollowUp(day(9), 2, FollowUpAnswer.Yes), FollowUp(day(4), 3, FollowUpAnswer.Yes))
+        assertNull(hint(records(exertions = exertions, followUps = answers), HintRule.Pem))
+        val episodes = listOf(
+            Episode(id = 1, kind = EpisodeKind.Pem, startDate = day(19), startTime = LocalTime.of(10, 0)),
+            Episode(id = 2, kind = EpisodeKind.Pem, startDate = day(9), startTime = LocalTime.of(10, 0)),
+        )
+        val triggers = listOf(EpisodeTrigger(1, 1, Certainty.Sure), EpisodeTrigger(2, 2, Certainty.Sure))
+        assertNull(hint(records(exertions = exertions, episodes = episodes, triggers = triggers), HintRule.Pem))
     }
 
     @Test

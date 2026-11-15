@@ -48,7 +48,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.tracking.EpisodeKind
 import de.emilyshub.tracking.Figure
 import de.emilyshub.tracking.HintRule
 import de.emilyshub.tracking.HistoryRange
@@ -182,6 +181,7 @@ internal fun HintPage(tracking: Tracking, evaluation: TrackingEvaluation, page: 
     }
 }
 
+/** A heading within a page of the evaluation. */
 @Composable
 private fun Section(@StringRes title: Int) {
     Text(stringResource(title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp).semantics { heading() })
@@ -225,6 +225,7 @@ internal fun WeekPage(tracking: Tracking, evaluation: TrackingEvaluation, page: 
     }
 }
 
+/** The figures of the week, by what they are about. */
 @Composable
 private fun WeekFigureList(figures: WeekFigures) {
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -261,13 +262,14 @@ private fun WeekFigureList(figures: WeekFigures) {
     }
 }
 
+/** A figure under the label of resource [label]. */
 @Composable
 private fun FigureLine(@StringRes label: Int, figure: Figure, percent: Boolean = false) = FigureLine(stringResource(label), figure, percent)
 
 /** A figure as "label: value", "–" without data, and the entries it rests on. */
 @Composable
 private fun FigureLine(label: String, figure: Figure, percent: Boolean = false) {
-    val value = figure.value?.let { if (percent) "${(it * 100).roundToInt()} %" else formatNumber(it) } ?: stringResource(R.string.tracking_week_none)
+    val value = figure.value?.let { if (percent) stringResource(R.string.tracking_week_percent, (it * 100).roundToInt()) else formatNumber(it) } ?: stringResource(R.string.tracking_week_none)
     Column(Modifier.padding(vertical = 2.dp)) {
         Text(stringResource(R.string.tracking_week_figure, label, value), style = MaterialTheme.typography.bodyMedium)
         if (figure.basis > 0) {
@@ -334,7 +336,7 @@ internal fun HistoryChartsPage(tracking: Tracking, evaluation: TrackingEvaluatio
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Section(R.string.tracking_history_episodes)
                 history.bands.forEach { band ->
-                    val kind = stringResource(if (band.kind == EpisodeKind.Pem) R.string.tracking_episode_pem else R.string.tracking_episode_crash)
+                    val kind = stringResource(kindName(band.kind))
                     Text(
                         if (band.running) {
                             stringResource(R.string.tracking_history_band_running, band.from.numericDate(), kind)
@@ -358,6 +360,7 @@ private fun seriesLabel(series: Series): String = when (val kind = series.kind) 
     SeriesKind.Steps -> stringResource(R.string.tracking_history_steps)
     SeriesKind.GarminRestingPulse -> stringResource(R.string.tracking_history_garmin_pulse)
     SeriesKind.GarminSleep -> stringResource(R.string.tracking_history_garmin_sleep)
+    SeriesKind.MinutesAbove -> stringResource(R.string.tracking_history_minutes_above)
     SeriesKind.GarminDeepSleep -> stringResource(R.string.tracking_history_garmin_deep_sleep)
 }
 
@@ -380,8 +383,8 @@ private fun HistoryChart(label: String, series: Series, from: LocalDate, to: Loc
     val mark = MaterialTheme.colorScheme.tertiary
     val band = MaterialTheme.colorScheme.secondaryContainer
     val none = stringResource(R.string.tracking_history_empty)
-    val description = stringResource(R.string.tracking_history_chart, label) + ": " +
-        points.filter { it.second != null }.joinToString(", ") { (date, value) -> "${date.numericDate()} ${formatNumber(value!!)}" }.ifEmpty { none }
+    val values = points.filter { it.second != null }.joinToString(", ") { (date, value) -> "${date.numericDate()} ${formatNumber(value!!)}" }.ifEmpty { none }
+    val description = stringResource(R.string.tracking_history_chart, label, values)
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall)
         Text(formatNumber(high), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

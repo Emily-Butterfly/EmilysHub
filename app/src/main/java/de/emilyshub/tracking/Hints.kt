@@ -96,8 +96,8 @@ object HintRules {
     /** Mindestdaten, eigene Festlegung: exertions of strength 2–3 with the days after them. */
     const val MIN_EXERTIONS = 3
 
-    /** A level of a symptom, of sleep's quality or of breathlessness from which it counts. */
-    const val LEVEL_HIGH = 2
+    /** A level of a symptom, of sleep's quality or of breathlessness from which it counts, on the scale 0–3: eigene Festlegung. */
+    const val LEVEL_HIGH = WeekRules.LEVEL_HIGH
 
     /** Days with breathlessness under load or heat needed, with a medication raising the risk of thrombosis. [ESC-LE-2019] */
     const val BREATHLESS_DAYS = 3
@@ -153,9 +153,13 @@ object HintRules {
     /** Drunk less than this, in tenths of a litre: 1.5 l, eigener Arbeitswert, no guideline's. */
     const val FLUID_LOW_DECILITRES = WeekRules.FLUID_LOW_DECILITRES
 
-    /** The symptoms of the start list the rules look at, by their name: one renamed is no longer seen. */
+    /** "Atemnot" of the start list, by its name: renamed, the rule no longer sees it. */
     const val BREATHLESSNESS = "Atemnot"
+
+    /** "Stimmung gedrückt" of the start list, by its name. */
     const val LOW_MOOD = "Stimmung gedrückt"
+
+    /** "Angst/innere Unruhe" of the start list, by its name. */
     const val ANXIETY = "Angst/innere Unruhe"
 }
 
@@ -182,6 +186,7 @@ object Hints {
         return HintList(shown, missing.distinct())
     }
 
+    /** What every rule looks at: the [records], [today], and the days each kind of rule looks back to. */
     private class Context(val records: TrackingRecords, val today: LocalDate) {
         val dayFrom: LocalDate = today.minusDays(HintRules.DAY_WINDOW - 1)
         val countFrom: LocalDate = today.minusDays(HintRules.COUNT_WINDOW - 1)
@@ -196,15 +201,22 @@ object Hints {
         val events: List<TrackingEvent> by lazy { records.events.filter { inCount(records.dayOf(it.at)) } }
     }
 
+    /** "noch 1 Stehtest", "noch 2 Stehtests". */
     private fun noch(count: Int, one: String, many: String) = "noch $count ${if (count == 1) one else many}"
 
+    /** "noch 1 Tag", "noch 2 Tage". */
     private fun days(count: Int) = noch(count, "Tag", "Tage")
 
+    /** Whether [part] is the greater part of [whole]: more than half. */
     private fun majority(part: Int, whole: Int) = part * 2 > whole
 
+    /** Tenths of a litre as litres, as Germans write them: 1,5. */
+    private fun litres(decilitres: Int) = number(decilitres / 10.0)
+
+    /** [value] with one place, as Germans write it: 1,5. */
     private fun number(value: Double) = String.format(Locale.GERMANY, "%.1f", value)
 
-    // Immer: the basic examinations. [HRS-2015] [NIH-POTS-2021]
+    /** Immer: the basic examinations. [HRS-2015] [NIH-POTS-2021] */
     private fun basics(today: LocalDate) = Hint(
         rule = HintRule.Basics,
         title = "Basisuntersuchungen",
@@ -217,8 +229,8 @@ object Hints {
         latest = today,
     )
 
-    // Atemnot bei Belastung oder Wärme an mindestens 3 Tagen und ein Medikament mit Thromboserisiko. [ESC-LE-2019] Without
-    // Mindestdaten: it is to be cleared soon, the three days are its own threshold.
+    /** Atemnot bei Belastung oder Wärme an mindestens 3 Tagen und ein Medikament mit Thromboserisiko. [ESC-LE-2019] Without
+     * Mindestdaten: it is to be cleared soon, the three days are its own threshold. */
     private fun breathless(context: Context): Hint? {
         val records = context.records
         val ids = context.symptomIds(HintRules.BREATHLESSNESS)
@@ -247,7 +259,7 @@ object Hints {
         )
     }
 
-    // Ruhepuls am Morgen an der Mehrzahl der Tage über 100/min. [HRS-2015] Garmin's resting pulse, tier B, only backs it up.
+    /** Ruhepuls am Morgen an der Mehrzahl der Tage über 100/min. [HRS-2015] Garmin's resting pulse, tier B, only backs it up. */
     private fun morningPulse(context: Context, missing: MutableList<MissingData>): Hint? {
         val pulses = context.records.mornings.filter { context.inDays(it.date) && it.restingPulse != null }.sortedBy { it.date }
         if (pulses.size < HintRules.MIN_DAYS) {
@@ -258,11 +270,11 @@ object Hints {
         if (!majority(high.size, pulses.size)) return null
         val garmin = context.records.garmin.restingHeartRate.filterKeys(context::inDays)
         val garminHigh = garmin.count { it.value > HintRules.PULSE_HIGH }
-        val support = if (garminHigh > 0) listOf("Auch der Ruhepuls von Garmin lag an $garminHigh von ${garmin.size} Tagen über 100/min (Stufe B, nur als Stütze).") else emptyList()
+        val support = if (garminHigh > 0) listOf("Auch der Ruhepuls von Garmin lag an $garminHigh von ${garmin.size} Tagen über ${HintRules.PULSE_HIGH}/min (Stufe B, nur als Stütze).") else emptyList()
         return Hint(
             rule = HintRule.MorningPulse,
             title = "Ruhepuls am Morgen",
-            pattern = "Der Ruhepuls am Morgen lag an ${high.size} von ${pulses.size} Tagen über 100/min – passt zu einem dauerhaft erhöhten Ruhepuls, " +
+            pattern = "Der Ruhepuls am Morgen lag an ${high.size} von ${pulses.size} Tagen über ${HintRules.PULSE_HIGH}/min – passt zu einem dauerhaft erhöhten Ruhepuls, " +
                 "wie er etwa bei einer inadäquaten Sinustachykardie vorkommt.",
             basis = DataBasis(pulses.size, "Morgeneinträge mit Ruhepuls", pulses.first().date, pulses.last().date, supportedByB = support.isNotEmpty()),
             specialty = "Kardiologie",
@@ -283,18 +295,24 @@ object Hints {
 
     private fun firstNumber(text: String): Double? = Regex("""\d+(?:[.,]\d+)?""").find(text)?.value?.replace(',', '.')?.toDoubleOrNull()
 
-    // Verschlechterung innerhalb von 6 Wochen nach Beginn oder Erhöhung eines Medikaments (eigener Arbeitswert).
+    /** Verschlechterung innerhalb von 6 Wochen nach Beginn oder Erhöhung eines Medikaments (eigener Arbeitswert). */
+    /** A medication begun or its dose raised on [date]: [name], and [what] the hint calls it. */
+    private data class MedicationChange(val date: LocalDate, val name: String, val what: String)
+
+    /** [change] with the mean of the symptoms [before] it and [after] it. */
+    private data class Worsening(val change: MedicationChange, val before: Double, val after: Double)
+
     private fun medication(context: Context, missing: MutableList<MissingData>): Hint? {
         val records = context.records
         val names = records.medications.associate { it.id to it.name }
-        val changes = records.medications.map { Triple(it.start, it.name, "Beginn von ${it.name}") } +
+        val changes = records.medications.map { MedicationChange(it.start, it.name, "Beginn von ${it.name}") } +
             records.doseChanges.filter { isIncrease(it.from, it.to) }.mapNotNull { change ->
-                names[change.medicationId]?.let { Triple(change.date, it, "der Dosisänderung von $it (${change.from} → ${change.to})") }
+                names[change.medicationId]?.let { MedicationChange(change.date, it, "der Dosisänderung von $it (${change.from} → ${change.to})") }
             }
         val burden = records.levelsByDay.filterValues { it.isNotEmpty() }.mapValues { (_, levels) -> levels.values.average() }
         var shortest: Int? = null
-        val worse = changes.filter { (date, _, _) -> context.inCount(date) }.mapNotNull { change ->
-            val date = change.first
+        val worse = changes.filter { context.inCount(it.date) }.mapNotNull { change ->
+            val date = change.date
             val before = burden.filterKeys { !it.isBefore(date.minusDays(HintRules.MEDICATION_BEFORE_DAYS)) && it.isBefore(date) }.values
             val windowEnd = date.plusDays(HintRules.MEDICATION_DAYS - 1)
             val after = burden.filterKeys { !it.isBefore(date) && !it.isAfter(windowEnd) && !it.isAfter(context.today) }.values
@@ -304,7 +322,7 @@ object Hints {
                     if (!windowEnd.isBefore(context.today)) shortest = minOf(shortest ?: Int.MAX_VALUE, HintRules.MEDICATION_EVENINGS - after.size)
                     null
                 }
-                after.average() - before.average() >= HintRules.MEDICATION_WORSE -> Triple(change, before.average(), after.average())
+                after.average() - before.average() >= HintRules.MEDICATION_WORSE -> Worsening(change, before.average(), after.average())
                 else -> null
             }
         }
@@ -312,27 +330,29 @@ object Hints {
             shortest?.let { missing += MissingData("Medikamente", days(it)) }
             return null
         }
-        val latest = worse.maxOf { it.first.first }
+        val latest = worse.maxOf { it.change.date }
+        val weeksBefore = HintRules.MEDICATION_BEFORE_DAYS / 7
         return Hint(
             rule = HintRule.Medication,
             title = "Medikamente",
             pattern = worse.joinToString(" ") { (change, before, after) ->
-                "In den Wochen nach ${change.third} waren die Beschwerden im Mittel stärker als in den zwei Wochen davor " +
-                    "(${number(after)} statt ${number(before)} von 3)."
+                "In den Wochen nach ${change.what} waren die Beschwerden im Mittel stärker als in den $weeksBefore Wochen davor " +
+                    "(${number(after)} statt ${number(before)} von ${EntryLimits.LEVEL.last})."
             } + " Das passt zeitlich zu der Änderung, ohne dass sie die Ursache sein muss.",
             basis = DataBasis(
                 worse.size,
                 if (worse.size == 1) "Änderung, mit den Abendeinträgen davor und danach" else "Änderungen, mit den Abendeinträgen davor und danach",
-                worse.minOf { it.first.first }.minusDays(HintRules.MEDICATION_BEFORE_DAYS),
+                worse.minOf { it.change.date }.minusDays(HintRules.MEDICATION_BEFORE_DAYS),
                 minOf(latest.plusDays(HintRules.MEDICATION_DAYS - 1), context.today),
             ),
             specialty = "die Verordnenden",
-            question = "Kann die Verschlechterung mit ${worse.map { it.first.second }.distinct().joinToString(" oder ")} zusammenhängen? " +
+            question = "Kann die Verschlechterung mit ${worse.map { it.change.name }.distinct().joinToString(" oder ")} zusammenhängen? " +
                 "Nichts selbst ändern, sondern mit den Behandelnden besprechen.",
             sources = emptyList(),
-            evidence = worse.map { "change:${it.first.first}:${it.first.second}" }.toSet(),
+            evidence = worse.map { "change:${it.change.date}:${it.change.name}" }.toSet(),
             latest = latest,
-            ownValues = "Sechs Wochen danach, zwei Wochen davor, je mindestens 7 Abendeinträge und ein Anstieg um 0,5 sind eigene Arbeitswerte, keine Leitlinie.",
+            ownValues = "${HintRules.MEDICATION_DAYS / 7} Wochen danach, $weeksBefore Wochen davor, je mindestens " +
+                "${HintRules.MEDICATION_EVENINGS} Abendeinträge und ein Anstieg um ${number(HintRules.MEDICATION_WORSE)} sind eigene Arbeitswerte, keine Leitlinie.",
         )
     }
 
@@ -342,10 +362,11 @@ object Hints {
         StandVariant.Leaning -> (record.result.lastThreeRise ?: 0.0) > StandTestRules.RISE || (record.result.lastThreeMean ?: 0.0) > HintRules.LEAN_MEAN_HIGH
     }
 
+    /** Whether [record]'s pressure dropped at all, also systolic below 90: no finding to call it calm. */
     private fun dropped(record: StandRecord) = WeekRules.droppedEarly(record.result) || WeekRules.droppedLate(record.result)
 
-    // Stehtest: Pulsanstieg, Blutdruckabfall früh und verzögert, Beschwerden ohne Messauffälligkeit. Mindestdaten: 3 Stehtests
-    // an verschiedenen Tagen; each pattern in at least 2 of them.
+    /** Stehtest: Pulsanstieg, Blutdruckabfall früh und verzögert, Beschwerden ohne Messauffälligkeit. Mindestdaten: 3 Stehtests
+     * an verschiedenen Tagen; each pattern in at least 2 of them. */
     private fun stand(context: Context, missing: MutableList<MissingData>): List<Hint> {
         if (context.standDays < HintRules.MIN_STAND_TESTS) {
             missing += MissingData("Stehtest", noch(HintRules.MIN_STAND_TESTS - context.standDays, "Stehtest", "Stehtests"))
@@ -374,7 +395,7 @@ object Hints {
                 latest = matching.last().dayIn(zone),
             )
         }
-        val pots = tests.filter { rose(it) && !dropped(it) && (it.result.lyingPulse ?: 0) >= HintRules.LYING_PULSE_MIN && it.complaints }
+        val pots = tests.filter { rose(it) && !WeekRules.droppedBy2010(it.result) && (it.result.lyingPulse ?: 0) >= HintRules.LYING_PULSE_MIN && it.complaints }
         val pressured = tests.filter { WeekRules.hasPressure(it.result) }
         val calm = tests.filter { it.complaints && it.result.risesAtLeast30.isEmpty() && !rose(it) && !dropped(it) }
         return listOfNotNull(
@@ -384,7 +405,7 @@ object Hints {
                 tests,
                 { n, of ->
                     Triple(
-                        "In $n von $of Stehtests stieg der Puls im Stehen um 30/min oder mehr, ohne Blutdruckabfall und mit Beschwerden im Stehen – passt zu einem POTS-Muster.",
+                        "In $n von $of Stehtests stieg der Puls im Stehen um ${StandTestRules.RISE}/min oder mehr, ohne Blutdruckabfall und mit Beschwerden im Stehen – passt zu einem POTS-Muster.",
                         "Ist ein ärztlicher Stehtest über 10 Minuten sinnvoll, bei negativem Ergebnis eine Kipptischuntersuchung? Medikamente können die Ursache sein; das mit den Behandelnden besprechen.",
                         "Stehtests",
                     )
@@ -399,7 +420,7 @@ object Hints {
                 pressured,
                 { n, of ->
                     Triple(
-                        "In $n von $of Stehtests mit Blutdruck fiel er innerhalb von 3 Minuten um mindestens 20 mmHg systolisch, 10 mmHg diastolisch oder systolisch unter 90 mmHg – passt zu einer orthostatischen Hypotonie.",
+                        "In $n von $of Stehtests mit Blutdruck fiel er innerhalb von ${StandTestRules.EARLY_MINUTES} Minuten um mindestens ${WeekRules.SYSTOLIC_DROP} mmHg systolisch, ${WeekRules.DIASTOLIC_DROP} mmHg diastolisch oder systolisch unter ${StandTestRules.SYSTOLIC_LOW} mmHg – passt zu einer orthostatischen Hypotonie.",
                         "Können Medikamente den Blutdruckabfall erklären? Das mit den Behandelnden besprechen.",
                         "Stehtests mit Blutdruck",
                     )
@@ -414,7 +435,7 @@ object Hints {
                 pressured,
                 { n, of ->
                     Triple(
-                        "In $n von $of Stehtests mit Blutdruck fiel er erst nach den ersten 3 Minuten deutlich ab – passt zu einer verzögerten orthostatischen Hypotonie.",
+                        "In $n von $of Stehtests mit Blutdruck fiel er erst nach den ersten ${StandTestRules.EARLY_MINUTES} Minuten deutlich ab – passt zu einer verzögerten orthostatischen Hypotonie.",
                         "Ist eine Kipptischuntersuchung sinnvoll?",
                         "Stehtests mit Blutdruck",
                     )
@@ -441,13 +462,14 @@ object Hints {
         )
     }
 
-    // PEM: Verschlechterung an Tag +1 oder +2 nach mindestens 2 von 3 Anstrengungen der Stärke 2–3, oder mindestens 2
-    // Episoden mit einem Auslöser "sicher" oder "wahrscheinlich" und Beginn 12–72 Stunden danach. [IOM-2015] [NICE-NG206]
+    /** PEM: Verschlechterung an Tag +1 oder +2 nach mindestens 2 von 3 Anstrengungen der Stärke 2–3, oder mindestens 2
+     * Episoden mit einem Auslöser "sicher" oder "wahrscheinlich" und Beginn 12–72 Stunden danach. [IOM-2015] [NICE-NG206] */
     private fun pem(context: Context, missing: MutableList<MissingData>): Hint? {
         val records = context.records
         val eveningDays = records.evenings.map { it.date }.toSet()
+        // A confirmed suggestion from the minutes above the pacing threshold never sets off a hint (SPEC.md §17).
         val strong = records.exertions.filter {
-            it.strength in ExertionRules.FOLLOW_UP_STRENGTH && context.inCount(it.date) && !it.date.plusDays(HintRules.PEM_DAYS_AFTER.last).isAfter(context.today)
+            it.origin != ExertionOrigin.HeartRate && it.strength in ExertionRules.FOLLOW_UP_STRENGTH && context.inCount(it.date) && !it.date.plusDays(HintRules.PEM_DAYS_AFTER.last).isAfter(context.today)
         }
         val answersAfter = { exertion: Exertion ->
             records.followUps.filter { answer -> answer.exertionId == exertion.id && (answer.date.toEpochDay() - exertion.date.toEpochDay()) in HintRules.PEM_DAYS_AFTER }
@@ -463,7 +485,8 @@ object Hints {
         val episodes = records.episodes.filter { context.inCount(it.startDate) }.filter { episode ->
             records.triggers.any { trigger ->
                 trigger.episodeId == episode.id && trigger.certainty != Certainty.Unclear &&
-                    exertions[trigger.exertionId]?.let { ExertionRules.hoursAfter(it, episode).hours in HintRules.PEM_GAP_HOURS } == true
+                    exertions[trigger.exertionId]?.takeIf { it.origin != ExertionOrigin.HeartRate }
+                        ?.let { ExertionRules.hoursAfter(it, episode).hours in HintRules.PEM_GAP_HOURS } == true
             }
         }.sortedBy { it.startDate }
         val byEpisodes = episodes.size >= HintRules.PEM_EPISODES
@@ -477,8 +500,8 @@ object Hints {
         val support = garminPulseAfter(records, if (byExertions) worsened else emptyList())
         val days = counted.map { it.date } + episodes.map { it.startDate }
         val patterns = listOfNotNull(
-            if (byExertions) "Nach ${worsened.size} der letzten ${last.size} Anstrengungen der Stärke 2–3 ging es am Tag danach oder am zweiten Tag schlechter." else null,
-            if (byEpisodes) "${episodes.size} Episoden begannen 12 bis 72 Stunden nach einer Anstrengung, die als sicherer oder wahrscheinlicher Auslöser vermerkt ist." else null,
+            if (byExertions) "Nach ${worsened.size} der letzten ${last.size} Anstrengungen der Stärke ${ExertionRules.FOLLOW_UP_STRENGTH.first}–${ExertionRules.FOLLOW_UP_STRENGTH.last} ging es am Tag danach oder am zweiten Tag schlechter." else null,
+            if (byEpisodes) "${episodes.size} Episoden begannen ${HintRules.PEM_GAP_HOURS.first} bis ${HintRules.PEM_GAP_HOURS.last} Stunden nach einer Anstrengung, die als sicherer oder wahrscheinlicher Auslöser vermerkt ist." else null,
         )
         return Hint(
             rule = HintRule.Pem,
@@ -513,7 +536,7 @@ object Hints {
         )
     }
 
-    // Haut. [SAJJAN-2015] Mindestdaten: 5 Ereignisse; each pattern in at least 2 of them (eigene Festlegung).
+    /** Haut. [SAJJAN-2015] Mindestdaten: 5 Ereignisse; each pattern in at least 2 of them (eigene Festlegung). */
     private fun skin(context: Context, missing: MutableList<MissingData>): List<Hint> {
         val events = context.events.sortedBy { it.at }
         if (events.size < HintRules.MIN_EVENTS) {
@@ -533,7 +556,7 @@ object Hints {
                 sources = listOf(Source.Sajjan2015),
                 evidence = matching.map { "event:${it.id}" }.toSet(),
                 latest = records.dayOf(matching.last().at),
-                ownValues = "Mehr als 30 Minuten und mindestens 2 Ereignisse sind eigene Arbeitswerte.",
+                ownValues = "Mehr als ${HintRules.SKIN_MINUTES} Minuten und mindestens ${HintRules.SKIN_EVENTS} Ereignisse sind eigene Arbeitswerte.",
             )
         }
         val changed = events.filter { it.skinAreas.isNotEmpty() }
@@ -542,7 +565,7 @@ object Hints {
                 HintRule.SkinPersistent,
                 changed.filter { (it.skinFadeMinutes ?: 0) > HintRules.SKIN_MINUTES || it.skinPattern == SkinPattern.Reticular || it.skinPainful == true },
                 "Haut: bleibt, netzartig oder schmerzhaft",
-                { n -> "Bei $n von ${events.size} Ereignissen blieb die Hautveränderung über 30 Minuten, war unterbrochen-netzartig oder schmerzte – spricht dafür, die Haut ärztlich ansehen zu lassen." },
+                { n -> "Bei $n von ${events.size} Ereignissen blieb die Hautveränderung über ${HintRules.SKIN_MINUTES} Minuten, war unterbrochen-netzartig oder schmerzte – spricht dafür, die Haut ärztlich ansehen zu lassen." },
                 "Dermatologie oder Rheumatologie",
                 "Ist eine Bestimmung der Antiphospholipid-Antikörper sinnvoll?",
             ),
@@ -565,7 +588,7 @@ object Hints {
         )
     }
 
-    // Schlaf: Schlafqualität ≥ 2 an der Mehrzahl der Nächte. [DEGAM-MUEDIGKEIT] Garmin's length of sleep, tier B, backs it up.
+    /** Schlaf: Schlafqualität ≥ 2 an der Mehrzahl der Nächte. [DEGAM-MUEDIGKEIT] Garmin's length of sleep, tier B, backs it up. */
     private fun sleep(context: Context, missing: MutableList<MissingData>): Hint? {
         val nights = context.records.mornings.filter { context.inDays(it.date) && it.sleepQuality != null }.sortedBy { it.date }
         if (nights.size < HintRules.MIN_DAYS) {
@@ -596,7 +619,7 @@ object Hints {
         )
     }
 
-    // Stimmung: gedrückt oder Angst ≥ 2 an der Mehrzahl der Tage. [DEGAM-MUEDIGKEIT]
+    /** Stimmung: gedrückt oder Angst ≥ 2 an der Mehrzahl der Tage. [DEGAM-MUEDIGKEIT] */
     private fun mood(context: Context, missing: MutableList<MissingData>): Hint? {
         val ids = context.symptomIds(HintRules.LOW_MOOD, HintRules.ANXIETY)
         val days = context.records.levelsByDay.filterKeys(context::inDays)
@@ -623,7 +646,7 @@ object Hints {
         )
     }
 
-    // Trinkmenge an der Mehrzahl der Tage unter 1,5 l (eigener Arbeitswert).
+    /** Trinkmenge an der Mehrzahl der Tage unter 1,5 l (eigener Arbeitswert). */
     private fun fluid(context: Context, missing: MutableList<MissingData>): Hint? {
         val evenings = context.records.evenings.filter { context.inDays(it.date) && it.fluidDecilitres != null }.sortedBy { it.date }
         if (evenings.size < HintRules.MIN_DAYS) {
@@ -635,14 +658,14 @@ object Hints {
         return Hint(
             rule = HintRule.Fluid,
             title = "Trinkmenge",
-            pattern = "An ${low.size} von ${evenings.size} Tagen waren es weniger als 1,5 l – spricht dafür, die Trinkmenge anzusprechen.",
+            pattern = "An ${low.size} von ${evenings.size} Tagen waren es weniger als ${litres(HintRules.FLUID_LOW_DECILITRES)} l – spricht dafür, die Trinkmenge anzusprechen.",
             basis = DataBasis(evenings.size, "Abendeinträge mit Trinkmenge", evenings.first().date, evenings.last().date),
             specialty = "Hausarztpraxis",
             question = "Welche Trinkmenge ist bei diesen Beschwerden sinnvoll?",
             sources = emptyList(),
             evidence = low.map { "day:${it.date}" }.toSet(),
             latest = low.last().date,
-            ownValues = "1,5 l ist ein eigener Arbeitswert, keine Leitlinie.",
+            ownValues = "${litres(HintRules.FLUID_LOW_DECILITRES)} l ist ein eigener Arbeitswert, keine Leitlinie.",
         )
     }
 }

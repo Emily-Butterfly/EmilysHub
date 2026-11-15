@@ -172,6 +172,17 @@ class WeekEvaluationTest {
     }
 
     @Test
+    fun `two medications otherwise than planned on one evening are one evening`() {
+        val records = TrackingRecords(
+            berlin,
+            evenings = listOf(evening(day(0)), evening(day(1))),
+            medications = listOf(Medication(id = 1, name = "Medikament A", start = day(0)), Medication(id = 2, name = "Medikament B", start = day(0))),
+            deviations = listOf(IntakeDeviation(day(0), 1, Deviation.Forgotten), IntakeDeviation(day(0), 2, Deviation.Forgotten)),
+        )
+        assertEquals(Figure(1.0, 2), of(records).deviations)
+    }
+
+    @Test
     fun `Garmin's steps and minutes above the threshold per day with data`() {
         val records = TrackingRecords(berlin, garmin = GarminDays(steps = mapOf(day(0) to 4000L, day(1) to 6000L, day(7) to 1L), minutesAbove = mapOf(day(0) to 0L)))
         assertEquals(Figure(5000.0, 2), of(records).stepsPerDay)

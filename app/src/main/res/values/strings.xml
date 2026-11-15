@@ -1999,7 +1999,8 @@
     <string name="tracking_week_day">Tag &amp; Nacht</string>
     <string name="tracking_week_fluid">Tage unter 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie)</string>
     <string name="tracking_week_sleep">Nächte mit Schlafqualität 2 oder schlechter</string>
-    <string name="tracking_week_deviations">Abweichungen bei Medikamenten</string>
+    <string name="tracking_week_deviations">Abende mit Abweichung bei Medikamenten</string>
+    <string name="tracking_week_percent">%1$d %%</string>
     <string name="tracking_week_garmin">Garmin</string>
     <string name="tracking_week_steps">Schritte pro Tag (Stufe A)</string>
     <string name="tracking_week_minutes_above">Minuten über der Pacing-Schwelle pro Tag</string>
@@ -2011,9 +2012,10 @@
     <string name="tracking_history_steps">Schritte (Garmin, Stufe A)</string>
     <string name="tracking_history_garmin_pulse">Ruhepuls von Garmin (/min, Stufe B)</string>
     <string name="tracking_history_garmin_sleep">Schlafdauer laut Garmin (h, Stufe B)</string>
+    <string name="tracking_history_minutes_above">Minuten über der Pacing-Schwelle (Garmin, Stufe B)</string>
     <string name="tracking_history_garmin_deep_sleep">Tiefschlaf (min) – Garmin-Schätzung</string>
     <string name="tracking_history_legend">Senkrechte Linien: Medikamentenänderungen. Bänder: Episoden. Lücken: Tage ohne Wert.</string>
-    <string name="tracking_history_chart">Diagramm %1$s</string>
+    <string name="tracking_history_chart">Diagramm %1$s: %2$s</string>
     <string name="tracking_history_empty">ohne Wert</string>
     <string name="tracking_history_changes">Medikamentenänderungen</string>
     <string name="tracking_history_start">%1$s: %2$s Beginn</string>

@@ -55,7 +55,7 @@ data class SymptomFigure(val symptom: Symptom, val mean: Figure)
  * [WeekRules.DIASTOLIC_DROP] mmHg within three minutes and after; the events with breathlessness of 2 or more and with a
  * change of the skin, and the mean minutes till it faded; the exertions, the episodes and the mean hours from a trigger
  * to the start; the mean of each symptom; the days with less than [WeekRules.FLUID_LOW_DECILITRES] drunk; the nights with
- * sleep's quality 2 or worse; the intakes otherwise than planned; Garmin's steps and minutes above the pacing threshold
+ * sleep's quality 2 or worse; the evenings with an intake otherwise than planned; Garmin's steps and minutes above the pacing threshold
  * per day; and the share of entries made up later.
  */
 data class WeekFigures(
@@ -96,13 +96,13 @@ object WeekRules {
     /** A drop of the diastolic pressure by this much, in mmHg, counts. [ESC-SYNK-2018] */
     const val DIASTOLIC_DROP = 10
 
-    /** Less drunk than this, in tenths of a litre, counts: 1.5 l, own working value, no guideline's. */
+    /** Less drunk than this, in tenths of a litre, counts: 1.5 l, eigener Arbeitswert, no guideline's. */
     const val FLUID_LOW_DECILITRES = 15
 
-    /** Breathlessness and sleep's quality from this on count. */
+    /** Breathlessness and sleep's quality from this on count, on the scale 0–3: eigene Festlegung. */
     const val LEVEL_HIGH = 2
 
-    /** How many measurements of a Stehtest must rise by [StandTestRules.RISE] for it to count. */
+    /** How many measurements of a Stehtest must rise by [StandTestRules.RISE] for it to count. [NIH-POTS-2021] [CMAJ-POTS-2022] */
     const val RISES_NEEDED = 2
 
     /** Whether [result] dropped within [StandTestRules.EARLY_MINUTES]: by the thresholds above, or systolic below 90. */
@@ -114,6 +114,11 @@ object WeekRules {
     fun droppedLate(result: StandTestResult): Boolean = !droppedEarly(result) &&
         ((result.systolicDropLate ?: 0) >= SYSTOLIC_DROP || (result.diastolicDropLate ?: 0) >= DIASTOLIC_DROP ||
             result.systolicBelow90.any { it > StandTestRules.EARLY_MINUTES })
+
+    /** Whether [result] dropped by [SYSTOLIC_DROP] / [DIASTOLIC_DROP] mmHg at any point, early or late, the low systolic aside. [NIH-POTS-2021] */
+    fun droppedBy2010(result: StandTestResult): Boolean =
+        listOf(result.systolicDropEarly, result.systolicDropLate).any { (it ?: 0) >= SYSTOLIC_DROP } ||
+            listOf(result.diastolicDropEarly, result.diastolicDropLate).any { (it ?: 0) >= DIASTOLIC_DROP }
 
     /** Whether [result] has a pressure at all to drop: lying and standing, early or late. */
     fun hasPressure(result: StandTestResult): Boolean = listOf(
@@ -175,7 +180,7 @@ object WeekEvaluation {
                 .map { symptom -> SymptomFigure(symptom, Figure.mean(levels.filter { it.symptomId == symptom.id }.map { it.level })) },
             fluidLowDays = Figure.count(fluids.count { it < WeekRules.FLUID_LOW_DECILITRES }, fluids.size),
             poorNights = Figure.count(qualities.count { it >= WeekRules.LEVEL_HIGH }, qualities.size),
-            deviations = Figure.count(records.deviations.count { deviation -> withIntakes.any { it.date == deviation.date } }, withIntakes.size),
+            deviations = Figure.count(withIntakes.count { evening -> records.deviations.any { it.date == evening.date } }, withIntakes.size),
             stepsPerDay = Figure.mean(steps),
             minutesAbovePerDay = Figure.mean(above),
             backfilledShare = if (entries.isEmpty()) Figure.NONE else Figure(entries.count { it }.toDouble() / entries.size, entries.size),

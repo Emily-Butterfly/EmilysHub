@@ -19,6 +19,9 @@ sealed interface SeriesKind {
     /** The length of the night's sleep by Garmin, tier B. */
     data object GarminSleep : SeriesKind
 
+    /** The minutes of Garmin's heart rate above the pacing threshold, tier B as the cautious tier of a heart rate: they only ever suggest. */
+    data object MinutesAbove : SeriesKind
+
     /** The deep sleep of the night by Garmin's reckoning, tier C: "Garmin-Schätzung". */
     data object GarminDeepSleep : SeriesKind
 }
@@ -78,6 +81,7 @@ object TrackingHistory {
             line(SeriesKind.Steps, GarminTiers.ruleOf(SampleKind.Steps).tier, records.garmin.steps),
             line(SeriesKind.GarminRestingPulse, GarminTiers.ruleOf(SampleKind.RestingHeartRate).tier, records.garmin.restingHeartRate),
             line(SeriesKind.GarminSleep, GarminTiers.ruleOf(SampleKind.Sleep).tier, records.garmin.sleepMinutes),
+            line(SeriesKind.MinutesAbove, GarminTiers.HEART_RATE_IN_MOTION.tier, records.garmin.minutesAbove),
             line(SeriesKind.GarminDeepSleep, GarminTiers.ruleOf(SampleKind.SleepStage).tier, records.garmin.deepSleepMinutes),
         ).filter { it.hasValues }
 

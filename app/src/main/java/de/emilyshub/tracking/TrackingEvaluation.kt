@@ -55,6 +55,7 @@ class TrackingEvaluation(
         return Hints.evaluate(records(database, from, today), today, done)
     }
 
+    /** The setting that keeps the evidence of the hint of [rule] as it was marked done. */
     private fun doneKey(rule: HintRule) = "hint.done.${rule.name}"
 
     /**
@@ -100,6 +101,7 @@ class TrackingEvaluation(
     }
 
     private companion object {
+        /** Between the keys of the evidence kept for a hint done. */
         const val EVIDENCE_SEPARATOR = "\n"
 
         /** How long before the first day a night may begin. */

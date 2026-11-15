@@ -50,11 +50,14 @@ class TrackingHistoryTest {
     fun `Garmin's values with their tier, only those with data, deep sleep marked as an estimate`() {
         val records = TrackingRecords(
             berlin,
-            garmin = GarminDays(steps = mapOf(today to 5000L), restingHeartRate = mapOf(today to 60.0), deepSleepMinutes = mapOf(today to 70L)),
+            garmin = GarminDays(steps = mapOf(today to 5000L), restingHeartRate = mapOf(today to 60.0), minutesAbove = mapOf(today to 12L), deepSleepMinutes = mapOf(today to 70L)),
         )
         val garmin = TrackingHistory.of(records, HistoryRange.Four, today).series.filter { it.tier != null }
-        assertEquals(listOf(SeriesKind.Steps to Tier.A, SeriesKind.GarminRestingPulse to Tier.B, SeriesKind.GarminDeepSleep to Tier.C), garmin.map { it.kind to it.tier })
-        assertEquals(listOf(false, false, true), garmin.map { it.estimate })
+        assertEquals(
+            listOf(SeriesKind.Steps to Tier.A, SeriesKind.GarminRestingPulse to Tier.B, SeriesKind.MinutesAbove to Tier.B, SeriesKind.GarminDeepSleep to Tier.C),
+            garmin.map { it.kind to it.tier },
+        )
+        assertEquals(listOf(false, false, false, true), garmin.map { it.estimate })
     }
 
     @Test
