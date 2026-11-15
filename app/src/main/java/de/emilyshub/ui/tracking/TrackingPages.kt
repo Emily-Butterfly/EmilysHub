@@ -37,6 +37,12 @@ sealed interface TrackingPage : Serializable {
 
     /** All Stehtests, the latest first. */
     data object StandTests : TrackingPage
+
+    /** Event [id]: its fields, its timer and Garmin's curve around it. */
+    data class Event(val id: Long) : TrackingPage
+
+    /** All events, the latest first. */
+    data object Events : TrackingPage
 }
 
 /**

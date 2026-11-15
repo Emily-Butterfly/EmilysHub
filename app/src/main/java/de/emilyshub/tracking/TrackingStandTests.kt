@@ -3,8 +3,6 @@ package de.emilyshub.tracking
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -62,7 +60,7 @@ class TrackingStandTests(private val tracking: TrackingStore, private val clock:
                     fluidDecilitres = before.fluidDecilitres?.takeIf { it in EntryLimits.FLUID_DECILITRES },
                 ),
             )
-            database.standTests().insertIntakes(intakesBefore(database, now).map { (medication, minutes) -> StandIntake(id, medication, minutes) })
+            database.standTests().insertIntakes(TodaysIntakes.before(database, now).map { (medication, minutes) -> StandIntake(id, medication, minutes) })
             id
         }
     }
@@ -156,26 +154,6 @@ class TrackingStandTests(private val tracking: TrackingStore, private val clock:
         return database.garmin()
             .overlapping(SampleKind.HeartRate, test.startedAt.toEpochMilli() - 1, last.toEpochMilli())
             .map { Beat(it.start, it.value.toInt()) }
-    }
-
-    /**
-     * The medications taken today with the minutes since each was last taken before [now]: by the times planned, or as
-     * the evening entry of today says otherwise, a forgotten one left out.
-     */
-    private suspend fun intakesBefore(database: TrackingDatabase, now: ZonedDateTime): List<Pair<Long, Int>> {
-        val today: LocalDate = now.toLocalDate()
-        val deviations = database.entries().deviations(today).associateBy { it.medicationId }
-        return database.medications().all().filter { it.isActiveOn(today) }.mapNotNull { medication ->
-            val times: List<LocalTime> = when (val deviation = deviations[medication.id]) {
-                null -> medication.times
-                else -> when (deviation.deviation) {
-                    Deviation.Forgotten -> emptyList()
-                    Deviation.OtherTime -> listOfNotNull(deviation.time)
-                }
-            }
-            val last = times.filter { !it.isAfter(now.toLocalTime()) }.maxOrNull() ?: return@mapNotNull null
-            medication.id to Duration.between(today.atTime(last).atZone(now.zone), now).toMinutes().toInt()
-        }
     }
 
     private fun StandPoint.withinLimits() = copy(

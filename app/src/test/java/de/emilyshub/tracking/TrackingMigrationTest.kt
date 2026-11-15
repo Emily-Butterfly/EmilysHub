@@ -87,4 +87,24 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 4 gains the events and keeps its Stehtests`() {
+        createTrackingAsExported(context, version = 4) {
+            it.execSQL(
+                "INSERT INTO stand_test (id, variant, started_at, abort_reason, finished) VALUES (1, 'standing', '2026-11-15T10:00:00Z', '', 1)",
+            )
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals(StandVariant.Standing, database.standTests().get(1)?.variant)
+                val id = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-11-15T10:00:00Z"), skinAreas = setOf(SkinArea.Arms)))
+                assertEquals(setOf(SkinArea.Arms), database.events().get(id)?.skinAreas)
+            }
+        } finally {
+            database.close()
+        }
+    }
 }

@@ -77,7 +77,7 @@ private fun RunningStandTest(tracking: Tracking, standTests: TrackingStandTests,
     WhileMeasuring(tracking)
     val signal = rememberMeasureSignal()
     val scope = rememberCoroutineScope()
-    val now = rememberNow(standTests)
+    val now = rememberNow(standTests::now)
     var aborting by remember { mutableStateOf(false) }
     // What was typed for the point and not saved yet; no state, as nothing is shown of it here. Not [KeepIslandDraft]:
     // a point half typed is not saved as the page goes away, as on a rotation, only should the test end with it.
@@ -278,13 +278,13 @@ private class Draft {
     var point: StandPoint? = null
 }
 
-/** The moment it is, anew each quarter of a second. */
+/** The moment it is by [clock], anew each quarter of a second, for a timer. */
 @Composable
-private fun rememberNow(standTests: TrackingStandTests): Instant {
-    var now by remember { mutableStateOf(standTests.now()) }
-    LaunchedEffect(standTests) {
+internal fun rememberNow(clock: () -> Instant): Instant {
+    var now by remember { mutableStateOf(clock()) }
+    LaunchedEffect(Unit) {
         while (true) {
-            now = standTests.now()
+            now = clock()
             delay(TICK_MILLIS)
         }
     }

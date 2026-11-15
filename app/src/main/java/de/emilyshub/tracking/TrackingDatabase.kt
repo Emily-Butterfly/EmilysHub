@@ -38,7 +38,7 @@ interface TrackingSettingsDao {
  * Tracking's own database, `tracking.db` (SPEC.md §17), apart from [de.emilyshub.data.HubDatabase] and from the Doku's,
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
  * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125), the values read from Health
- * Connect (#126), the Stehtests (#127); the base data in its settings.
+ * Connect (#126), the Stehtests (#127), the events (#128); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
@@ -57,6 +57,8 @@ interface TrackingSettingsDao {
         StandTest::class,
         StandPoint::class,
         StandIntake::class,
+        TrackingEvent::class,
+        EventIntake::class,
     ],
     version = TrackingDatabase.VERSION,
 )
@@ -74,11 +76,13 @@ abstract class TrackingDatabase : RoomDatabase() {
 
     abstract fun standTests(): StandTestDao
 
+    abstract fun events(): EventDao
+
     companion object {
-        const val VERSION = 4
+        const val VERSION = 5
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
@@ -123,4 +127,36 @@ class TrackingConverters {
 
     @TypeConverter
     fun toAbortCause(text: String?): AbortCause? = text?.let { AbortCause.entries.first { cause -> cause.stored == it } }
+
+    @TypeConverter
+    fun fromEventKind(kind: EventKind): String = kind.stored
+
+    @TypeConverter
+    fun toEventKind(text: String): EventKind = EventKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromWaterTemperature(water: WaterTemperature?): String? = water?.stored
+
+    @TypeConverter
+    fun toWaterTemperature(text: String?): WaterTemperature? = text?.let { WaterTemperature.entries.first { water -> water.stored == it } }
+
+    @TypeConverter
+    fun fromPosture(posture: Posture?): String? = posture?.stored
+
+    @TypeConverter
+    fun toPosture(text: String?): Posture? = text?.let { Posture.entries.first { posture -> posture.stored == it } }
+
+    @TypeConverter
+    fun fromSkinPattern(pattern: SkinPattern?): String? = pattern?.stored
+
+    @TypeConverter
+    fun toSkinPattern(text: String?): SkinPattern? = text?.let { SkinPattern.entries.first { pattern -> pattern.stored == it } }
+
+    /** The areas of the skin as their stored names, in their order, by commas. */
+    @TypeConverter
+    fun fromSkinAreas(areas: Set<SkinArea>): String = areas.sorted().joinToString(",") { it.stored }
+
+    @TypeConverter
+    fun toSkinAreas(text: String): Set<SkinArea> =
+        if (text.isEmpty()) emptySet() else text.split(",").map { stored -> SkinArea.entries.first { it.stored == stored } }.toSet()
 }

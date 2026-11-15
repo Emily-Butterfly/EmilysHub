@@ -42,6 +42,7 @@ import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.island.rememberIslandLoad
+import java.time.Instant
 import java.util.Locale
 
 /**
@@ -163,14 +164,20 @@ private fun RowScope.Cell(text: String, weight: Float) {
 /** Garmin's heart rate over the test, tier A, beside the own points; a mark where it stood up. */
 @Composable
 private fun Curve(curve: List<Beat>, test: StandTest) {
-    val line = MaterialTheme.colorScheme.tertiary
-    val mark = MaterialTheme.colorScheme.outline
-    val low = curve.minOf { it.bpm }
-    val high = curve.maxOf { it.bpm }
-    val first = curve.first().at.toEpochMilli()
-    val span = (curve.last().at.toEpochMilli() - first).coerceAtLeast(1)
-    val description = stringResource(R.string.tracking_stand_curve_description, curve.joinToString { it.bpm.toString() })
     Text(stringResource(R.string.tracking_stand_curve), style = MaterialTheme.typography.titleSmall)
+    HeartRateCurve(curve.map { it.at to it.bpm }, mark = test.standingAt)
+}
+
+/** Heart rates over time as a line, scaled to their range, with a [mark] across at a moment if given. */
+@Composable
+internal fun HeartRateCurve(beats: List<Pair<Instant, Int>>, mark: Instant?) {
+    val line = MaterialTheme.colorScheme.tertiary
+    val markColor = MaterialTheme.colorScheme.outline
+    val low = beats.minOf { it.second }
+    val high = beats.maxOf { it.second }
+    val first = beats.first().first.toEpochMilli()
+    val span = (beats.last().first.toEpochMilli() - first).coerceAtLeast(1)
+    val description = stringResource(R.string.tracking_stand_curve_description, beats.joinToString { it.second.toString() })
     Text(high.toString(), style = MaterialTheme.typography.labelSmall)
     Canvas(
         Modifier
@@ -180,17 +187,17 @@ private fun Curve(curve: List<Beat>, test: StandTest) {
     ) {
         val stroke = 2.dp.toPx()
         val spread = (high - low).toFloat()
-        val at = { beat: Beat ->
-            val x = if (curve.size == 1) size.width / 2 else size.width * (beat.at.toEpochMilli() - first) / span
-            val share = if (spread == 0f) 0.5f else (beat.bpm - low) / spread
+        val at = { beat: Pair<Instant, Int> ->
+            val x = if (beats.size == 1) size.width / 2 else size.width * (beat.first.toEpochMilli() - first) / span
+            val share = if (spread == 0f) 0.5f else (beat.second - low) / spread
             Offset(x, size.height * (1 - share))
         }
-        test.standingAt?.let { standing ->
-            val x = (size.width * (standing.toEpochMilli() - first) / span).coerceIn(0f, size.width)
-            drawLine(mark, Offset(x, 0f), Offset(x, size.height))
+        mark?.let { moment ->
+            val x = (size.width * (moment.toEpochMilli() - first) / span).coerceIn(0f, size.width)
+            drawLine(markColor, Offset(x, 0f), Offset(x, size.height))
         }
         val path = Path()
-        curve.forEachIndexed { index, beat ->
+        beats.forEachIndexed { index, beat ->
             val point = at(beat)
             if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
         }
@@ -285,4 +292,4 @@ private fun signed(value: Int) = if (value > 0) "+$value" else value.toString()
 private fun decimal(value: Double) = String.format(Locale.GERMANY, "%.1f", value)
 
 /** Minutes as hours with a decimal comma. */
-private fun hours(minutes: Int) = String.format(Locale.GERMANY, "%.1f", minutes / 60.0)
+internal fun hours(minutes: Int) = String.format(Locale.GERMANY, "%.1f", minutes / 60.0)

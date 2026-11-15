@@ -91,3 +91,25 @@ val TRACKING_MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_stand_intake_medication_id` ON `stand_intake` (`medication_id`)")
     }
 }
+
+/** 4 → 5: the events with the intakes before them (#128). */
+val TRACKING_MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `tracking_event` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`kind` TEXT NOT NULL, `at` TEXT NOT NULL, `water` TEXT, `duration_minutes` INTEGER, `posture` TEXT, " +
+                "`pulse_before` INTEGER, `ended_at` TEXT, `pulse_after` INTEGER, `pulse_five` INTEGER, " +
+                "`pulse_ten` INTEGER, `spo2` INTEGER, `breathlessness` INTEGER, `dizziness` INTEGER, " +
+                "`sat_down` INTEGER, `sat_down_after_minutes` INTEGER, `skin_areas` TEXT NOT NULL, " +
+                "`skin_pattern` TEXT, `skin_painful` INTEGER, `skin_fades_lying` INTEGER, " +
+                "`skin_fade_minutes` INTEGER, `recovered_minutes` INTEGER)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `event_intake` (`event_id` INTEGER NOT NULL, `medication_id` INTEGER NOT NULL, " +
+                "`minutes_before` INTEGER NOT NULL, PRIMARY KEY(`event_id`, `medication_id`), " +
+                "FOREIGN KEY(`event_id`) REFERENCES `tracking_event`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_intake_medication_id` ON `event_intake` (`medication_id`)")
+    }
+}

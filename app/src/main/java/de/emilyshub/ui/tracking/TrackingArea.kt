@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,7 @@ import de.emilyshub.ui.island.IslandTexts
 import de.emilyshub.ui.island.rememberIslandLoad
 import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.numericDate
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /**
@@ -93,6 +95,8 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         TrackingPage.NewStandTest -> NewStandTestPage(modules.standTests, contentPadding, onStarted = { onPagesChange(pages.replaceTop(TrackingPage.StandTest(it))) })
         is TrackingPage.StandTest -> StandTestPage(tracking, modules, page.id, contentPadding)
         TrackingPage.StandTests -> StandTestsPage(tracking, modules.standTests, contentPadding, onOpen = { open(TrackingPage.StandTest(it)) })
+        is TrackingPage.Event -> EventPage(tracking, modules, page, contentPadding, onDone = back)
+        TrackingPage.Events -> EventsPage(tracking, modules.events, contentPadding, onOpen = { open(TrackingPage.Event(it)) })
     }
 }
 
@@ -110,7 +114,7 @@ internal val TRACKING_TEXTS = IslandTexts(
 
 /**
  * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
- * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest" and the list of them.
+ * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis" and the lists of them.
  */
 @Composable
 private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
@@ -118,6 +122,8 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
     val status = rememberIslandLoad(tracking) { entries.status(entries.suggestedDay()) }
     var backfilling by remember { mutableStateOf(false) }
     var backfillDay by remember { mutableStateOf<LocalDate?>(null) }
+    var choosingEvent by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     Column(
         Modifier
             .fillMaxSize()
@@ -143,7 +149,21 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
                 OutlinedButton(onClick = { onOpen(TrackingPage.NewStandTest) }) { Text(stringResource(R.string.tracking_stand_new)) }
                 TextButton(onClick = { onOpen(TrackingPage.StandTests) }) { Text(stringResource(R.string.tracking_stand_list)) }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                OutlinedButton(onClick = { choosingEvent = true }) { Text(stringResource(R.string.tracking_event_new)) }
+                TextButton(onClick = { onOpen(TrackingPage.Events) }) { Text(stringResource(R.string.tracking_event_list)) }
+            }
         }
+    }
+    if (choosingEvent) {
+        EventKindDialog(
+            tracking,
+            onChosen = { kind ->
+                choosingEvent = false
+                scope.launch { modules.events.create(kind)?.let { onOpen(TrackingPage.Event(it)) } }
+            },
+            onDismiss = { choosingEvent = false },
+        )
     }
     if (backfilling) {
         DateDialog(
