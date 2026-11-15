@@ -6,9 +6,11 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.tracking.Certainty
@@ -82,6 +84,27 @@ class TrackingEpisodeScreenTest {
             compose.waitForIdle()
 
             assertEquals(today, checkNotNull(runBlocking { app.trackingModules.episodes.sheet(episode.id) }).episode.endDate)
+        }
+    }
+
+    @Test
+    fun `an exertion by hand and one's own pacing threshold are kept on leaving their pages`() {
+        launchApp().use {
+            compose.openTracking()
+            compose.setUpTracking()
+
+            compose.onNodeWithText("+ Anstrengung").tap()
+            compose.onNode(hasContentDescription("Stärke: mittel")).tap()
+            compose.done()
+            val exertion = checkNotNull(runBlocking { app.trackingModules.exertions.list() }).single()
+            assertEquals(2, exertion.strength)
+            assertEquals(today, exertion.date)
+
+            compose.onNodeWithContentDescription("Menü von Tracking").performClick()
+            compose.onNodeWithText("Pacing-Schwelle").performClick()
+            compose.field("Eigener Wert (Schläge/min)").performTextInput("105")
+            compose.done()
+            assertEquals(105, checkNotNull(runBlocking { app.trackingModules.exertions.threshold() }).own)
         }
     }
 }

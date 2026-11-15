@@ -110,6 +110,10 @@ interface EventDao {
     @Insert
     suspend fun insertIntakes(intakes: List<EventIntake>)
 
+    /** Takes the intakes before event [eventId] off. */
+    @Query("DELETE FROM event_intake WHERE event_id = :eventId")
+    suspend fun clearIntakes(eventId: Long)
+
     /** The intakes before event [eventId]. */
     @Query("SELECT * FROM event_intake WHERE event_id = :eventId")
     suspend fun intakes(eventId: Long): List<EventIntake>

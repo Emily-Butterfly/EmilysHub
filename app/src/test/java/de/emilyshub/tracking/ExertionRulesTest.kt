@@ -82,9 +82,22 @@ class ExertionRulesTest {
     }
 
     @Test
+    fun `no exertion after the start is a trigger to choose, an unknown time taken as noon`() {
+        val morning = Episode(kind = EpisodeKind.Pem, startDate = day, startTime = LocalTime.of(9, 0))
+        val list = listOf(
+            exertion(day, 2, time = LocalTime.of(8, 0), id = 1),
+            exertion(day, 2, time = LocalTime.of(18, 0), id = 2),
+            exertion(day, 2, id = 3),
+        )
+
+        assertEquals(listOf(1L), ExertionRules.candidates(morning, list).map { it.id })
+        assertEquals("start not known either", listOf(1L, 2L, 3L), ExertionRules.candidates(morning.copy(startTime = null), list).map { it.id })
+    }
+
+    @Test
     fun `the triggers to choose are the exertions of the three days before the start, and that day`() {
         val episode = Episode(kind = EpisodeKind.Pem, startDate = day, startTime = LocalTime.of(8, 0))
-        val list = listOf(exertion(day, 2, id = 1), exertion(day.minusDays(3), 2, id = 2), exertion(day.minusDays(4), 2, id = 3), exertion(day.plusDays(1), 2, id = 4))
+        val list = listOf(exertion(day, 2, time = LocalTime.of(7, 0), id = 1), exertion(day.minusDays(3), 2, id = 2), exertion(day.minusDays(4), 2, id = 3), exertion(day.plusDays(1), 2, id = 4))
 
         assertEquals(listOf(1L, 2L), ExertionRules.candidates(episode, list).map { it.id })
     }

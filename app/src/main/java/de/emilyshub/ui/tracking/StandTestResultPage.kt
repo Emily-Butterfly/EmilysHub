@@ -168,9 +168,12 @@ private fun Curve(curve: List<Beat>, test: StandTest) {
     HeartRateCurve(curve.map { it.at to it.bpm }, mark = test.standingAt)
 }
 
-/** Heart rates over time as a line, scaled to their range, with a [mark] across at a moment if given. */
+/**
+ * Heart rates over time as a line, scaled to their range, with a [mark] across at a moment if given, and a dot on each
+ * of those [dotted], as the values of tier B.
+ */
 @Composable
-internal fun HeartRateCurve(beats: List<Pair<Instant, Int>>, mark: Instant?) {
+internal fun HeartRateCurve(beats: List<Pair<Instant, Int>>, mark: Instant?, dotted: Set<Int> = emptySet()) {
     val line = MaterialTheme.colorScheme.tertiary
     val markColor = MaterialTheme.colorScheme.outline
     val low = beats.minOf { it.second }
@@ -200,6 +203,7 @@ internal fun HeartRateCurve(beats: List<Pair<Instant, Int>>, mark: Instant?) {
         beats.forEachIndexed { index, beat ->
             val point = at(beat)
             if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+            if (index in dotted) drawCircle(line, radius = stroke * 2, center = point)
         }
         drawPath(path, line, style = Stroke(stroke))
     }

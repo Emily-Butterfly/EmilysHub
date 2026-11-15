@@ -101,9 +101,15 @@ object ExertionRules {
         it.strength in FOLLOW_UP_STRENGTH && it.date.isBefore(day) && !it.date.isBefore(day.minusDays(FOLLOW_UP_DAYS))
     }
 
-    /** The exertions of [exertions] to choose as triggers of [episode]: from three days before its start to its start. */
+    /**
+     * The exertions of [exertions] to choose as triggers of [episode]: from the day three days before its start up to
+     * its start, none later on the day it began. A time not known counts as [UNKNOWN_TIME]; with the start's not known,
+     * all of that day count.
+     */
     fun candidates(episode: Episode, exertions: List<Exertion>): List<Exertion> = exertions.filter {
-        !it.date.isAfter(episode.startDate) && !it.date.isBefore(episode.startDate.minusDays(TRIGGER_DAYS))
+        val inDays = !it.date.isAfter(episode.startDate) && !it.date.isBefore(episode.startDate.minusDays(TRIGGER_DAYS))
+        val afterStart = episode.startTime != null && it.date == episode.startDate && (it.time ?: UNKNOWN_TIME).isAfter(episode.startTime)
+        inDays && !afterStart
     }
 
     /** How many hours after [exertion] [episode] began, a time not known taken as [UNKNOWN_TIME]. */

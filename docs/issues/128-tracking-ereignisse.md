@@ -33,8 +33,8 @@ Abgestimmt im Interview vom 15.11.2026: Felder wie im Entwurf; Fotos als eigener
 Beim Bauen festgelegt (15.11.2026), nicht einzeln bestätigt:
 
 - `tracking.db` auf Version 5 mit Migration und Test: `tracking_event` mit allen Feldern, `event_intake` mit den Minuten seit der letzten heutigen Einnahme je Medikament (dieselbe Regel wie beim Stehtest, `TodaysIntakes`).
-- „+ Ereignis“ fragt zuerst die Art und legt das Ereignis jetzt an; die Seite speichert wie die Tageseinträge beim Verlassen und vor dem Sperren. Datum und Uhrzeit lassen sich ändern, auf die Minute.
-- Timer: „Vorbei – Timer starten“ hält das Ende fest; Puls direkt danach, nach 5 und nach 10 Minuten, je mit Ton und Vibration bei 5 und 10. Der Timer läuft, bis alle drei eingetragen sind, höchstens 5 Minuten über die 10 hinaus (eigene Festlegung); solange gilt die Ausnahme Messassistent.
-- Zusatzkurve: Garmin-Herzfrequenz von 15 Minuten vor der Uhrzeit bis 30 Minuten nach dem Ende (ohne Ende: Uhrzeit plus Dauer), je Wert mit Stufe A oder B nach den Schritten darum (#126); auf der Seite die Anzahl je Stufe.
+- „+ Ereignis“ fragt zuerst die Art und legt das Ereignis jetzt an; die Seite speichert wie die Tageseinträge beim Verlassen und vor dem Sperren. Datum und Uhrzeit lassen sich ändern, auf die Minute; das Ende rückt mit, und die Stunden seit den Einnahmen gelten dann für die neue Zeit.
+- Timer: „Vorbei – Timer starten“ hält das Ende fest; Puls direkt danach, nach 5 und nach 10 Minuten, je mit Ton und Vibration bei 5 und 10, nur wenn es fällig wird, während die Seite offen ist. Der Timer läuft, bis alle drei eingetragen sind, höchstens 5 Minuten über die 10 hinaus (eigene Festlegung); solange gilt die Ausnahme Messassistent.
+- Zusatzkurve: Garmin-Herzfrequenz von 15 Minuten vor der Uhrzeit bis 30 Minuten nach dem Ende (ohne Ende: Uhrzeit plus Dauer), je Wert mit Stufe A oder B nach den Schritten darum (#126); auf der Kurve tragen die Werte der Stufe B einen Punkt, dazu die Anzahl je Stufe.
 - Wassertemperatur nur bei Duschen und Baden; „nach wie vielen Minuten“ nur bei „hinsetzen nötig: ja“. Löschen auf der Seite des Ereignisses, mit Rückfrage.
 

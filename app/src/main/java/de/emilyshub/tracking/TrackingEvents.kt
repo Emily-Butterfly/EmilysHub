@@ -47,7 +47,7 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
     suspend fun create(kind: EventKind): Long? = tracking.changing { database ->
         val now = ZonedDateTime.now(clock)
         val id = database.events().insert(TrackingEvent(kind = kind, at = now.toInstant().truncatedTo(ChronoUnit.MINUTES)))
-        database.events().insertIntakes(TodaysIntakes.before(database, now).map { (medication, minutes) -> EventIntake(id, medication, minutes) })
+        putIntakes(database, id, now)
         id
     }
 
@@ -62,12 +62,22 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
 
     /**
      * Writes [event] into [database] in place of the one of its id, values out of their range left out, a water
-     * temperature only for water, its time to the minute. False if it is gone.
+     * temperature only for water, its time to the minute; moved to another time, the intakes before it are those of
+     * that time. False if it is gone.
      */
     suspend fun write(database: TrackingDatabase, event: TrackingEvent): Boolean {
-        database.events().get(event.id) ?: return false
-        database.events().update(event.withinLimits())
+        val stored = database.events().get(event.id) ?: return false
+        val cleaned = event.withinLimits()
+        database.events().update(cleaned)
+        if (cleaned.at != stored.at) {
+            database.events().clearIntakes(cleaned.id)
+            putIntakes(database, cleaned.id, cleaned.at.atZone(clock.zone))
+        }
         return true
+    }
+
+    private suspend fun putIntakes(database: TrackingDatabase, id: Long, at: ZonedDateTime) {
+        database.events().insertIntakes(TodaysIntakes.before(database, at).map { (medication, minutes) -> EventIntake(id, medication, minutes) })
     }
 
     /** Ends event [id] now, which starts its timer: false if it ended already. */

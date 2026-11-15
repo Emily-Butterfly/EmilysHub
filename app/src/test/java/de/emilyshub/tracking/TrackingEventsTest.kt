@@ -75,6 +75,18 @@ class TrackingEventsTest {
     }
 
     @Test
+    fun `an event moved to another time has the intakes before that time`() = runBlocking {
+        fixture.medications.save(Medication(name = "Medikament A", times = listOf(LocalTime.of(8, 0)), start = LocalDate.parse("2026-11-14")))
+        val id = create()
+
+        events.save(stored(id).copy(at = Instant.parse("2026-11-14T08:30:00Z")))
+
+        assertEquals("yesterday 09:30 in Berlin, 90 minutes after 08:00", mapOf("Medikament A" to 90), checkNotNull(events.report(id)).intakes.associate { it.first.name to it.second })
+        events.save(stored(id).copy(at = Instant.parse("2026-11-14T06:00:00Z")))
+        assertEquals("before the intake", emptyList<Pair<Medication, Int>>(), checkNotNull(events.report(id)).intakes)
+    }
+
+    @Test
     fun `a water temperature is kept only for water`() = runBlocking {
         val id = create(EventKind.Heat)
 

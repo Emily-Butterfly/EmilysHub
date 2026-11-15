@@ -32,20 +32,23 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
      * "unklar": its id. None if its strength is off its scale, if it is one of an evening, which follows the evening
      * only, or once locked.
      */
-    suspend fun save(exertion: Exertion, triggerOf: Long? = null): Long? = tracking.changing { database ->
-        if (exertion.strength !in ExertionRules.STRENGTH) return@changing null
+    suspend fun save(exertion: Exertion, triggerOf: Long? = null): Long? = tracking.changing { database -> write(database, exertion, triggerOf) }
+
+    /** Writes [exertion] into [database], as [save] does: for a page that saves as it goes away or Tracking locks. */
+    suspend fun write(database: TrackingDatabase, exertion: Exertion, triggerOf: Long? = null): Long? {
+        if (exertion.strength !in ExertionRules.STRENGTH) return null
         val cleaned = exertion.copy(durationMinutes = exertion.durationMinutes?.takeIf { it in EventLimits.MINUTES })
         val id = if (cleaned.id == 0L) {
             database.exertions().insert(cleaned.copy(origin = ExertionOrigin.Manual))
         } else {
-            val stored = database.exertions().get(cleaned.id)?.takeIf { it.origin != ExertionOrigin.Evening } ?: return@changing null
+            val stored = database.exertions().get(cleaned.id)?.takeIf { it.origin != ExertionOrigin.Evening } ?: return null
             database.exertions().update(cleaned.copy(origin = stored.origin))
             cleaned.id
         }
         if (triggerOf != null && database.episodes().get(triggerOf) != null) {
             database.episodes().putTriggers(listOf(EpisodeTrigger(triggerOf, id, Certainty.Unclear)))
         }
-        id
+        return id
     }
 
     /** Deletes exertion [id], unless it is one of an evening, which goes only with the evening's load. */
@@ -79,9 +82,8 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
     /** Confirms the suggestion of [source] for [date] as a physical exertion of [strength]: its id; none off the scale or locked. */
     suspend fun confirm(date: LocalDate, source: SuggestionSource, strength: Int): Long? = tracking.changing { database ->
         if (strength !in ExertionRules.STRENGTH) return@changing null
-        val origin = if (source == SuggestionSource.Steps) ExertionOrigin.Steps else ExertionOrigin.HeartRate
         database.exertions().decide(SuggestionDecision(date, source, confirmed = true))
-        database.exertions().insert(Exertion(date = date, kind = ExertionKind.Physical, strength = strength, origin = origin))
+        database.exertions().insert(Exertion(date = date, kind = ExertionKind.Physical, strength = strength, origin = source.origin))
     }
 
     /** Dismisses the suggestion of [source] for [date]: it does not come again. */
@@ -94,9 +96,12 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
 
     /** Sets one's own pacing threshold to [bpm], or takes it back for the rule of thumb with none; one off the pulse's range is not kept. */
     suspend fun setOwnThreshold(bpm: Int?) {
-        tracking.changing { database ->
-            database.settings().put(TrackingSetting(OWN_THRESHOLD, bpm?.takeIf { it in EntryLimits.PULSE }?.toString().orEmpty()))
-        }
+        tracking.changing { database -> writeOwnThreshold(database, bpm) }
+    }
+
+    /** Writes one's own pacing threshold into [database], as [setOwnThreshold] does. */
+    suspend fun writeOwnThreshold(database: TrackingDatabase, bpm: Int?) {
+        database.settings().put(TrackingSetting(OWN_THRESHOLD, bpm?.takeIf { it in EntryLimits.PULSE }?.toString().orEmpty()))
     }
 
     private suspend fun thresholdOf(database: TrackingDatabase): ThresholdView {

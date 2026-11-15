@@ -35,8 +35,11 @@ data class Exertion(
     val origin: ExertionOrigin = ExertionOrigin.Manual,
 )
 
-/** What suggests an exertion. */
-enum class SuggestionSource(val stored: String) { Steps("steps"), HeartRate("heart_rate") }
+/** What suggests an exertion, and what one confirmed is said to come from. */
+enum class SuggestionSource(val stored: String, val origin: ExertionOrigin) {
+    Steps("steps", ExertionOrigin.Steps),
+    HeartRate("heart_rate", ExertionOrigin.HeartRate),
+}
 
 /** A suggestion of [source] for [date], decided: [confirmed] into an exertion, or dismissed; either way it does not come again. */
 @Entity(tableName = "suggestion_decision", primaryKeys = ["date", "source"])

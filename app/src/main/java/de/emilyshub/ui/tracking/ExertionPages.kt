@@ -94,7 +94,7 @@ internal fun ExertionPage(tracking: Tracking, modules: TrackingModules, page: Tr
     KeepIslandDraft(tracking, page, modules.writes) {
         val chosen = strength
         val exertion = chosen?.let { original.copy(date = date, time = time, kind = kind, durationMinutes = durationNumber.value, strength = it) }
-        if (!editable || deleting || exertion == null || exertion == stored) null else ({ _ -> exertions.save(exertion, page.triggerOf) })
+        if (!editable || deleting || exertion == null || exertion == stored) null else ({ database -> exertions.write(database, exertion, page.triggerOf) })
     }
     EntryPage(
         title = stringResource(R.string.tracking_exertion_title),
@@ -433,7 +433,7 @@ internal fun PacingPage(tracking: Tracking, modules: TrackingModules, contentPad
     val typed = own ?: TypedNumber.textOf(view.own)
     val ownNumber = TypedNumber(typed, EntryLimits.PULSE, tenths = false)
     KeepIslandDraft(tracking, TrackingPage.Pacing, modules.writes) {
-        if (own == null || ownNumber.wrong || ownNumber.value == view.own) null else ({ _ -> exertions.setOwnThreshold(ownNumber.value) })
+        if (own == null || ownNumber.wrong || ownNumber.value == view.own) null else ({ database -> exertions.writeOwnThreshold(database, ownNumber.value) })
     }
     EntryPage(title = stringResource(R.string.tracking_pacing_title), contentPadding = contentPadding, doneEnabled = !ownNumber.wrong, onDone = onDone) {
         Text(stringResource(R.string.tracking_pacing_text), style = MaterialTheme.typography.bodyMedium)

@@ -171,6 +171,11 @@ private fun EventForm(tracking: Tracking, modules: TrackingModules, events: Trac
     KeepIslandDraft(tracking, first.id, modules.writes) {
         if (event == saved || deleting) null else ({ database -> events.write(database, event) })
     }
+    // The end moves with the time, so that the timer's pulses and the curve stay where they were measured.
+    val moveTo = { moved: ZonedDateTime ->
+        endedAt = endedAt?.plus(Duration.between(at.toInstant(), moved.toInstant()))
+        at = moved
+    }
     val now = rememberNow(events::now)
     val running = EventTimer.runs(event, now)
     if (running) EventTimerSignals(tracking, event, now)
@@ -259,7 +264,7 @@ private fun EventForm(tracking: Tracking, modules: TrackingModules, events: Trac
             latest = ZonedDateTime.ofInstant(now, zone).toLocalDate(),
             onConfirm = {
                 choosingDay = false
-                at = at.with(it)
+                moveTo(at.with(it))
             },
             onDismiss = { choosingDay = false },
             modifier = Modifier.touchesIsland(tracking),
@@ -270,7 +275,7 @@ private fun EventForm(tracking: Tracking, modules: TrackingModules, events: Trac
             initial = at.toLocalTime(),
             onConfirm = {
                 choosingTime = false
-                at = at.with(it)
+                moveTo(at.with(it))
             },
             onDismiss = { choosingTime = false },
             modifier = Modifier.touchesIsland(tracking),
@@ -303,8 +308,11 @@ private fun EventTimerSignals(tracking: Tracking, event: TrackingEvent, now: Ins
     val ended = event.endedAt ?: return
     val five = EventTimer.isDue(ended, EventPulse.Five, now)
     val ten = EventTimer.isDue(ended, EventPulse.Ten, now)
-    LaunchedEffect(five) { if (five) signal.play() }
-    LaunchedEffect(ten) { if (ten) signal.play() }
+    // Only as each comes due while the page shows: reopened after, it does not sound again.
+    val fiveAtOpen = remember { five }
+    val tenAtOpen = remember { ten }
+    LaunchedEffect(five) { if (five && !fiveAtOpen) signal.play() }
+    LaunchedEffect(ten) { if (ten && !tenAtOpen) signal.play() }
 }
 
 /** The pulse to measure next and how long until it is due. */
@@ -329,7 +337,11 @@ private fun EventAround(tracking: Tracking, events: TrackingEvents, id: Long) {
     }
     if (report.curve.isEmpty()) return
     Text(stringResource(R.string.tracking_event_curve), style = MaterialTheme.typography.titleSmall)
-    HeartRateCurve(report.curve.map { it.at to it.bpm }, mark = report.event.endedAt)
+    HeartRateCurve(
+        report.curve.map { it.at to it.bpm },
+        mark = report.event.endedAt,
+        dotted = report.curve.indices.filter { report.curve[it].tier == Tier.B }.toSet(),
+    )
     Text(
         stringResource(R.string.tracking_event_curve_tiers, report.curve.count { it.tier == Tier.A }, report.curve.count { it.tier == Tier.B }),
         style = MaterialTheme.typography.bodySmall,

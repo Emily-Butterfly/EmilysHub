@@ -1886,7 +1886,7 @@
     <string name="tracking_event_recovered">Minuten bis wieder belastbar</string>
     <string name="tracking_event_later_hint">Alles lässt sich später ergänzen, etwa die Rückbildungszeit nach einer Stunde.</string>
     <string name="tracking_event_curve">Garmin-Herzfrequenz, 15 min davor bis 30 min danach</string>
-    <string name="tracking_event_curve_tiers">Stufe A: %1$d Werte, Stufe B: %2$d Werte</string>
+    <string name="tracking_event_curve_tiers">Stufe A: %1$d Werte, Stufe B (Punkte, in Bewegung): %2$d Werte</string>
     <string name="tracking_event_delete">Ereignis löschen</string>
     <string name="tracking_event_delete_title">Ereignis löschen?</string>
     <string name="tracking_event_delete_text">Das Ereignis wird endgültig gelöscht.</string>
