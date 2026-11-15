@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.PasswordProblem
+import de.emilyshub.ui.Hint
 
 /**
  * The step changing the backup password is at (SPEC.md §10; #111): asked for the old one and the new; told what
@@ -45,7 +46,8 @@ internal enum class PasswordChangeStep {
 
 /**
  * Asks for the old backup password and the new one twice, saying that backups saved before stay with the old one; the
- * old one is shown [wrongOld] once it was not the one set. "Passwort vergessen?" leads to [onForgot].
+ * old one is shown [wrongOld] once it was not the one set. "Passwort vergessen?" leads to [onForgot], but only if the
+ * phone [canForget], with a screen lock for the app lock to ask for; else the dialog says to set one up first.
  */
 @Composable
 internal fun ChangePassword(
@@ -53,6 +55,7 @@ internal fun ChangePassword(
     wrongOld: Boolean,
     onEditOld: () -> Unit,
     onChange: (old: String, new: String) -> Unit,
+    canForget: Boolean,
     onForgot: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -75,7 +78,11 @@ internal fun ChangePassword(
                     problem = stringResource(R.string.backup_password_old_wrong).takeIf { wrongOld },
                 )
                 NewPasswordFields(new)
-                TextButton(onClick = onForgot, enabled = !busy) { Text(stringResource(R.string.backup_password_forgot)) }
+                if (canForget) {
+                    TextButton(onClick = onForgot, enabled = !busy) { Text(stringResource(R.string.backup_password_forgot)) }
+                } else {
+                    Hint(stringResource(R.string.backup_password_forgot_needs_screen_lock))
+                }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         },

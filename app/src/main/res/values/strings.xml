@@ -670,6 +670,7 @@
     <string name="backup_password_change_confirm">Ändern</string>
     <string name="backup_password_forgot">Passwort vergessen?</string>
     <string name="backup_password_forgot_text">Nach der App-Sperre kannst du ein neues Passwort festlegen. Backups, die schon gespeichert sind, lassen sich dann nicht mehr öffnen, außer mit dem alten Passwort. Speichere danach bald ein neues Backup.</string>
+    <string name="backup_password_forgot_needs_screen_lock">Passwort vergessen? Richte in den Android-Einstellungen eine Displaysperre ein. Dann kannst du hier nach der App-Sperre ein neues festlegen.</string>
     <string name="backup_password_forgot_continue">Weiter</string>
     <string name="backup_password_new_title">Neues Backup-Passwort</string>
     <string name="backup_password_changed">Das Backup-Passwort ist geändert.</string>

@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -168,17 +169,18 @@ class BackupScreenTest {
     }
 
     @Test
-    fun `without a screen lock there is no app lock to ask for before a new password`() {
+    fun `without a screen lock a forgotten password cannot be set anew, and the screen says what it takes`() {
         runBlocking { app.backups.setPassword(PASSWORD) }
         launchApp().use {
             openBackups()
             compose.onNodeWithText("Passwort ändern").performScrollTo().performClick()
-            compose.onNodeWithText("Passwort vergessen?").performClick()
-            compose.onNodeWithText("Weiter").performClick()
 
+            compose.onNode(hasText("Passwort vergessen?") and hasClickAction()).assertDoesNotExist()
+            compose.onNodeWithText("Richte in den Android-Einstellungen eine Displaysperre ein", substring = true)
+                .assertIsDisplayed()
             assertEquals(0, app.authenticator.prompts)
-            compose.onNodeWithText("Neues Backup-Passwort").assertIsDisplayed()
         }
+        assertTrue(runBlocking { app.backups.changePassword(PASSWORD, PASSWORD) })
     }
 
     @Test

@@ -273,6 +273,7 @@ fun BackupScreen(
                     }
                 }
             },
+            canForget = authenticator.canAuthenticate(),
             onForgot = {
                 wrongOld = false
                 changing = PasswordChangeStep.Forgetting
@@ -284,11 +285,11 @@ fun BackupScreen(
         )
         PasswordChangeStep.Forgetting -> ForgetPassword(
             onContinue = {
-                // The app lock even while the app is open, so that a phone left alone for a moment does not do. Without
-                // a screen lock there is none to ask for, and the app lock is off; without the activity to ask over,
-                // nothing goes on.
+                // The app lock even while the app is open, so that a phone left alone for a moment does not do. With
+                // the screen lock given up meanwhile there is none to ask for, and back it goes to the change, which
+                // says so; without the activity to ask over, nothing goes on.
                 when {
-                    !authenticator.canAuthenticate() -> changing = PasswordChangeStep.Forgotten
+                    !authenticator.canAuthenticate() -> changing = PasswordChangeStep.Changing
                     activity != null -> authenticator.authenticate(activity) { changing = PasswordChangeStep.Forgotten }
                 }
             },
