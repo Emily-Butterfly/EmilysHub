@@ -38,7 +38,7 @@ interface TrackingSettingsDao {
  * Tracking's own database, `tracking.db` (SPEC.md §17), apart from [de.emilyshub.data.HubDatabase] and from the Doku's,
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
  * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125), the values read from Health
- * Connect (#126), the Stehtests (#127), the events (#128); the base data in its settings.
+ * Connect (#126), the Stehtests (#127), the events (#128), the exertions and episodes (#129); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
@@ -59,6 +59,11 @@ interface TrackingSettingsDao {
         StandIntake::class,
         TrackingEvent::class,
         EventIntake::class,
+        Exertion::class,
+        SuggestionDecision::class,
+        FollowUp::class,
+        Episode::class,
+        EpisodeTrigger::class,
     ],
     version = TrackingDatabase.VERSION,
 )
@@ -78,11 +83,15 @@ abstract class TrackingDatabase : RoomDatabase() {
 
     abstract fun events(): EventDao
 
+    abstract fun exertions(): ExertionDao
+
+    abstract fun episodes(): EpisodeDao
+
     companion object {
-        const val VERSION = 5
+        const val VERSION = 6
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5, TRACKING_MIGRATION_5_6)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
@@ -159,4 +168,40 @@ class TrackingConverters {
     @TypeConverter
     fun toSkinAreas(text: String): Set<SkinArea> =
         if (text.isEmpty()) emptySet() else text.split(",").map { stored -> SkinArea.entries.first { it.stored == stored } }.toSet()
+
+    @TypeConverter
+    fun fromExertionKind(value: ExertionKind): String = value.stored
+
+    @TypeConverter
+    fun toExertionKind(text: String): ExertionKind = ExertionKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromExertionOrigin(value: ExertionOrigin): String = value.stored
+
+    @TypeConverter
+    fun toExertionOrigin(text: String): ExertionOrigin = ExertionOrigin.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromSuggestionSource(value: SuggestionSource): String = value.stored
+
+    @TypeConverter
+    fun toSuggestionSource(text: String): SuggestionSource = SuggestionSource.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromFollowUpAnswer(value: FollowUpAnswer): String = value.stored
+
+    @TypeConverter
+    fun toFollowUpAnswer(text: String): FollowUpAnswer = FollowUpAnswer.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromEpisodeKind(value: EpisodeKind): String = value.stored
+
+    @TypeConverter
+    fun toEpisodeKind(text: String): EpisodeKind = EpisodeKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromCertainty(value: Certainty): String = value.stored
+
+    @TypeConverter
+    fun toCertainty(text: String): Certainty = Certainty.entries.first { it.stored == text }
 }

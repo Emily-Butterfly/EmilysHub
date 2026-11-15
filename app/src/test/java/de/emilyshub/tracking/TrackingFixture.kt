@@ -51,6 +51,8 @@ class TrackingFixture(private val context: Context, now: String = "2026-11-15T10
     val garmin = TrackingGarmin(tracking, health, ticking)
     val standTests = TrackingStandTests(tracking, ticking)
     val events = TrackingEvents(tracking, ticking)
+    val exertions = TrackingExertions(tracking, entries, ticking)
+    val episodes = TrackingEpisodes(tracking, ticking)
 
     /** Locks Tracking and deletes its files. */
     fun close() {

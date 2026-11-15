@@ -43,6 +43,21 @@ sealed interface TrackingPage : Serializable {
 
     /** All events, the latest first. */
     data object Events : TrackingPage
+
+    /** Exertion [id], or a new one on [day] if none, made from episode [triggerOf] as one of its triggers if given. */
+    data class Exertion(val id: Long?, val day: LocalDate? = null, val triggerOf: Long? = null) : TrackingPage
+
+    /** All exertions, the latest first. */
+    data object Exertions : TrackingPage
+
+    /** Episode [id]: kind, start, end, severity and suspected triggers. */
+    data class Episode(val id: Long) : TrackingPage
+
+    /** All episodes, the latest first. */
+    data object Episodes : TrackingPage
+
+    /** The pacing threshold. */
+    data object Pacing : TrackingPage
 }
 
 /**

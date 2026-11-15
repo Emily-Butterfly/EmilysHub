@@ -11,5 +11,7 @@ data class TrackingModules(
     val garmin: TrackingGarmin,
     val standTests: TrackingStandTests,
     val events: TrackingEvents,
+    val exertions: TrackingExertions,
+    val episodes: TrackingEpisodes,
     val writes: IslandWrites<TrackingDatabase>,
 )

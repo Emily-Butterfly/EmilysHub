@@ -94,5 +94,6 @@ private val MENU_PAGES = listOf(
     R.string.tracking_menu_symptoms to TrackingPage.Symptoms,
     R.string.tracking_menu_medications to TrackingPage.Medications,
     R.string.tracking_menu_base_data to TrackingPage.BaseData,
+    R.string.tracking_menu_pacing to TrackingPage.Pacing,
     R.string.tracking_menu_garmin to TrackingPage.Garmin,
 )

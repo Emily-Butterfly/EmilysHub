@@ -18,7 +18,8 @@ enum class EntryKind { Morning, Evening }
  * What the evening entry of [entry]'s day shows (SPEC.md §17, "Abends"): the [symptoms] to ask, those not hidden and
  * the hidden ones that have a value here, with their [levels] by symptom; all [medications], to ask those taken on the
  * day it is for ([takenOn]), which can change in the entry, with how their intakes went otherwise than planned
- * ([deviations]), none of them "wie geplant". [stored] if it was saved before.
+ * ([deviations]), none of them "wie geplant"; the exertions of strength 2–3 of the three days before to ask after
+ * ([followUps]) with what was answered ([followUpAnswers]). [stored] if it was saved before.
  */
 data class EveningSheet(
     val entry: EveningEntry,
@@ -27,6 +28,8 @@ data class EveningSheet(
     val medications: List<Medication>,
     val deviations: Map<Long, IntakeDeviation>,
     val stored: Boolean,
+    val followUps: List<Exertion> = emptyList(),
+    val followUpAnswers: Map<Long, FollowUpAnswer> = emptyMap(),
 ) {
     /** The medications taken on [day], to ask how their intakes went. */
     fun takenOn(day: LocalDate): List<Medication> = medications.filter { it.isActiveOn(day) }
@@ -107,6 +110,8 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
             medications = database.medications().all(),
             deviations = database.entries().deviations(day).associateBy { it.medicationId },
             stored = stored != null,
+            followUps = followUpsOf(database, day),
+            followUpAnswers = database.entries().followUps(day).associate { it.exertionId to it.answer },
         )
     }
 
@@ -127,15 +132,26 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         return true
     }
 
+    /** The exertions the evening of [day] asks after, from [database]. */
+    private suspend fun followUpsOf(database: TrackingDatabase, day: LocalDate): List<Exertion> =
+        ExertionRules.followUps(day, database.exertions().between(day.minusDays(ExertionRules.FOLLOW_UP_DAYS), day))
+
     /** Saves the evening entry, as [writeEvening] does. */
-    suspend fun saveEvening(entry: EveningEntry, levels: Map<Long, Int>, deviations: Collection<IntakeDeviation>, replacing: LocalDate?): Boolean =
-        tracking.changing { writeEvening(it, entry, levels, deviations, replacing) } ?: false
+    suspend fun saveEvening(
+        entry: EveningEntry,
+        levels: Map<Long, Int>,
+        deviations: Collection<IntakeDeviation>,
+        replacing: LocalDate?,
+        followUps: Map<Long, FollowUpAnswer>? = null,
+    ): Boolean = tracking.changing { writeEvening(it, entry, levels, deviations, replacing, followUps) } ?: false
 
     /**
      * Writes [entry] into [database] with the [levels] of its symptoms and how its intakes went otherwise than planned
      * ([deviations]), in place of the one of [replacing] if it moved there from that day, keeping the day it was first
-     * recorded; values out of their [EntryLimits] and intakes of medications not taken that day are left out. False,
-     * writing nothing, if its day is out of reach or has an evening entry already.
+     * recorded; values out of their [EntryLimits] and intakes of medications not taken that day are left out. The
+     * answers about the exertions before ([followUps]) are those it asks after on its day; none given keeps those it had.
+     * Its exertions follow its load ([TrackingExertions.syncEvening]). False, writing nothing, if its day is out of
+     * reach or has an evening entry already.
      */
     suspend fun writeEvening(
         database: TrackingDatabase,
@@ -143,6 +159,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         levels: Map<Long, Int>,
         deviations: Collection<IntakeDeviation>,
         replacing: LocalDate?,
+        followUps: Map<Long, FollowUpAnswer>? = null,
     ): Boolean {
         val entries = database.entries()
         val day = entry.date
@@ -150,14 +167,18 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         val recordedOn = replacing?.let { entries.evening(it)?.recordedOn } ?: suggestedDay()
         val known = database.symptoms().all().map { it.id }.toSet()
         val taken = database.medications().all().filter { it.isActiveOn(day) }.map { it.id }.toSet()
+        val answers = followUps ?: replacing?.let { old -> entries.followUps(old).associate { it.exertionId to it.answer } }.orEmpty()
+        val asked = followUpsOf(database, day).map { it.id }.toSet()
         entries.putEvening(
             entry = entry.withinLimits().copy(recordedOn = recordedOn),
             values = levels.filter { (id, level) -> id in known && level in EntryLimits.LEVEL }.map { (id, level) -> SymptomValue(day, id, level) },
             deviations = deviations.filter { it.medicationId in taken }.map {
                 it.copy(date = day, time = it.time.takeIf { _ -> it.deviation == Deviation.OtherTime })
             },
+            followUps = answers.filterKeys { it in asked }.map { (exertion, answer) -> FollowUp(day, exertion, answer) },
             replacing = replacing,
         )
+        TrackingExertions.syncEvening(database, entry, replacing)
         return true
     }
 

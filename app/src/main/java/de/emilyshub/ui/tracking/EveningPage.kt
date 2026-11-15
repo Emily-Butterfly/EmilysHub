@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -13,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -23,6 +25,7 @@ import de.emilyshub.tracking.EntryKind
 import de.emilyshub.tracking.EntryLimits
 import de.emilyshub.tracking.EveningEntry
 import de.emilyshub.tracking.EveningSheet
+import de.emilyshub.tracking.FollowUpAnswer
 import de.emilyshub.tracking.IntakeDeviation
 import de.emilyshub.tracking.Medication
 import de.emilyshub.tracking.Tracking
@@ -31,6 +34,8 @@ import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.ui.clockTime
 import de.emilyshub.ui.fields.TimeDialog
 import de.emilyshub.ui.island.KeepIslandDraft
+import de.emilyshub.ui.numericDate
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -40,7 +45,14 @@ import java.time.LocalTime
  * otherwise, and a note. Saved as it stands, also unfinished, as the page closes and before Tracking locks.
  */
 @Composable
-internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: TrackingPage.Evening, contentPadding: PaddingValues, onDone: () -> Unit) {
+internal fun EveningPage(
+    tracking: Tracking,
+    modules: TrackingModules,
+    page: TrackingPage.Evening,
+    contentPadding: PaddingValues,
+    onOpen: (TrackingPage) -> Unit,
+    onDone: () -> Unit,
+) {
     var loaded by remember { mutableStateOf<EveningSheet?>(null) }
     LaunchedEffect(page) {
         val sheet = modules.entries.evening(page.day)
@@ -52,6 +64,9 @@ internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: Tra
     var day by remember { mutableStateOf(original.date) }
     val levels = remember { mutableStateMapOf<Long, Int>().apply { putAll(sheet.levels) } }
     val deviations = remember { mutableStateMapOf<Long, IntakeDeviation>().apply { putAll(sheet.deviations) } }
+    val answers = remember { mutableStateMapOf<Long, FollowUpAnswer>().apply { putAll(sheet.followUpAnswers) } }
+    var choosingEpisode by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var loadPhysical by remember { mutableStateOf(original.loadPhysical) }
     var loadCognitive by remember { mutableStateOf(original.loadCognitive) }
     var loadEmotional by remember { mutableStateOf(original.loadEmotional) }
@@ -81,13 +96,15 @@ internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: Tra
         recordedOn = original.recordedOn,
     )
     KeepIslandDraft(tracking, page, modules.writes) {
-        val unchanged = entry == original && levels.toMap() == sheet.levels && deviations.toMap() == sheet.deviations
+        val unchanged = entry == original && levels.toMap() == sheet.levels && deviations.toMap() == sheet.deviations &&
+            answers.toMap() == sheet.followUpAnswers
         if (unchanged) {
             null
         } else {
             val toWrite = levels.toMap()
             val otherwise = deviations.values.toList()
-            ({ database -> modules.entries.writeEvening(database, entry, toWrite, otherwise, original.date.takeIf { sheet.stored }) })
+            val answered = answers.toMap()
+            ({ database -> modules.entries.writeEvening(database, entry, toWrite, otherwise, original.date.takeIf { sheet.stored }, answered) })
         }
     }
     EntryPage(
@@ -105,6 +122,19 @@ internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: Tra
         LevelField(stringResource(R.string.tracking_load_physical), loadPhysical, { loadPhysical = it })
         LevelField(stringResource(R.string.tracking_load_cognitive), loadCognitive, { loadCognitive = it })
         LevelField(stringResource(R.string.tracking_load_emotional), loadEmotional, { loadEmotional = it })
+        Suggestions(tracking, modules.exertions, only = day)
+        // Those of the day it was opened for: a day changed asks after others once saved.
+        if (sheet.followUps.isNotEmpty()) {
+            EntryHeading(stringResource(R.string.tracking_follow_up_heading))
+            sheet.followUps.forEach { exertion ->
+                ChoiceField(
+                    stringResource(R.string.tracking_follow_up_question, exertion.date.numericDate(), stringResource(kindName(exertion.kind)), exertion.strength),
+                    listOf(stringResource(R.string.tracking_yes), stringResource(R.string.tracking_no), stringResource(R.string.tracking_follow_up_unclear)),
+                    answers[exertion.id]?.ordinal,
+                ) { index -> if (index == null) answers.remove(exertion.id) else answers[exertion.id] = FollowUpAnswer.entries[index] }
+            }
+        }
+        OutlinedButton(onClick = { choosingEpisode = true }) { Text(stringResource(R.string.tracking_crash_or_pem)) }
         EntryHeading(stringResource(R.string.tracking_day_heading))
         YesNoField(stringResource(R.string.tracking_workday), workday, { workday = it })
         YesNoField(stringResource(R.string.tracking_heat), heat, { heat = it })
@@ -130,6 +160,16 @@ internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: Tra
             minLines = 3,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    if (choosingEpisode) {
+        EpisodeKindDialog(
+            tracking,
+            onChosen = { kind ->
+                choosingEpisode = false
+                scope.launch { modules.episodes.create(kind, day)?.let { onOpen(TrackingPage.Episode(it)) } }
+            },
+            onDismiss = { choosingEpisode = false },
         )
     }
 }

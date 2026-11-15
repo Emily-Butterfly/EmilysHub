@@ -10,6 +10,11 @@ enum class Source(val code: String, val citation: String) {
         "Raj SR, Fedorowski A, Sheldon RS: Diagnosis and management of postural orthostatic tachycardia syndrome. " +
             "CMAJ 2022; 194: E378–E385. doi:10.1503/cmaj.211373",
     ),
+    DiazBuschmann2014(
+        "DIAZ-BUSCHMANN-2014",
+        "Díaz-Buschmann I et al.: Programming exercise intensity in patients on beta-blocker treatment. " +
+            "Eur J Prev Cardiol 2014. doi:10.1177/2047487313500214",
+    ),
     DgnSyncope2020(
         "DGN-SYNK-2020",
         "Diehl RR et al.: Synkopen, S1-Leitlinie der DGN, 2020, AWMF-Register 030/072",
@@ -43,6 +48,10 @@ enum class Source(val code: String, val citation: String) {
         "Evenson KR, Spade CL: Review of validity and reliability of Garmin activity trackers. J Meas Phys Behav 2020. " +
             "doi:10.1123/jmpb.2019-0035",
     ),
+    Keller2024(
+        "KELLER-2024",
+        "Keller et al.: Zwei-Tages-Spiroergometrie bei ME/CFS. J Transl Med 2024. doi:10.1186/s12967-024-05410-5",
+    ),
     Lee2020(
         "LEE-2020",
         "Lee J et al.: Hemodynamics during the 10-minute NASA Lean Test: evidence of circulatory decompensation in a " +
@@ -59,5 +68,10 @@ enum class Source(val code: String, val citation: String) {
         "Sheldon RS et al.: 2015 Heart Rhythm Society Expert Consensus Statement on the Diagnosis and Treatment of " +
             "Postural Tachycardia Syndrome, Inappropriate Sinus Tachycardia, and Vasovagal Syncope. " +
             "Heart Rhythm 2015; 12: e41–e63. doi:10.1016/j.hrthm.2015.03.029",
+    ),
+    Workwell15(
+        "WORKWELL-15",
+        "Faustregel der Workwell Foundation (Ruhepuls + 15); nur eine Studie belegt, laut Erhebung in Work 2023, " +
+            "doi:10.3233/WOR-220512 – Primärdokument offen",
     ),
 }

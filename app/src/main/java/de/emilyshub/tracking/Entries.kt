@@ -98,6 +98,10 @@ interface EntryDao {
     @Query("SELECT date FROM morning_entry WHERE date BETWEEN :from AND :to")
     suspend fun morningDays(from: LocalDate, to: LocalDate): List<LocalDate>
 
+    /** The resting pulses of the morning entries from [from] to [to] that have one. */
+    @Query("SELECT resting_pulse FROM morning_entry WHERE date BETWEEN :from AND :to AND resting_pulse IS NOT NULL")
+    suspend fun restingPulses(from: LocalDate, to: LocalDate): List<Int>
+
     /** The days from [from] to [to] that have an evening entry. */
     @Query("SELECT date FROM evening_entry WHERE date BETWEEN :from AND :to")
     suspend fun eveningDays(from: LocalDate, to: LocalDate): List<LocalDate>
@@ -136,17 +140,26 @@ interface EntryDao {
 
     /**
      * The evening of [entry]'s date as a whole, in place of what was there for it and for [replacing], the date it had
-     * before if it moved: its symptoms and its intakes otherwise than planned.
+     * before if it moved: its symptoms, its intakes otherwise than planned and its answers about the exertions before.
      */
     @Transaction
-    suspend fun putEvening(entry: EveningEntry, values: List<SymptomValue>, deviations: List<IntakeDeviation>, replacing: LocalDate?) {
+    suspend fun putEvening(entry: EveningEntry, values: List<SymptomValue>, deviations: List<IntakeDeviation>, followUps: List<FollowUp>, replacing: LocalDate?) {
         if (replacing != null && replacing != entry.date) deleteEvening(replacing)
         // Its rows go with it by cascade; written anew below.
         deleteEvening(entry.date)
         insertEvening(entry)
         insertValues(values)
         insertDeviations(deviations)
+        insertFollowUps(followUps)
     }
+
+    /** Adds [answers]. */
+    @Insert
+    suspend fun insertFollowUps(answers: List<FollowUp>)
+
+    /** The answers of the evening entry of [date] about the exertions before. */
+    @Query("SELECT * FROM follow_up WHERE date = :date")
+    suspend fun followUps(date: LocalDate): List<FollowUp>
 
     /** The morning of [entry]'s date, in place of [replacing], the date it had before if it moved. */
     @Transaction

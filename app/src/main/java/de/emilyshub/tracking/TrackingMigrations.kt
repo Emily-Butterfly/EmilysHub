@@ -113,3 +113,37 @@ val TRACKING_MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_intake_medication_id` ON `event_intake` (`medication_id`)")
     }
 }
+
+/** 5 → 6: the exertions, the suggestions decided, the follow-up answers and the episodes with their triggers (#129). */
+val TRACKING_MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `exertion` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, " +
+                "`time` TEXT, `kind` TEXT NOT NULL, `duration_minutes` INTEGER, `strength` INTEGER NOT NULL, " +
+                "`origin` TEXT NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_exertion_date` ON `exertion` (`date`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `suggestion_decision` (`date` TEXT NOT NULL, `source` TEXT NOT NULL, " +
+                "`confirmed` INTEGER NOT NULL, PRIMARY KEY(`date`, `source`))",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `follow_up` (`date` TEXT NOT NULL, `exertion_id` INTEGER NOT NULL, " +
+                "`answer` TEXT NOT NULL, PRIMARY KEY(`date`, `exertion_id`), " +
+                "FOREIGN KEY(`date`) REFERENCES `evening_entry`(`date`) ON UPDATE CASCADE ON DELETE CASCADE , " +
+                "FOREIGN KEY(`exertion_id`) REFERENCES `exertion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_follow_up_exertion_id` ON `follow_up` (`exertion_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `episode` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`start_date` TEXT NOT NULL, `start_time` TEXT, `end_date` TEXT, `severity` INTEGER)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `episode_trigger` (`episode_id` INTEGER NOT NULL, `exertion_id` INTEGER NOT NULL, " +
+                "`certainty` TEXT NOT NULL, PRIMARY KEY(`episode_id`, `exertion_id`), " +
+                "FOREIGN KEY(`episode_id`) REFERENCES `episode`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`exertion_id`) REFERENCES `exertion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_episode_trigger_exertion_id` ON `episode_trigger` (`exertion_id`)")
+    }
+}

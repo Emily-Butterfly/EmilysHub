@@ -107,4 +107,24 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 5 gains the exertions and episodes and keeps its events`() {
+        createTrackingAsExported(context, version = 5) {
+            it.execSQL("INSERT INTO tracking_event (id, kind, at, skin_areas) VALUES (1, 'sauna', '2026-11-15T10:00:00Z', '')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals(EventKind.Sauna, database.events().get(1)?.kind)
+                val exertion = database.exertions().insert(Exertion(date = LocalDate.parse("2026-11-14"), kind = ExertionKind.Physical, strength = 3))
+                val episode = database.episodes().insert(Episode(kind = EpisodeKind.Crash, startDate = LocalDate.parse("2026-11-15")))
+                database.episodes().putTriggers(listOf(EpisodeTrigger(episode, exertion, Certainty.Sure)))
+                assertEquals(Certainty.Sure, database.episodes().triggers(episode).single().certainty)
+            }
+        } finally {
+            database.close()
+        }
+    }
 }

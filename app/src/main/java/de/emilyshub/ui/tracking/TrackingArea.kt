@@ -86,7 +86,7 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
     when (val page = pages.top) {
         TrackingPage.Home -> TrackingHome(tracking, modules, contentPadding, onOpen = open)
         is TrackingPage.Morning -> MorningPage(tracking, modules, page, contentPadding, onDone = back)
-        is TrackingPage.Evening -> EveningPage(tracking, modules, page, contentPadding, onDone = back)
+        is TrackingPage.Evening -> EveningPage(tracking, modules, page, contentPadding, onOpen = open, onDone = back)
         TrackingPage.Symptoms -> SymptomsPage(tracking, modules.symptoms, contentPadding)
         TrackingPage.Medications -> MedicationsPage(tracking, modules.medications, contentPadding, onOpen = { open(TrackingPage.Medication(it)) })
         is TrackingPage.Medication -> MedicationPage(tracking, modules, page, contentPadding, onDone = back)
@@ -97,6 +97,18 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         TrackingPage.StandTests -> StandTestsPage(tracking, modules.standTests, contentPadding, onOpen = { open(TrackingPage.StandTest(it)) })
         is TrackingPage.Event -> EventPage(tracking, modules, page, contentPadding, onDone = back)
         TrackingPage.Events -> EventsPage(tracking, modules.events, contentPadding, onOpen = { open(TrackingPage.Event(it)) })
+        is TrackingPage.Exertion -> ExertionPage(tracking, modules, page, contentPadding, onDone = back)
+        TrackingPage.Exertions -> ExertionsPage(tracking, modules.exertions, contentPadding, onOpen = { open(TrackingPage.Exertion(it)) })
+        is TrackingPage.Episode -> EpisodePage(
+            tracking,
+            modules,
+            page,
+            contentPadding,
+            onNewTrigger = { day -> open(TrackingPage.Exertion(id = null, day = day, triggerOf = page.id)) },
+            onDone = back,
+        )
+        TrackingPage.Episodes -> EpisodesPage(tracking, modules, contentPadding, onOpen = { open(TrackingPage.Episode(it)) })
+        TrackingPage.Pacing -> PacingPage(tracking, modules, contentPadding, onDone = back)
     }
 }
 
@@ -114,7 +126,8 @@ internal val TRACKING_TEXTS = IslandTexts(
 
 /**
  * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
- * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis" and the lists of them.
+ * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis", "+ Anstrengung" and "+ Episode" with the lists of them,
+ * the running episodes to end and the suggestions to decide.
  */
 @Composable
 private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
@@ -123,6 +136,7 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
     var backfilling by remember { mutableStateOf(false) }
     var backfillDay by remember { mutableStateOf<LocalDate?>(null) }
     var choosingEvent by remember { mutableStateOf(false) }
+    var choosingEpisode by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Column(
         Modifier
@@ -153,6 +167,17 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
                 OutlinedButton(onClick = { choosingEvent = true }) { Text(stringResource(R.string.tracking_event_new)) }
                 TextButton(onClick = { onOpen(TrackingPage.Events) }) { Text(stringResource(R.string.tracking_event_list)) }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp)) {
+                OutlinedButton(onClick = { onOpen(TrackingPage.Exertion(id = null)) }) { Text(stringResource(R.string.tracking_exertion_new)) }
+                TextButton(onClick = { onOpen(TrackingPage.Exertions) }) { Text(stringResource(R.string.tracking_exertion_list)) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                OutlinedButton(onClick = { choosingEpisode = true }) { Text(stringResource(R.string.tracking_episode_new)) }
+                TextButton(onClick = { onOpen(TrackingPage.Episodes) }) { Text(stringResource(R.string.tracking_episode_list)) }
+            }
+            // Open suggestions and the running episode, so that they are at hand.
+            RunningEpisodes(tracking, modules, onOpen = { onOpen(TrackingPage.Episode(it)) })
+            Column(Modifier.padding(16.dp)) { Suggestions(tracking, modules.exertions) }
         }
     }
     if (choosingEvent) {
@@ -163,6 +188,16 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
                 scope.launch { modules.events.create(kind)?.let { onOpen(TrackingPage.Event(it)) } }
             },
             onDismiss = { choosingEvent = false },
+        )
+    }
+    if (choosingEpisode) {
+        EpisodeKindDialog(
+            tracking,
+            onChosen = { kind ->
+                choosingEpisode = false
+                scope.launch { modules.episodes.create(kind, entries.suggestedDay())?.let { onOpen(TrackingPage.Episode(it)) } }
+            },
+            onDismiss = { choosingEpisode = false },
         )
     }
     if (backfilling) {

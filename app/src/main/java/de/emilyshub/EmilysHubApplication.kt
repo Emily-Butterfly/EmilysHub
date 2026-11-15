@@ -86,7 +86,9 @@ import de.emilyshub.tracking.TrackingBaseData
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.TrackingEntries
 import de.emilyshub.tracking.TrackingGarmin
+import de.emilyshub.tracking.TrackingEpisodes
 import de.emilyshub.tracking.TrackingEvents
+import de.emilyshub.tracking.TrackingExertions
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingMedications
 import de.emilyshub.tracking.TrackingModules
@@ -366,14 +368,17 @@ open class EmilysHubApplication : Application(), Hub {
 
     final override val trackingModules: TrackingModules by lazy {
         val symptoms = TrackingSymptoms(tracking)
+        val entries = TrackingEntries(tracking, symptoms, clock)
         TrackingModules(
-            entries = TrackingEntries(tracking, symptoms, clock),
+            entries = entries,
             symptoms = symptoms,
             medications = TrackingMedications(tracking, clock),
             baseData = TrackingBaseData(tracking),
             garmin = TrackingGarmin(tracking, healthSource, clock),
             standTests = TrackingStandTests(tracking, clock),
             events = TrackingEvents(tracking, clock),
+            exertions = TrackingExertions(tracking, entries, clock),
+            episodes = TrackingEpisodes(tracking, clock),
             writes = IslandWrites(tracking, background),
         )
     }
