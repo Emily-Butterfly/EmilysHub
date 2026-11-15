@@ -18,7 +18,7 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
-Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14), **Sprachen** (§15) und, sobald gebaut, **Gesundheitstagebuch** (§17, Entwurf). Alle öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14), **Sprachen** (§15) und **Tracking** (§17). Alle öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, Dokumentation und Tracking sperren sich dabei (§14, §17). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
 
 ### Heute-Übersicht
 
@@ -261,6 +261,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 | Unlesbare Daten | Rettungsbildschirm statt Absturz: Backup laden oder neu beginnen; die unlesbaren Dateien werden beiseitegelegt, nicht gelöscht (§10) |
 | Importierte Dateien (Sprachen, §15) | Anhänge liegen nur verschlüsselt im Speicher der App, nie im Klartext; Fotos werden neu kodiert, PDFs nur angezeigt (Androids eigener Renderer), nichts daraus ausgeführt; Größengrenzen beim Import; keine Kamera-Berechtigung, „Foto aufnehmen“ läuft über die Kamera-App des Handys |
 | Gesundheitsdaten (Dokumentation, §14) | Eigene SQLCipher-Datenbank, deren Schlüssel nur Doku-Passwort oder Fingerabdruck freigeben, nicht der Schlüssel der übrigen App; Sperre beim Verlassen, im Hintergrund und nach 5 min ohne Eingabe; nicht in Suche, Heute und Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich und beim Sperren geleert; gelöschte Daten überschrieben |
+| Gesundheitsdaten (Tracking, §17) | Wie die Dokumentation: eigene SQLCipher-Datenbank mit eigenem Passwort oder Fingerabdruck, gleiche Sperre und Insel-Regeln; Health Connect nur lesend und nur bei entsperrtem Tracking; PDF-Export nur von Hand, mit Hinweis auf die fehlende Verschlüsselung |
 
 Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 
@@ -276,6 +277,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
 - Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein.
 - Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
+- **Tracking** (§17) ebenso, mit dem Tracking-Passwort.
 
 ### Wenn sich die Daten nicht öffnen lassen
 
@@ -300,6 +302,7 @@ Ausschließlich:
 - `USE_BIOMETRIC`
 - `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (Vollbild-Alarm klingelt wie ein Wecker weiter, auch wenn Android bei benutztem Gerät nur die Benachrichtigung zeigt)
 - `FOREGROUND_SERVICE_LOCATION` (nur falls für die Ortserkennung nötig)
+- Health Connect nur lesend für Tracking (§17): `android.permission.health.READ_HEART_RATE`, `READ_RESTING_HEART_RATE`, `READ_STEPS`, `READ_SLEEP` und `READ_HEALTH_DATA_HISTORY`
 
 - Abfrage **erst bei Bedarf**, jeweils mit deutscher Erklärung.
 - **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s. Was fehlt, richtet sich danach, was Routinen, To-dos und Abos (§13) brauchen.
@@ -542,44 +545,60 @@ Ein Gedanke soll in der App landen, bevor er weg ist; sortiert wird später.
 - **Ohne Entsperren**: Optional (Einstellungen, Standard aus) steht dauerhaft eine stille Benachrichtigung „Gedanke festhalten“ mit Antwortfeld. Was dort getippt wird, landet im Eingang. Sie kann nur schreiben: Sie zeigt nie, was im Eingang liegt, auch nicht das eben Getippte. Auf dem Sperrbildschirm verlangt Android vorher die Entsperrung des Handys, nicht die der App.
 - Keine Erinnerungen, keine Tags, keine Verknüpfungen. Der Eingang kommt in die Backups und in die Suche (§8).
 
-## 17. Gesundheitstagebuch (Entwurf)
+## 17. Tracking
 
-> **Entwurf vom 15.11.2026.** Entschieden sind nur die eigene Sperre und der PDF-Export (unten). Umfang und Reihenfolge klärt das Interview zum Tages-Check-in ([ohne-ticket.md](docs/issues/ohne-ticket.md) §1); erst danach gibt es Slices.
-
-Ein eigenes Tagebuch zu Befinden, Puls und Blutdruck, das Muster sammelt und für Arzttermine aufbereitet. Es stellt **keine Diagnose**, sagt nie „Du hast …“ und gibt keine Anweisungen zu Medikamenten. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher eine Insel wie die Dokumentation (§14). Erreichbar über Sonstiges (§1).
+Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sammelt und für Arzttermine aufbereitet. Es stellt **keine Diagnose**, sagt nie „Du hast …“ und gibt keine Anweisungen zu Medikamenten. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher eine Insel wie die Dokumentation (§14). Erreichbar über Sonstiges (§1). Tracking ist die erste Stufe des Tages-Check-ins; HRV, Stability und Monatsfragebogen folgen als eigene Etappe ([ohne-ticket.md](docs/issues/ohne-ticket.md) §1).
 
 **Grundsatz für das öffentliche Repo:** Code, Spezifikation und Tickets beschreiben nur die allgemeine Funktion. Persönliche Werte, Medikamente oder Beschwerden stehen nie im Repo, auch nicht als Beispiel oder Testdaten; Tests benutzen erfundene Werte und Namen wie „Medikament A“.
 
 ### Sperre & Insel
 
-- **Tagebuch-Passwort** (mindestens 8 Zeichen) und optional Fingerabdruck, unabhängig vom Doku-Passwort; eigene SQLCipher-Datenbank, deren Schlüssel nur Passwort oder Fingerabdruck freigeben.
-- Sperre, Insel-Regeln und Überschreiben gelöschter Daten wie §14: sofort beim Verlassen, im Hintergrund, bei ausgehendem Bildschirm und nach 5 Minuten ohne Eingabe; nicht in Suche, Heute, Statistik oder Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich.
+- **Tracking-Passwort** (mindestens 8 Zeichen) und optional Fingerabdruck, unabhängig vom Doku-Passwort; eigene SQLCipher-Datenbank, deren Schlüssel nur Passwort oder Fingerabdruck freigeben.
+- Sperre, Insel-Regeln und Überschreiben gelöschter Daten wie §14: sofort beim Verlassen, im Hintergrund, bei ausgehendem Bildschirm und nach 5 Minuten ohne Eingabe; nicht in Suche, Heute, Statistik oder Benachrichtigungen; keine Verknüpfung mit Routinen oder anderen Bereichen; Tastatur ohne Lernen; Zwischenablage vertraulich.
 - **Ausnahme Messassistent:** Solange ein Stehtest oder eine Ereignismessung läuft, bleibt der Bildschirm an und die 5-Minuten-Sperre ruht. Hintergrund und Bildschirm aus sperren weiter; die Werte bis dahin bleiben erhalten.
-- **Erinnern** tut das Tagebuch nicht. Wer erinnert werden will, legt eine normale Routine an (z. B. „Abendeintrag“); sie weiß nichts vom Tagebuch.
-- **Backup** in eigener Verschlüsselung wie die Dokumentation (§10); einspielen braucht das Tagebuch-Passwort, das beim Backup galt.
+- **Erinnern** tut Tracking nicht. Wer erinnert werden will, legt eine normale Routine an (z. B. „Abendeintrag“); sie weiß nichts von Tracking.
+- **Backup** in eigener Verschlüsselung wie die Dokumentation (§10); einspielen braucht das Tracking-Passwort, das beim Backup galt. Übernommene Garmin-Werte sind als Kopie im Backup.
 - **Export** nur der Arzt-Zusammenfassung als PDF, nur von Hand (unten).
 - **Alles löschen** im Menü, mit Rückfrage und Eingabe des Passworts.
 
 ### Startseite
 
 - Ganz oben **„Akute Beschwerden?“**: die Warnzeichen (unten); „112 anrufen“ öffnet die Telefon-App mit der Nummer, ohne Berechtigung.
-- Darunter der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Belastung“.
+- Darunter der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Anstrengung“, „+ Episode“ und offene Vorschläge (Anstrengung, laufende Episode).
 - **Hinweise**, **Wochenauswertung**, **Verlauf**.
-- Menü: Symptome · Medikamente · Grunddaten · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
+- Menü: Symptome · Medikamente · Grunddaten · Pacing-Schwelle · Garmin · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
 
 ### Tageseinträge
 
 - **Skala** für Symptome und Belastung: 0 = nicht vorhanden, 1 = leicht, 2 = mittel, 3 = schwer. Leer heißt „nicht erfasst“ und zählt nie als 0.
 - **Morgens:** Ruhepuls im Liegen, Blutdruck (optional), Schlafdauer, Schlafqualität 0–3 (0 = sehr gut), erholt aufgewacht ja/nein; Hinweis „nach 5 Minuten ruhig liegen, vor Koffein und Medikamenten – sonst vermerken“.
-- **Abends:** jedes aktive Symptom 0–3; Belastung körperlich, kognitiv, emotional 0–3; Arbeitstag, Hitze oder langes Stehen ja/nein; **Crash** ja/nein (eigenes Feld, kein Symptom); Trinkmenge in Litern, Mahlzeiten, Koffein und Alkohol als Anzahl; je Medikament „wie geplant“ oder abweichend (Uhrzeit oder vergessen); Notiz (Markdown).
-- **Symptome** im Menü: eine allgemeine Startliste (Erschöpfung, Konzentration, Schlafbedürfnis, Kopfschmerz, Schmerzen, Muskelschwäche, Atemnot, Herzrasen, Schwindel im Stehen, Übelkeit, Hautveränderungen, Kälte- und Hitzeempfinden, Stimmung gedrückt, Angst/innere Unruhe); umbenennen, sortieren, ausblenden, eigene ergänzen. Ausgeblendete behalten ihre Werte.
-- **Nachtragen** bis 7 Tage zurück.
+- **Abends:** jedes aktive Symptom 0–3; Belastung körperlich, kognitiv, emotional 0–3; Arbeitstag, Hitze oder langes Stehen ja/nein; Trinkmenge in Litern, Mahlzeiten, Koffein und Alkohol als Anzahl; je Medikament „wie geplant“ (vorausgewählt) oder abweichend (Uhrzeit oder vergessen); „Crash oder PEM?“ als schneller Einstieg in eine Episode (unten); Notiz (Markdown).
+- **Symptome** im Menü: Startliste Erschöpfung, Konzentration, Schlafbedürfnis, Kopfschmerz, Muskelschmerzen, Gelenkschmerzen, Muskelschwäche, Atemnot, Herzrasen, Schwindel im Stehen, Übelkeit, Hautveränderungen, Kälteempfinden, Hitzeempfinden, Stimmung gedrückt, Angst/innere Unruhe; umbenennen, sortieren, ausblenden, eigene ergänzen. Ausgeblendete behalten ihre Werte.
+- **Tag:** Bis 04:00 schlägt ein neuer Eintrag den Vortag vor; das Datum lässt sich im Eintrag ändern.
+- **Nachtragen** bis 7 Tage zurück. Später als am Folgetag Erfasstes ist still als nachgetragen markiert; die Auswertung zeigt den Anteil.
 
 ### Grunddaten & Medikamente
 
 - **Grunddaten:** feste Markdown-Felder mit Leitfragen als Platzhalter: Verlauf (Beginn, Schübe, Infekte oder Belastungen davor, was früher ging), Familie (Thrombosen, Herz, Autoimmunerkrankungen), Schlaf, Ernährung und Substanzen, Sonstiges.
-- **Medikamente:** frei eingegeben, ohne Vorschlagsliste: Name, Darreichung, Einnahmezeiten, wofür (optional); eine **Zeitleiste** mit Beginn, Dosisänderungen (Datum, alt → neu) und Ende; Schalter „erhöht laut Beipackzettel das Thromboserisiko“; Freitext „Nebenwirkungen, auf die ich achte“.
+- **Medikamente:** frei eingegeben, ohne Vorschlagsliste: Name, Darreichung, Einnahmezeiten, wofür (optional); eine **Zeitleiste** mit Beginn, Dosisänderungen (Datum, alt → neu) und Ende; Schalter „erhöht laut Beipackzettel das Thromboserisiko“ und „senkt den Puls“; Freitext „Nebenwirkungen, auf die ich achte“.
 - Überall der Hinweis: Medikamente nur mit den Behandelnden ändern oder absetzen.
+
+### Garmin über Health Connect
+
+- Liest aus Health Connect, was Garmin Connect dorthin schreibt (ab Android 14): Herzfrequenz, Schlaf, Schritte und, falls vorhanden, Ruhepuls. Nur lesend und nur, solange Tracking entsperrt offen ist; keine Berechtigung für das Lesen im Hintergrund. Beim ersten Einrichten einmal die Berechtigung für ältere Daten, sonst gibt Health Connect nur 30 Tage.
+- Die Werte werden als Kopie in der Tracking-Datenbank gespeichert, mit Quelle (App, Gerätetyp) und Zeitpunkt; ein erneutes Lesen ergänzt, ohne zu verdoppeln.
+- **„Woher kommen meine Werte?“** im Menü Garmin: je Datentyp die Quellen mit Gerätetyp (Uhr, Brustgurt, unbekannt), Anzahl und letztem Wert.
+- **Stufen** nach Aussagekraft; jeder Hinweis nennt die Stufe, die ihn trägt:
+
+| Stufe | Wirkung | Werte |
+|---|---|---|
+| A – gemessen, gut überprüft | kann einen Hinweis auslösen wie die eigenen Messungen | Herzfrequenz in Ruhe; Herzfrequenz vom Brustgurt (Gerätetyp in Health Connect), auch bei Bewegung; Schritte |
+| B – abgeleitet, teilweise überprüft | stützt einen Hinweis, löst allein nichts aus | Herzfrequenz vom Handgelenk oder unbekannter Quelle bei Bewegung; Ruhepuls von Garmin; Nacht-HRV; Schlafdauer |
+| C – eigene Garmin-Berechnung oder schwach überprüft | nur in Verlauf und PDF, gekennzeichnet als „Garmin-Schätzung“ | HRV-Status, Schlafphasen, Sleep Score, Intensitätsminuten, Stress, Body Battery, SpO₂ |
+
+- „In Ruhe“ heißt: keine Schritte in der Minute davor und danach, oder ein Stehtest. Die Zuordnung steht mit ihren Quellen an einer Stelle im Code. [GARMIN-HF] [GARMIN-HRV] [GARMIN-SCHLAF] [GARMIN-SCHRITTE] [GARMIN-SCORES]
+- Der Ruhepuls von Garmin ist eine eigene Kurve neben dem Morgenwert. Regeln mit Schwellen aus Leitlinien nutzen nur den Morgenwert.
+- HRV, Stress, Body Battery und SpO₂ liefert Garmin nicht über Health Connect; sie kommen mit dem Import der FIT-Dateien in der HRV-Etappe.
 
 ### Stehtest
 
@@ -588,8 +607,9 @@ Ein eigenes Tagebuch zu Befinden, Puls und Blutdruck, das Muster sammelt und fü
 - 5–10 Minuten liegen mit Timer, dann Puls und Blutdruck im Liegen; dann aufstehen. Zu jedem Zeitpunkt Ton und Vibration in der App, Eingabe von Puls, Blutdruck (optional), Schwindel, Herzrasen, Atemnot 0–3 und Verfärbung der Beine ja/nein.
 - Ein großer Knopf **„Abbrechen – hinlegen“** jederzeit; gespeichert wird bis dahin, mit Minute und Grund.
 - Gespeichert werden außerdem Uhrzeit, Stunden seit den heute eingetragenen Einnahmen und Koffein, Mahlzeit und Trinkmenge davor.
+- Liegt eine Herzfrequenz von Garmin für den Zeitraum vor, zeigt der Test sie als **Zusatzkurve** (Stufe A); die eigenen Messpunkte bleiben die Hauptwerte. Fehlt ein Messpunkt, füllt ihn die Kurve, gekennzeichnet.
 - **Auswertung** je Test: größter Pulsanstieg gegenüber dem Liegen, Messungen mit Anstieg ≥ 30/min, Mittel der letzten drei Minuten (Anlehnen), größter Abfall systolisch/diastolisch innerhalb von 3 Minuten und danach, systolisch < 90 mmHg.
-- Der Hinweis, dass ein Heimtest keine ärztliche Untersuchung ersetzt und Medikamente das Ergebnis verändern, steht auf dem Ergebnis.
+- Auf dem Ergebnis steht, dass ein Heimtest keine ärztliche Untersuchung ersetzt und Medikamente das Ergebnis verändern.
 
 ### Ereignisse
 
@@ -598,31 +618,39 @@ Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, lange
 - Wassertemperatur lauwarm/warm/heiß, Dauer, stehend/sitzend.
 - Puls vorher, direkt danach und nach 5 und 10 Minuten mit Timer; Sauerstoffsättigung optional; Atemnot und Schwindel 0–3; hinsetzen nötig (nach wie vielen Minuten).
 - **Haut:** wo (Beine, Arme, Rumpf, Finger oder Zehen), Muster (gleichmäßig-geschlossen oder unterbrochen-netzartig), schmerzt ja/nein, verschwindet im Liegen ja/nein, Minuten bis zur Rückbildung; Minuten bis wieder belastbar.
-- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt im Tagebuch abgelegt, nie in der Galerie; im Backup.
+- Herzfrequenz von Garmin von 15 Minuten davor bis 30 Minuten danach als Zusatzkurve, mit ihrer Stufe.
+- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt in Tracking abgelegt, nie in der Galerie; im Backup.
 
-### Belastungen
+### Anstrengungen, PEM & Crash
 
-- „+ Belastung“: Datum, Art (körperlich, kognitiv, emotional, Stehen/Wärme), Dauer, Stärke 0–3.
-- Die Abendeinträge der folgenden drei Tage fragen zusätzlich „Schlechter als vor der Belastung?“ und ab wann (Stunden danach); dazu „Tage bis zum gewohnten Zustand“.
+- **Anstrengung:** Datum, Uhrzeit, Art (körperlich, kognitiv, emotional, Stehen/Wärme), Dauer, Stärke 0–3. Sie entsteht auf vier Wegen:
+  - von Hand mit „+ Anstrengung“;
+  - **direkt aus dem Abendeintrag:** Belastung körperlich, kognitiv oder emotional ≥ 2 gilt als Anstrengung des Tages, mit dieser Art und Stärke;
+  - als **Vorschlag aus den Schritten**, wenn ein Tag mehr als 150 % des Mittels der letzten 14 Tage hat;
+  - als **Vorschlag aus der Herzfrequenz**, wenn die Minuten über der Pacing-Schwelle mehr als 150 % des Mittels der letzten 14 Tage betragen.
+  Vorschläge erscheinen im Abendeintrag und auf der Startseite; bestätigt werden sie eine Anstrengung, verworfene kommen nicht wieder. Die 150 % und die 14 Tage sind eigene Arbeitswerte.
+- **Pacing-Schwelle** im Menü: ein eigener Wert in Schlägen/min, z. B. die anaerobe Schwelle aus einer Spiroergometrie (am besten vom zweiten Testtag). Ohne eigenen Wert gilt das Mittel der Morgen-Ruhepulse der letzten 7 Tage + 15, gekennzeichnet als „Faustregel, schwach belegt“. [WORKWELL-15] [KELLER-2024] Die Minuten über der Schwelle erzeugen nur Vorschläge, nie einen Hinweis. Ohne eigenen Wert und mit einem Medikament „senkt den Puls“ steht dabei: „Medikamente, die den Puls senken, verschieben die Schwelle; eine individuelle Schwelle (Spiroergometrie) ärztlich erfragen.“ [DIAZ-BUSCHMANN-2014]
+- **Folgetage:** Nach einer Anstrengung der Stärke 2–3 fragen die Abendeinträge der folgenden drei Tage „Schlechter als vor der Anstrengung?“.
+- **Episode** („+ Episode“ oder „Crash oder PEM?“ im Abendeintrag): Art PEM (spürbare Verschlechterung) oder Crash (schwer, Tag weitgehend abgebrochen); Beginn mit Datum und ungefährer Uhrzeit; Ende (solange offen „läuft noch“); Schwere 1–3; **vermutete Auslöser:** Anstrengungen der letzten 3 Tage vor dem Beginn auswählen oder direkt neu anlegen; je Auslöser die Sicherheit sicher, wahrscheinlich oder unklar. Die App zeigt den Abstand „Beginn x Stunden nach der Anstrengung“.
 
 ### Wochenauswertung & Verlauf
 
-- Je Woche (Mo–So): Ruhepuls Mittel, Minimum, Maximum und Tage über 100/min; Stehtests mit größtem Anstieg, Anzahl mit Anstieg ≥ 30/min in mindestens zwei Messungen, Anzahl mit Abfall ≥ 20/10 mmHg innerhalb von 3 Minuten und später; Ereignisse mit Atemnot ≥ 2 und mit Hautveränderung, mittlere Rückbildungszeit; Belastungen mit Verschlechterung an Tag +1 oder +2; Crash-Tage; Mittel je Symptom; Tage mit weniger als 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie); Nächte mit Schlafqualität ≥ 2; Abweichungen bei Medikamenten.
-- **Verlauf:** je Symptom und für den Ruhepuls ein Liniendiagramm über 4 oder 12 Wochen, wie die Diagramme der Dokumentation (§14); Medikamentenänderungen als senkrechte Markierung.
+- Je Woche (Mo–So): Ruhepuls am Morgen Mittel, Minimum, Maximum und Tage über 100/min; Stehtests mit größtem Anstieg, Anzahl mit Anstieg ≥ 30/min in mindestens zwei Messungen, Anzahl mit Abfall ≥ 20/10 mmHg innerhalb von 3 Minuten und später; Ereignisse mit Atemnot ≥ 2 und mit Hautveränderung, mittlere Rückbildungszeit; Anstrengungen und Episoden mit mittlerem Abstand zum Beginn; Mittel je Symptom; Tage mit weniger als 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie); Nächte mit Schlafqualität ≥ 2; Abweichungen bei Medikamenten; Schritte und Minuten über der Pacing-Schwelle; Anteil nachgetragener Einträge.
+- **Verlauf:** je Symptom, für den Ruhepuls am Morgen und die Garmin-Werte ein Liniendiagramm über 4 oder 12 Wochen, wie die Diagramme der Dokumentation (§14); Medikamentenänderungen als senkrechte Markierung, Episoden als Band; Werte der Stufe C sind als „Garmin-Schätzung“ beschriftet.
 
 ### Hinweise
 
-Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für das Arztgespräch vorschlagen. Jeder Hinweis nennt das Muster („passt zu“, „spricht für“), worauf er sich stützt (Anzahl Einträge, Zeitraum), was ärztlich als Nächstes sinnvoll ist (Fachrichtung und Frage) und seine Quelle. Fehlen Daten, sagt er, wie viele noch („noch 2 Stehtests“). Die Regeln sind reine Logik ohne Android, mit Schwellen und Quellen an einer Stelle.
+Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für das Arztgespräch vorschlagen. Jeder Hinweis nennt das Muster („passt zu“, „spricht für“), worauf er sich stützt (Anzahl Einträge, Zeitraum, Stufe der Garmin-Werte), was ärztlich als Nächstes sinnvoll ist (Fachrichtung und Frage) und seine Quelle. Fehlen Daten, sagt er, wie viele noch („noch 2 Stehtests“). Werte der Stufe A zählen wie eigene Messungen, Stufe B nur als Stütze eines Hinweises, der schon ausgelöst ist, Stufe C nie. Die Regeln sind reine Logik ohne Android, mit Schwellen und Quellen an einer Stelle.
 
-- **Mindestdaten** (eigene Festlegung): 14 Tage Einträge, 3 Stehtests an verschiedenen Tagen, 5 Ereignisse, 3 Belastungen mit den Tagen danach.
+- **Mindestdaten** (eigene Festlegung): 14 Tage Einträge, 3 Stehtests an verschiedenen Tagen, 5 Ereignisse, 3 Anstrengungen der Stärke 2–3 mit den Tagen danach.
 - **Immer:** Erinnerung an die Basisuntersuchungen (EKG mit QTc, Elektrolyte), abhakbar, wenn erledigt. [HRS-2015] [NIH-POTS-2021]
 - **Atemnot** bei Belastung oder Wärme an mindestens 3 Tagen und ein Medikament mit Thromboserisiko → zeitnah ärztlich die Wahrscheinlichkeit einer Lungenembolie klären lassen. [ESC-LE-2019]
-- **Ruhepuls** an der Mehrzahl der Morgen über 100/min → Langzeit-EKG, Abklärung einer inadäquaten Sinustachykardie. [HRS-2015]
+- **Ruhepuls am Morgen** an der Mehrzahl der Tage über 100/min → Langzeit-EKG, Abklärung einer inadäquaten Sinustachykardie. [HRS-2015]
 - **Medikamente:** Verschlechterung innerhalb von 6 Wochen (eigener Arbeitswert) nach Beginn oder Erhöhung eines Medikaments → mit den Verordnenden besprechen, nichts selbst ändern.
 - **Stehtest, Pulsanstieg:** in mindestens 2 von mindestens 3 Tests ≥ 30/min in mindestens zwei Messungen innerhalb von 10 Minuten (beim Anlehnen: Mittel der letzten drei Minuten > 30/min über dem Liegen oder > 120/min), ohne Abfall ≥ 20/10 mmHg, Liegendpuls ≥ 60/min, mit Beschwerden im Stehen → passt zu einem POTS-Muster; Kardiologie oder autonome Ambulanz, ärztlicher Stehtest über 10 Minuten, bei negativem Ergebnis Kipptisch; Medikamente können die Ursache sein. [NIH-POTS-2021] [CMAJ-POTS-2022] [DGN-SYNK-2020] [LEE-2020]
 - **Stehtest, Blutdruckabfall** ≥ 20 mmHg systolisch, ≥ 10 mmHg diastolisch oder systolisch < 90 mmHg innerhalb von 3 Minuten → passt zu orthostatischer Hypotonie, Medikamente prüfen lassen; erst danach → verzögerte Form, Kipptisch erfragen. [ESC-SYNK-2018] [DGN-SYNK-2020]
 - **Stehtest, Beschwerden ohne Messauffälligkeit** → morgens wiederholen, ärztlichen Test erfragen. [CMAJ-POTS-2022]
-- **Belastung:** Verschlechterung an Tag +1 oder +2 nach mindestens 2 von 3 Belastungen → passt zu Verschlechterung nach Belastung (PEM); ME/CFS-Abklärung ansprechen, Belastung nicht austesten. [IOM-2015] [NICE-NG206]
+- **PEM:** Verschlechterung an Tag +1 oder +2 nach mindestens 2 von 3 Anstrengungen der Stärke 2–3, oder mindestens 2 Episoden mit einem Auslöser „sicher“ oder „wahrscheinlich“ und Beginn 12–72 Stunden danach → passt zu Verschlechterung nach Belastung (PEM); ME/CFS-Abklärung ansprechen, Belastung nicht austesten. [IOM-2015] [NICE-NG206]
 - **Haut:** bleibt über 30 Minuten (eigener Arbeitswert), ist unterbrochen-netzartig oder schmerzt → Dermatologie oder Rheumatologie, Antiphospholipid-Antikörper erfragen; Finger oder Zehen betroffen → Raynaud ansprechen; verschwindet im Liegen rasch und betrifft die Beine → passt zu Blutansammlung in den Beinen, stützt den Stehtest. [SAJJAN-2015]
 - **Schlaf:** Schlafqualität ≥ 2 an der Mehrzahl der Nächte → Schlaf ansprechen, auch Schnarchen und Atempausen. [DEGAM-MUEDIGKEIT]
 - **Stimmung:** gedrückt oder Angst ≥ 2 an der Mehrzahl der Tage → ansprechen, parallel zur körperlichen Abklärung, nicht danach. [DEGAM-MUEDIGKEIT]
@@ -632,7 +660,7 @@ Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für da
 
 ### Arzt-Zusammenfassung
 
-- Eine Seite, vorausgefüllt für einen Zeitraum (Standard: die letzten 4 Wochen): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Belastungsmuster, Medikamente mit Zeitleiste, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
+- Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
 - Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek. Fotos optional (Standard: ohne).
 - Vor dem Speichern der Hinweis: Die PDF ist **nicht verschlüsselt**; nach dem Termin löschen.
 
@@ -653,8 +681,26 @@ Die Kürzel verweisen auf Primärquellen; im Code stehen sie mit Fundstelle nebe
 | NICE-NG206 | NICE: Myalgic encephalomyelitis (or encephalopathy)/chronic fatigue syndrome: diagnosis and management, NG206, 2021 |
 | NIH-POTS-2021 | Vernino S et al.: Postural orthostatic tachycardia syndrome (POTS): State of the science and clinical care from a 2019 National Institutes of Health Expert Consensus Meeting – Part 1. Auton Neurosci 2021; 235: 102828. doi:10.1016/j.autneu.2021.102828 |
 | SAJJAN-2015 | Sajjan VV et al.: Livedo reticularis: A review of the literature. Indian Dermatol Online J 2015; 6: 315–321. doi:10.4103/2229-5178.164493 |
+| DIAZ-BUSCHMANN-2014 | Díaz-Buschmann I et al.: Programming exercise intensity in patients on beta-blocker treatment. Eur J Prev Cardiol 2014. doi:10.1177/2047487313500214 |
+| GARMIN-HF | Gillinov et al.: Variable accuracy of wearable heart rate monitors during aerobic exercise. Med Sci Sports Exerc 2017 (PubMed 28709155); Merrigan et al. 2023, doi:10.1080/1091367X.2022.2161820 (Brustgurt gegen EKG); Casanova-Lizón et al. 2026, doi:10.3390/s26206549 (Ruhe) |
+| GARMIN-HRV | Dial et al. 2025, doi:10.14814/phy2.70527 (Nacht-RMSSD gegen EKG); Miller et al. 2022, doi:10.3390/s22166317 |
+| GARMIN-SCHLAF | Schyvens et al. 2025, doi:10.1093/sleepadvances/zpaf021 (gegen Polysomnographie) |
+| GARMIN-SCHRITTE | Evenson KR, Spade CL: Review of validity and reliability of Garmin activity trackers. J Meas Phys Behav 2020. doi:10.1123/jmpb.2019-0035 |
+| GARMIN-SCORES | Siepe et al. 2025, doi:10.1037/abn0001013 (Stress, Body Battery); Rosenbach et al. 2025, doi:10.1002/smi.70125 (Stress); Schiefer et al. 2021, doi:10.3390/s21196363 (SpO₂); Garmin: Accuracy disclaimer, garmin.com/legal/atdisclaimer |
+| KELLER-2024 | Keller et al.: Zwei-Tages-Spiroergometrie bei ME/CFS. J Transl Med 2024. doi:10.1186/s12967-024-05410-5 |
+| WORKWELL-15 | Faustregel der Workwell Foundation (Ruhepuls + 15); nur eine Studie belegt, laut Erhebung in Work 2023, doi:10.3233/WOR-220512 – Primärdokument offen |
 
 ### Entscheidungen
 
-- **15.11.2026:** eigene Sperre wie die Dokumentation; Export der Arzt-Zusammenfassung als PDF erlaubt.
-- Noch nicht abgestimmt: alles Übrige in diesem Abschnitt, darunter Nachtragen bis 7 Tage, die Startliste der Symptome, Fotos, die Mindestdaten und die eigenen Arbeitswerte. Ebenso offen ist, wie sich das Tagebuch zum geplanten Check-in mit HRV und Stability ([pacing.md](docs/research/pacing.md), [visible-apk-hrv-symptomtracking.md](docs/research/visible-apk-hrv-symptomtracking.md)) verhält: ob es dessen erste Stufe ist und ob HRV hinzukommt.
+Abgestimmt im Interview vom 15.11.2026.
+
+- Tracking ist die erste Stufe des Tages-Check-ins; HRV, Stability und Monatsfragebogen kommen später in denselben Bereich.
+- Eigene Sperre wie die Dokumentation; der Name „Tracking“ verrät auf dem Bildschirm nichts.
+- Export nur der Arzt-Zusammenfassung als PDF, Zeitraum in Wochen bis zur getrackten Dauer.
+- Nachtragen bis 7 Tage; bis 04:00 der Vortag als Vorschlag.
+- Medikamente getrennt von den Routinen; erinnert wird über eine normale Routine.
+- Standardwerte und Arbeitswerte fest, als eigene Festlegung gekennzeichnet; Schmerzen getrennt in Muskel- und Gelenkschmerzen.
+- PEM und Crash als Episode mit vermuteten Auslösern; Abendbelastung ≥ 2 zählt direkt als Anstrengung, Schritte und Herzfrequenz schlagen vor; Folgetage nur nach Stärke 2–3.
+- Garmin über Health Connect jetzt, FIT-Import mit HRV, Stress, Body Battery und SpO₂ in der HRV-Etappe; Gewichtung über drei Stufen statt Zahlen; Brustgurt nach Gerätetyp; Garmin-Ruhepuls neben, nicht statt des Morgenwerts.
+- Pacing-Schwelle: eigener Wert, sonst Ruhepuls + 15 als schwach belegte Faustregel; daraus nur Vorschläge.
+- Fotos kommen zuletzt.
