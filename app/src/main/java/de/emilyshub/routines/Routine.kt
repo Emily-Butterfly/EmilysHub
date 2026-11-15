@@ -11,6 +11,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.reminders.RemindingStyle
 import de.emilyshub.reminders.Tone
 import de.emilyshub.wishes.Wish
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -66,6 +67,11 @@ data class Routine(
      * enough for all of them. Set by [Routines] from [RoutineDraft.coupledWith], never by the draft itself.
      */
     val coupling: Long? = null,
+    /**
+     * The language whose day's workload of cards, once done, does its open occurrence of that day (SPEC.md §2, §15;
+     * #106); none: it is ticked off by hand only. Let go of when that language is archived or deleted.
+     */
+    @ColumnInfo(name = "vocabulary_language_id") val vocabularyLanguageId: Long? = null,
 ) {
     /** The times it is due on [date]; none if its repetition skips that day, or it has ended by then. */
     fun timesOn(date: LocalDate): List<LocalTime> =
@@ -146,6 +152,11 @@ data class Occurrence(
     @ColumnInfo(defaultValue = "0") val waiting: Boolean = false,
     /** Skipped as one of its coupled routines was done that day (SPEC.md §2): that one's occurrence, by its id. */
     @ColumnInfo(name = "covered_by") val coveredBy: Long? = null,
+    /**
+     * When a run through its checklist was first started (SPEC.md §2, Ablauf-Modus), for the stopwatch to count on from
+     * it when the run is taken up again; none while none was.
+     */
+    @ColumnInfo(name = "run_started_at") val runStartedAt: Instant? = null,
 ) {
     /** When it is reminded of: at its due time, or when it was put off to. */
     fun reminderTime(zone: ZoneId): Instant = remindAt ?: dueAt(date, time, zone).toInstant()
@@ -177,7 +188,19 @@ data class Reminder(
     val windowEnd: Instant,
     val style: RemindingStyle = RemindingStyle(),
     val together: List<JointOccurrence> = emptyList(),
+    /** The routine of its own occurrence. */
+    val routineId: Long,
+    /** Whether its routine has a checklist, to run through (SPEC.md §2, Ablauf-Modus). */
+    val hasChecklist: Boolean = false,
+    /** How far apart its routine's follow-ups come, which "Starten" puts it off by. */
+    val followUpEvery: Duration = FollowUps().every,
 ) {
+    /**
+     * Whether "Starten" can run through its checklist (SPEC.md §2, Ablauf-Modus): of a routine with a checklist alone; a
+     * joint reminder has none.
+     */
+    val startable: Boolean get() = hasChecklist && together.isEmpty()
+
     /** Each occurrence it reminds of, its own first, with its routine's name. */
     val occurrences: List<JointOccurrence>
         get() = listOf(JointOccurrence(occurrenceId, name, style.nameOnLockScreen)) + together
@@ -212,4 +235,9 @@ data class DueRoutine(
     val waitingFor: List<String> = emptyList(),
     val endsOn: LocalDate? = null,
     val coveredBy: String? = null,
+    /** The language whose day's workload of cards does it, if any (SPEC.md §15; #106). */
+    val vocabulary: VocabularyLanguage? = null,
 )
+
+/** The language a routine is done by, its cards' workload done (SPEC.md §15; #106): by its id and [name]. */
+data class VocabularyLanguage(val languageId: Long, val name: String)

@@ -4,8 +4,10 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupMigration
 import de.emilyshub.backup.FakeBackupFolder
+import de.emilyshub.data.DataUnavailable
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InMemorySettingsDao
+import de.emilyshub.data.Unopenable
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.FakeFingerprint
@@ -14,6 +16,7 @@ import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
+import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.security.FakeAuthenticator
@@ -39,10 +42,14 @@ class TestApplication : EmilysHubApplication() {
 
     /** On the spot, so that the tests and Compose see every change at once. */
     override val io = Dispatchers.Unconfined
+    override val work = Dispatchers.Unconfined
 
-    /** In memory, open to the tests, such as for the history of days gone by. */
-    override val database by lazy { inMemoryDatabase() }
+    /** In memory, open to the tests, such as for the history of days gone by; or failing for [openFails] (#100). */
+    override fun openDatabase(): HubDatabase = openFails?.let { throw DataUnavailable(it) } ?: inMemoryDatabase()
     val testDatabase: HubDatabase get() = database
+
+    /** Why opening the data fails from now on, as a test sets it; none for them to open (#100). */
+    var openFails: Unopenable? = null
 
     override val authenticator = FakeAuthenticator()
     override val fingerprint = FakeFingerprint()
@@ -52,13 +59,26 @@ class TestApplication : EmilysHubApplication() {
     override val ringer = FakeRinger()
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)
+    override val lessonDocuments = FakeLessonDocuments()
+
+    /** Stands in for the key sealed with the Android Keystore key, which only exists on a device. */
+    private val attachmentKeyForTests = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    override val attachmentKey = { attachmentKeyForTests }
     override val wifi = FakeWifi()
     override val location = FakeLocation()
     override val background = CoroutineScope(Dispatchers.Unconfined)
 
     /** Stands in for the Android Keystore key, which only exists on a device. */
     private val backupKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    override val backupWrappingKey = { backupKey }
+    /** If set, the Keystore key fails once it was asked for so many more times, as a Keystore that went away would. */
+    var backupKeyFailsAfter: Int? = null
+    override val backupWrappingKey = {
+        backupKeyFailsAfter?.let { left ->
+            check(left > 0) { "The Keystore key is gone" }
+            backupKeyFailsAfter = left - 1
+        }
+        backupKey
+    }
 
     /** Android's own SQLite, as SQLCipher's needs its native library. */
     override val backupMigration by lazy { BackupMigration(this) { FrameworkSQLiteOpenHelperFactory() } }

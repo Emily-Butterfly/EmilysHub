@@ -4,14 +4,20 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.Day
 import de.emilyshub.TestApplication
+import de.emilyshub.data.Saving
+import de.emilyshub.history
+import de.emilyshub.ledger.SubscriptionDraft
+import de.emilyshub.ledger.SubscriptionEditing
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.routine
+import de.emilyshub.routines.ChecklistEntry
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Priority
 import de.emilyshub.stats.StreakFlame
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -43,7 +49,7 @@ class HeuteTest {
 
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
     private val clockChanges = MutableSharedFlow<Unit>()
-    private val heute = Heute(app.routines, app.todos, app.notes, Day(app.clock, clockChanges))
+    private val heute = Heute(app.routines, app.todos, app.notes, app.subscriptions, Day(app.clock, clockChanges), Dispatchers.Unconfined)
 
     @Test
     fun `the day's routines and to-dos come in their order, with those shown before their day and the notes pinned`() = runTest {
@@ -109,6 +115,7 @@ class HeuteTest {
     fun `ticking off lights the flame and fills the heatmap's day, and undoing takes both back`() = runTest {
         app.routine("Vitamine", "07:30")
         val seen = collect()
+        // Nothing ever counted for or against a day yet (#109).
         assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
 
@@ -121,6 +128,81 @@ class HeuteTest {
         runCurrent()
         assertNull(seen.last().flame)
         assertEquals(0, seen.last().doneToday())
+    }
+
+    @Test
+    fun `a to-do ticked off lights the flame, taken back or deleted for good it counts no more`() = runTest {
+        val call = app.todo("Arzt anrufen", due = Due.On(FRIDAY))
+        val seen = collect()
+        assertNull(seen.last().flame)
+
+        app.todos.markDone(call)
+        runCurrent()
+        assertEquals(StreakFlame(days = 1, todayOpen = false), seen.last().flame)
+
+        app.todos.reopen(call)
+        runCurrent()
+        assertNull("taken back", seen.last().flame)
+
+        app.todos.markDone(call)
+        app.todos.delete(call)
+        runCurrent()
+        assertNull("deleted for good", seen.last().flame)
+    }
+
+    @Test
+    fun `an overdue to-do never counts against a day`() = runTest {
+        val vitamins = app.routine("Vitamine", "07:30")
+        app.history(vitamins, FRIDAY.minusDays(1).toString() to OccurrenceStatus.Done)
+        app.todo("Steuer", due = Due.On(FRIDAY.minusDays(2)))
+
+        val seen = collect()
+
+        assertEquals("yesterday counts, the to-do overdue since before", StreakFlame(days = 1, todayOpen = true), seen.last().flame)
+    }
+
+    @Test
+    fun `ticking off moves an entry from up next to what is over, and the stand counts it`() = runTest {
+        app.routine("Vitamine", "07:30")
+        app.todo("Müll", due = Due.On(FRIDAY))
+        val seen = collect()
+        assertEquals(listOf("Müll", "Vitamine"), seen.last().blocks.upNext.map { it.name })
+        assertEquals(DayStand(done = 0, total = 2), seen.last().blocks.stand)
+
+        heute.onToday.setDone(seen.last().entries.first { it.name == "Vitamine" }, done = true)
+        runCurrent()
+
+        assertEquals(listOf("Müll"), seen.last().blocks.upNext.map { it.name })
+        assertEquals(listOf("Vitamine"), seen.last().blocks.past.map { it.name })
+        assertEquals(DayStand(done = 1, total = 2), seen.last().blocks.stand)
+    }
+
+    @Test
+    fun `the day before's routine still in its time window is up next`() = runTest {
+        app.routine("Lesen", "23:00")
+        app.clock.now = Instant.parse("2026-10-23T22:30:00Z") // 00:30 on Saturday in Berlin
+
+        val day = collect().last()
+
+        assertEquals(
+            listOf(FRIDAY.atTime(23, 0), FRIDAY.plusDays(1).atTime(23, 0)),
+            day.blocks.upNext.map { (it as TodayEntry.OfRoutine).routine.dueAt.toLocalDateTime() },
+        )
+    }
+
+    @Test
+    fun `an overdue to-do moved to tomorrow leaves Heute, and undoing brings it back`() = runTest {
+        app.todo("Steuer", due = Due.On(FRIDAY.minusDays(3)))
+        val seen = collect()
+        val steuer = seen.last().blocks.overdue.single().todo
+
+        val move = checkNotNull(heute.move(steuer, FRIDAY.plusDays(1)))
+        runCurrent()
+        assertEquals(emptyList<String>(), seen.last().entries.map { it.name })
+
+        heute.undoMove(move)
+        runCurrent()
+        assertEquals(listOf("Steuer"), seen.last().blocks.overdue.map { it.name })
     }
 
     @Test
@@ -193,6 +275,29 @@ class HeuteTest {
         assertEquals(RoutineOffer.None, covered.offer)
     }
 
+    @Test
+    fun `an Abo is under Demnaechst from the first day of its lead to its last day, the soonest first`() = runTest {
+        runBlocking {
+            // Last day the 30th: on Heute from the 16th on, with 14 days of lead.
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Zeitung", cancelBy = FRIDAY.plusDays(14)))
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Streaming", cancelBy = FRIDAY.plusDays(3), lead = "3"))
+            app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Später", cancelBy = FRIDAY.plusDays(15)))
+            val cancelled = app.subscriptions.save(SubscriptionEditing.New, SubscriptionDraft("Gekündigt", cancelBy = FRIDAY.plusDays(2)))
+            app.subscriptions.cancel((cancelled as Saving.Saved).id, FRIDAY.plusDays(2))
+        }
+        val seen = collect()
+        assertEquals(listOf("Streaming", "Zeitung"), seen.last().subscriptions.map { it.name })
+
+        // The day after the Streaming one's last day.
+        app.clock.now = Instant.parse("2026-10-26T23:00:01Z") // 00:00:01 on the 27th, in winter time
+        // Past the next minute's turn, which the clock starting at 07:00:00 has a minute on.
+        advanceTimeBy(61_000)
+        runCurrent()
+
+        assertEquals(listOf("Zeitung", "Später"), seen.last().subscriptions.map { it.name })
+        assertEquals(FRIDAY.plusDays(14), seen.last().subscriptions.first().lastDay)
+    }
+
     /** Heute as [Heute.day] gives it, collected for the rest of the test. */
     private fun TestScope.collect(): List<HeuteDay> {
         val seen = mutableListOf<HeuteDay>()
@@ -205,6 +310,17 @@ class HeuteTest {
         entries.filterIsInstance<TodayEntry.OfRoutine>().map { it.routine.dueAt.toLocalDateTime() }
 
     private fun HeuteDay.doneToday() = heatmap.weeks.flatten().single { it.date == date }.done
+
+    @Test
+    fun `only an open one with a checklist can be run through step by step`() {
+        val item = ChecklistEntry(itemId = 1, text = "Wasser", ticked = false)
+        assertTrue(due(OccurrenceStatus.Open).copy(checklist = listOf(item)).startable)
+        assertFalse(due(OccurrenceStatus.Open).startable)
+        OccurrenceStatus.entries.filter { it != OccurrenceStatus.Open }.forEach { status ->
+            assertFalse(status.name, due(status).copy(checklist = listOf(item)).startable)
+        }
+        assertFalse(due(OccurrenceStatus.Skipped).copy(checklist = listOf(item), coveredBy = "Laufen").startable)
+    }
 
     private fun due(status: OccurrenceStatus) = DueRoutine(
         occurrenceId = 1, routineId = 1, name = "Vitamine",

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import de.emilyshub.data.InputText
 import de.emilyshub.notes.Block
 import de.emilyshub.notes.Inline
 import de.emilyshub.notes.ListItem
@@ -72,13 +73,7 @@ private fun DirectedBlock(block: Block) {
 internal fun startsRightToLeft(block: Block): Boolean {
     // Code reads left to right whatever it holds.
     val text = if (block is Block.Code) "" else Markdown.plainText(block)
-    return text.firstNotNullOfOrNull { char ->
-        when (Character.getDirectionality(char)) {
-            Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> true
-            Character.DIRECTIONALITY_LEFT_TO_RIGHT -> false
-            else -> null
-        }
-    } ?: false
+    return InputText.startsRightToLeft(text)
 }
 
 @Composable

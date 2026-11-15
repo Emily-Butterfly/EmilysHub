@@ -96,6 +96,7 @@ class NotePinsAndLinksScreenTest {
 
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Wörterbuch kaufen").performClick()
+            compose.openMoreOptions()
             compose.onNodeWithText("Verknüpfte Notizen").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Verben").performScrollTo().assertIsDisplayed()
         }
@@ -110,6 +111,7 @@ class NotePinsAndLinksScreenTest {
         launchApp().use {
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Wörterbuch kaufen").performClick()
+            compose.openMoreOptions()
             compose.onNodeWithText("Notiz verknüpfen").performScrollTo().performClick()
             compose.onNode(hasText("Verben") and hasAnyAncestor(isDialog())).performClick()
             compose.onNode(hasSetTextAction() and hasText("Wörterbuch kaufen")).performTextReplacement("Wörterbuch Arabisch kaufen")
@@ -138,6 +140,7 @@ class NotePinsAndLinksScreenTest {
             compose.onNode(hasText("To-dos") and hasClickAction()).performClick()
             compose.onNodeWithText("Archiv", substring = true).performScrollTo().performClick()
             compose.onNodeWithText("Milch kaufen").performClick()
+            compose.openMoreOptions()
             compose.onNodeWithText("Einkaufsliste").performScrollTo().assertIsDisplayed()
         }
     }

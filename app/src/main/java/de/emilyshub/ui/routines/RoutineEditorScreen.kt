@@ -32,35 +32,57 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.inbox.Sorting
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.Languages
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
 import de.emilyshub.reminders.ToneCollection
 import de.emilyshub.routines.DraftProblem
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.RoutineEditing
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.Routines
+import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.RecurrenceEnd
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.MoreOptions
 import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.goalOption
+import de.emilyshub.ui.fields.placesOption
+import de.emilyshub.ui.fields.priorityOption
+import de.emilyshub.ui.fields.rememberFirstField
+import de.emilyshub.ui.fields.styleOptions
+import de.emilyshub.ui.fields.tagsOption
+import de.emilyshub.ui.languages.VocabularyField
+import de.emilyshub.ui.languages.rememberOfferedLanguages
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
@@ -71,12 +93,15 @@ import java.time.LocalTime
 sealed interface RoutineEditorTarget : Serializable {
     data object New : RoutineEditorTarget
 
+    /** A new one, of an entry of the inbox sorted in (SPEC.md §16), which leaves the inbox once this is saved. */
+    data class FromInbox(val sorting: Sorting) : RoutineEditorTarget
+
     data class Edit(val routineId: Long) : RoutineEditorTarget
 }
 
 /**
  * Creates or changes a routine with its times, repetition, how it reminds and how long it can be caught up on, and the
- * goal it is part of with what it aims at for that (SPEC.md §6). Leaving without saving drops the changes; a tag made
+ * goal it is part of with what it aims at for that (SPEC.md §6). Leaving with changes asks whether to save them; a tag made
  * here ([TagsField]) is saved at once, like one made in the settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,21 +113,30 @@ fun RoutineEditorScreen(
     tags: Tags,
     places: Places,
     notes: Notes,
+    inbox: Inbox,
+    languages: Languages,
     target: RoutineEditorTarget,
     tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
+    onNewPlace: () -> Unit,
 ) {
     val routineId = (target as? RoutineEditorTarget.Edit)?.routineId
+    val sorting = (target as? RoutineEditorTarget.FromInbox)?.sorting
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (routineId == null) RoutineEditing.New else null) }
     var draft by rememberSaveable {
-        mutableStateOf(RoutineDraft(name = "", description = "", times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
+        val name = sorting?.title.orEmpty()
+        mutableStateOf(RoutineDraft(name, description = sorting?.rest.orEmpty(), times = listOf(DEFAULT_TIME), repetition = Repetition.Daily))
     }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingName by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
+    // Folded also for one saved, so that the editor always looks the same; its summary names what is set.
+    var moreOptions by rememberSaveable { mutableStateOf(false) }
     val today = rememberToday(day)
 
     val opened = editing
@@ -124,16 +158,29 @@ fun RoutineEditorScreen(
     val problems = routines.problems(opened, draft)
     // How the routine is in use; none for a new one.
     val status = opened.status
-    // Does [work] and closes the editor, once: its changes not saved are dropped.
+    // Does [work] and closes the editor, once.
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = routineId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingName = true
+            // A problem in what is folded away unfolds it, to be seen.
+            if (problems.any { it !in UNFOLDED }) moreOptions = true
+            firstField.saveFailed(atField = DraftProblem.NameMissing in problems || DraftProblem.NameTooLong in problems)
         } else {
             val saved = draft
-            closeWith { routines.save(opened, saved) }
+            closeWith {
+                // An entry of the inbox sorted in leaves it now, not before.
+                if (routines.save(opened, saved) is Saving.Saved && sorting != null) inbox.sortedOut(sorting.entryId)
+            }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, RoutineDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -145,7 +192,7 @@ fun RoutineEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -155,7 +202,6 @@ fun RoutineEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                     if (routineId != null) {
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
@@ -183,6 +229,7 @@ fun RoutineEditorScreen(
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -197,7 +244,7 @@ fun RoutineEditorScreen(
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.routine_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 isError = DraftProblem.NameTooLong in problems || (showMissingName && DraftProblem.NameMissing in problems),
                 supportingText = {
                     when {
@@ -205,38 +252,11 @@ fun RoutineEditorScreen(
                         else -> LengthHint(InputText.lengthOf(cleaned.name), RoutineDraft.NAME_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.requester),
             )
-            OutlinedTextField(
-                value = draft.description,
-                onValueChange = { draft = draft.copy(description = it) },
-                label = { Text(stringResource(R.string.routine_description)) },
-                minLines = 3,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                isError = DraftProblem.DescriptionTooLong in problems,
-                supportingText = { LengthHint(InputText.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
-            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
-            TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
-            PlacesField(
-                places = places,
-                selected = draft.placeIds,
-                hintNone = R.string.routine_places_everywhere,
-                hintChosen = R.string.routine_places_chosen,
-                onChange = { draft = draft.copy(placeIds = it) },
-            )
-            GoalField(
-                wishes = wishes,
-                selected = draft.goalId,
-                label = R.string.goal_field,
-                none = R.string.goal_field_none,
-                onChange = { draft = draft.copy(goalId = it) },
-            )
-            if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
             TimesFields(draft.times, onChange = { draft = draft.copy(times = it) })
-            CouplingField(routines, routineId, draft.times.size, draft.coupledWith, onChange = { draft = draft.copy(coupledWith = it) })
             RepetitionFields(draft.repetition, today, DraftProblem.GoneBy in problems, onChange = { draft = draft.copy(repetition = it) })
             if (draft.repetition !is Repetition.Once) {
                 val end = draft.endsOn?.let(RecurrenceEnd::OnDate) ?: RecurrenceEnd.Never
@@ -245,10 +265,49 @@ fun RoutineEditorScreen(
                     draft = draft.copy(endsOn = (it as? RecurrenceEnd.OnDate)?.date)
                 })
             }
-            FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
-            RemindingStyleFields(draft.style, tones, onChange = { draft = draft.copy(style = it) })
-            TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
-            if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId), onOpen = onOpenNote)
+            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) }, withMinutes = true)
+            val offeredLanguages = rememberOfferedLanguages(languages)
+            MoreOptions(
+                expanded = moreOptions,
+                onExpandedChange = { moreOptions = it },
+                summary = optionsSet(cleaned, places, wishes, offeredLanguages),
+                available = stringResource(R.string.more_options_routine),
+            ) {
+                OutlinedTextField(
+                    value = draft.description,
+                    onValueChange = { draft = draft.copy(description = it) },
+                    label = { Text(stringResource(R.string.routine_description)) },
+                    minLines = 3,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    isError = DraftProblem.DescriptionTooLong in problems,
+                    supportingText = { LengthHint(InputText.lengthOf(cleaned.description), RoutineDraft.DESCRIPTION_MAX) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
+                TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
+                PlacesField(
+                    places = places,
+                    selected = draft.placeIds,
+                    hintNone = R.string.routine_places_everywhere,
+                    hintChosen = R.string.routine_places_chosen,
+                    onChange = { draft = draft.copy(placeIds = it) },
+                    onNewPlace = onNewPlace,
+                )
+                GoalField(
+                    wishes = wishes,
+                    selected = draft.goalId,
+                    label = R.string.goal_field,
+                    none = R.string.goal_field_none,
+                    onChange = { draft = draft.copy(goalId = it) },
+                )
+                if (draft.goalId != null) TargetFields(draft.target, onChange = { draft = draft.copy(target = it) })
+                CouplingField(routines, routineId, draft.times.size, draft.coupledWith, onChange = { draft = draft.copy(coupledWith = it) })
+                VocabularyField(offeredLanguages, draft.vocabularyLanguageId, onChange = { draft = draft.copy(vocabularyLanguageId = it) })
+                FollowUpFields(draft.followUps, onChange = { draft = draft.copy(followUps = it) })
+                RemindingStyleFields(draft.style, tones, onChange = { draft = draft.copy(style = it) })
+                TimeWindowFields(draft.window, onChange = { draft = draft.copy(window = it) })
+                if (routineId != null) LinkedNotes(notes, NoteLink.Routine(routineId), onOpen = onOpenNote)
+            }
         }
     }
 
@@ -270,3 +329,41 @@ fun RoutineEditorScreen(
 }
 
 private val DEFAULT_TIME: LocalTime = LocalTime.of(8, 0)
+
+/** The problems shown in the fields above "Mehr Optionen"; all others are under it. */
+private val UNFOLDED = setOf(
+    DraftProblem.NameMissing,
+    DraftProblem.NameTooLong,
+    DraftProblem.TimesMissing,
+    DraftProblem.TooManyTimes,
+    DraftProblem.WeekdaysMissing,
+    DraftProblem.IntervalOutOfRange,
+    DraftProblem.EndDateTooEarly,
+    DraftProblem.GoneBy,
+    DraftProblem.ChecklistTooLong,
+    DraftProblem.ChecklistItemTooLong,
+    DraftProblem.ChecklistMinutesOutOfRange,
+)
+
+/** What under "Mehr Optionen" differs from a new routine, in the order of its fields. */
+@Composable
+private fun optionsSet(draft: RoutineDraft, places: Places, wishes: Wishes, languages: List<Language>): List<String> = listOfNotNull(
+    stringResource(R.string.option_description).takeIf { InputText.isVisible(draft.description) },
+    priorityOption(draft.priority),
+    tagsOption(draft.tagIds),
+    placesOption(places, draft.placeIds),
+    goalOption(wishes, draft.goalId),
+    draft.coupledWith.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.option_coupled, it, it) },
+    languages.find { it.id == draft.vocabularyLanguageId }?.let { stringResource(R.string.option_vocabulary, it.name) },
+    when {
+        draft.followUps == FollowUps() -> null
+        draft.followUps.count == 0 -> stringResource(R.string.option_follow_ups_never)
+        else -> stringResource(R.string.option_follow_ups, draft.followUps.count, draft.followUps.everyMinutes)
+    },
+) + styleOptions(draft.style) + listOfNotNull(
+    when {
+        draft.window == TimeWindow() -> null
+        draft.window.untilMidnight -> stringResource(R.string.option_window_until_midnight)
+        else -> stringResource(R.string.option_window_hours, draft.window.hours)
+    },
+)

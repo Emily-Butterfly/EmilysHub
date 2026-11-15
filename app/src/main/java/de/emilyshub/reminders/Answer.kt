@@ -1,7 +1,5 @@
 package de.emilyshub.reminders
 
-import java.time.Duration
-
 /**
  * An answer to a reminder (SPEC.md §3, §5), from its notification or its full-screen alarm alike, as
  * [Reminders.answer] takes it.
@@ -16,12 +14,21 @@ sealed interface Answer {
     /** "Später": it asks when to come back. */
     data object OfferPutOff : Answer
 
-    /** One of the choices "Später" offers: it comes back [by] then. */
-    data class PutOff(val by: Duration) : Answer
+    /** One of the choices "Später" offers: it comes back as [choice] says. */
+    data class PutOff(val choice: PutOffChoice) : Answer
 
     /** "Überspringen", for all a joint reminder reminds of; a to-do is never skipped. */
     data object Skip : Answer
 
     /** "Heute nicht", for all a joint reminder reminds of; a to-do has none. */
     data object Drop : Answer
+
+    /**
+     * "Starten", on a routine's with a checklist (#103): it is put off by the routine's follow-up time, and its run opens
+     * ([Reminders.answer] returns which).
+     */
+    data object Start : Answer
+
+    /** "Läuft weiter", on an Abo's (#80): it runs on, and reminds no more of this term. */
+    data object RunOn : Answer
 }

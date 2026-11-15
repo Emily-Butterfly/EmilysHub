@@ -53,6 +53,20 @@ class Routines(
      */
     fun history(): Flow<List<OccurrenceOutcome>> = flow { emitAll(dao.observeOutcomes().distinctUntilChanged()) }.flowOn(io)
 
+    /** How the occurrences from [from] on ended, as [history] has it, once: for the flame (#108). */
+    suspend fun historyFrom(from: LocalDate): List<OccurrenceOutcome> = withContext(io) { dao.outcomesFrom(from) }
+
+    /** The day of the first occurrence, if there is one. */
+    suspend fun firstDay(): LocalDate? = withContext(io) { dao.firstDate() }
+
+    /** The days of the occurrences done from [from] on, once for each: for the heatmap (#108). Anew only once they change. */
+    fun doneFrom(from: LocalDate): Flow<List<LocalDate>> =
+        flow { emitAll(dao.observeDoneFrom(from).distinctUntilChanged()) }.flowOn(io)
+
+    /** Once at once, then each time an occurrence changes. */
+    fun historyChanges(): Flow<Unit> =
+        flow { emitAll(database().invalidationTracker.createFlow("occurrences").map {}) }.flowOn(io)
+
     /** How the routine's occurrences ended, as [history] has it. */
     fun history(routineId: Long): Flow<List<OccurrenceOutcome>> =
         flow { emitAll(dao.observeOutcomesOf(routineId).distinctUntilChanged()) }.flowOn(io)
@@ -267,6 +281,8 @@ class Routines(
         plan(date)
         val list = dao.observeOccurrencesWithChecklists(from = date.minusDays(1), to = date).map { all ->
             val now = now()
+            // Those not archived, which alone do a routine.
+            val vocabulary = database().languages().languages().filter { !it.archived }.associate { it.id to VocabularyLanguage(it.id, it.name) }
             // One done that skipped others is due the same day, so it is among them.
             val names = all.associate { it.occurrence.id to it.routine.name }
             val catchingUp = today(now, clock.zone) == date
@@ -283,6 +299,7 @@ class Routines(
                         waitingFor = due.waitingFor(),
                         endsOn = routine.endsOn,
                         coveredBy = occurrence.coveredBy?.let(names::get),
+                        vocabulary = routine.vocabularyLanguageId?.let(vocabulary::get),
                     )
                 }
                 .sortedWith(compareBy<DueRoutine> { it.dueAt.toInstant() }.thenBy(InputText.byName) { it.name })
@@ -290,7 +307,46 @@ class Routines(
         emitAll(list)
     }.flowOn(io)
 
+    /**
+     * The occurrence as a run through its checklist sees it (SPEC.md §2, Ablauf-Modus), anew as it, its routine or its
+     * checklist changes; none once it is gone, with its routine deleted.
+     */
+    fun forRun(occurrenceId: Long): Flow<RunOccurrence?> = flow {
+        val occurrences = dao.observeOccurrenceWithChecklist(occurrenceId).map { due ->
+            due ?: return@map null
+            val coveredBy = due.occurrence.coveredBy?.let { dao.occurrencesWithRoutines(listOf(it)).singleOrNull()?.routine?.name }
+            RunOccurrence(due.occurrence, due.routine, due.entries(), coveredBy)
+        }
+        emitAll(occurrences)
+    }.flowOn(io)
+
+    /**
+     * When the run through the occurrence's checklist started (SPEC.md §2, Ablauf-Modus): now, the first time, and the
+     * same each time it is taken up again. Now, too, for one gone meanwhile.
+     */
+    suspend fun startRun(occurrenceId: Long): Instant = withContext(io + NonCancellable) {
+        val now = now()
+        dao.startRun(occurrenceId, now)
+        dao.occurrence(occurrenceId)?.runStartedAt ?: now
+    }
+
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
+
+    /**
+     * The day's workload of cards of the language [languageId] is done (SPEC.md §2, §15; #106): each active routine done
+     * by it has its earliest occurrence of today still open done, as if ticked off, its checklist with it. What is
+     * missed, skipped or dropped stays as it is.
+     */
+    suspend fun doneByVocabulary(languageId: Long) {
+        val open = withContext(io) {
+            val today = today()
+            plan(today)
+            dao.withStatus(RoutineStatus.Active).filter { it.vocabularyLanguageId == languageId }.mapNotNull { routine ->
+                dao.occurrencesOn(routine.id, today).filter { it.status == OccurrenceStatus.Open }.minByOrNull { it.time }?.id
+            }
+        }
+        open.forEach { markDone(it) }
+    }
 
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 
@@ -655,7 +711,12 @@ class Routines(
         val (occurrence, routine) = of
         val dueAt = dueAt(occurrence.date, occurrence.time, clock.zone)
         val windowEnd = routine.windowEnd(occurrence, clock.zone)
-        return Reminder(occurrence.id, routine.name, dueAt, windowEnd, routine.style)
+        return Reminder(
+            occurrence.id, routine.name, dueAt, windowEnd, routine.style,
+            routineId = routine.id,
+            hasChecklist = of.checklistItemIds.isNotEmpty(),
+            followUpEvery = routine.followUps.every,
+        )
     }
 
     private suspend fun setStatus(occurrenceId: Long, status: OccurrenceStatus) = write {
@@ -726,7 +787,10 @@ class Routines(
     private suspend fun saveChecklist(routineId: Long, items: List<ChecklistDraftItem>) {
         val unclaimed = dao.checklist(routineId).map { it.id }.toMutableSet()
         val checklist = items.mapIndexed { position, item ->
-            ChecklistItem(id = item.id.takeIf(unclaimed::remove) ?: 0, routineId = routineId, position = position, text = item.text)
+            ChecklistItem(
+                id = item.id.takeIf(unclaimed::remove) ?: 0, routineId = routineId, position = position, text = item.text,
+                minutes = item.minutes,
+            )
         }
         val (saved, new) = checklist.partition { it.id != 0L }
         dao.deleteChecklistItemsBut(routineId, kept = saved.map { it.id })

@@ -12,4 +12,7 @@ enum class MoreEntry(val emoji: String, @param:StringRes val label: Int) {
 
     /** Locked, with its own password (SPEC.md §14): it locks as soon as it is left. */
     Doku("🔒", R.string.destination_doku),
+
+    /** Sprachen (SPEC.md §15): the lessons held, by language and teacher. */
+    Languages("🗣️", R.string.destination_languages),
 }

@@ -21,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -28,6 +29,7 @@ import java.time.LocalTime
 
 /** The to-dos on Heute (SPEC.md §1, §5): those due today among the routines by time, the overdue ones at the top. */
 @RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
 class TodayTodosTest {
 
     @get:Rule
@@ -54,6 +56,7 @@ class TodayTodosTest {
         app.todo("Irgendwann")
 
         launchApp().use {
+            compose.openOverdue()
             compose.onNodeWithText("To-do, überfällig: 21.10.2026").assertIsDisplayed()
             val shown = titles("Steuer", "Müll", "Tabletten", "Arzt", "Morgen", "Irgendwann")
             assertEquals(listOf("Steuer", "Müll", "Tabletten", "Arzt"), shown)
@@ -62,11 +65,13 @@ class TodayTodosTest {
     }
 
     @Test
-    fun `a to-do ticked off on Heute is done and stays there ticked for the day, and unticking it opens it again`() {
+    fun `a to-do ticked off on Heute is done and goes to what is over, and unticking it opens it again`() {
         app.todo("Müll", due = Due.On(today))
 
         launchApp().use {
-            row("Müll").performClick().assertIsOn()
+            row("Müll").performClick()
+            compose.openPast()
+            row("Müll").assertIsOn()
             assertEquals(listOf("Müll"), runBlocking { app.todos.archived().first().map { it.title } })
 
             row("Müll").performClick().assertIsOff()
@@ -84,6 +89,7 @@ class TodayTodosTest {
 
             row("Wagen").performClick()
 
+            compose.openPast()
             row("Umzug").assertIsOn()
         }
         assertEquals(listOf("Umzug"), runBlocking { app.todos.archived().first().map { it.title } })
@@ -100,6 +106,7 @@ class TodayTodosTest {
             app.clock.now = LocalDateTime.parse("2026-10-23T07:31").atZone(app.clock.timeZone).toInstant()
             compose.mainClock.advanceTimeBy(A_MINUTE)
 
+            compose.openOverdue()
             compose.onNodeWithText("To-do, überfällig: heute, 07:30").assertIsDisplayed()
             assertEquals(listOf("Arzt", "Müll"), titles("Müll", "Arzt"))
         }

@@ -609,3 +609,230 @@ val MIGRATION_40_41 = object : Migration(40, 41) {
         db.execSQL("ALTER TABLE `note_folders` ADD COLUMN `archived_at` TEXT")
     }
 }
+
+/**
+ * Version 42: the household book can have a total budget (SPEC.md §13, #78), as a standard and of a month's own, and a
+ * month closed keeps the amount its total budget came to. None has one yet.
+ */
+val MIGRATION_41_42 = object : Migration(41, 42) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_total_budget` (`id` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                "`cents` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_month_total_budgets` (`month` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`cents` INTEGER NOT NULL, PRIMARY KEY(`month`))",
+        )
+        db.execSQL("ALTER TABLE `ledger_closed_months` ADD COLUMN `total_budget_cents` INTEGER")
+    }
+}
+
+/**
+ * Version 43: the household book has Abos (SPEC.md §13, #79), contracts with the last day to cancel them, linked to a
+ * fixed booking if wanted. None is there yet.
+ */
+val MIGRATION_42_43 = object : Migration(42, 43) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`amount_cents` INTEGER, `interval` TEXT, `recurring_id` INTEGER, `note` TEXT NOT NULL, `cancel_by` TEXT, " +
+                "`term_end` TEXT, `term_day` INTEGER, `notice_count` INTEGER, `notice_unit` TEXT, `renewal_months` INTEGER, " +
+                "`lead_days` INTEGER NOT NULL, `runs_on` INTEGER NOT NULL DEFAULT 0, `ends_on` TEXT, " +
+                "FOREIGN KEY(`recurring_id`) REFERENCES `recurring_bookings`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_subscriptions_recurring_id` ON `subscriptions` (`recurring_id`)")
+    }
+}
+
+/**
+ * Version 44: an Abo keeps from when its reminder counts (#80), so that one made or changed within its lead does not
+ * notify for a time gone by. Those there already have none, and all their times count.
+ */
+val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `subscriptions` ADD COLUMN `reminds_from` TEXT")
+    }
+}
+
+/**
+ * Version 45: Sprachen (SPEC.md §15, #81): the languages, the teachers with the languages they teach, and the lessons
+ * held, none of whose language or teacher can be deleted while it is there. None is there yet.
+ */
+val MIGRATION_44_45 = object : Migration(44, 45) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `languages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`archived` INTEGER NOT NULL DEFAULT 0)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `teachers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`note` TEXT NOT NULL, `archived` INTEGER NOT NULL DEFAULT 0)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `teacher_languages` (`teacher_id` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`teacher_id`, `language_id`), " +
+                "FOREIGN KEY(`teacher_id`) REFERENCES `teachers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_teacher_languages_language_id` ON `teacher_languages` (`language_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lessons` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, " +
+                "`minutes` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, `teacher_id` INTEGER NOT NULL, `price_cents` INTEGER, " +
+                "`note` TEXT NOT NULL, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`teacher_id`) REFERENCES `teachers`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lessons_language_id` ON `lessons` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lessons_teacher_id` ON `lessons` (`teacher_id`)")
+    }
+}
+
+/**
+ * Version 46: the topics and exams of Sprachen (SPEC.md §15, #82): each of a language, a topic for an exam or none, and
+ * which lessons treated which topic. None is there yet.
+ */
+val MIGRATION_45_46 = object : Migration(45, 46) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `exams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `date` TEXT NOT NULL, `taken` INTEGER NOT NULL DEFAULT 0, `result` TEXT NOT NULL, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_exams_language_id` ON `exams` (`language_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `topics` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `exam_id` INTEGER, `done` INTEGER NOT NULL DEFAULT 0, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`exam_id`) REFERENCES `exams`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_topics_language_id` ON `topics` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_topics_exam_id` ON `topics` (`exam_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lesson_topics` (`lesson_id` INTEGER NOT NULL, `topic_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`lesson_id`, `topic_id`), " +
+                "FOREIGN KEY(`lesson_id`) REFERENCES `lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`topic_id`) REFERENCES `topics`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lesson_topics_topic_id` ON `lesson_topics` (`topic_id`)")
+    }
+}
+
+/**
+ * Version 47: the photos and PDFs attached to the lessons of Sprachen (SPEC.md §15, #83), each kept encrypted in a file
+ * of its own, gone with its lesson. None is there yet.
+ */
+val MIGRATION_46_47 = object : Migration(46, 47) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `lesson_attachments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`lesson_id` INTEGER NOT NULL, `kind` TEXT NOT NULL, `file` TEXT NOT NULL, `bytes` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, `position` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`lesson_id`) REFERENCES `lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_lesson_attachments_lesson_id` ON `lesson_attachments` (`lesson_id`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_lesson_attachments_file` ON `lesson_attachments` (`file`)")
+    }
+}
+
+/**
+ * Version 48: an exam of Sprachen may be a part of a goal (SPEC.md §6, §15, #84), without it once the goal is deleted.
+ * None is yet.
+ */
+val MIGRATION_47_48 = object : Migration(47, 48) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `exams` ADD COLUMN `goal_id` INTEGER " +
+                "REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_exams_goal_id` ON `exams` (`goal_id`)")
+    }
+}
+
+/** Version 49: the Eingang (SPEC.md §16, #93), the thoughts captured to be sorted in later. None is yet. */
+val MIGRATION_48_49 = object : Migration(48, 49) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `inbox` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `text` TEXT NOT NULL, " +
+                "`captured_at` TEXT NOT NULL)",
+        )
+    }
+}
+
+/**
+ * Version 50: an occurrence keeps when a run through its checklist was first started (SPEC.md §2, Ablauf-Modus, #101).
+ * None was yet.
+ */
+val MIGRATION_49_50 = object : Migration(49, 50) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `occurrences` ADD COLUMN `run_started_at` TEXT")
+    }
+}
+
+/**
+ * Version 51: the Ablauf-Modus with times (SPEC.md §2, #102): a routine's checklist item may have minutes, none has yet;
+ * and the run that is running is kept, with the step it is at, so that it outlives the app. None is running yet.
+ */
+val MIGRATION_50_51 = object : Migration(50, 51) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `checklist_items` ADD COLUMN `minutes` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `runs` (`occurrence_id` INTEGER NOT NULL, `routine_id` INTEGER NOT NULL, " +
+                "`step_item_id` INTEGER, `step_started_at` TEXT NOT NULL, `ticked_here` TEXT NOT NULL, `finished_at` TEXT, " +
+                "`alerted` INTEGER NOT NULL, PRIMARY KEY(`occurrence_id`), " +
+                "FOREIGN KEY(`occurrence_id`) REFERENCES `occurrences`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}
+
+/**
+ * Version 52: the Vokabeltrainer (SPEC.md §15, #104): the cards of each language, the answers to them, and how many new
+ * cards a day each language takes, 10 for every language so far. No card is there yet.
+ */
+val MIGRATION_51_52 = object : Migration(51, 52) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `new_cards_per_day` INTEGER NOT NULL DEFAULT 10")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `cards` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`front` TEXT NOT NULL, `back` TEXT NOT NULL, `transcription` TEXT NOT NULL, `note` TEXT NOT NULL, `topic_id` INTEGER, " +
+                "`stability` REAL, `difficulty` REAL, `first_review` TEXT, `last_review` TEXT, `due` TEXT, `interval` INTEGER, " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , " +
+                "FOREIGN KEY(`topic_id`) REFERENCES `topics`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cards_language_id` ON `cards` (`language_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cards_topic_id` ON `cards` (`topic_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `card_reviews` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `card_id` INTEGER NOT NULL, " +
+                "`at` TEXT NOT NULL, `grade` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`card_id`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_reviews_card_id` ON `card_reviews` (`card_id`)")
+    }
+}
+
+/**
+ * Version 53: the Vokabeltrainer counts (SPEC.md §2, §6, §15; #106): a routine may be done by the day's workload of a
+ * language's cards, none is yet; and a goal may have a Karten-Ziel, none has yet.
+ */
+val MIGRATION_52_53 = object : Migration(52, 53) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `routines` ADD COLUMN `vocabulary_language_id` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `card_goals` (`goal_id` INTEGER NOT NULL, `language_id` INTEGER NOT NULL, " +
+                "`count` INTEGER NOT NULL, PRIMARY KEY(`goal_id`), " +
+                "FOREIGN KEY(`goal_id`) REFERENCES `wishes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`language_id`) REFERENCES `languages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_card_goals_language_id` ON `card_goals` (`language_id`)")
+    }
+}
+
+/**
+ * Version 54: Heute and the to-dos read only what they show (#108): the open to-dos, those ticked off of late, and how
+ * many are in the archive, by when they were ticked off.
+ */
+val MIGRATION_53_54 = object : Migration(53, 54) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_done_at` ON `todos` (`done_at`)")
+    }
+}

@@ -15,7 +15,17 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as EmilysHubApplication
         val work: (suspend () -> Unit)? = when (intent.action) {
-            ACTION_REMIND -> suspend { app.reminders.remind() }
+            // Marking missed may end the occurrence a run is running through.
+            ACTION_REMIND -> suspend {
+                try {
+                    app.reminders.remind()
+                } finally {
+                    app.updateRun()
+                }
+            }
+            ACTION_RUN_STEP_END -> suspend { app.updateRun() }
+            ACTION_RUN_DONE -> intent.runStep()?.let { (occurrence, item) -> suspend { app.runs.done(occurrence, item) } }
+            ACTION_RUN_STOP -> intent.occurrenceId()?.let { occurrence -> suspend { app.runs.stop(occurrence) } }
             ACTION_SILENCE -> suspend { AlarmRingService.silence(context) }
             ACTION_ARRIVE -> suspend { app.reminders.arrived() }
             ACTION_LOOK_AROUND -> suspend { app.reminders.lookAround() }
@@ -35,12 +45,15 @@ class ReminderReceiver : BroadcastReceiver() {
         /** "Später": asks when to come back. */
         const val ACTION_OFFER_PUT_OFF = "de.emilyshub.action.OFFER_PUT_OFF"
 
-        /** One of the choices "Später" offers, in [EXTRA_MINUTES]. */
+        /** One of the choices "Später" offers, by its key in [EXTRA_PUT_OFF]. */
         const val ACTION_PUT_OFF = "de.emilyshub.action.PUT_OFF"
         const val ACTION_SKIP = "de.emilyshub.action.SKIP"
 
         /** "Heute nicht": the routine is dropped for the rest of the day. */
         const val ACTION_DROP = "de.emilyshub.action.DROP"
+
+        /** "Läuft weiter" on an Abo's reminder (#80). */
+        const val ACTION_RUN_ON = "de.emilyshub.action.RUN_ON"
 
         /** "Stumm" while an alarm rings: it stops ringing, its reminders stay. */
         const val ACTION_SILENCE = "de.emilyshub.action.SILENCE"
@@ -53,7 +66,18 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** The reminder to try out is due. */
         const val ACTION_PROBE = "de.emilyshub.action.PROBE"
-        const val EXTRA_MINUTES = "minutes"
+
+        /** The time of a run's step is over (SPEC.md §2, Ablauf-Modus). */
+        const val ACTION_RUN_STEP_END = "de.emilyshub.action.RUN_STEP_END"
+
+        /** "Fertig" in a run's notification: the step it shows is ticked off. */
+        const val ACTION_RUN_DONE = "de.emilyshub.action.RUN_DONE"
+
+        /** "Beenden" in a run's notification: the run ends, its ticks staying as they are. */
+        const val ACTION_RUN_STOP = "de.emilyshub.action.RUN_STOP"
+
+        /** The key of a choice "Später" offers ([PutOffChoice.key]). */
+        const val EXTRA_PUT_OFF = "put-off"
     }
 }
 
@@ -63,18 +87,25 @@ class ReminderReceiver : BroadcastReceiver() {
  * does not offer.
  */
 private fun Intent.answer(): Pair<Alarmed, Answer>? {
-    val about = occurrenceId()?.let(Alarmed::Occurrence) ?: todoId()?.let(Alarmed::Todo) ?: return null
-    val minutes = getLongExtra(ReminderReceiver.EXTRA_MINUTES, 0)
+    val about = alarmed() ?: return null
     val answer = when (action) {
         ReminderReceiver.ACTION_DONE -> Answer.Done
         ReminderReceiver.ACTION_OFFER_PUT_OFF -> Answer.OfferPutOff
         ReminderReceiver.ACTION_OFFER_DONE -> Answer.OfferDone
-        ReminderReceiver.ACTION_PUT_OFF -> Reminders.PUT_OFF_CHOICES.firstOrNull { it.toMinutes() == minutes }?.let(Answer::PutOff)
+        ReminderReceiver.ACTION_PUT_OFF -> getStringExtra(ReminderReceiver.EXTRA_PUT_OFF)?.let(PutOffChoice::of)?.let(Answer::PutOff)
         ReminderReceiver.ACTION_SKIP -> Answer.Skip
         ReminderReceiver.ACTION_DROP -> Answer.Drop
+        ReminderReceiver.ACTION_RUN_ON -> Answer.RunOn
         else -> null
     }
     return answer?.let { about to it }
+}
+
+/** The occurrence and the step of its run that an action of a run's notification is about; none without valid ones. */
+private fun Intent.runStep(): Pair<Long, Long>? {
+    val occurrence = occurrenceId() ?: return null
+    val item = getLongExtra(RunNotification.EXTRA_ITEM, 0).takeIf { it > 0 } ?: return null
+    return occurrence to item
 }
 
 /** The occurrence that the intents of a reminder, its actions and its alarm, are about. */
@@ -88,6 +119,12 @@ const val EXTRA_TODO = "todo"
 
 /** The to-do an intent is about; none without a valid one. */
 internal fun Intent.todoId(): Long? = getLongExtra(EXTRA_TODO, 0).takeIf { it > 0 }
+
+/** The Abo that the intents of its reminder are about (#80). */
+const val EXTRA_SUBSCRIPTION = "subscription"
+
+/** The Abo an intent is about; none without a valid one. */
+internal fun Intent.subscriptionId(): Long? = getLongExtra(EXTRA_SUBSCRIPTION, 0).takeIf { it > 0 }
 
 /** Does [work] after onReceive has returned, in the app's background scope, and tells Android once it is done. */
 internal fun BroadcastReceiver.finishInBackground(app: EmilysHubApplication, work: suspend () -> Unit) {

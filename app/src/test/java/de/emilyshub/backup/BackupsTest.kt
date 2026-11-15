@@ -8,12 +8,24 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
 import de.emilyshub.alarmsFor
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.data.Saving
 import de.emilyshub.data.Setting
 import de.emilyshub.history
+import de.emilyshub.languages.AttachmentImport
+import de.emilyshub.languages.CardDraft
+import de.emilyshub.languages.ExamDraft
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.Rating
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.RecurringDraft
+import de.emilyshub.ledger.SubscriptionDraft
+import de.emilyshub.ledger.SubscriptionEditing
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.ledger.saveNew
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.NoteDraft
@@ -29,6 +41,7 @@ import de.emilyshub.routines.OccurrenceStatus.Done
 import de.emilyshub.routines.OccurrenceStatus.Dropped
 import de.emilyshub.routines.OccurrenceStatus.Missed
 import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.routines.RunRow
 import de.emilyshub.tag
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
@@ -128,10 +141,11 @@ class BackupsTest {
     @Test
     fun `a backup of a newer app version, or of one before any the app knows, is refused as such`() {
         someOfEverything()
-        val content = contentOf(exported())
+        val file = exported()
+        val content = contentOf(file)
 
         assertProblem(BackupProblem.NewerVersion) { open(sealed(content.put("schema", HubDatabase.VERSION + 1))) }
-        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", 0))) }
+        assertProblem(BackupProblem.OlderVersion) { open(sealed(content.put("schema", 0), attachmentsOf(file))) }
     }
 
     @Test
@@ -223,6 +237,162 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup keeps the inbox, and one from before it loads with it empty`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(48, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("inbox"), everything().getValue("inbox"))
+        assertEquals(listOf("Zahnarzt anrufen\nwegen Kontrolle"), runBlocking { app.inbox.entries().first() }.map { it.text })
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("inbox"))
+    }
+
+    @Test
+    fun `a backup keeps the cards and their answers, and one from before them loads without any, ten new a day`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(51, contentOf(now)), attachmentsOf(now))
+        runBlocking { app.languages.languages().first().forEach { app.flashcards.setNewPerDay(it.language.id, 3) } }
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("cards"), everything().getValue("cards"))
+        assertEquals(made.getValue("card_reviews"), everything().getValue("card_reviews"))
+        assertEquals(listOf("Buch"), runBlocking { app.testDatabase.cards().observeAll().first() }.map { it.back })
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("cards"))
+        assertEquals(emptyList<Any>(), everything().getValue("card_reviews"))
+        assertEquals(listOf(10), runBlocking { app.languages.languages().first() }.map { it.language.newCardsPerDay })
+    }
+
+    @Test
+    fun `a backup keeps the Karten-Ziele, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(52, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("card_goals"), everything().getValue("card_goals"))
+        assertEquals(1, everything().getValue("card_goals").size)
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("card_goals"))
+    }
+
+    @Test
+    fun `a backup keeps the Abos, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(42, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("subscriptions"), everything().getValue("subscriptions"))
+
+        restore(older)
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("subscriptions"))
+        assertEquals(made.getValue("recurring_bookings"), restored.getValue("recurring_bookings"))
+    }
+
+    @Test
+    fun `a backup keeps the languages, teachers and lessons, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(44, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        for (table in listOf("languages", "teachers", "teacher_languages", "lessons")) {
+            assertEquals(table, made.getValue(table), everything().getValue(table))
+        }
+
+        restore(older)
+        val restored = everything()
+        for (table in listOf("languages", "teachers", "teacher_languages", "lessons")) {
+            assertEquals(table, emptyList<Any>(), restored.getValue(table))
+        }
+        assertEquals(made.getValue("notes"), restored.getValue("notes"))
+    }
+
+    @Test
+    fun `a backup keeps which goal an exam is part of, and one from before that loads with none`() {
+        someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(47, contentOf(now)), attachmentsOf(now))
+
+        restore(now)
+        val goalColumn = { rows: List<List<Any?>> -> rows.map { it[6] } }
+        assertTrue(goalColumn(everything().getValue("exams")).single() != null)
+
+        restore(older)
+        assertEquals(listOf(null), goalColumn(everything().getValue("exams")))
+    }
+
+    @Test
+    fun `a backup keeps the topics, exams and the topics of the lessons, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(45, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        for (table in listOf("exams", "topics", "lesson_topics")) {
+            assertEquals(table, made.getValue(table), everything().getValue(table))
+        }
+        assertEquals(2, made.getValue("topics").size)
+
+        restore(older)
+        val restored = everything()
+        for (table in listOf("exams", "topics", "lesson_topics")) {
+            assertEquals(table, emptyList<Any>(), restored.getValue(table))
+        }
+        assertEquals(made.getValue("lessons"), restored.getValue("lessons"))
+    }
+
+    @Test
+    fun `a backup keeps from when the Abos remind, and one from before that loads with all their times counting`() {
+        someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(43, contentOf(now)))
+        val made = runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription }
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.map { it.remindsFrom }, runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription.remindsFrom })
+
+        restore(older)
+        val restored = runBlocking { app.subscriptions.overview().first() }.running.map { it.subscription }
+        assertEquals(made.map { it.copy(remindsFrom = null) }, restored)
+    }
+
+    @Test
+    fun `a backup keeps the total budgets, and one from before them loads without any`() {
+        val made = someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(41, contentOf(now)))
+        changeEverything()
+
+        restore(now)
+        assertEquals(made.getValue("ledger_total_budget"), everything().getValue("ledger_total_budget"))
+        assertEquals(made.getValue("ledger_closed_months"), everything().getValue("ledger_closed_months"))
+        assertEquals(TotalBudget.FromIncome(10_000), runBlocking { app.ledger.month(YearMonth.of(2026, 12)).first().totalSetting })
+
+        restore(older)
+        val restored = everything()
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_total_budget"))
+        assertEquals(emptyList<Any>(), restored.getValue("ledger_month_total_budgets"))
+        assertEquals(null, runBlocking { app.ledger.month(YearMonth.of(2026, 9)).first().totalBudget })
+        assertEquals(made.getValue("bookings"), restored.getValue("bookings"))
+    }
+
+    @Test
     fun `a backup from before opening balances loads without them`() {
         val made = someOfEverything()
         val file = sealed(asOf(37, contentOf(exported())))
@@ -245,7 +415,8 @@ class BackupsTest {
 
         val restored = everything()
         assertEquals(emptyList<Any>(), restored.getValue("ledger_closed_budgets"))
-        assertEquals(made.getValue("ledger_closed_months"), restored.getValue("ledger_closed_months"))
+        // The months alone: the total budget they keep came later still.
+        assertEquals(made.getValue("ledger_closed_months").map { it.first() }, restored.getValue("ledger_closed_months").map { it.first() })
         assertTrue(runBlocking { app.ledger.categories().first() }.all { it.budgetCents == null })
     }
 
@@ -432,7 +603,8 @@ class BackupsTest {
     fun `restoring keeps the backup password set on this device`() {
         someOfEverything()
         val other = BackupKey.derive("das Passwort vom alten Handy", iterations = FEW_ITERATIONS)
-        val file = BackupFile.seal(contentOf(exported()).toString().toByteArray(), other)
+        val made = exported()
+        val file = BackupFile.seal(contentOf(made).toString().toByteArray(), other, attachmentsOf(made))
 
         restore(file, password = "das Passwort vom alten Handy")
 
@@ -465,21 +637,32 @@ class BackupsTest {
     }
 
     /**
-     * Two routines, one with a checklist ticked in part today, tags, places by WLAN and GPS, to-dos at them, wishes, notes
+     * Two routines, one with a checklist ticked in part today and its run running, tags, places by WLAN and GPS, to-dos at them, wishes, notes
      * in a folder of a tab and in none, and, unless the data are to be as an app [before19] made them, a to-do coming again, ticked
-     * off once, and a routine under a goal, aiming at a streak.
+     * off once, and a routine under a goal, aiming at a streak; a thought in the inbox.
      */
     private fun someOfEverything(before19: Boolean = false): Map<String, List<List<Any?>>> {
         val home = app.place("Zuhause", "FRITZ!Box 7590")
         val shop = app.place("Supermarkt", area = Area(Coordinates(52.52, 13.405), radius = 150))
         val health = app.tag("Gesundheit")
         val sport = app.tag("Sport")
-        val vitamins = app.routine("Vitamine", "07:30", checklist = listOf("Vitamin D", "Magnesium"), tags = setOf(health))
+        val vitamins = app.routine("Vitamine", "07:30", checklist = listOf("Vitamin D", "Magnesium"),
+            // Minutes came with version 51: data as an older version made them have none.
+            minutes = if (before19) emptyList() else listOf(null, 2), tags = setOf(health),
+        )
         app.routine("Yoga", "18:00", tags = setOf(sport), places = setOf(home))
         app.history(vitamins, "2026-10-20" to Dropped, "2026-10-21" to Missed, "2026-10-22" to Done)
         runBlocking {
             val occurrence = app.testDatabase.routines().occurrencesOn(vitamins, LocalDate.parse("2026-10-23")).single()
             app.routines.tick(occurrence.id, app.routines.checklist(vitamins).first().id, ticked = true)
+            // Its run running (SPEC.md §2, Ablauf-Modus), at the step left. For data as an older version made them, without
+            // the occurrence's first start, which came with version 50; the run itself, of 51, such a backup leaves out.
+            if (before19) {
+                val left = app.routines.checklist(vitamins).last().id
+                app.testDatabase.runs().save(RunRow(occurrence.id, vitamins, stepItemId = left, stepStartedAt = app.clock.now))
+            } else {
+                app.runs.start(occurrence.id, vitamins)
+            }
         }
         val milk = app.todo("Milch kaufen", checklist = listOf("Hafermilch"), tags = setOf(health), places = setOf(shop))
         app.todo("Steuer machen")
@@ -511,7 +694,38 @@ class BackupsTest {
                 RecurringDraft(BookingKind.Expense, "850", rent.id, "Miete", BookingInterval.Monthly, 1, YearMonth.of(2026, 10)),
             )
             app.ledger.setBudget(food.id, 30_000)
+            app.ledger.setTotalBudget(TotalBudget.Fixed(200_000))
             app.ledger.close(YearMonth.of(2026, 9), carryOver = true)
+            app.ledger.setTotalBudgetIn(YearMonth.of(2026, 12), TotalBudget.FromIncome(10_000))
+            val rentId = app.ledger.templates().first().first().id
+            app.subscriptions.save(
+                SubscriptionEditing.New,
+                SubscriptionDraft("Miete", recurringId = rentId, note = "Kündigung schriftlich", cancelBy = LocalDate.parse("2027-01-31")),
+            )
+            val arabicLessons = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            val amal = app.languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal", "italki", setOf(arabicLessons))) as Saving.Saved
+            val a2 = app.languages.createExam(arabicLessons, ExamDraft("A2", LocalDate.parse("2026-12-25"), goalId = northernLights)) as Saving.Saved
+            val numbers = app.languages.createTopic(arabicLessons, "Zahlen", a2.id) as Saving.Saved
+            app.languages.setTopicDone(numbers.id, done = true)
+            app.languages.save(
+                LessonEditing.New,
+                LessonDraft(
+                    LocalDate.parse("2026-11-02"), "45", arabicLessons, amal.id, price = "12,50", note = "## Verben",
+                    topicIds = setOf(numbers.id), newTopics = listOf("Verben"),
+                    attachments = listOf(
+                        (app.lessonFiles.importPdf(app.lessonDocuments.put("Blatt.pdf", "%PDF-1.7 Arbeitsblatt".toByteArray()), 0) as AttachmentImport.Added)
+                            .attachment,
+                    ),
+                ),
+            )
+            app.languages.setExamTaken(a2.id, taken = true, result = "bestanden")
+            val book = app.flashcards.create(arabicLessons, CardDraft("كتاب", "Buch", "kitāb", "Plural: كتب", numbers.id)) as Saving.Saved
+            app.flashcards.answer(book.id, Rating.Good)
+            app.wishes.update(
+                northernLights,
+                checkNotNull(app.wishes.editing(northernLights)?.original).copy(cardLanguageId = arabicLessons, cardCount = "500"),
+            )
+            app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(
@@ -530,6 +744,7 @@ class BackupsTest {
         app.todo("Neues To-do")
         app.wish("Neuer Wunsch")
         app.notes.create(NoteDraft("Neue Notiz"))
+        app.inbox.capture("Neuer Gedanke")
     }
 
     /** Every row of every table but the settings, read here on its own, without the backups. */
@@ -572,7 +787,12 @@ class BackupsTest {
 
     private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
 
-    private fun sealed(content: JSONObject) = BackupFile.seal(content.toString().toByteArray(), key())
+    /** [content] sealed as a backup, with the [attachments] it lists following it. */
+    private fun sealed(content: JSONObject, attachments: List<ByteArray> = emptyList()) =
+        BackupFile.seal(content.toString().toByteArray(), key(), attachments)
+
+    /** The attachments [file] carries after its content. */
+    private fun attachmentsOf(file: ByteArray) = BackupFile.open(file, PASSWORD).attachments
 
     private fun key() = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
 
@@ -588,6 +808,8 @@ class BackupsTest {
             val names = content.table(table).getJSONArray("columns").let { all -> List(all.length(), all::getString) }
             content.withoutColumns(table, *(names - columns.toSet()).toTypedArray())
         }
+        // The attachments came with the version that made them files of their own.
+        if (version < 47) content.remove("attachments")
         return content.put("schema", version)
     }
 

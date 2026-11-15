@@ -6,10 +6,41 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import java.time.YearMonth
 
+/** What keeps a budget typed from being set: no amount ([AmountInvalid]), or none above zero ([NotAboveZero]). */
+enum class BudgetProblem { AmountInvalid, NotAboveZero }
+
+/**
+ * A category's budget as typed (SPEC.md §13), monthly or in one month alone, in euros with a comma: none if left
+ * empty, else an amount above zero, up to [Money.MAX]. The one rule for it, for the dialogs that take it and for
+ * [Ledger], which refuses any other.
+ */
+data class BudgetInput(val typed: String) {
+    private val cents: Long? = Money.parse(typed)
+
+    /** What keeps it from being set; none if it can be. */
+    val problem: BudgetProblem? = when {
+        typed.isBlank() -> null
+        cents == null -> BudgetProblem.AmountInvalid
+        !fits(cents) -> BudgetProblem.NotAboveZero
+        else -> null
+    }
+
+    /** The budget it sets, in cents: none if left empty. Only without a [problem]. */
+    val budget: Long? get() = cents.takeIf { typed.isNotBlank() }
+
+    companion object {
+        /** Whether [cents] is a budget, or none: above zero, up to [Money.MAX]. */
+        fun fits(cents: Long?): Boolean = cents == null || cents in 1..Money.MAX
+    }
+}
+
 /** How far a month's expenses in a category have come in its budget (SPEC.md §13). */
 enum class BudgetLevel { Within, Near, Over }
 
-/** What a month has [spent] in a category of its [budget], above zero, both in cents. */
+/**
+ * What a month has [spent] of a [budget], both in cents: a category's, above zero, or its total budget, which may be
+ * zero, coming from income.
+ */
 data class BudgetUse(val budget: Long, val spent: Long) {
     /** What is left of it; below zero by as much as it is over. */
     val left: Long get() = budget - spent
@@ -18,12 +49,12 @@ data class BudgetUse(val budget: Long, val spent: Long) {
     val level: BudgetLevel
         get() = when {
             spent > budget -> BudgetLevel.Over
-            spent * 100 >= budget * NEAR_PERCENT -> BudgetLevel.Near
+            budget > 0 && spent * 100 >= budget * NEAR_PERCENT -> BudgetLevel.Near
             else -> BudgetLevel.Within
         }
 
-    /** How much of it is used, as a bar is filled: at most all of it. */
-    val share: Float get() = (spent.toFloat() / budget).coerceAtMost(1f)
+    /** How much of it is used, as a bar is filled: at most all of it; all of one of nothing, once anything is spent. */
+    val share: Float get() = if (budget == 0L) (if (spent > 0) 1f else 0f) else (spent.toFloat() / budget).coerceAtMost(1f)
 
     private companion object {
         const val NEAR_PERCENT = 80

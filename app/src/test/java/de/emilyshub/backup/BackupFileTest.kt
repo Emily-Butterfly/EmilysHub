@@ -84,8 +84,16 @@ class BackupFileTest {
     }
 
     @Test
+    fun `a backup of format 1, as older versions made them, still opens, and a changed byte in it is damage`() {
+        val file = BackupFile.seal1(content, key)
+
+        assertArrayEquals(content, BackupFile.open(file, PASSWORD).plaintext)
+        assertProblem(BackupProblem.Damaged) { BackupFile.open(file.flipped(file.size - 1), PASSWORD) }
+    }
+
+    @Test
     fun `a backup of a newer format is refused as such`() {
-        val file = BackupFile.seal(content, key).also { it[VERSION_AT] = 2 }
+        val file = BackupFile.seal(content, key).also { it[VERSION_AT] = 3 }
 
         assertProblem(BackupProblem.NewerVersion) { BackupFile.open(file, PASSWORD) }
     }
@@ -110,7 +118,7 @@ class BackupFileTest {
 
     @Test
     fun `content too large to be read back is not sealed`() {
-        assertProblem(BackupProblem.TooLarge) { BackupFile.seal(ByteArray(BackupFile.MAX_BYTES), key) }
+        assertProblem(BackupProblem.TooLarge) { BackupFile.seal(ByteArray(BackupFile.MAX_BYTES + 1), key) }
     }
 
     @Test

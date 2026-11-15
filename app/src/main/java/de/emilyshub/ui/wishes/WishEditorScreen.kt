@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,35 +37,45 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
+import de.emilyshub.languages.Languages
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.rememberFirstField
+import de.emilyshub.ui.languages.CardGoalField
+import de.emilyshub.ui.languages.rememberOfferedLanguages
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.rememberToday
 import de.emilyshub.wishes.Goal
 import de.emilyshub.wishes.WishDraft
+import de.emilyshub.wishes.WishEditing
 import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
 import de.emilyshub.wishes.Wishes
-import de.emilyshub.wishes.toDraft
 import kotlinx.coroutines.flow.flowOf
 import java.io.Serializable
 import java.time.LocalDate
@@ -82,8 +93,8 @@ sealed interface WishEditorTarget : Serializable {
  * Creates or changes a wish with its title, description, period, status, tags, the goal it is part of and its progress
  * (SPEC.md §6), or deletes it: one with subgoals with them, or with its parts moved up a level, as the user chooses.
  * Done, it came true today unless another day gone by is chosen. A wish saved can have a subgoal added, [onOpenWish], or
- * be made into a to-do hanging under it with a tap, [onOpenTodo]; both save it first. Leaving without saving drops the
- * changes.
+ * be made into a to-do hanging under it with a tap, [onOpenTodo]; both save it first. Leaving with changes asks whether to
+ * save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +104,7 @@ fun WishEditorScreen(
     todos: Todos,
     tags: Tags,
     notes: Notes,
+    languages: Languages,
     target: WishEditorTarget,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
@@ -101,22 +113,26 @@ fun WishEditorScreen(
 ) {
     val wishId = (target as? WishEditorTarget.Edit)?.wishId
     val parentId = (target as? WishEditorTarget.New)?.parentId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (wishId == null) WishEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(WishDraft(title = "", parentId = parentId)) }
-    var loaded by rememberSaveable { mutableStateOf(wishId == null) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     // As saved, with its parts.
     val goal by remember(wishes, wishId) { wishId?.let(wishes::goal) ?: flowOf(null) }.collectAsState(initial = null)
 
-    if (!loaded && wishId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(wishId) {
-            val wish = wishes.get(wishId)
-            if (wish == null) {
+            val saved = wishes.editing(checkNotNull(wishId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = wish.toDraft(wishes.tagIdsOf(wishId))
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
@@ -125,14 +141,22 @@ fun WishEditorScreen(
     val problems = draft.problems
     val cleaned = draft.cleaned()
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = wishId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
+            firstField.saveFailed(atField = WishProblem.TitleMissing in problems || WishProblem.TitleTooLong in problems)
         } else {
             val saved = draft
-            closeWith { if (wishId == null) wishes.create(saved) else wishes.update(wishId, saved) }
+            closeWith { wishes.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, WishDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     /** Saves the wish, if it can be, and then goes on with [next], which leaves the editor. */
     fun saveAndThen(next: suspend (wishId: Long) -> Unit) {
@@ -143,8 +167,8 @@ fun WishEditorScreen(
         }
         val saved = draft
         closeWith.leaveThrough {
-            wishes.update(wishId, saved)
-            next(wishId)
+            val saving = wishes.save(opened, saved)
+            if (saving is Saving.Saved) next(saving.id) else closeWith.reopen()
         }
     }
 
@@ -164,7 +188,7 @@ fun WishEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -174,10 +198,10 @@ fun WishEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -193,7 +217,12 @@ fun WishEditorScreen(
                 onValueChange = { draft = draft.copy(title = it) },
                 label = { Text(stringResource(R.string.wish_title)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                // A new one needs no more than its title: "Fertig" saves it (SPEC.md §8).
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = if (wishId == null) ImeAction.Done else ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(onDone = { save() }),
                 isError = WishProblem.TitleTooLong in problems || titleMissing,
                 supportingText = {
                     when {
@@ -201,7 +230,9 @@ fun WishEditorScreen(
                         else -> LengthHint(InputText.lengthOf(cleaned.title), WishDraft.TITLE_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.requester),
             )
             OutlinedTextField(
                 value = draft.description,
@@ -251,12 +282,20 @@ fun WishEditorScreen(
                 manual = draft.manualProgress,
                 onChange = { draft = draft.copy(manualProgress = it) },
             )
+            CardGoalField(
+                offered = rememberOfferedLanguages(languages),
+                language = draft.cardLanguageId,
+                count = draft.cardCount,
+                invalid = WishProblem.CardCountOutOfRange in problems && (draft.cardCount.isNotBlank() || showMissingTitle),
+                onLanguageChange = { draft = draft.copy(cardLanguageId = it) },
+                onCountChange = { draft = draft.copy(cardCount = it) },
+            )
             if (wishId != null) {
                 LinkedNotes(notes, NoteLink.Goal(wishId), onOpen = onOpenNote)
                 OutlinedButton(onClick = { saveAndThen { onOpenWish(WishEditorTarget.New(parentId = it)) } }) {
                     Text(stringResource(R.string.wish_add_subgoal))
                 }
-                OutlinedButton(onClick = { saveAndThen { onOpenTodo(todos.create(wishes.todoDraftOf(it))) } }) {
+                OutlinedButton(onClick = { saveAndThen { todos.ofGoal(it)?.let(onOpenTodo) } }) {
                     Text(stringResource(R.string.wish_to_todo))
                 }
             }

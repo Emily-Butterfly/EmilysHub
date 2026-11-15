@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import de.emilyshub.languages.Card
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -37,15 +38,36 @@ interface WishDao {
     )
     fun observeGoalTodos(): Flow<List<GoalTodo>>
 
+    /** The exams hanging under goals, each with its language and how many of its topics are done (SPEC.md §15). */
+    @Query(
+        "SELECT e.id, e.name, e.language_id, l.name AS language, e.goal_id, e.taken, " +
+            "(SELECT COUNT(*) FROM topics t WHERE t.exam_id = e.id) AS topics, " +
+            "(SELECT COUNT(*) FROM topics t WHERE t.exam_id = e.id AND t.done) AS ticked " +
+            "FROM exams e JOIN languages l ON l.id = e.language_id WHERE e.goal_id IS NOT NULL",
+    )
+    fun observeGoalExams(): Flow<List<GoalExam>>
+
+    /** The Karten-Ziele of the goals, each with its language and how many of its cards are sure now (SPEC.md §15). */
+    @Query(
+        "SELECT g.goal_id, g.language_id, l.name AS language, g.count, " +
+            "(SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND c.interval >= ${Card.SURE_DAYS}) AS sure " +
+            "FROM card_goals g JOIN languages l ON l.id = g.language_id",
+    )
+    fun observeGoalCards(): Flow<List<GoalCards>>
+
     /**
-     * Whether each subgoal and to-do of the goal is done: its subgoals, then its to-dos, as [observeGoalTodos] has them.
-     * Its routines are for the routines to tell.
+     * Whether each subgoal, to-do and exam of the goal is done: its subgoals, then its to-dos, as [observeGoalTodos] has
+     * them, then its exams, done once taken, then its Karten-Ziel, done once reached. Its routines are for the routines to
+     * tell.
      */
     @Query(
         "SELECT status = :done FROM wishes WHERE parent_id = :goalId " +
-            "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL",
+            "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL " +
+            "UNION ALL SELECT taken FROM exams WHERE goal_id = :goalId " +
+            "UNION ALL SELECT (SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND c.interval >= ${Card.SURE_DAYS}) " +
+            ">= g.count FROM card_goals g WHERE g.goal_id = :goalId",
     )
-    suspend fun subgoalsAndTodosDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
+    suspend fun partsBesideRoutinesDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>
 
     @Query("UPDATE wishes SET status = :status, done_on = :doneOn WHERE id = :id")
     suspend fun setStatus(id: Long, status: WishStatus, doneOn: LocalDate?)
@@ -66,6 +88,10 @@ interface WishDao {
     /** Hangs the to-dos of the goal [from] under the goal [to]; none: at no goal. */
     @Query("UPDATE todos SET goal_id = :to WHERE goal_id = :from")
     suspend fun moveTodos(from: Long, to: Long?)
+
+    /** Hangs the exams of the goal [from] under the goal [to]; none: at no goal. */
+    @Query("UPDATE exams SET goal_id = :to WHERE goal_id = :from")
+    suspend fun moveExams(from: Long, to: Long?)
 
     /** Hangs the routines of the goal [from] under the goal [to]; none: at no goal. */
     @Query("UPDATE routines SET goal_id = :to WHERE goal_id = :from")

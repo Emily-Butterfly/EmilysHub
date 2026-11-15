@@ -11,7 +11,8 @@ import java.time.YearMonth
  * none while closed; the earlier months [stillOpen], itself not among them, the latest first; and for this month
  * while open, what the fixed bookings still to come in it bring in less what they take out ([upcoming]), none if none
  * is to come, nor for any other month; and while open, the [budgets] of its expense categories, to change in it
- * alone, none while closed.
+ * alone, none while closed. Its [totalBudget] is the amount its total budget comes to, that it kept if closed, none if
+ * it has none; while open, [totalSetting] is the total budget that holds in it, its own ([ownTotal]) or the standard.
  */
 data class LedgerMonth(
     val month: YearMonth,
@@ -25,7 +26,13 @@ data class LedgerMonth(
     val skipped: Int,
     val stillOpen: List<YearMonth>,
     val budgets: List<CategoryBudget> = emptyList(),
+    val totalBudget: Long? = null,
+    val totalSetting: TotalBudget? = null,
+    val ownTotal: Boolean = false,
 ) {
+    /** What its expenses use of its total budget, if it has one. */
+    val totalUse: BudgetUse? get() = totalBudget?.let { BudgetUse(it, summary.expenses) }
+
     /** What it ends with: its opening balance, none counting as zero, and what came in less what went out. */
     val endBalance: Long get() = endBalance(opening?.cents, summary.balance)
 

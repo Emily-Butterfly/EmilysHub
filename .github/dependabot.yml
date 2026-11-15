@@ -1,0 +1,29 @@
+# Dependabot proposes new versions of the libraries and the GitHub Actions (#115); how a proposal is taken over is in
+# docs/agents/dependabot.md. Monthly, one pull request per ecosystem; security updates come at once and one by one,
+# as the groups below apply to version updates only.
+version: 2
+updates:
+  # The version catalog gradle/libs.versions.toml, read by the app and the build logic alike, and the Gradle wrapper.
+  # targetSdk (SPEC.md §12) is set in app/build.gradle.kts, not in the catalog, and is never proposed.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      gradle:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "Dependencies"
+
+  # The actions stay pinned to full commit SHAs; Dependabot updates the SHA and the version comment behind it.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "Actions"

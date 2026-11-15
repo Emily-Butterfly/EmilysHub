@@ -15,6 +15,7 @@ import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -26,6 +27,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
 
@@ -42,17 +44,42 @@ class Todos(
     private val dao get() = database().todos()
 
     /** The open to-dos, each with its checklist, tags and places, in no order: the list orders them as chosen ([TodoOrder]). */
-    fun open(): Flow<List<TodoWithDetails>> = observe { all -> all.filter { it.todo.doneAt == null } }
+    fun open(): Flow<List<TodoWithDetails>> = flow { emitAll(dao.observeOpen()) }.flowOn(io)
 
-    /** The to-dos ticked off, in the archive: the one done last first. */
+    /** The to-dos ticked off, in the archive: the one done last first. Read only where the archive shows (#108). */
     fun archived(): Flow<List<Todo>> =
-        observe { all -> all.map { it.todo }.filter { it.doneAt != null }.sortedByDescending { it.doneAt } }
+        flow { emitAll(dao.observeArchived().map { all -> all.sortedByDescending { it.doneAt } }) }.flowOn(io)
+
+    /** How many to-dos are in the archive, counted without reading it (#108). */
+    fun archivedCount(): Flow<Int> = flow { emitAll(dao.observeArchivedCount()) }.flowOn(io)
+
+    /** When each to-do in the archive was ticked off, in no order: for the statistics (SPEC.md §8). */
+    fun ticked(): Flow<List<Instant>> = flow { emitAll(dao.observeDoneSince(Instant.EPOCH)) }.distinctUntilChanged().flowOn(io)
+
+    /**
+     * When the to-dos were ticked off on [from] or later, as it is in [zone], in no order: for the heatmap (#108). Anew
+     * once one is ticked off or opened again, not as others change.
+     */
+    fun ticked(from: LocalDate, zone: ZoneId): Flow<List<Instant>> = flow {
+        emitAll(dao.observeDoneSince(readFrom(from)).map { all -> all.filter { !today(it, zone).isBefore(from) } })
+    }.distinctUntilChanged().flowOn(io)
+
+    /** The days in [zone] the to-dos ticked off on [from] or later were ticked off on, once: for the flame (#108). */
+    suspend fun tickedDays(from: LocalDate, zone: ZoneId): List<LocalDate> = withContext(io) {
+        dao.doneSince(readFrom(from)).map { today(it, zone) }.filter { !it.isBefore(from) }
+    }
+
+    /** The day in [zone] the first to-do ticked off was ticked off on, if one was. */
+    suspend fun firstTicked(zone: ZoneId): LocalDate? = withContext(io) { dao.firstDone()?.let { today(it, zone) } }
+
+    /** Once at once, then each time a to-do changes. */
+    fun changes(): Flow<Unit> = flow { emitAll(database().invalidationTracker.createFlow("todos").map {}) }.flowOn(io)
 
     /**
      * The to-dos on Heute of [date]: those due by then, still open or ticked off that day, each [DueTodo.overdue] as
      * [isOverdue] says at [now], and waiting for its places once its time or day has come, as [arrive] has it.
      */
-    fun dueOn(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
+    fun dueOn(date: LocalDate, now: Instant): Flow<List<DueTodo>> = openOrDoneFrom(date) { all ->
         all.filter { (todo) ->
             val due = todo.dueDate
             due != null && !due.isAfter(date) && openOrDoneOn(todo, date)
@@ -76,7 +103,7 @@ class Todos(
      * show before it, still open or ticked off that day; on their day they are among those [dueOn] it instead. In the
      * order they are due, those without a time first on a day.
      */
-    fun upcoming(date: LocalDate, now: Instant): Flow<List<DueTodo>> = observe { all ->
+    fun upcoming(date: LocalDate, now: Instant): Flow<List<DueTodo>> = openOrDoneFrom(date) { all ->
         all.filter { (todo) ->
             val due = todo.dueDate
             val before = todo.showsDaysBefore
@@ -125,8 +152,22 @@ class Todos(
      * A new to-do, open, reminding as [Reminding] describes; refuses a draft with problems, which the editor shows
      * before. Under a goal, it is a part of it, which opens that goal again if it was done.
      */
-    suspend fun create(draft: TodoDraft): Long = write {
-        val cleaned = checked(draft)
+    suspend fun create(draft: TodoDraft): Long = write { insert(checked(draft)) }
+
+    /**
+     * A to-do made of the goal [goalId] (SPEC.md §6), read and made at once: with its title, description and tags,
+     * hanging under it, as [create] makes one; none once the goal is deleted.
+     */
+    suspend fun ofGoal(goalId: Long): Long? = write {
+        database().withTransaction {
+            val goals = database().wishes()
+            val goal = goals.get(goalId) ?: return@withTransaction null
+            insert(checked(TodoDraft(goal.title, goal.description, tagIds = goals.tagIdsOf(goalId).toSet(), goalId = goalId)))
+        }
+    }
+
+    /** The to-do [cleaned] makes, as [create] tells. */
+    private suspend fun insert(cleaned: TodoDraft): Long =
         database().withTransaction {
             watchingGoals { watch ->
                 val goalId = database().wishes().stillThere(cleaned.goalId)
@@ -140,7 +181,6 @@ class Todos(
                 }
             }
         }
-    }
 
     /**
      * Changes the to-do as [draft] has it, as [create] checks it; checklist items kept keep their ticks. A new due, wake
@@ -229,6 +269,41 @@ class Todos(
                 dao.delete(id)
             }
         }
+    }
+
+    /**
+     * Moves the open to-do to [date] (SPEC.md §1, Menü je Eintrag): only the day it is due changes, its time stays, and
+     * waking some days before comes along. Its reminder is set anew, as after a change of its due in the editor; one
+     * coming again moves alone, as there, and its series, ending on a day before [date], ends on [date] instead. Tells
+     * how it moved, to [undo] it; nothing for one done or gone, or already due that day, which stays as it is.
+     */
+    suspend fun moveTo(id: Long, date: LocalDate): TodoMove? = write {
+        database().withTransaction {
+            val todo = dao.get(id)?.takeIf { it.doneAt == null } ?: return@withTransaction null
+            val to = todo.due.movedTo(date).takeIf { it != todo.due } ?: return@withTransaction null
+            val endedOn = todo.endsOn?.takeIf { todo.recurrence != null && it.isBefore(date) }
+            TodoMove(id, from = todo.due, to = to, endedOn = endedOn).also {
+                setDue(todo, to, endsOn = if (endedOn != null) date else todo.endsOn)
+            }
+        }
+    }
+
+    /**
+     * Undoes the [move]: the to-do is due as it was before, and its series ends where it did, unless it is done or its
+     * due was changed again meanwhile; an end changed again meanwhile stays.
+     */
+    suspend fun undo(move: TodoMove) = write {
+        database().withTransaction {
+            val todo = dao.get(move.todoId)?.takeIf { it.doneAt == null && it.due == move.to } ?: return@withTransaction
+            val endsOn = move.endedOn?.takeIf { todo.endsOn == move.to.date } ?: todo.endsOn
+            setDue(todo, move.from, endsOn)
+        }
+    }
+
+    /** Sets the to-do due as [due] says, its series ending on [endsOn], all else as it is, and its reminder anew. */
+    private suspend fun setDue(todo: Todo, due: Due, endsOn: LocalDate?) {
+        dao.update(todo.copy(dueDate = due.date, dueTime = (due as? Due.At)?.time, endsOn = endsOn))
+        rearm(todo.id, due, todo.wake)
     }
 
     /** Puts the to-do's reminder off ("Später"): it pops up again at [until], anywhere. */
@@ -562,7 +637,12 @@ class Todos(
         dao.bind(todoId, placeIds)
     }
 
-    private fun <T> observe(select: (List<TodoWithDetails>) -> T): Flow<T> = flow { emitAll(dao.observeAll().map(select)) }.flowOn(io)
+    /**
+     * What [select] makes of the open to-dos and those ticked off on [date] or later, in any time zone: not the whole
+     * archive (#108). It sorts out which were ticked off on [date] where the phone is now.
+     */
+    private fun <T> openOrDoneFrom(date: LocalDate, select: (List<TodoWithDetails>) -> T): Flow<T> =
+        flow { emitAll(dao.observeOpenOrDoneSince(readFrom(date)).map(select)) }.flowOn(io)
 
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block().also { onChange() } }
 
@@ -577,3 +657,9 @@ class Todos(
 
 /** The minute of a day that what is caught up on it late counts as done at (SPEC.md §1, Gestern nachtragen). */
 private val LATE: LocalTime = LocalTime.of(23, 59)
+
+/**
+ * From when to read what was ticked off on [date] or later, in any time zone (#108): the day before's start in UTC,
+ * before [date] starts anywhere, by far more than the second the text it is kept as is exact to.
+ */
+private fun readFrom(date: LocalDate): Instant = date.minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()

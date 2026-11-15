@@ -1,6 +1,7 @@
 package de.emilyshub.ui.todos
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,17 +20,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -47,21 +48,23 @@ import de.emilyshub.todos.TodoWithDetails
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.dateLine
 import de.emilyshub.ui.fields.PriorityNote
 import de.emilyshub.ui.fields.TagFilter
 import de.emilyshub.ui.fields.placesLabel
 import de.emilyshub.ui.fields.priorityNameStyle
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.offerUndo
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberNow
-import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
 /**
  * The open to-dos (SPEC.md §5) in the [order] chosen, each with when it is due, its priority, tags and checklist; above
  * them, the choice of the order and, once there are tags, of one to show only the to-dos that have it. Ticked off, or
  * all of its checklist, a to-do goes to the archive, which can be undone right away. Tapping one opens it in the
- * editor, "+" starts a new one. Below them, the way to the archive, if anything is in it.
+ * editor, its menu moves it to another day, which can be undone right away too (SPEC.md §1, Menü je Eintrag), "+"
+ * starts a new one. Below them, the way to the archive, if anything is in it.
  */
 @Composable
 fun TodosScreen(
@@ -78,7 +81,7 @@ fun TodosScreen(
     onOpenArchive: () -> Unit,
 ) {
     val open by remember(todos) { todos.open() }.collectAsState(initial = null)
-    val archivedCount by remember(todos) { todos.archived().map { it.size } }.collectAsState(initial = 0)
+    val archivedCount by remember(todos) { todos.archivedCount() }.collectAsState(initial = 0)
     val allTags by remember(tags) { tags.all() }.collectAsState(initial = emptyList())
     // One deleted meanwhile no longer filters.
     val filter = allTags.find { it.id == tagFilter }
@@ -88,13 +91,8 @@ fun TodosScreen(
     val now = rememberNow(day)
     val today = day.dayOf(now)
     val doneMessage = stringResource(R.string.todo_done)
+    val movedMessage = stringResource(R.string.move_done)
     val undoLabel = stringResource(R.string.undo)
-
-    /** Says that [title] is ticked off and gone to the archive, with the way to [undo] it. */
-    suspend fun offerUndo(title: String, undo: suspend () -> Unit) {
-        val result = snackbar.showSnackbar(doneMessage.format(title), actionLabel = undoLabel, duration = SnackbarDuration.Short)
-        if (result == SnackbarResult.ActionPerformed) undo()
-    }
 
     val list = open
     Box(Modifier.fillMaxSize()) {
@@ -128,17 +126,25 @@ fun TodosScreen(
                             onTick = {
                                 scope.launchNow {
                                     todos.markDone(todo.id)
-                                    offerUndo(todo.title) { todos.reopen(todo.id) }
+                                    snackbar.offerUndo(doneMessage.format(todo.title), undoLabel) { todos.reopen(todo.id) }
                                 }
                             },
                             onClick = { onOpen(todo.id) },
+                            onMove = { date ->
+                                scope.launchNow {
+                                    val move = todos.moveTo(todo.id, date) ?: return@launchNow
+                                    snackbar.offerUndo(movedMessage.format(date.dateLine()), undoLabel) { todos.undo(move) }
+                                }
+                            },
                         )
                         details.checklist().forEach { entry ->
                             ChecklistRow(entry, tickable = true) { ticked ->
                                 scope.launchNow {
                                     if (todos.tick(todo.id, entry.itemId, ticked)) {
                                         // Unticking the item opens the to-do again, the rest of its checklist still ticked off.
-                                        offerUndo(todo.title) { todos.tick(todo.id, entry.itemId, ticked = false) }
+                                        snackbar.offerUndo(doneMessage.format(todo.title), undoLabel) {
+                                            todos.tick(todo.id, entry.itemId, ticked = false)
+                                        }
                                     }
                                 }
                             }
@@ -202,8 +208,10 @@ private fun OrderChoice(order: TodoOrder, onChange: (TodoOrder) -> Unit) {
 
 /**
  * A to-do with a box to tick it off, when it is due, said in red once it is overdue, how it comes again, its priority,
- * the places it reminds at, its tags and description.
+ * the places it reminds at, its tags and description. Tapped, it opens ([onClick]); its menu, from "⋮" or a long press,
+ * moves it to another day ([onMove]) or opens it.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TodoRow(
     details: TodoWithDetails,
@@ -212,9 +220,11 @@ private fun TodoRow(
     overdue: Boolean,
     onTick: () -> Unit,
     onClick: () -> Unit,
+    onMove: (LocalDate) -> Unit,
 ) {
     val todo = details.todo
     val tick = stringResource(R.string.todo_tick, todo.title)
+    var menuOpen by remember { mutableStateOf(false) }
     ListItem(
         leadingContent = {
             Checkbox(checked = false, onCheckedChange = { onTick() }, modifier = Modifier.semantics { contentDescription = tick })
@@ -239,6 +249,23 @@ private fun TodoRow(
                 if (todo.description.isNotEmpty()) Text(todo.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        // The same menu as on Heute (SPEC.md §1, Menü je Eintrag): one due whenever gets a day by moving it.
+        trailingContent = {
+            TodoMenu(
+                title = todo.title,
+                done = false,
+                due = todo.dueDate,
+                today = today,
+                expanded = menuOpen,
+                onExpandedChange = { menuOpen = it },
+                onMove = onMove,
+                onOpen = onClick,
+            )
+        },
+        modifier = Modifier.combinedClickable(
+            onLongClickLabel = stringResource(R.string.entry_menu),
+            onLongClick = { menuOpen = true },
+            onClick = onClick,
+        ),
     )
 }

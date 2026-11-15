@@ -50,6 +50,15 @@ class SettingsTest {
     private val app = ApplicationProvider.getApplicationContext<TestApplication>()
 
     @Test
+    fun `the settings end with the version and commit of the build installed`() {
+        launchApp().use {
+            openSettings()
+
+            compose.onNodeWithText("Version ${BuildConfig.VERSION_NAME} · ${BuildConfig.COMMIT}").performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `the design follows the system until another one is chosen, and the choice is saved`() {
         launchApp().use {
             openSettings()

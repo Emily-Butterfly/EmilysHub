@@ -1,6 +1,7 @@
 package de.emilyshub.places
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -159,4 +160,27 @@ class PlacesTest {
     }
 
     private suspend fun listed() = places.all().first().map { it.name to it.ssids }
+
+    @Test
+    fun `a place opens as it is saved, and saving makes a new one or changes the one opened`() = runBlocking {
+        val made = places.save(PlaceEditing.New, PlaceDraft("Zuhause", listOf("FritzBox")))
+        val id = (made as Saving.Saved).id
+
+        val editing = checkNotNull(places.editing(id))
+        assertEquals(PlaceEditing(id, PlaceDraft("Zuhause", listOf("FritzBox"))), editing)
+
+        assertEquals(Saving.Saved(id), places.save(editing, PlaceDraft("Daheim", listOf("FritzBox"))))
+        assertEquals(listOf("Daheim"), places.all().first().map { it.name })
+    }
+
+    @Test
+    fun `a name taken since the editor looked is refused as it is saved, and nothing is saved`() = runBlocking {
+        val editing = PlaceEditing.New
+        places.create(PlaceDraft("Arbeit", listOf("Firma")))
+
+        val refused = places.save(editing, PlaceDraft("arbeit", listOf("Gast")))
+
+        assertEquals(Saving.Refused(setOf(PlaceProblem.NameTaken)), refused)
+        assertEquals(listOf("Arbeit"), places.all().first().map { it.name })
+    }
 }

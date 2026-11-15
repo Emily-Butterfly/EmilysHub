@@ -6,17 +6,37 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import de.emilyshub.backup.BackupDao
+import de.emilyshub.inbox.InboxDao
+import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.languages.Exam
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardDao
+import de.emilyshub.languages.CardGoal
+import de.emilyshub.languages.CardReview
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.LanguageDao
+import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
+import de.emilyshub.languages.LessonTopic
+import de.emilyshub.languages.Teacher
+import de.emilyshub.languages.TeacherLanguage
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Booking
 import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.LedgerDao
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
+import de.emilyshub.ledger.SubscriptionDao
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteDao
@@ -36,6 +56,8 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineDao
 import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.routines.RunDao
+import de.emilyshub.routines.RunRow
 import de.emilyshub.search.SearchDao
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.TagDao
@@ -48,6 +70,7 @@ import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishDao
 import de.emilyshub.wishes.WishTag
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
 
 /**
  * The app's only database, encrypted with SQLCipher (SPEC.md §9).
@@ -64,7 +87,13 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         NoteTab::class, Note::class, NoteFolder::class, GeneralTab::class,
         NoteGoal::class, NoteTodo::class, NoteRoutine::class, NoteTag::class,
         LedgerCategory::class, Booking::class, RecurringBooking::class, ClosedMonth::class, SkippedEntry::class,
-        ClosedBudget::class, OpeningBalance::class, MonthBudget::class,
+        ClosedBudget::class, OpeningBalance::class, MonthBudget::class, StandardTotalBudget::class, MonthTotalBudget::class,
+        Subscription::class,
+        Language::class, Teacher::class, TeacherLanguage::class, Lesson::class, Exam::class, Topic::class, LessonTopic::class,
+        LessonAttachment::class,
+        InboxEntry::class,
+        RunRow::class,
+        Card::class, CardReview::class, CardGoal::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -86,21 +115,37 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun ledger(): LedgerDao
 
+    abstract fun subscriptions(): SubscriptionDao
+
+    abstract fun languages(): LanguageDao
+
+    abstract fun cards(): CardDao
+
+    abstract fun inbox(): InboxDao
+
+    abstract fun runs(): RunDao
+
     abstract fun search(): SearchDao
 
     abstract fun backup(): BackupDao
 
     companion object {
-        const val VERSION = 41
-        private const val NAME = "emilyshub.db"
+        const val VERSION = 54
+        internal const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
-        /** Opens the database with its 256-bit [key]; a wrong key fails on first access. */
+        /**
+         * Opens the database with its 256-bit [key]; a wrong key fails on first access, and one of a newer version of the
+         * app with a [NewerSchemaException], leaving it as it is.
+         */
         fun open(context: Context, key: ByteArray, name: String = NAME): HubDatabase =
             Room.databaseBuilder(context, HubDatabase::class.java, name)
-                .openHelperFactory(openHelpers(key))
+                .openHelperFactory(NoticingNewer(openHelpers(key)))
                 .addMigrations(*MIGRATIONS.toTypedArray())
                 .build()
+
+        /** The file of the app's database on the phone, or of one by another [name]. */
+        fun file(context: Context, name: String = NAME): File = context.getDatabasePath(name)
 
         /** SQLCipher's, for databases with the 256-bit [key]: the app's database, and those its backups are migrated in. */
         fun openHelpers(key: ByteArray): SupportSQLiteOpenHelper.Factory {
@@ -117,11 +162,50 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
             MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34,
-            MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41,
+            MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
+            MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44,
+            MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49,
+            MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */
         internal fun rawKey(key: ByteArray): ByteArray =
             "x'${key.toHexString()}'".toByteArray()
+    }
+}
+
+/** The database was written by a newer version of the app, with a schema of [version] (#100). */
+class NewerSchemaException(val version: Int) : IllegalStateException("The database is of a newer version")
+
+/**
+ * Opens with [factory], only one of a newer version fails with a [NewerSchemaException] before anything is changed, and
+ * nothing is ever deleted as damaged, so that the app can lay it aside instead (#100).
+ */
+private class NoticingNewer(private val factory: SupportSQLiteOpenHelper.Factory) : SupportSQLiteOpenHelper.Factory {
+    override fun create(configuration: SupportSQLiteOpenHelper.Configuration): SupportSQLiteOpenHelper {
+        val callback = configuration.callback
+        val noticing = object : SupportSQLiteOpenHelper.Callback(callback.version) {
+            override fun onConfigure(db: SupportSQLiteDatabase) = callback.onConfigure(db)
+
+            override fun onCreate(db: SupportSQLiteDatabase) = callback.onCreate(db)
+
+            override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) =
+                callback.onUpgrade(db, oldVersion, newVersion)
+
+            override fun onDowngrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) =
+                throw NewerSchemaException(oldVersion)
+
+            override fun onOpen(db: SupportSQLiteDatabase) = callback.onOpen(db)
+
+            override fun onCorruption(db: SupportSQLiteDatabase) = Unit
+        }
+        return factory.create(
+            SupportSQLiteOpenHelper.Configuration.builder(configuration.context)
+                .name(configuration.name)
+                .callback(noticing)
+                .noBackupDirectory(configuration.useNoBackupDirectory)
+                .allowDataLossOnRecovery(configuration.allowDataLossOnRecovery)
+                .build(),
+        )
     }
 }

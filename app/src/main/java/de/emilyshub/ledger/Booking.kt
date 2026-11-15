@@ -58,9 +58,15 @@ data class Booking(
     @ColumnInfo(name = "recurring_id") val recurringId: Long? = null,
 )
 
-/** A month of the household book closed by hand (SPEC.md §13): in the archive, only to read, until opened again. */
+/**
+ * A month of the household book closed by hand (SPEC.md §13): in the archive, only to read, until opened again. It keeps
+ * the amount its total budget came to when it was closed ([totalBudgetCents]), none if it had none.
+ */
 @Entity(tableName = "ledger_closed_months")
-data class ClosedMonth(@PrimaryKey val month: YearMonth)
+data class ClosedMonth(
+    @PrimaryKey val month: YearMonth,
+    @ColumnInfo(name = "total_budget_cents") val totalBudgetCents: Long? = null,
+)
 
 /**
  * The opening balance of a [month] of the household book (SPEC.md §13): a value of the month, not a booking, so that it
@@ -75,11 +81,20 @@ data class OpeningBalance(
 )
 
 /**
- * A month with what came in and went out, and its opening balance if it has one: in the archive, or in the year
- * overview (SPEC.md §13).
+ * A month with what came in and went out, its opening balance and its total budget if it has them: in the archive, or
+ * in the year overview (SPEC.md §13).
  */
-data class MonthSums(val month: YearMonth, val income: Long, val expenses: Long, val opening: Long? = null) {
+data class MonthSums(
+    val month: YearMonth,
+    val income: Long,
+    val expenses: Long,
+    val opening: Long? = null,
+    val totalBudget: Long? = null,
+) {
     val balance: Long get() = income - expenses
+
+    /** What its expenses use of its total budget, if it has one. */
+    val totalUse: BudgetUse? get() = totalBudget?.let { BudgetUse(it, expenses) }
 
     /** What it ends with: only with an opening balance. */
     val closingBalance: Long? get() = opening?.let { it + balance }
@@ -120,6 +135,15 @@ data class YearSummary(val year: Year, val months: List<MonthSums>, val expenses
 
     /** The end balance of December, if it has an opening balance. */
     val closingOfDecember: Long? get() = months.last().closingBalance
+
+    /** What the total budgets of its months come to, of those with one; none if none has. */
+    val totalBudget: Long? get() = months.mapNotNull { it.totalBudget }.takeIf { it.isNotEmpty() }?.sum()
+
+    /** What the months with a total budget spent: only those count next to [totalBudget]. */
+    val expensesOfBudgeted: Long get() = months.filter { it.totalBudget != null }.sumOf { it.expenses }
+
+    /** What the year's expenses use of its total budgets, in the months with one; none if none has. */
+    val totalUse: BudgetUse? get() = totalBudget?.let { BudgetUse(it, expensesOfBudgeted) }
 
     val income: Long get() = months.sumOf { it.income }
     val expenses: Long get() = months.sumOf { it.expenses }

@@ -1,20 +1,30 @@
 package de.emilyshub
 
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.DataRescue
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
+import de.emilyshub.data.HubData
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
 import de.emilyshub.doku.TestCatalog
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.languages.Flashcards
+import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonFiles
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.Places
+import de.emilyshub.reminders.Reminders
+import de.emilyshub.reminders.RunToOpen
 import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.routines.RoutineRuns
 import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
@@ -30,6 +40,11 @@ import de.emilyshub.wishes.Wishes
  * being passed down through each layer above.
  */
 interface Hub {
+    /** The app's data as they lie on the phone: whether they open, and what was laid aside (#100). */
+    val data: HubData
+
+    /** The ways out while the data cannot be opened (#100). */
+    val rescue: DataRescue
     val settings: AppSettings
     val appLock: AppLock
     val authenticator: DeviceAuthenticator
@@ -38,6 +53,9 @@ interface Hub {
     val wishes: Wishes
     val notes: Notes
     val tags: Tags
+
+    /** The Eingang, thoughts captured to be sorted in later (SPEC.md §16). */
+    val inbox: Inbox
     val places: Places
     val wifi: CurrentWifi
     val location: CurrentLocation
@@ -45,9 +63,24 @@ interface Hub {
     val nightlyBackups: NightlyBackups
     val search: Search
     val ledger: Ledger
+
+    /** The Abos of the household book (SPEC.md §13). */
+    val subscriptions: Subscriptions
+
+    /** Sprachen: languages, teachers and the lessons held (SPEC.md §15). */
+    val languages: Languages
+
+    /** The Vokabeltrainer of Sprachen: cards planned by FSRS-6 (SPEC.md §15). */
+    val flashcards: Flashcards
+
+    /** What is imported into the lessons: text into their notes, photos and PDFs as attachments (SPEC.md §15). */
+    val lessonFiles: LessonFiles
     val toneCollection: ToneCollection
     val day: Day
     val heute: Heute
+
+    /** The Ablauf-Modus: a routine's checklist, step by step (SPEC.md §2). */
+    val runs: RoutineRuns
 
     /** The Doku (SPEC.md §14), with its own lock. */
     val doku: Doku
@@ -69,4 +102,10 @@ interface Hub {
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()
+
+    /**
+     * "Starten" on the reminder of the occurrence [occurrenceId] (#103), answered as [Reminders.answer] has it: the run to
+     * open, or none once it is answered otherwise.
+     */
+    suspend fun startFromReminder(occurrenceId: Long): RunToOpen?
 }

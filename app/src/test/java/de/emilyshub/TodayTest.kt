@@ -13,6 +13,7 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -27,12 +28,14 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "w411dp-h915dp") // the Galaxy A52, where it all fits below the line for thoughts
 class TodayTest {
 
     @get:Rule
@@ -64,6 +67,7 @@ class TodayTest {
         runBlocking { app.reminders.update() } // as the app does when it starts
 
         launchApp().use {
+            compose.openPast()
             compose.onNodeWithText("Verpasst").assertIsDisplayed()
             row("Vitamine").assertIsNotEnabled()
             compose.onNodeWithText("Überspringen").assertDoesNotExist()
@@ -79,7 +83,9 @@ class TodayTest {
         launchApp().use {
             assertEquals(listOf("Gestern, 22:00 Lesen", "22:00 Lesen"), rows())
 
-            compose.onNode(isToggleable() and hasText("Gestern, 22:00")).performClick().assertIsOn()
+            compose.onNode(isToggleable() and hasText("Gestern, 22:00")).performClick()
+            compose.openPast()
+            compose.onNode(isToggleable() and hasText("Gestern, 22:00")).assertIsOn()
         }
         val friday = runBlocking { app.routines.dueOn(LocalDate.parse("2026-10-23")).first().single() }
         assertEquals(OccurrenceStatus.Done, friday.status)
@@ -128,6 +134,7 @@ class TodayTest {
 
             row("Zahnseide").performClick()
 
+            compose.openPast()
             row("Zähne").assertIsOn()
             assertEquals(listOf(OccurrenceStatus.Done), statuses())
         }
@@ -138,7 +145,9 @@ class TodayTest {
         app.routine("Vitamine", "07:30")
 
         launchApp().use {
-            row("Vitamine").performClick().assertIsOn()
+            row("Vitamine").performClick()
+            compose.openPast()
+            row("Vitamine").assertIsOn()
             assertEquals(listOf(OccurrenceStatus.Done), statuses())
 
             row("Vitamine").performClick().assertIsOff()
@@ -153,7 +162,9 @@ class TodayTest {
         launchApp().use {
             assertEquals(listOf("08:00 Tabletten", "20:00 Tabletten"), rows())
 
-            compose.onNode(isToggleable() and hasText("08:00")).performClick().assertIsOn()
+            compose.onNode(isToggleable() and hasText("08:00")).performClick()
+            compose.openPast()
+            compose.onNode(isToggleable() and hasText("08:00")).assertIsOn()
             compose.onNode(isToggleable() and hasText("20:00")).assertIsOff()
         }
     }
@@ -163,7 +174,9 @@ class TodayTest {
         app.routine("Joggen", "18:00")
 
         launchApp().use {
+            compose.onNodeWithContentDescription("Mehr zu „Joggen“").performClick()
             compose.onNodeWithText("Überspringen").performClick()
+            compose.openPast()
             assertEquals(listOf("18:00 Joggen Übersprungen"), rows())
 
             compose.onNodeWithText("Rückgängig").performClick()
@@ -179,12 +192,14 @@ class TodayTest {
 
         launchApp().use {
             row("Tabletten zu Hause").performClick()
+            compose.openPast()
             assertEquals(
                 listOf("08:00 Tabletten zu Hause", "09:00 Tabletten auf der Arbeit durch Tabletten zu Hause erledigt"),
                 rows(),
             )
             row("Tabletten auf der Arbeit").assertIsNotEnabled()
-            compose.onNodeWithText("Rückgängig").assertDoesNotExist()
+            // Only the bar's, for what was ticked off.
+            compose.onAllNodesWithText("Rückgängig").assertCountEquals(1)
 
             row("Tabletten zu Hause").performClick()
             assertEquals(listOf("08:00 Tabletten zu Hause", "09:00 Tabletten auf der Arbeit"), rows())
@@ -199,9 +214,9 @@ class TodayTest {
         launchApp().use {
             compose.onAllNodesWithContentDescription("Mehr zu „Wasser trinken“")[0].performClick()
             compose.onNodeWithText("Heute nicht").performClick()
+            compose.openPast()
             assertEquals(listOf("18:00 Wasser trinken Ausgelassen", "21:00 Wasser trinken Ausgelassen"), rows())
             assertEquals(listOf(OccurrenceStatus.Dropped, OccurrenceStatus.Dropped), statuses())
-            compose.onAllNodesWithContentDescription("Mehr zu „Wasser trinken“").assertCountEquals(0)
 
             compose.onAllNodesWithText("Rückgängig")[0].performClick()
             assertEquals(listOf("18:00 Wasser trinken", "21:00 Wasser trinken"), rows())
@@ -221,7 +236,9 @@ class TodayTest {
         app.clock.now = Instant.parse("2026-10-23T21:59:00Z") // 23:59 in Berlin
 
         launchApp().use {
-            row("Vitamine").performClick().assertIsOn()
+            row("Vitamine").performClick()
+            compose.openPast()
+            row("Vitamine").assertIsOn()
 
             app.clock.now = Instant.parse("2026-10-23T22:01:00Z") // 00:01 on Saturday
             compose.mainClock.advanceTimeBy(3 * 60_000L)
@@ -236,7 +253,9 @@ class TodayTest {
         app.clock.now = Instant.parse("2026-10-23T20:00:00Z") // Friday 22:00 in Berlin
 
         launchApp().use {
-            row("Vitamine").performClick().assertIsOn()
+            row("Vitamine").performClick()
+            compose.openPast()
+            row("Vitamine").assertIsOn()
 
             app.clock.timeZone = ZoneId.of("Asia/Tokyo") // Saturday 05:00 there
             app.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))

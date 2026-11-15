@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -48,24 +50,31 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingInterval
+import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.BookingProblem
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Money
 import de.emilyshub.ledger.RecurringBooking
+import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.ledger.RecurringEditing
 import de.emilyshub.ledger.RecurringProblem
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.NumberField
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.fields.withEnd
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /** What the editor of fixed bookings opens: a new one, or one saved already. */
@@ -137,14 +146,23 @@ fun RecurringListScreen(ledger: Ledger, onOpen: (RecurringEditorTarget) -> Unit,
 /**
  * A fixed booking, new or saved (SPEC.md §13): a booking without a date, which comes every so often on a day of the
  * month from its first month on. A change holds from the next one entered; deleting asks first, and keeps those entered.
+ * One saved can be kept as an Abo, or opens the one it has.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose: () -> Unit) {
+fun RecurringEditorScreen(
+    ledger: Ledger,
+    subscriptions: Subscriptions,
+    target: RecurringEditorTarget,
+    onClose: () -> Unit,
+    onOpenSubscription: (SubscriptionEditorTarget) -> Unit,
+) {
     val recurringId = (target as? RecurringEditorTarget.Edit)?.recurringId
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (recurringId == null) RecurringEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(ledger.newTemplate()) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     var dayText by rememberSaveable { mutableStateOf(draft.day.toString()) }
@@ -168,14 +186,22 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
     val problems = ledger.problems(opened, draft)
     val bookingProblems = draft.asBooking.problems
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = recurringId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showProblems = true
+            firstField.saveFailed(atField = bookingProblems.any { it in AMOUNT_PROBLEMS })
         } else {
             val saved = draft
             closeWith { ledger.saveTemplate(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, RecurringDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -187,7 +213,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -197,10 +223,10 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -211,8 +237,20 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (recurringId != null) Hint(stringResource(R.string.recurring_edit_hint))
+            // Abos cost: only a fixed booking of expenses is kept as one.
+            if (recurringId != null && opened.original?.kind == BookingKind.Expense) {
+                // Whether it has an Abo, also once one is made from here.
+                val abo by remember(subscriptions, recurringId) { subscriptions.linkedTo(recurringId) }.collectAsState(initial = null)
+                OutlinedButton(
+                    onClick = {
+                        onOpenSubscription(abo?.let(SubscriptionEditorTarget::Edit) ?: SubscriptionEditorTarget.New(recurringId))
+                    },
+                ) { Text(stringResource(if (abo == null) R.string.subscription_as_abo else R.string.subscription_open)) }
+            }
             KindChips(draft.kind) { draft = draft.copy(kind = it, categoryId = null) }
-            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems) { draft = draft.copy(amount = it) }
+            AmountField(draft.amount, draft.asBooking.cents, bookingProblems, showProblems, Modifier.focusRequester(firstField.requester)) {
+                draft = draft.copy(amount = it)
+            }
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && RecurringProblem.CategoryMissing in problems) {
                 draft = draft.copy(categoryId = it)
             }
@@ -282,7 +320,7 @@ fun RecurringEditorScreen(ledger: Ledger, target: RecurringEditorTarget, onClose
 }
 
 @Composable
-private fun intervalLabel(interval: BookingInterval): String = stringResource(
+internal fun intervalLabel(interval: BookingInterval): String = stringResource(
     when (interval) {
         BookingInterval.Monthly -> R.string.recurring_monthly
         BookingInterval.Quarterly -> R.string.recurring_quarterly

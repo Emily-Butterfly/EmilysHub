@@ -20,10 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,6 +65,8 @@ import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.MonthClosing
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.Hint
+import de.emilyshub.ui.MoreMenu
+import de.emilyshub.ui.MoreMenuItem
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
@@ -78,9 +77,9 @@ import java.time.YearMonth
 
 /**
  * The household book (SPEC.md §13), a month at a time, the current one first: its opening balance, or the ways to get
- * one while it is open; its income, expenses and balance, and the end balance that follows from an opening one; its
- * expenses by category as bars, the largest first, and as a pie chart with its legend; then all its bookings, the
- * latest first. "+" adds a booking, tapping one opens it.
+ * one while it is open; its total budget as a bar, if it has one; its income, expenses and balance, and the end balance
+ * that follows from an opening one; its expenses by category as bars, the largest first, and as a pie chart with its
+ * legend; then all its bookings, the latest first. "+" adds a booking, tapping one opens it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,8 +92,10 @@ fun LedgerScreen(
     onCreate: () -> Unit,
     onOpenCategories: () -> Unit,
     onOpenRecurring: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onOpenArchive: () -> Unit,
     onOpenYear: () -> Unit,
+    onOpenCalculator: (YearMonth) -> Unit,
     onBack: () -> Unit,
 ) {
     var confirmingClose by rememberSaveable { mutableStateOf(false) }
@@ -121,15 +122,12 @@ fun LedgerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenArchive) {
-                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.ledger_archive))
-                    }
-                    IconButton(onClick = onOpenRecurring) {
-                        Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.recurring_title))
-                    }
-                    IconButton(onClick = onOpenCategories) {
-                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.ledger_categories))
-                    }
+                    LedgerMenu(
+                        onOpenRecurring = onOpenRecurring,
+                        onOpenSubscriptions = onOpenSubscriptions,
+                        onOpenCategories = onOpenCategories,
+                        onOpenArchive = onOpenArchive,
+                    )
                 },
             )
         },
@@ -204,6 +202,9 @@ fun LedgerScreen(
                     )
                 }
             }
+            here.totalUse?.let { use ->
+                item(key = "total-budget") { TotalBar(use, onOpen = if (here.offers.budgets) ({ onOpenCalculator(month) }) else null) }
+            }
             item(key = "sums") { Sums(summary.income, summary.expenses, summary.balance) }
             here.closingBalance?.let { closing -> item(key = "closing-balance") { ClosingRow(closing) } }
             here.foreseenEnd?.let { foreseen -> item(key = "foreseen") { ForeseenRow(foreseen) } }
@@ -218,12 +219,15 @@ fun LedgerScreen(
             }
             if (here.offers.budgets) {
                 item(key = "month-budgets") {
-                    TextButton(onClick = { pickingBudget = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                        Text(stringResource(R.string.month_budgets, month.monthAndYear()))
+                    FlowRow(modifier = Modifier.padding(horizontal = 8.dp)) {
+                        TextButton(onClick = { pickingBudget = true }) {
+                            Text(stringResource(R.string.month_budgets, month.monthAndYear()))
+                        }
+                        TextButton(onClick = { onOpenCalculator(month) }) { Text(stringResource(R.string.budget_calculator)) }
                     }
                 }
             }
-            item(key = "bookings-title") { SectionTitle(stringResource(R.string.ledger_bookings)) }
+            item(key = "bookings-title") { Column(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.ledger_bookings)) } }
             if (summary.bookings.isEmpty()) {
                 item(key = "empty") {
                     Text(
@@ -457,7 +461,7 @@ internal fun Bar(share: Float, color: Color) {
 
 /** Orange from 80 % of a budget, red above it; within it, null: the colour of the category. */
 @Composable
-private fun budgetColor(level: BudgetLevel): Color? = when (level) {
+internal fun budgetColor(level: BudgetLevel): Color? = when (level) {
     BudgetLevel.Within -> null
     BudgetLevel.Near -> NEAR_BUDGET
     BudgetLevel.Over -> MaterialTheme.colorScheme.error
@@ -532,3 +536,23 @@ private val PIE_SIZE = 120.dp
 
 /** Orange, which stands out on the light background as on the dark one. */
 private val NEAR_BUDGET = Color(0xFFF57C00)
+
+/**
+ * The ledger's menu in its top bar (SPEC.md §13; #113), "Mehr zu „Haushaltsbuch“" to a screen reader, as the notes have
+ * theirs: its parts by name, from the most used to the archive, in place of symbols to guess.
+ */
+@Composable
+private fun LedgerMenu(
+    onOpenRecurring: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
+    onOpenCategories: () -> Unit,
+    onOpenArchive: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    MoreMenu(stringResource(R.string.ledger_title), expanded, onExpandedChange = { expanded = it }) { close ->
+        MoreMenuItem(stringResource(R.string.recurring_title), close, onOpenRecurring)
+        MoreMenuItem(stringResource(R.string.subscriptions_title), close, onOpenSubscriptions)
+        MoreMenuItem(stringResource(R.string.ledger_categories), close, onOpenCategories)
+        MoreMenuItem(stringResource(R.string.ledger_archive), close, onOpenArchive)
+    }
+}

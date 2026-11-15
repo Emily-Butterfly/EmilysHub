@@ -1,8 +1,19 @@
 package de.emilyshub.ui.navigation
 
+import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.inbox.Sorting
+import de.emilyshub.languages.AttachmentRef
+import de.emilyshub.notes.NoteDraft
+import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.search.SearchArea
+import de.emilyshub.todos.TodoDraft
+import de.emilyshub.ui.inbox.SortInto
+import de.emilyshub.ui.languages.CardEditorTarget
+import de.emilyshub.ui.languages.LessonEditorTarget
+import de.emilyshub.ui.languages.TeacherEditorTarget
 import de.emilyshub.ui.ledger.BookingEditorTarget
 import de.emilyshub.ui.ledger.RecurringEditorTarget
+import de.emilyshub.ui.ledger.SubscriptionEditorTarget
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.places.PlaceEditorTarget
 import de.emilyshub.ui.routines.RoutineEditorTarget
@@ -53,6 +64,9 @@ sealed interface Destination : Serializable {
     /** A routine's editor (SPEC.md §2). */
     data class RoutineEditor(override val target: RoutineEditorTarget) : Editor
 
+    /** The run through the checklist of an occurrence of the routine, step by step (SPEC.md §2, Ablauf-Modus). */
+    data class Run(val occurrenceId: Long, val routineId: Long) : Destination
+
     /** The routines archived (SPEC.md §2). */
     data object RoutineArchive : Destination
 
@@ -95,6 +109,12 @@ sealed interface Destination : Serializable {
     /** The household book's categories (SPEC.md §13). */
     data object LedgerCategories : Destination
 
+    /**
+     * The budget calculator (SPEC.md §13): the monthly budgets against the standard total budget, with [month] null, or
+     * the budgets of the open [month] against its own.
+     */
+    data class BudgetCalculator(val month: YearMonth?) : Destination
+
     /** The months closed, in the archive (SPEC.md §13). */
     data object LedgerArchive : Destination
 
@@ -107,6 +127,45 @@ sealed interface Destination : Serializable {
     /** A booking's editor (SPEC.md §13). */
     data class BookingEditor(override val target: BookingEditorTarget) : Editor
 
+    /** The Abos (SPEC.md §13). */
+    data object Subscriptions : Destination
+
+    /** An Abo's editor (SPEC.md §13). */
+    data class SubscriptionEditor(override val target: SubscriptionEditorTarget) : Editor
+
+    /**
+     * A language's page, with its lessons, topics, cards and their evaluation (SPEC.md §15); opened on the topics of the
+     * exam [examId], if given, or on its cards, if [cards].
+     */
+    data class LanguagePage(val languageId: Long, val examId: Long? = null, val cards: Boolean = false) : Destination
+
+    /** A card's editor (SPEC.md §15, Vokabeltrainer). */
+    data class CardEditor(override val target: CardEditorTarget) : Editor
+
+    /** Practising the cards of a language due today, or all of the topic [topicId] (SPEC.md §15, Vokabeltrainer). */
+    data class Practice(val languageId: Long, val topicId: Long? = null) : Destination
+
+    /** A lesson's editor (SPEC.md §15). */
+    data class LessonEditor(override val target: LessonEditorTarget) : Editor
+
+    /** A lesson's photo or PDF in full (SPEC.md §15). */
+    data class AttachmentViewer(val attachment: AttachmentRef) : Destination
+
+    /** The languages, to manage (SPEC.md §15). */
+    data object LanguageList : Destination
+
+    /** The teachers, to manage (SPEC.md §15). */
+    data object TeacherList : Destination
+
+    /** A teacher's editor (SPEC.md §15). */
+    data class TeacherEditor(override val target: TeacherEditorTarget) : Editor
+
+    /** The Eingang, the thoughts captured to be sorted in (SPEC.md §16). */
+    data object Inbox : Destination
+
+    /** The line for a new thought, from the shortcut on the app's icon, over what was open (SPEC.md §16). */
+    data object Capture : Destination
+
     companion object {
         /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */
         fun found(area: SearchArea, id: Long): Destination = when (area) {
@@ -115,6 +174,21 @@ sealed interface Destination : Serializable {
             SearchArea.Wishes -> WishEditor(WishEditorTarget.Edit(id))
             SearchArea.Notes -> NoteEditor(NoteEditorTarget.Edit(id))
             SearchArea.Bookings -> BookingEditor(BookingEditorTarget.Edit(id))
+            SearchArea.Subscriptions -> SubscriptionEditor(SubscriptionEditorTarget.Edit(id))
+            SearchArea.Lessons -> LessonEditor(LessonEditorTarget.Edit(id))
+            SearchArea.Cards -> CardEditor(CardEditorTarget.Edit(id))
+            // The inbox as a whole, where it is sorted in.
+            SearchArea.Inbox -> Inbox
+        }
+
+        /**
+         * The editor of a new entry that the inbox's [entry] is sorted [into] (SPEC.md §16): its first line as the title or
+         * name, as long as that may be, and the rest below.
+         */
+        fun sorting(into: SortInto, entry: InboxEntry): Destination = when (into) {
+            SortInto.Todo -> TodoEditor(TodoEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, TodoDraft.TITLE_MAX)))
+            SortInto.Note -> NoteEditor(NoteEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, NoteDraft.TITLE_MAX)))
+            SortInto.Routine -> RoutineEditor(RoutineEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, RoutineDraft.NAME_MAX)))
         }
     }
 }

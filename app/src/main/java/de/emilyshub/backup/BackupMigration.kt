@@ -39,7 +39,7 @@ class BackupMigration(private val context: Context, private val openHelpers: () 
                     throw BackupException(BackupProblem.Damaged, e)
                 }
                 // The Doku as it is: its own migrations bring it up to date once it is opened.
-                return BackupContent(HubDatabase.VERSION, content.created, DataTables(db).read(), content.doku)
+                return BackupContent(HubDatabase.VERSION, content.created, DataTables(db).read(), content.doku, content.attachments)
             } finally {
                 db.endTransaction()
             }

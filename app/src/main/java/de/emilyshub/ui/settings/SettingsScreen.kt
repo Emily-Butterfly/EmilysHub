@@ -1,6 +1,10 @@
 package de.emilyshub.ui.settings
 
+import android.Manifest
 import android.media.RingtoneManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -30,22 +34,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import de.emilyshub.BuildConfig
 import de.emilyshub.R
-import de.emilyshub.data.Design
 import de.emilyshub.data.AppSettings
+import de.emilyshub.data.Design
 import de.emilyshub.reminders.Tone
 import de.emilyshub.reminders.ToneCollection
+import de.emilyshub.reminders.notificationsAllowed
 import de.emilyshub.security.AppLock
+import de.emilyshub.stats.StreakRule
+import de.emilyshub.ui.SystemSettings
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.openSettings
 import de.emilyshub.ui.reminders.DefaultToneSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +86,8 @@ fun SettingsScreen(
     val onLookAroundChange = { enabled: Boolean -> scope.launchNow { appSettings.setLookAroundEnabled(enabled) }; Unit }
     val onAlarmToneChange = { tone: Tone -> scope.launchNow { appSettings.setAlarmTone(tone) }; Unit }
     val onNotificationToneChange = { tone: Tone -> scope.launchNow { appSettings.setNotificationTone(tone) }; Unit }
+    val onCaptureChange = { enabled: Boolean -> scope.launchNow { appSettings.setCaptureInNotifications(enabled) }; Unit }
+    val onStreakRuleChange = { rule: StreakRule -> scope.launchNow { appSettings.setStreakRule(rule) }; Unit }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -142,11 +155,25 @@ fun SettingsScreen(
                 onChange = onNotificationToneChange,
             )
 
+            SectionHeader(R.string.settings_inbox)
+            CaptureSwitch(on = settings.captureInNotifications, onChange = onCaptureChange)
+
+            SectionHeader(R.string.settings_statistics)
+            StreakRuleSetting(settings.streakRule, onChange = onStreakRuleChange)
+
             SectionHeader(R.string.settings_backups)
             ListItem(
                 headlineContent = { Text(stringResource(R.string.backups_manage)) },
                 supportingContent = { Text(stringResource(R.string.backups_manage_summary)) },
                 modifier = Modifier.clickable(onClick = onOpenBackups),
+            )
+
+            // Which build is installed (SPEC.md §12), only to read.
+            Text(
+                stringResource(R.string.settings_version, BuildConfig.VERSION_NAME, BuildConfig.COMMIT),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
             )
         }
     }
@@ -203,6 +230,41 @@ private fun AppLockSwitch(on: Boolean, canAuthenticate: () -> Boolean, onChange:
         checked = on && deviceSecure,
         enabled = deviceSecure,
         onChange = onChange,
+    )
+}
+
+/**
+ * "Gedanke festhalten in den Benachrichtigungen" (SPEC.md §16): on only while notifications are allowed too, checked
+ * again on every return. Turned on without them, it asks for them first and stays off without; once they were turned
+ * down, or before Android 13, where there is nothing to ask, it opens Android's settings of the app's notifications.
+ */
+@Composable
+private fun CaptureSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(context.notificationsAllowed()) }
+    var declined by rememberSaveable { mutableStateOf(false) }
+    LifecycleResumeEffect(context) {
+        allowed = context.notificationsAllowed()
+        onPauseOrDispose {}
+    }
+    val requestNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        allowed = granted
+        if (granted) onChange(true) else declined = true
+    }
+    SettingSwitch(
+        title = stringResource(R.string.settings_capture),
+        summary = stringResource(
+            if (allowed || !(on || declined)) R.string.settings_capture_summary else R.string.settings_capture_needs_notifications,
+        ),
+        checked = on && allowed,
+        onChange = { enabled ->
+            when {
+                !enabled || allowed -> onChange(enabled)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !declined ->
+                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else -> context.openSettings(SystemSettings.notifications(context))
+            }
+        },
     )
 }
 

@@ -36,7 +36,7 @@ class Heatmap private constructor(val weeks: List<List<HeatmapDay>>, val max: In
          * to-dos ticked off, by the day in [zone] they were ticked off ([todosDone]).
          */
         fun of(today: LocalDate, routinesDone: List<LocalDate>, todosDone: List<Instant>, zone: ZoneId): Heatmap {
-            val first = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks(WEEKS - 1L)
+            val first = firstDay(today)
             val counts = (routinesDone + todosDone.map { dayOf(it, zone) })
                 .filter { !it.isBefore(first) && !it.isAfter(today) }
                 .groupingBy { it }
@@ -54,6 +54,10 @@ class Heatmap private constructor(val weeks: List<List<HeatmapDay>>, val max: In
             }
             return Heatmap(weeks, max, months)
         }
+
+        /** The first day of the heatmap up to [today]: the Monday [WEEKS] weeks back, counting today's week. */
+        fun firstDay(today: LocalDate): LocalDate =
+            today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks(WEEKS - 1L)
 
         /** Empty with nothing done, else the share of [max], rounded up, so that a day with anything done shows. */
         private fun level(done: Int, max: Int): Int = if (done == 0) 0 else (done * LEVELS + max - 1) / max

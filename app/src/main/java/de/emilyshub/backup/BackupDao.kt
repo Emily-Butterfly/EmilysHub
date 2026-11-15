@@ -2,14 +2,29 @@ package de.emilyshub.backup
 
 import androidx.room.Dao
 import androidx.room.Query
+import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardGoal
+import de.emilyshub.languages.CardReview
+import de.emilyshub.languages.Exam
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
+import de.emilyshub.languages.LessonTopic
+import de.emilyshub.languages.Teacher
+import de.emilyshub.languages.TeacherLanguage
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.Booking
 import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
-import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.LedgerCategory
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
+import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringBooking
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -26,6 +41,7 @@ import de.emilyshub.routines.Occurrence
 import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutinePlace
 import de.emilyshub.routines.RoutineTag
+import de.emilyshub.routines.RunRow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
@@ -133,4 +149,52 @@ interface BackupDao {
 
     @Query("SELECT * FROM ledger_month_budgets")
     fun monthBudgets(): List<MonthBudget>
+
+    @Query("SELECT * FROM ledger_total_budget")
+    fun standardTotalBudget(): List<StandardTotalBudget>
+
+    @Query("SELECT * FROM ledger_month_total_budgets")
+    fun monthTotalBudgets(): List<MonthTotalBudget>
+
+    @Query("SELECT * FROM subscriptions")
+    fun subscriptions(): List<Subscription>
+
+    @Query("SELECT * FROM languages")
+    fun languages(): List<Language>
+
+    @Query("SELECT * FROM teachers")
+    fun teachers(): List<Teacher>
+
+    @Query("SELECT * FROM teacher_languages")
+    fun teacherLanguages(): List<TeacherLanguage>
+
+    @Query("SELECT * FROM lessons")
+    fun lessons(): List<Lesson>
+
+    @Query("SELECT * FROM exams")
+    fun exams(): List<Exam>
+
+    @Query("SELECT * FROM topics")
+    fun topics(): List<Topic>
+
+    @Query("SELECT * FROM lesson_topics")
+    fun lessonTopics(): List<LessonTopic>
+
+    @Query("SELECT * FROM lesson_attachments")
+    fun lessonAttachments(): List<LessonAttachment>
+
+    @Query("SELECT * FROM inbox")
+    fun inbox(): List<InboxEntry>
+
+    @Query("SELECT * FROM runs")
+    fun runs(): List<RunRow>
+
+    @Query("SELECT * FROM cards")
+    fun cards(): List<Card>
+
+    @Query("SELECT * FROM card_reviews")
+    fun cardReviews(): List<CardReview>
+
+    @Query("SELECT * FROM card_goals")
+    fun cardGoals(): List<CardGoal>
 }

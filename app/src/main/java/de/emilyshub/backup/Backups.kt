@@ -4,6 +4,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
@@ -12,6 +13,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -44,16 +46,21 @@ class Backup internal constructor(internal val content: BackupContent, internal 
 }
 
 /**
- * The backups of all data (SPEC.md §10). The backup password is set once, and only the key derived from it is kept, in
- * the settings, sealed with the Keystore key [wrappingKey]; backups are made with it, without asking for the password.
- * A backup opens with the password it was made with, on this device or another; one of an older version of the app is
- * brought up to this one by [migration]. It is checked strictly before it can be restored. Restoring puts it in place of
- * all data but the settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to
- * follow. [database] and [settings] are only called on [io].
+ * The backups of all data (SPEC.md §10). The backup password is set once, and changed only with the old one, or anew
+ * once forgotten (#111); only the key derived from it is kept, in the settings, sealed with the Keystore key
+ * [wrappingKey]; backups are made with it, without asking for the password. A backup opens with the password it was
+ * made with, on this device or another; one of an older version of the app is brought up to this one by [migration]. It
+ * is checked strictly before it can be restored. Restoring puts it in place of all data but the settings of the device,
+ * all in one or nothing at all; then [onRestore] runs, for the reminders to follow. [database] and [settings] are only
+ * called on [io].
  *
  * The [doku] goes along in its own encryption, taken as its files lie, so that a backup neither unlocks it nor asks
  * for its password, by night too. It comes back only with the Doku password that held when the backup was made, and
  * else, or from a backup without one, stays as it is.
+ *
+ * The lessons' [attachments] follow the content in the file, each in a record of its own, so that a backup is written
+ * and read as a stream (format 2 of [BackupFile]). Opening a backup checks them all and lays them aside, encrypted;
+ * restoring puts them in place of the app's own.
  */
 class Backups(
     private val database: () -> HubDatabase,
@@ -62,35 +69,89 @@ class Backups(
     private val clock: Clock,
     private val migration: BackupMigration,
     private val doku: DokuVault,
+    private val attachments: AttachmentVault,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,
     private val onRestore: suspend () -> Unit = {},
 ) {
     suspend fun hasPassword(): Boolean = withContext(io) { settings().get(KEY) != null }
 
-    /** Sets the backup password, which must have no [passwordProblem]: once, it cannot be changed. */
+    /** Sets the backup password, which must have no [passwordProblem], while none is set; [changePassword] changes it. */
     suspend fun setPassword(password: String) = withContext(io + NonCancellable) {
-        require(passwordProblem(password, password) == null) { "The backup password is too short" }
+        requireNoProblem(password)
         check(settings().get(KEY) == null) { "The backup password is set once" }
         store(BackupKey.derive(password, iterations = iterations))
     }
 
     /**
+     * Changes the backup password to [new], which must have no [passwordProblem], if [old] is the one set (#111): the
+     * backups made from then on, by hand and by night, are made with a key of the new one, with a salt of its own. Those
+     * made before open with the old one, as ever. False, changing nothing, if [old] is not the one set.
+     */
+    suspend fun changePassword(old: String, new: String): Boolean = withContext(io + NonCancellable) {
+        requireNoProblem(new)
+        val stored = checkNotNull(storedKey()) { "The backup password is not set" }
+        val given = BackupKey.derive(old, stored.salt, stored.iterations)
+        if (!MessageDigest.isEqual(given.secret, stored.secret)) return@withContext false
+        store(BackupKey.derive(new, iterations = iterations))
+        true
+    }
+
+    /**
+     * Sets [new], which must have no [passwordProblem], in place of a backup password forgotten (#111), as [changePassword]
+     * does but without the old one; the screen asks for the app lock before. The backups made before then open only with
+     * the old one, as ever.
+     */
+    suspend fun setForgottenPasswordAnew(new: String) = withContext(io + NonCancellable) {
+        requireNoProblem(new)
+        checkNotNull(settings().get(KEY)) { "The backup password is not set" }
+        store(BackupKey.derive(new, iterations = iterations))
+    }
+
+    /**
      * Writes a backup of all data to the stream [output] opens; only once the backup password is set. The stream is
-     * opened only once the backup is sealed, so that nothing is written if that fails.
+     * opened only once the content is sealed and every attachment found readable, so that nothing is written if that
+     * fails; the attachments are then read again one by one as they are written, none taken in or deleted meanwhile.
      */
     suspend fun export(output: () -> OutputStream) = withContext(io + NonCancellable) {
         val key = checkNotNull(storedKey()) { "The backup password is not set" }
         val database = database()
         val now = clock.instant()
-        val tables = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
-        val file = BackupFile.seal(BackupContent(HubDatabase.VERSION, now, tables, doku.snapshot()).toJson(), key)
-        output().use { it.write(file) }
+        val snapshot = doku.snapshot()
+        attachments.steady {
+            val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
+            // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
+            val carried = attachmentFilesOf(read).mapNotNull { file ->
+                attachments.read(file)?.let { BackupAttachment(file, it.size.toLong()) }
+            }
+            // One that cannot be read is left out with its row, rather than keeping every backup from being made.
+            val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
+            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, carried).toJson()
+            output().use { out ->
+                val writer = BackupFile.writer(out, key, content)
+                carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
+                writer.finish()
+            }
+        }
         settings().put(Setting(LAST_MADE, now.toString()))
+        if (firstMadeStored() == null) settings().put(Setting(FIRST_MADE, now.toString()))
     }
 
     /** When the last backup was made here, by hand or by night. */
     suspend fun lastMade(): Instant? = withContext(io) { settings().get(LAST_MADE)?.let(Instant::parse) }
+
+    /**
+     * When the first backup was made on this device, as far as it was noted: from this version on, or, for backups made
+     * before it, from the moment [noteFirstMade] was first told after the update.
+     */
+    suspend fun firstMade(): Instant? = withContext(io) { firstMadeStored() }
+
+    /** Takes [at] as the moment of the first backup, if there are backups made before the first was noted. */
+    suspend fun noteFirstMade(at: Instant) = withContext(io) {
+        if (firstMadeStored() == null && settings().get(LAST_MADE) != null) settings().put(Setting(FIRST_MADE, at.toString()))
+    }
+
+    private suspend fun firstMadeStored(): Instant? = settings().get(FIRST_MADE)?.takeIf { it.isNotEmpty() }?.let(Instant::parse)
 
     /**
      * The backup in the stream [input] opens, opened with its [password] and checked: by putting it in place of all data
@@ -98,16 +159,36 @@ class Backups(
      * cannot be restored.
      */
     suspend fun open(input: () -> InputStream, password: String): Backup = withContext(io) {
-        val decrypted = BackupFile.open(input().use(BackupFile::read), password)
-        val found = BackupContent.fromJson(decrypted.plaintext)
-        if ((found.doku?.schema ?: 0) > DokuDatabase.VERSION) throw BackupException(BackupProblem.NewerVersion)
-        val content = when {
-            found.schema > HubDatabase.VERSION -> throw BackupException(BackupProblem.NewerVersion)
-            found.schema < HubDatabase.VERSION -> migration.upToDate(found)
-            else -> found
+        // So that no other backup is laid aside or restored meanwhile.
+        attachments.steady { openSteady(input, password) }
+    }
+
+    private suspend fun openSteady(input: () -> InputStream, password: String): Backup {
+        attachments.clearAside()
+        try {
+            val (found, key) = input().use { stream ->
+                val reader = BackupFile.reader(stream, password)
+                val found = BackupContent.fromJson(reader.content())
+                // Told as such before anything else of it is read, whatever else may be amiss.
+                if (found.schema > HubDatabase.VERSION || (found.doku?.schema ?: 0) > DokuDatabase.VERSION) {
+                    throw BackupException(BackupProblem.NewerVersion)
+                }
+                if (found.attachments.map { it.file }.toSet().size != found.attachments.size) damaged()
+                found.attachments.forEach { carried ->
+                    val bytes = reader.next() ?: damaged()
+                    if (bytes.size.toLong() != carried.bytes || !attachments.isName(carried.file)) damaged()
+                    attachments.putAside(carried.file, bytes)
+                }
+                if (reader.next() != null) damaged()
+                found to reader.key
+            }
+            val content = if (found.schema < HubDatabase.VERSION) migration.upToDate(found) else found
+            replaceAllWith(content, keep = false)
+            return Backup(content, key, clock.zone)
+        } catch (e: Exception) {
+            attachments.clearAside()
+            throw e
         }
-        replaceAllWith(content, keep = false)
-        Backup(content, decrypted.key, clock.zone)
     }
 
     /**
@@ -124,7 +205,17 @@ class Backups(
             throw BackupException(BackupProblem.WrongDokuPassword)
         }
         withContext(io) { if (settings().get(KEY) == null) store(backup.key) }
-        val replace = suspend { withContext(io) { replaceAllWith(backup.content, keep = true) } }
+        val replace = suspend {
+            withContext(io) {
+                attachments.steady {
+                    val files = backup.content.attachments.map { it.file }.toSet()
+                    // Another backup opened since has taken their place: this one is to be opened again.
+                    if (!attachments.hasAside(files)) damaged()
+                    replaceAllWith(backup.content, keep = true)
+                    attachments.takeAside(files)
+                }
+            }
+        }
         // The Doku's state changes where the caller is, as when it is unlocked.
         if (dokuToRestore == null) replace() else doku.replacedBy(dokuToRestore, replace)
         withContext(io) { onRestore() }
@@ -142,6 +233,7 @@ class Backups(
         val replace = {
             DataTables(database.openHelper.writableDatabase).replaceWith(content.tables)
             database.readBack(content.tables.keys)
+            database.checkAttachments(content.attachments)
         }
         if (keep) {
             database.runInTransaction(replace)
@@ -176,6 +268,13 @@ class Backups(
             "recurring_bookings" to dao::recurringBookings, "ledger_closed_months" to dao::closedMonths,
             "ledger_skipped" to dao::skipped, "ledger_closed_budgets" to dao::closedBudgets,
             "ledger_opening_balances" to dao::openingBalances, "ledger_month_budgets" to dao::monthBudgets,
+            "ledger_total_budget" to dao::standardTotalBudget, "ledger_month_total_budgets" to dao::monthTotalBudgets,
+            "subscriptions" to dao::subscriptions, "languages" to dao::languages, "teachers" to dao::teachers,
+            "teacher_languages" to dao::teacherLanguages, "lessons" to dao::lessons, "exams" to dao::exams,
+            "topics" to dao::topics, "lesson_topics" to dao::lessonTopics,
+            "lesson_attachments" to dao::lessonAttachments, "inbox" to dao::inbox,
+            "runs" to dao::runs, "cards" to dao::cards, "card_reviews" to dao::cardReviews,
+            "card_goals" to dao::cardGoals,
         )
         check(reads.keys == tables) { "Each table is to be read back: ${tables - reads.keys}" }
         try {
@@ -194,6 +293,31 @@ class Backups(
         }
     }
 
+    /**
+     * That the lessons' attachments in the tables are those the backup carries, each as large as it says, and no lesson
+     * has more than a lesson can.
+     */
+    private fun HubDatabase.checkAttachments(carried: List<BackupAttachment>) {
+        val rows = backup().lessonAttachments()
+        val sizes = carried.associate { it.file to it.bytes }
+        if (rows.size != carried.size || rows.any { sizes[it.file] != it.bytes }) damaged()
+        if (rows.groupBy { it.lessonId }.values.any { it.size > LessonFiles.MAX_ATTACHMENTS }) damaged()
+    }
+
+    /** [tables] with only the rows of the lessons' attachments whose files are [kept]. */
+    private fun withAttachmentsOnly(tables: Map<String, TableRows>, kept: Set<String>): Map<String, TableRows> {
+        val table = tables[ATTACHMENTS_TABLE] ?: return tables
+        val column = table.columns.indexOf("file")
+        return tables + (ATTACHMENTS_TABLE to TableRows(table.columns, table.rows.filter { it[column] in kept }))
+    }
+
+    /** The files of the lessons' attachments in [tables], in the order of their rows. */
+    private fun attachmentFilesOf(tables: Map<String, TableRows>): List<String> {
+        val table = tables[ATTACHMENTS_TABLE] ?: return emptyList()
+        val column = table.columns.indexOf("file")
+        return table.rows.map { it[column] as String }
+    }
+
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->
         val parts = stored.split(SEPARATOR)
         check(parts.size == 3) { "The stored backup key is damaged" }
@@ -201,6 +325,9 @@ class Backups(
         val secret = KeyWrap.unwrap(Base64.getDecoder().decode(wrapped), wrappingKey(), BackupKey.SECRET_BYTES, name = "backup key")
         BackupKey(Base64.getDecoder().decode(salt), iterations.toInt(), secret)
     }
+
+    private fun requireNoProblem(password: String) =
+        require(passwordProblem(password, password) == null) { "The backup password is too short" }
 
     /** "600000:<salt>:<secret sealed with the Keystore key>", in Base64. */
     private suspend fun store(key: BackupKey) {
@@ -214,7 +341,9 @@ class Backups(
         const val MIN_PASSWORD_LENGTH = 10
         private const val KEY = "backup-key"
         private const val LAST_MADE = "backup-last-made"
+        private const val FIRST_MADE = "backup-first-made"
         private const val SEPARATOR = ":"
+        private const val ATTACHMENTS_TABLE = "lesson_attachments"
 
         fun passwordProblem(password: String, repeated: String): PasswordProblem? = when {
             password.length < MIN_PASSWORD_LENGTH -> PasswordProblem.TooShort

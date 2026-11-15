@@ -10,8 +10,8 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Watches the parts of goals (SPEC.md §6) through a change, so that their goals are settled once it is over: what
- * changes a to-do, routine or subgoal names it here before it does ([todo], [routine], [goal]), or once it made it
- * ([todoAdded], [routineAdded], [goalAdded]), and the watch takes how it was then. At the end of [watchingGoals], it
+ * changes a to-do, routine, subgoal or exam names it here before it does ([todo], [routine], [goal], [exam]), or once
+ * it made it ([todoAdded], [routineAdded], [goalAdded], [examAdded]), and the watch takes how it was then. At the end of [watchingGoals], it
  * settles the goal of each, as [settleGoals] has it, from how it was to how it is: no caller holds on to a part.
  *
  * A watch started within another, in the same change, joins it: the goals are settled once, at the end of the outer
@@ -32,6 +32,15 @@ internal class GoalWatch private constructor(
 
     /** The goal [id] is about to change, as a part of the goal above it (SPEC.md §6). */
     suspend fun goal(id: Long) = watch(Part.Goal(id))
+
+    /** The exam [id] of Sprachen is about to change, taken or not, or moved to another goal (SPEC.md §6, §15). */
+    suspend fun exam(id: Long) = watch(Part.Exam(id))
+
+    /** The Karten-Ziel of the goal [goalId] is about to change, set, or its cards' sureness (SPEC.md §6, §15; #106). */
+    suspend fun cardGoal(goalId: Long) = watch(Part.Cards(goalId))
+
+    /** The exam [id] was just made: part of no goal before (SPEC.md §15). */
+    fun examAdded(id: Long) = added(Part.Exam(id))
 
     /** The to-do [id] was just made: part of no goal before (SPEC.md §6). */
     fun todoAdded(id: Long) = added(Part.Todo(id))
@@ -86,6 +95,12 @@ internal class GoalWatch private constructor(
             }
         }
         is Part.Goal -> database.wishes().get(part.id)?.let { GoalPart(it.parentId, open = it.status != WishStatus.Done) }
+        // Done once taken, whatever its topics.
+        is Part.Exam -> database.languages().exam(part.id)?.let { GoalPart(it.goalId, open = !it.taken) }
+        // Done once as many cards are sure as it asks for.
+        is Part.Cards -> database.cards().goal(part.goalId)?.let { goal ->
+            GoalPart(goal.goalId, open = database.cards().sureCount(goal.languageId) < goal.count)
+        }
     } ?: GoalPart.None
 
     /** A part of a goal, by what it is (SPEC.md §6). */
@@ -98,6 +113,12 @@ internal class GoalWatch private constructor(
 
         /** A subgoal, of the goal above it. */
         data class Goal(val id: Long) : Part
+
+        /** An exam of Sprachen, of the goal it is part of. */
+        data class Exam(val id: Long) : Part
+
+        /** The Karten-Ziel of the goal [goalId]. */
+        data class Cards(val goalId: Long) : Part
     }
 
     /** Finds the watch running in a change, as the change's coroutines carry it. */

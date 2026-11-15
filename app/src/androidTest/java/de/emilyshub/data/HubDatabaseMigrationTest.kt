@@ -4,17 +4,34 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.languages.AttachmentKind
+import de.emilyshub.languages.Card
+import de.emilyshub.languages.CardGoal
+import de.emilyshub.languages.CardReview
+import de.emilyshub.languages.Exam
+import de.emilyshub.languages.Language
+import de.emilyshub.languages.Lesson
+import de.emilyshub.languages.LessonAttachment
+import de.emilyshub.languages.LessonTopic
+import de.emilyshub.languages.Teacher
+import de.emilyshub.languages.TeacherLanguage
+import de.emilyshub.languages.Topic
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingEditing
 import de.emilyshub.ledger.BookingInterval
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.ClosedBudget
-import de.emilyshub.ledger.MonthBudget
 import de.emilyshub.ledger.ClosedMonth
 import de.emilyshub.ledger.Ledger
+import de.emilyshub.ledger.MonthBudget
+import de.emilyshub.ledger.MonthTotalBudget
 import de.emilyshub.ledger.OpeningBalance
 import de.emilyshub.ledger.RecurringDraft
 import de.emilyshub.ledger.SkippedEntry
+import de.emilyshub.ledger.StandardTotalBudget
+import de.emilyshub.ledger.Subscription
+import de.emilyshub.ledger.TotalBudget
 import de.emilyshub.notes.GeneralTab
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.NoteFolder
@@ -37,6 +54,8 @@ import de.emilyshub.routines.Routine
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.routines.RoutineTag
 import de.emilyshub.routines.RoutineTarget
+import de.emilyshub.routines.RunRow
+import de.emilyshub.routines.RunWithStart
 import de.emilyshub.routines.TimeWindow
 import de.emilyshub.tags.Tag
 import de.emilyshub.todos.Recurrence
@@ -50,9 +69,11 @@ import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.SecureRandom
@@ -62,7 +83,6 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
-import net.zetetic.database.sqlcipher.SQLiteDatabase as SQLCipherDatabase
 
 /**
  * Each migration on an encrypted database. Opening it runs the migrations, and Room then checks every
@@ -355,18 +375,18 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            assertEquals(emptyList<TodoWithDetails>(), database.todos().observeAll().first())
+            assertEquals(emptyList<TodoWithDetails>(), database.allTodos())
 
             val id = database.todos().insert(Todo(title = "Steuer", description = "", dueDate = LocalDate.parse("2026-10-30")))
             database.todos().insertChecklistItems(listOf(TodoChecklistItem(todoId = id, position = 0, text = "Belege")))
             database.todos().tag(id, listOf(1L))
-            val saved = database.todos().observeAll().first().single()
+            val saved = database.allTodos().single()
             assertEquals(listOf("Belege"), saved.checklistItems.map { it.text })
             assertEquals(setOf(1L), saved.tagIds)
 
             // A tag deleted is taken off the to-dos.
             database.tags().delete(1)
-            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single().tagIds)
+            assertEquals(emptySet<Long>(), database.allTodos().single().tagIds)
         }
     }
 
@@ -382,18 +402,18 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            val todos = database.todos().observeAll().first().associateBy { it.todo.title }
+            val todos = database.allTodos().associateBy { it.todo.title }
             assertEquals(Reminding(remindsAtDueTime = true), todos.getValue("Arzt").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Müll").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Steuer").todo.reminding)
             assertEquals(Reminding(), todos.getValue("Vorbei").todo.reminding)
 
             database.todos().bind(1, listOf(1L))
-            assertEquals(setOf(1L), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
+            assertEquals(setOf(1L), database.allTodos().single { it.todo.id == 1L }.placeIds)
 
             // A place deleted is taken off the to-dos.
             database.places().delete(1)
-            assertEquals(emptySet<Long>(), database.todos().observeAll().first().single { it.todo.id == 1L }.placeIds)
+            assertEquals(emptySet<Long>(), database.allTodos().single { it.todo.id == 1L }.placeIds)
         }
     }
 
@@ -409,7 +429,7 @@ class HubDatabaseMigrationTest {
         }
 
         withMigratedDatabase { database ->
-            val post = database.todos().observeAll().first().single()
+            val post = database.allTodos().single()
             assertEquals(Reminding(waiting = true), post.todo.reminding)
             assertEquals(setOf(1L), post.placeIds)
         }
@@ -906,6 +926,262 @@ class HubDatabaseMigrationTest {
             assertEquals(Instant.parse("2026-11-02T12:00:00Z"), database.notes().folders().single().archivedAt)
         }
     }
+
+    @Test
+    fun `version 41 moves to version 42 where months closed keep no total budget and then one can be set`() {
+        createAtVersion(41) {
+            it.execSQL("INSERT INTO ledger_closed_months (month) VALUES ('2026-09')")
+        }
+
+        withMigratedDatabase { database ->
+            val ledger = database.ledger()
+            assertEquals(listOf(ClosedMonth(YearMonth.of(2026, 9), totalBudgetCents = null)), ledger.closed())
+            assertEquals(null, ledger.standardTotal())
+
+            ledger.setStandardTotal(StandardTotalBudget.of(TotalBudget.FromIncome(10_000)))
+            ledger.setMonthTotal(MonthTotalBudget.of(YearMonth.of(2026, 12), TotalBudget.Fixed(150_000)))
+            assertEquals(TotalBudget.FromIncome(10_000), ledger.standardTotal()?.budget)
+            assertEquals(TotalBudget.Fixed(150_000), ledger.monthTotal(YearMonth.of(2026, 12))?.budget)
+        }
+    }
+
+    @Test
+    fun `version 42 moves to version 43 without Abos and then one can be linked to a fixed booking`() {
+        createAtVersion(42) {
+            it.execSQL("INSERT INTO ledger_categories (id, kind, name, is_other, budget_cents) VALUES (1, 'expense', 'Freizeit', 0, NULL)")
+            it.execSQL(
+                "INSERT INTO recurring_bookings (id, amount_cents, category_id, description, interval, day, first_month) " +
+                    "VALUES (7, 1299, 1, 'Streaming', 'monthly', 1, '2026-12')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.subscriptions()
+            assertEquals(null, dao.ofRecurring(7))
+
+            val id = dao.insert(Subscription(name = "Streaming", recurringId = 7, cancelBy = LocalDate.parse("2027-01-31")))
+            assertEquals(id, dao.ofRecurring(7)?.id)
+        }
+    }
+
+    @Test
+    fun `version 43 moves to version 44 where the Abos there remind at all their times and then one can count from a moment`() {
+        createAtVersion(43) {
+            it.execSQL(
+                "INSERT INTO subscriptions (id, name, note, cancel_by, lead_days, runs_on) VALUES (1, 'Streaming', '', '2027-01-31', 14, 0)",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.subscriptions()
+            assertEquals(null, dao.get(1)?.remindsFrom)
+
+            dao.update(checkNotNull(dao.get(1)).copy(remindsFrom = Instant.parse("2026-11-12T10:00:00Z")))
+            assertEquals(Instant.parse("2026-11-12T10:00:00Z"), dao.get(1)?.remindsFrom)
+        }
+    }
+
+    @Test
+    fun `version 44 moves to version 45 without languages and then a lesson can be held with its language kept while it is there`() {
+        createAtVersion(44) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            assertEquals(emptyList<Language>(), dao.languages())
+
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            dao.insertTeaching(listOf(TeacherLanguage(amal, arabic)))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            assertEquals(45, dao.lesson(lesson)?.minutes)
+            assertEquals(listOf(arabic), dao.languagesOf(amal))
+            assertTrue(runCatching { dao.deleteLanguage(arabic) }.isFailure)
+        }
+    }
+
+    @Test
+    fun `version 45 moves to version 46 without topics and then a lesson treats one which an exam deleted leaves without it`() {
+        createAtVersion(45) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            val exam = dao.insertExam(Exam(languageId = arabic, name = "A2", date = LocalDate.parse("2026-12-25")))
+            val verbs = dao.insertTopic(Topic(languageId = arabic, name = "Verben", examId = exam))
+            dao.insertLessonTopics(listOf(LessonTopic(lesson, verbs)))
+            assertEquals(listOf(verbs), dao.topicsOfLesson(lesson))
+
+            dao.deleteExam(exam)
+            assertEquals(null, dao.topic(verbs)?.examId)
+            dao.deleteLesson(lesson)
+            assertEquals(emptyList<Long>(), dao.topicsOfLesson(lesson))
+        }
+    }
+
+    @Test
+    fun `version 46 moves to version 47 without attachments and then a lesson has one that goes with it`() {
+        createAtVersion(46) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            val arabic = dao.insertLanguage(Language(name = "Arabisch"))
+            val amal = dao.insertTeacher(Teacher(name = "Amal"))
+            val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
+            val file = "0f8fad5b-d9cb-469f-a165-70867728950e.att"
+            dao.insertAttachments(listOf(LessonAttachment(lessonId = lesson, kind = AttachmentKind.Pdf, file = file, bytes = 10, name = "a.pdf", position = 0)))
+            assertEquals(listOf(file), dao.attachmentFiles())
+
+            dao.deleteLesson(lesson)
+            assertEquals(emptyList<String>(), dao.attachmentFiles())
+        }
+    }
+
+    @Test
+    fun `version 47 moves to version 48 with exams at no goal and then one is part of a goal until that goes`() {
+        createAtVersion(47) {
+            it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
+            it.execSQL("INSERT INTO exams (id, language_id, name, date, taken, result) VALUES (1, 1, 'A2', '2026-12-25', 0, '')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.languages()
+            assertEquals(null, dao.exam(1)?.goalId)
+            val goal = database.wishes().insert(Wish(title = "A2 erreichen", description = "", period = ""))
+            dao.updateExam(checkNotNull(dao.exam(1)).copy(goalId = goal))
+            assertEquals(goal, dao.exam(1)?.goalId)
+
+            database.wishes().delete(goal)
+            assertEquals(null, dao.exam(1)?.goalId)
+        }
+    }
+
+    @Test
+    fun `version 48 moves to version 49 with the inbox empty and then a thought is kept in it`() {
+        createAtVersion(48) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.inbox()
+            assertEquals(emptyList<InboxEntry>(), dao.observeAll().first())
+            val id = dao.insert(InboxEntry(text = "Zahnarzt anrufen", capturedAt = Instant.parse("2026-11-13T08:00:00Z")))
+            assertEquals("Zahnarzt anrufen", dao.find(id)?.text)
+        }
+    }
+
+    @Test
+    fun `version 49 moves to version 50 with no run started and then the first start of a run is kept`() {
+        createAtVersion(49) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Morgens', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (1, 1, '2026-11-14', '08:00', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.routines()
+            assertEquals(null, dao.occurrence(1)?.runStartedAt)
+            dao.startRun(1, Instant.parse("2026-11-14T07:00:00Z"))
+            dao.startRun(1, Instant.parse("2026-11-14T07:05:00Z"))
+            assertEquals(Instant.parse("2026-11-14T07:00:00Z"), dao.occurrence(1)?.runStartedAt)
+        }
+    }
+
+    @Test
+    fun `version 50 moves to version 51 with items without minutes and no run and then both are kept`() {
+        createAtVersion(50) {
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Morgens', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO checklist_items (id, routine_id, position, text) VALUES (1, 1, 0, 'Wasser')")
+            it.execSQL("INSERT INTO occurrences (id, routine_id, date, time, status) VALUES (1, 1, '2026-11-14', '08:00', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.routines()
+            assertEquals(listOf<Int?>(null), dao.checklist(1).map { it.minutes })
+            dao.updateChecklistItems(dao.checklist(1).map { it.copy(minutes = 5) })
+            assertEquals(listOf<Int?>(5), dao.checklist(1).map { it.minutes })
+
+            val runs = database.runs()
+            assertEquals(emptyList<RunWithStart>(), runs.runs())
+            runs.save(RunRow(occurrenceId = 1, routineId = 1, stepItemId = 1, stepStartedAt = Instant.parse("2026-11-14T07:00:00Z")))
+            assertEquals(1L, runs.runs().single().row.stepItemId)
+            dao.deleteOccurrences(listOf(1))
+            assertEquals(emptyList<RunWithStart>(), runs.runs())
+        }
+    }
+
+    @Test
+    fun `version 51 moves to version 52 with no cards and ten new a day and then a card and an answer are kept`() {
+        createAtVersion(51) {
+            it.execSQL("INSERT INTO languages (id, name, archived) VALUES (1, 'Arabisch', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            assertEquals(10, database.languages().language(1)?.newCardsPerDay)
+            val cards = database.cards()
+            assertEquals(emptyList<Card>(), cards.of(1))
+            val id = cards.insert(Card(languageId = 1, front = "كتاب", back = "Buch"))
+            cards.insert(CardReview(cardId = id, at = Instant.parse("2026-11-14T07:00:00Z"), grade = 3))
+            assertEquals("Buch", cards.card(id)?.back)
+            assertEquals(listOf(3), cards.reviewsOf(id).map { it.grade })
+            cards.delete(id)
+            assertEquals(emptyList<CardReview>(), cards.reviewsOf(id))
+        }
+    }
+
+    @Test
+    fun `version 52 moves to version 53 with no routine done by cards and no Karten-Ziel and then both are kept`() {
+        createAtVersion(52) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+            it.execSQL(
+                "INSERT INTO routines (id, name, description, times, repetition, status, planned_from) " +
+                    "VALUES (1, 'Vokabeln', '', '08:00', 'daily', 'active', '2026-11-01T00:00:00Z')",
+            )
+            it.execSQL("INSERT INTO wishes (id, title, description, period, status) VALUES (1, 'Wortschatz', '', '', 'open')")
+        }
+
+        withMigratedDatabase { database ->
+            val routines = database.routines()
+            assertEquals(null, routines.get(1)?.vocabularyLanguageId)
+            routines.update(checkNotNull(routines.get(1)).copy(vocabularyLanguageId = 1))
+            assertEquals(1L, routines.get(1)?.vocabularyLanguageId)
+
+            val cards = database.cards()
+            assertEquals(null, cards.goal(1))
+            cards.setGoal(CardGoal(goalId = 1, languageId = 1, count = 1000))
+            assertEquals(1000, cards.goal(1)?.count)
+            database.wishes().delete(1)
+            assertEquals(null, cards.goal(1))
+        }
+    }
+
+    @Test
+    fun `version 53 moves to version 54 with the to-dos kept and read by when they were ticked off`() {
+        createAtVersion(53) {
+            it.execSQL("INSERT INTO todos (id, title, description, priority, done_at) VALUES (1, 'Müll', '', 'normal', NULL)")
+            it.execSQL(
+                "INSERT INTO todos (id, title, description, priority, done_at) VALUES (2, 'Arzt', '', 'normal', '2026-11-13T09:00:00Z')",
+            )
+        }
+
+        withMigratedDatabase { database ->
+            val todos = database.todos()
+            assertEquals(listOf(1L), todos.open().map { it.todo.id })
+            assertEquals(1, todos.observeArchivedCount().first())
+            assertEquals(listOf(Instant.parse("2026-11-13T09:00:00Z")), todos.doneSince(Instant.parse("2026-11-13T00:00:00Z")))
+            val indices = database.openHelper.readableDatabase.query("PRAGMA index_list(`todos`)").use { cursor ->
+                buildList { while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name"))) }
+            }
+            assertTrue("index_todos_done_at" in indices)
+        }
+    }
+
+    /** Every to-do, open or ticked off, with its checklist, tags and places. */
+    private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 
     private fun startOf(date: String) = LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant()
 

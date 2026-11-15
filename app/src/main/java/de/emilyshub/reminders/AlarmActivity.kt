@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.emilyshub.EmilysHubApplication
+import de.emilyshub.MainActivity
 import de.emilyshub.security.OutsideAppLock
 import de.emilyshub.ui.reminders.AlarmScreen
 import de.emilyshub.ui.reminders.AlarmShown
@@ -103,7 +104,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                     onDone = { answer(Answer.Done) },
                     // One of a joint alarm: that one done skips the others (SPEC.md §2).
                     onDoneOf = { id -> answer(Answer.Done, about = Alarmed.Occurrence(id)) },
-                    onPutOff = { by: Duration -> answer(Answer.PutOff(by)) },
+                    onPutOff = { choice -> answer(Answer.PutOff(choice)) },
                     // For all a joint alarm rings for (SPEC.md §3).
                     onSkip = { answer(Answer.Skip) },
                     onDrop = { answer(Answer.Drop) },
@@ -111,6 +112,7 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
                         silence()
                         finish()
                     },
+                    onStart = ::start,
                 )
             }
         }
@@ -167,7 +169,14 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         ringUntil = until
         val first = queue.firstOrNull()
         ringStart?.cancel()
-        ringStart = lifecycleScope.launch { app.ringer.start(first?.let { app.sounds.alarmOf(app.reminders.reminder(it).first()) } ?: Sound.PhoneDefault) }
+        ringStart = lifecycleScope.launch {
+            val sound = when (first) {
+                null -> Sound.PhoneDefault
+                // Gone, or the data cannot be opened (#100), as no reminders come then: it does not ring.
+                else -> app.reminders.reminder(first).first()?.let { app.sounds.alarmOf(it) } ?: return@launch
+            }
+            app.ringer.start(sound)
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ringLimit = lifecycleScope.launch {
             delay(until - now())
@@ -244,8 +253,19 @@ class AlarmActivity : ComponentActivity(), OutsideAppLock {
         app.background.launch { app.reminders.answer(about ?: alarmed, answer) }
     }
 
+    /**
+     * "Starten" (#103): the alarm goes on to the next in the queue, and the app opens, behind its lock, to answer the one
+     * shown so and open its run, as from its notification.
+     */
+    private fun start() {
+        val alarmed = showing?.alarmed as? Alarmed.Occurrence ?: return
+        silence()
+        drop(alarmed)
+        startActivity(MainActivity.startFromReminder(this, alarmed.id))
+    }
+
     /** What the alarm shows of [alarmed]: its [screen], and what "Später" offers now. */
-    private class Showing(val alarmed: Alarmed, val screen: AlarmShown, val putOffChoices: () -> List<Duration>)
+    private class Showing(val alarmed: Alarmed, val screen: AlarmShown, val putOffChoices: () -> List<PutOffChoice>)
 
     private fun Intent.rings() = getBooleanExtra(EXTRA_RING, true)
 

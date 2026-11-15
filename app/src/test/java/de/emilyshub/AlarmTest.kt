@@ -160,7 +160,7 @@ class AlarmTest {
     fun `later in the alarm offers 10 min, 30 min and 1 h, and puts the reminder off by the time chosen`() {
         openAlarm().use { scenario ->
             compose.onNodeWithText("Später").performClick()
-            compose.onNodeWithText("Erneut erinnern in …").assertIsDisplayed()
+            compose.onNodeWithText("Wann erneut erinnern?").assertIsDisplayed()
             listOf("10 Min.", "1 Std.").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
 
             compose.onNodeWithText("30 Min.").performClick()

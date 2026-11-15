@@ -1,13 +1,15 @@
 package de.emilyshub.reminders
 
+import de.emilyshub.ledger.SubscriptionReminder
 import de.emilyshub.routines.Reminder
 import de.emilyshub.todos.TodoReminder
-import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
- * A reminder due to be on the screen (SPEC.md §3, §5): of a routine's occurrence, alone or the joint one of coupled
- * routines, or of a to-do; and what it is [about], which tells it apart on the screen and in the answers to it.
+ * A reminder due to be on the screen (SPEC.md §3, §5, §13): of a routine's occurrence, alone or the joint one of coupled
+ * routines, of a to-do, or of an Abo to cancel; and what it is [about], which tells it apart on the screen and in the
+ * answers to it.
  */
 sealed interface DueReminder {
     /** What it is about: the occurrence it is posted for, or the to-do. */
@@ -48,8 +50,25 @@ sealed interface DueReminder {
         override val joint get() = false
         override val windowEnd: Instant? get() = null
     }
+
+    /**
+     * An Abo's, to cancel it (#80): a plain notification with the standard tone, never on the full screen, and nothing of
+     * it on the lock screen; it goes once its last day is over.
+     */
+    data class OfSubscription(val reminder: SubscriptionReminder) : DueReminder {
+        override val about get() = Alarmed.Subscription(reminder.subscriptionId)
+        override val title get() = reminder.name
+        override val style get() = RemindingStyle()
+        override val joint get() = false
+        override val windowEnd: Instant get() = reminder.ends
+    }
 }
 
-/** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before it runs out, if it does. */
-fun DueReminder.putOffChoices(now: Instant): List<Duration> =
-    Reminders.PUT_OFF_CHOICES.filter { choice -> windowEnd?.let { (now + choice).isBefore(it) } ?: true }
+/**
+ * What "Später" offers at [now] in [zone], the phone's: for a to-do, the minutes, "Heute Abend" and "Morgen früh", as it
+ * never runs out (#98); for anything else, those of the [PutOffChoice.MINUTES] that come back before it runs out.
+ */
+fun DueReminder.putOffChoices(now: Instant, zone: ZoneId): List<PutOffChoice> = when (this) {
+    is DueReminder.OfTodo -> PutOffChoice.forTodo(now, zone)
+    else -> PutOffChoice.MINUTES.filter { choice -> windowEnd?.let { choice.until(now, zone).isBefore(it) } ?: true }
+}

@@ -83,7 +83,7 @@ class YesterdayScreenTest {
         app.history(vitamins, "2026-10-21" to Done, "2026-10-22" to Missed)
 
         launchApp().use {
-            compose.onNodeWithContentDescription("Streak", substring = true).assertDoesNotExist()
+            compose.onNodeWithContentDescription("Kein Streak. Letzter: 1 Tag").assertIsDisplayed()
             compose.onNodeWithText("‹ Gestern").performClick()
             compose.onNodeWithText("Verpasst").assertIsDisplayed()
             // Neither skipped nor dropped on the day before.
@@ -103,7 +103,7 @@ class YesterdayScreenTest {
         val rubbish = app.todo("Müll", due = Due.On(LocalDate.parse("2026-10-22")))
 
         launchApp().use {
-            compose.onNode(isToggleable() and hasText("Müll")).assertIsDisplayed()
+            compose.onNodeWithText("Überfällig (1)").assertIsDisplayed()
             compose.onNodeWithText("‹ Gestern").performClick()
             compose.onNode(isToggleable() and hasText("Müll")).performClick()
             compose.onNode(isToggleable() and hasText("Müll")).assertIsOn()

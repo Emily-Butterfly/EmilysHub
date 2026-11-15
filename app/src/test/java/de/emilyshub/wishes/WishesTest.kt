@@ -2,6 +2,7 @@ package de.emilyshub.wishes
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.tags.Tags
 import kotlinx.coroutines.Dispatchers
@@ -140,5 +141,22 @@ class WishesTest {
         val id = wishes.create(WishDraft("Nordlichter sehen", tagIds = setOf(travel)))
 
         assertEquals(emptySet<Long>(), wishes.tagIdsOf(id))
+    }
+
+    @Test
+    fun `a wish opens as it is saved, with its tags, and saving makes a new one, changes it, or refuses it`() = runBlocking {
+        val travel = tags.create("Reisen")
+        val made = wishes.save(WishEditing.New, WishDraft("Japan", period = "2027", tagIds = setOf(travel)))
+        val id = (made as Saving.Saved).id
+
+        val editing = checkNotNull(wishes.editing(id))
+        assertEquals(WishEditing(id, WishDraft("Japan", period = "2027", tagIds = setOf(travel))), editing)
+
+        assertEquals(Saving.Saved(id), wishes.save(editing, WishDraft("Japan", period = "2028")))
+        assertEquals("2028", wishes.get(id)!!.period)
+        assertEquals(Saving.Refused(setOf(WishProblem.TitleMissing)), wishes.save(editing, WishDraft(" ")))
+        assertEquals("Japan", wishes.get(id)!!.title)
+        wishes.delete(id)
+        assertNull(wishes.editing(id))
     }
 }

@@ -3,7 +3,8 @@ package de.emilyshub.wishes
 import androidx.room.withTransaction
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
-import de.emilyshub.todos.TodoDraft
+import de.emilyshub.data.Saving
+import de.emilyshub.languages.CardGoal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -20,7 +21,7 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The wishlist (SPEC.md §6): things to do some day, deliberately without reminders, so that nothing here tells the
- * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos and routines hanging under them; a
+ * reminders of a change. Wishes are goals, with subgoals to any depth and to-dos, routines and exams hanging under them; a
  * goal is done once all of its parts that count are. [database] is only called on [io], since the first call opens it.
  * Writes run to the end once started, even if the screen that started them goes away.
  */
@@ -68,6 +69,25 @@ class Wishes(
     /** The wish's tags (SPEC.md §8). */
     suspend fun tagIdsOf(id: Long): Set<Long> = withContext(io) { dao.tagIdsOf(id).toSet() }
 
+    /** The wish [id] as it is saved, to edit (SPEC.md §6), read at once with its tags; null once it is deleted. */
+    suspend fun editing(id: Long): WishEditing? = withContext(io) {
+        database().withTransaction {
+            dao.get(id)?.let { WishEditing(id, it.toDraft(dao.tagIdsOf(id).toSet(), database().cards().goal(id))) }
+        }
+    }
+
+    /**
+     * Saves [draft] as [editing] has it: a new wish, or the changes to the one opened; refused, with nothing saved, for
+     * its problems.
+     */
+    suspend fun save(editing: WishEditing, draft: WishDraft): Saving<WishProblem> {
+        val problems = draft.problems
+        if (problems.isNotEmpty()) return Saving.Refused(problems)
+        val id = editing.id ?: return Saving.Saved(create(draft))
+        update(id, draft)
+        return Saving.Saved(id)
+    }
+
     /**
      * A new wish; refuses a draft with problems, which the editor shows before. Under a goal, it is a part of it, which
      * opens that goal again if it was done.
@@ -80,6 +100,8 @@ class Wishes(
                 val id = dao.insert(cleaned.copy(parentId = parentId).toWish(today()))
                 watch.goalAdded(id)
                 saveTags(id, cleaned.tagIds)
+                watch.cardGoal(id)
+                saveCardGoal(id, cleaned)
                 id
             }
         }
@@ -100,13 +122,18 @@ class Wishes(
             }
             database().watchingGoals(today()) { watch ->
                 watch.goal(id)
+                watch.cardGoal(id)
                 dao.update(cleaned.copy(parentId = parentId).toWish(today(), id))
                 saveTags(id, cleaned.tagIds)
+                saveCardGoal(id, cleaned)
             }
         }
     }
 
-    /** Deletes the wish for good, with its tags and its subgoals; the to-dos and routines of all of them stay, at no goal. */
+    /**
+     * Deletes the wish for good, with its tags and its subgoals; the to-dos, routines and exams of all of them stay, at no
+     * goal.
+     */
     suspend fun delete(id: Long) = write {
         database().withTransaction {
             if (dao.get(id) == null) return@withTransaction
@@ -118,33 +145,33 @@ class Wishes(
     }
 
     /**
-     * Deletes the wish for good, with its tags, but not its parts: its subgoals, to-dos and routines move up a level, to
-     * the goal it was part of, or to the top and to no goal.
+     * Deletes the wish for good, with its tags, but not its parts: its subgoals, to-dos, routines and exams move up a
+     * level, to the goal it was part of, or to the top and to no goal.
      */
     suspend fun deleteMovingPartsUp(id: Long) = write {
         database().withTransaction {
             val wish = dao.get(id) ?: return@withTransaction
+            // Its Karten-Ziel goes with it, and is no part to move up.
+            database().cards().deleteGoal(id)
             val partsOpen = database().partsDoneOf(id).any { !it }
             dao.moveSubgoals(from = id, to = wish.parentId)
             dao.moveTodos(from = id, to = wish.parentId)
             dao.moveRoutines(from = id, to = wish.parentId)
+            dao.moveExams(from = id, to = wish.parentId)
             dao.delete(id)
             // In its place, its parts: open if one of them is. Not through the watch, as they take its place all at once.
             database().settleGoals(wish.asPart(), GoalPart(wish.parentId, open = partsOpen), today())
         }
     }
 
-    /** A to-do made of the wish (SPEC.md §6), to be saved as one: with its title, description and tags, hanging under it. */
-    suspend fun todoDraftOf(id: Long): TodoDraft = withContext(io) {
-        val wish = checkNotNull(dao.get(id)) { "No wish $id" }
-        TodoDraft(wish.title, wish.description, tagIds = dao.tagIdsOf(id).toSet(), goalId = id)
-    }
-
     /** The day it is now, which a wish done comes true on unless another is chosen, and none after. */
     private fun today(): LocalDate = LocalDate.now(clock)
 
     private fun tree(): Flow<List<Goal>> =
-        flow { emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), GoalTree::build)) }.flowOn(io)
+        flow {
+            emitAll(combine(dao.observeAll(), dao.observeGoalTodos(), goalRoutines(), dao.observeGoalExams(), dao.observeGoalCards(), GoalTree::build))
+        }
+            .flowOn(io)
 
     /**
      * The routines hanging under goals, each with how far it has come towards what it aims at; anew only as that changes,
@@ -154,6 +181,14 @@ class Wishes(
         database().routines().observeWithGoal().distinctUntilChanged().map { all -> all.mapNotNull(GoalRoutine::of) }
 
     private fun Wish.asPart() = GoalPart(parentId, open = status != WishStatus.Done)
+
+    /** The Karten-Ziel of the wish [wishId] as [draft] has it, of a language still there; none without one. */
+    private suspend fun saveCardGoal(wishId: Long, draft: WishDraft) {
+        val cards = database().cards()
+        val languageId = draft.cardLanguageId?.takeIf { database().languages().language(it) != null }
+        val count = draft.cardGoalCount
+        if (languageId == null || count == null) cards.deleteGoal(wishId) else cards.setGoal(CardGoal(wishId, languageId, count))
+    }
 
     private suspend fun saveTags(wishId: Long, tagIds: Set<Long>) {
         dao.untagAll(wishId)

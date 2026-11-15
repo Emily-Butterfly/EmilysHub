@@ -5,6 +5,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.places.Whereabouts
+import de.emilyshub.routines.ChecklistDraftItem
+import de.emilyshub.routines.FollowUps
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
@@ -17,6 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -136,7 +140,7 @@ class RemindingTest {
         reminders.remind()
         val vitamins = occurrenceOf("Vitamine")
 
-        reminders.answer(Alarmed.Occurrence(vitamins), Answer.PutOff(Duration.ofMinutes(30)))
+        reminders.answer(Alarmed.Occurrence(vitamins), Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(30))))
         assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
 
         clock.now = berlin("08:20")
@@ -227,16 +231,154 @@ class RemindingTest {
         reminders.remind()
         val vitamins = Alarmed.Occurrence(occurrenceOf("Vitamine"))
 
-        reminders.answer(vitamins, Answer.PutOff(Duration.ofMinutes(7)))
-        reminders.answer(Alarmed.Todo(call), Answer.PutOff(Duration.ofMinutes(7)))
+        reminders.answer(vitamins, Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(7))))
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.By(Duration.ofMinutes(7))))
+        reminders.answer(vitamins, Answer.PutOff(PutOffChoice.Tonight))
 
         assertEquals(setOf(vitamins, Alarmed.Todo(call)), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `a to-do put off till tonight comes back at 20 00, its due staying as it was`() = runBlocking {
+        reminders.update()
+        val due = Due.At(today, LocalTime.parse("07:45"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = due))
+        clock.now = berlin("07:50")
+        reminders.remind()
+
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.Tonight))
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+        clock.now = berlin("19:59")
+        reminders.remind()
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+
+        clock.now = berlin("20:00")
+        reminders.remind()
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+        assertEquals(due, todos.get(call)?.due)
+    }
+
+    @Test
+    fun `a to-do put off till tonight after 19 00, from a choice offered earlier, stays as it is`() = runBlocking {
+        reminders.update()
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("18:30"))))
+        clock.now = berlin("18:30")
+        reminders.remind()
+        reminders.answer(Alarmed.Todo(call), Answer.OfferPutOff)
+
+        clock.now = berlin("19:00")
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.Tonight))
+
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+        assertEquals(Offering.PutOff, screen.offering(Alarmed.Todo(call)))
+    }
+
+    @Test
+    fun `after a change of time zone, a to-do put off comes back at the moment kept, not at the new zone's 08 00`() = runBlocking {
+        reminders.update()
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+        reminders.answer(Alarmed.Todo(call), Answer.PutOff(PutOffChoice.TomorrowMorning))
+        val kept = LocalDateTime.of(today.plusDays(1), LocalTime.parse("08:00")).atZone(clock.zone).toInstant()
+
+        clock.timeZone = ZoneId.of("Europe/London")
+        clock.now = kept.minusSeconds(60)
+        reminders.update()
+        reminders.remind()
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+
+        clock.now = kept
+        reminders.remind()
+        assertEquals(setOf(Alarmed.Todo(call)), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `a routine's reminder is offered only the minutes, never tonight or tomorrow morning`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:45"))))
+        clock.now = berlin("07:50")
+        reminders.remind()
+
+        val shown = screen.onScreen.values.map { it.reminder }
+        val vitamins = shown.single { it is DueReminder.OfOccurrence }
+        val todo = shown.single { it.about == Alarmed.Todo(call) }
+        assertTrue(reminders.putOffChoices(vitamins).all { it is PutOffChoice.By })
+        assertEquals(PutOffChoice.MINUTES + PutOffChoice.Tonight + PutOffChoice.TomorrowMorning, reminders.putOffChoices(todo))
+    }
+
+    @Test
+    fun `"Starten" puts a routine's reminder off by its follow-up's time and says which run to open`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Morgens", "07:30", checklist = listOf("Wasser"), followUps = FollowUps(count = 3, everyMinutes = 20)))
+        clock.now = berlin("07:35")
+        reminders.remind()
+        val morning = routines.dueOn(today).first().single()
+
+        val started = reminders.answer(Alarmed.Occurrence(morning.occurrenceId), Answer.Start)
+
+        assertEquals(RunToOpen(morning.occurrenceId, morning.routineId), started)
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+        clock.now = berlin("07:55")
+        reminders.remind()
+        assertEquals("comes back while still open", setOf(Alarmed.Occurrence(morning.occurrenceId)), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `"Starten" on one answered meanwhile takes its reminder down and opens no run`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Morgens", "07:30", checklist = listOf("Wasser")))
+        clock.now = berlin("07:35")
+        reminders.remind()
+        val morning = Alarmed.Occurrence(occurrenceOf("Morgens"))
+        val stillUp = screen.onScreen.getValue(morning)
+        routines.markDone(morning.id)
+        screen.onScreen[morning] = stillUp
+
+        assertNull(reminders.answer(morning, Answer.Start))
+        assertEquals(emptySet<Alarmed>(), screen.onScreen.keys)
+    }
+
+    @Test
+    fun `"Starten" is for a routine with a checklist alone, never a joint reminder or a to-do`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Vitamine", "07:30"))
+        val running = routines.create(routine("Laufen", "07:40", checklist = listOf("Schuhe")))
+        routines.create(routine("Yoga", "07:40", checklist = listOf("Matte"), coupledWith = setOf(running)))
+        val call = todos.create(TodoDraft("Arzt anrufen", due = Due.At(today, LocalTime.parse("07:30"))))
+        clock.now = berlin("07:45")
+        reminders.remind()
+        val shown = screen.onScreen.keys.toSet()
+
+        shown.forEach { assertNull(it.toString(), reminders.answer(it, Answer.Start)) }
+
+        assertEquals("all stay as they are", shown, screen.onScreen.keys)
+    }
+
+    @Test
+    fun `a routine's reminder can be started once it has a checklist`() = runBlocking {
+        reminders.update()
+        routines.create(routine("Morgens", "07:30", checklist = listOf("Wasser")))
+        clock.now = berlin("07:35")
+        reminders.remind()
+
+        val shown = screen.onScreen.values.single().reminder as DueReminder.OfOccurrence
+        assertTrue(shown.reminder.startable)
     }
 
     private suspend fun occurrenceOf(name: String) = routines.dueOn(today).first().single { it.name == name }.occurrenceId
 
     private fun berlin(time: String): Instant = LocalDateTime.of(today, LocalTime.parse(time)).atZone(clock.zone).toInstant()
 
-    private fun routine(name: String, time: String, coupledWith: Set<Long> = emptySet()) =
-        RoutineDraft(name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily, coupledWith = coupledWith)
+    private fun routine(
+        name: String,
+        time: String,
+        coupledWith: Set<Long> = emptySet(),
+        checklist: List<String> = emptyList(),
+        followUps: FollowUps = FollowUps(),
+    ) = RoutineDraft(
+        name, description = "", listOf(LocalTime.parse(time)), Repetition.Daily, followUps = followUps,
+        checklist = checklist.map { ChecklistDraftItem(text = it) }, coupledWith = coupledWith,
+    )
 }

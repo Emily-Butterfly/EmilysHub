@@ -5,12 +5,17 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +84,8 @@ fun ActivityScenario<*>.leaveAndReturn(whileAway: () -> Unit) {
 
 /**
  * A routine at [times] ("07:30"), daily unless given another [repetition], with the default follow-ups, time
- * window and priority unless given others, without a [fullScreen] alarm and with a [checklist], [tags],
+ * window and priority unless given others, without a [fullScreen] alarm and with a [checklist] (its [minutes] for the
+ * Ablauf-Modus), [tags],
  * [places], a [goal] and a [target] only if given, set up before the test opens the app.
  */
 fun TestApplication.routine(
@@ -91,6 +97,7 @@ fun TestApplication.routine(
     window: TimeWindow = TimeWindow(),
     priority: Priority = Priority.Normal,
     checklist: List<String> = emptyList(),
+    minutes: List<Int?> = emptyList(),
     tags: Set<Long> = emptySet(),
     places: Set<Long> = emptySet(),
     goal: Long? = null,
@@ -103,7 +110,8 @@ fun TestApplication.routine(
     val draft = RoutineDraft(
         name, description = "", times.map(LocalTime::parse), repetition, followUps,
         RemindingStyle(fullScreen, nameOnLockScreen, tone), window, priority,
-        checklist.map { ChecklistDraftItem(text = it) }, tags, places, goal, target, endsOn, coupledWith,
+        checklist.mapIndexed { i, text -> ChecklistDraftItem(text = text, minutes = minutes.getOrNull(i)) }, tags, places, goal, target, endsOn,
+        coupledWith,
     )
     routines.create(draft)
 }
@@ -168,6 +176,30 @@ fun ComposeTestRule.openGoals() {
     onNode(hasText("Ziele") and hasClickAction()).performClick()
 }
 
+/**
+ * Opens [item] of the ledger's menu in its top bar (SPEC.md §13; #113): "Fixbuchungen", "Abos", "Kategorien" or
+ * "Archiv".
+ */
+fun ComposeTestRule.openFromLedgerMenu(item: String) {
+    onNodeWithContentDescription("Mehr zu „Haushaltsbuch“").performClick()
+    onNode(hasText(item) and hasClickAction() and hasAnyAncestor(isPopup())).performClick()
+}
+
+/** Unfolds "Mehr Optionen" in the editor of a routine or to-do (SPEC.md §8), where all but what is needed lies. */
+fun ComposeTestRule.openMoreOptions() {
+    onNode(hasText("Mehr Optionen") and hasClickAction()).performScrollTo().performClick()
+}
+
+/** Unfolds "Schon vorbei" on Heute (SPEC.md §1, Drei Blöcke), where what is done, skipped, missed or dropped lies. */
+fun ComposeTestRule.openPast() {
+    onNode(isHeading() and hasText("Schon vorbei", substring = true)).performScrollTo().performClick()
+}
+
+/** Unfolds "Überfällig" on Heute (SPEC.md §1, Drei Blöcke), where the overdue to-dos lie. */
+fun ComposeTestRule.openOverdue() {
+    onNode(isHeading() and hasText("Überfällig", substring = true)).performScrollTo().performClick()
+}
+
 /** Once the prompt is up, the user puts a finger on the sensor and the app shows. */
 fun ComposeTestRule.unlockWithFingerprint(authenticator: FakeAuthenticator) {
     waitForIdle()
@@ -199,3 +231,6 @@ fun TestApplication.history(routineId: Long, vararg days: Pair<String, Occurrenc
         days.map { (date, status) -> Occurrence(routineId = routineId, date = LocalDate.parse(date), time = time, status = status) },
     )
 }
+
+/** A thought in the inbox (SPEC.md §16), captured now. */
+fun TestApplication.inbox(text: String) = runBlocking { check(inbox.capture(text)) }

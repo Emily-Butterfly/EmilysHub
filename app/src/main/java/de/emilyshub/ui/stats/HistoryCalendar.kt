@@ -95,7 +95,7 @@ fun HistoryCalendar(days: Map<LocalDate, DayOutcome>, today: LocalDate) {
                 }
             }
         }
-        Legend()
+        Legend(shown = days.values.toSet())
     }
 }
 
@@ -123,15 +123,15 @@ private fun DayCell(date: LocalDate, outcome: DayOutcome?) {
     }
 }
 
-/** What the colors and signs of the calendar mean. */
+/** What the colors and signs of the calendar mean; "zu wenig" only where a day of [shown] is so (#109). */
 @Composable
-private fun Legend() {
+private fun Legend(shown: Set<DayOutcome>) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.padding(top = 8.dp),
     ) {
-        DayOutcome.entries.forEach { outcome ->
+        DayOutcome.entries.filter { it != DayOutcome.Short || it in shown }.forEach { outcome ->
             val marking = outcome.marking()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -161,6 +161,7 @@ private fun DayOutcome.marking(): Marking {
         DayOutcome.Missed -> Marking(colors.error, colors.onError, "✗", R.string.statistics_missed)
         DayOutcome.Dropped -> Marking(colors.errorContainer, colors.onErrorContainer, "⊘", R.string.statistics_dropped)
         DayOutcome.Open -> Marking(colors.surfaceVariant, colors.onSurfaceVariant, "·", R.string.statistics_open_day)
+        DayOutcome.Short -> Marking(colors.tertiaryContainer, colors.onTertiaryContainer, "↓", R.string.statistics_short_day)
     }
 }
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only where the camera app puts the one photo it takes for a lesson (SPEC.md §15); the app reads it, keeps it
+     encrypted and deletes it at once. -->
+<paths>
+    <cache-path name="camera" path="camera/" />
+</paths>

@@ -1,16 +1,21 @@
 package de.emilyshub.reminders
 
 import android.content.Context
+import de.emilyshub.data.DataUnavailable
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.routines.Locate
 import de.emilyshub.routines.Reminder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Reminds of routines on time (SPEC.md §3), and again at their follow-ups while they stay open: one alarm
@@ -35,8 +40,12 @@ import java.time.Instant
  * waits elsewhere; while a routine is bound or a to-do waits, Android wakes the app on joining a WLAN ([arrived]), also
  * while it is closed. What pops up on arrival, or once bound to no place any more, pops up by the alarm, as at its time.
  *
- * Routines and to-dos are reminded of alike: each is a [ReminderSource], which says what of its own is due and does what
- * an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own there.
+ * Abos remind to cancel them (#80): at 21:00 on the first day of their lead and on their last day, made up for while
+ * that is not over, with "Gekündigt · Läuft weiter".
+ *
+ * Routines, to-dos and Abos are reminded of alike: each is a [ReminderSource], which says what of its own is due and
+ * does what an answer asks, and the reminders go on the [screen], Android's notifications unless a test puts its own
+ * there.
  */
 class Reminders internal constructor(
     context: Context,
@@ -113,21 +122,44 @@ class Reminders internal constructor(
      * - "Erledigt" marks it done; on a joint reminder, the one chosen, after it asked which one it was;
      * - "Später" asks when to come back, and the choice puts it off then, and its follow-ups after that: only one that has
      *   come due and is still open, and only by a choice it offers now, else it stays as it is;
-     * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do.
+     * - "Überspringen" and "Heute nicht" are for all a joint reminder reminds of, and nothing for a to-do;
+     * - "Läuft weiter" lets an Abo run on, and is nothing for anything else;
+     * - "Starten" puts a routine's off for its run, as [start] has it.
      *
      * Asking anything of one answered meanwhile takes it down. What writes to the routines or to-dos runs outside the
-     * lock, as their change brings the reminders up to date, which takes it.
+     * lock, as their change brings the reminders up to date, which takes it. Returns the run to open after "Starten";
+     * none after anything else.
      */
-    suspend fun answer(about: Alarmed, answer: Answer) {
+    suspend fun answer(about: Alarmed, answer: Answer): RunToOpen? {
         val source = sourceOf(about)
+        if (answer == Answer.Start) return start(about)
         when (answer) {
             Answer.Done -> source.done(about.id)
             Answer.OfferDone -> offer(about, Offering.Done, onlyIf = DueReminder::joint)
             Answer.OfferPutOff -> offer(about, Offering.PutOff)
-            is Answer.PutOff -> putOff(about, answer.by)
+            is Answer.PutOff -> putOff(about, answer.choice)
             Answer.Skip -> source.skip(about.id)
             Answer.Drop -> source.drop(about.id)
+            Answer.RunOn -> source.runOn(about.id)
+            Answer.Start -> Unit
         }
+        return null
+    }
+
+    /**
+     * "Starten" on the reminder about [about] (#103), as [answer] gives it: one still due that can be run through is put off by its routine's
+     * follow-up time, as after "Später", so that it reminds again should the routine still be open then; returns the run
+     * to open. Anything else opens none: one answered meanwhile goes away, and one that cannot be run through, as a
+     * joint one, stays as it is.
+     */
+    private suspend fun start(about: Alarmed): RunToOpen? {
+        val reminder = (stillDue(about) as? DueReminder.OfOccurrence)?.reminder?.takeIf { it.startable }
+        if (reminder == null) {
+            update()
+            return null
+        }
+        sourceOf(about).putOff(about.id, until = clock.instant() + reminder.followUpEvery)
+        return RunToOpen(reminder.occurrenceId, reminder.routineId)
     }
 
     /**
@@ -142,16 +174,17 @@ class Reminders internal constructor(
     }
 
     /**
-     * Puts the reminder about [about] off [by] one of the choices its source offers now; anything else, or one no longer
-     * due, leaves it as it is, and brings the screen up to date.
+     * Puts the reminder about [about] off as [choice] says, if its source offers that now; anything else, such as "Heute
+     * Abend" from a notification still up after 19:00, or one no longer due, leaves it as it is, and brings the screen up
+     * to date. What is kept is the moment it comes back.
      */
-    private suspend fun putOff(about: Alarmed, by: Duration) {
+    private suspend fun putOff(about: Alarmed, choice: PutOffChoice) {
         val source = sourceOf(about)
         val reminder = stillDue(about)
         val now = clock.instant()
         when {
-            reminder == null || by !in reminder.putOffChoices(now) -> update()
-            else -> source.putOff(about.id, until = now + by)
+            reminder == null || choice !in reminder.putOffChoices(now, clock.zone) -> update()
+            else -> source.putOff(about.id, until = choice.until(now, clock.zone))
         }
     }
 
@@ -168,11 +201,18 @@ class Reminders internal constructor(
     /** The reminder to try out pops up. */
     fun showProbe() = screen.showProbe()
 
-    /** The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is not. */
-    fun reminder(about: Alarmed): Flow<DueReminder?> = sourceOf(about).reminder(about.id)
+    /**
+     * The reminder about [about] as it changes while it is still due, as its full-screen alarm shows it; none once it is
+     * not, or while the data cannot be opened (#100), so that the alarm goes quiet rather than failing.
+     */
+    fun reminder(about: Alarmed): Flow<DueReminder?> =
+        flow { emitAll(sourceOf(about).reminder(about.id)) }.catch { if (it is DataUnavailable) emit(null) else throw it }
 
-    /** What "Später" offers for [reminder] now: before its time window ends, for a routine's; any time, for a to-do's. */
-    fun putOffChoices(reminder: DueReminder): List<Duration> = reminder.putOffChoices(clock.instant())
+    /**
+     * What "Später" offers for [reminder] now, all of it, as its full-screen alarm shows it: before its time window ends,
+     * for a routine's; any time, and tonight and tomorrow morning too, for a to-do's.
+     */
+    fun putOffChoices(reminder: DueReminder): List<PutOffChoice> = reminder.putOffChoices(clock.instant(), clock.zone)
 
     /**
      * Shows the reminders on the screen as they are now, takes down those no longer due, sets the alarm for what comes
@@ -237,9 +277,6 @@ class Reminders internal constructor(
     private suspend fun stored(name: String): Instant? = settings().get(name)?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
     companion object {
-        /** What "Später" offers (SPEC.md §3). */
-        val PUT_OFF_CHOICES: List<Duration> = listOf(10L, 30L, 60L).map(Duration::ofMinutes)
-
         /** How long until the reminder to try out comes (SPEC.md §11). */
         val PROBE_DELAY: Duration = Duration.ofSeconds(10)
 
@@ -253,5 +290,8 @@ class Reminders internal constructor(
     }
 }
 
-/** What "Später" offers at [now]: those of the [Reminders.PUT_OFF_CHOICES] that come back before the time window ends. */
-fun Reminder.putOffChoices(now: Instant): List<Duration> = DueReminder.OfOccurrence(this).putOffChoices(now)
+/** What "Später" offers at [now] in [zone]: those of the [PutOffChoice.MINUTES] that come back before the time window ends. */
+fun Reminder.putOffChoices(now: Instant, zone: ZoneId): List<PutOffChoice> = DueReminder.OfOccurrence(this).putOffChoices(now, zone)
+
+/** The run "Starten" on a reminder opens (#103): through the occurrence [occurrenceId] of the routine [routineId]. */
+data class RunToOpen(val occurrenceId: Long, val routineId: Long)

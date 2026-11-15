@@ -12,12 +12,41 @@ import java.time.Instant
 /** The to-dos in the database, with their checklists, tags and places; [Todos] is the way to them. */
 @Dao
 interface TodoDao {
-    @Transaction
-    @Query("SELECT * FROM todos")
-    fun observeAll(): Flow<List<TodoWithDetails>>
-
     @Query("SELECT * FROM todos WHERE id = :id")
     suspend fun get(id: Long): Todo?
+
+    /** The open to-dos, each with its checklist, tags and places, as they change. */
+    @Transaction
+    @Query("SELECT * FROM todos WHERE done_at IS NULL")
+    fun observeOpen(): Flow<List<TodoWithDetails>>
+
+    /**
+     * The open to-dos and those ticked off at [since] or later, each with its checklist, tags and places, as they
+     * change. [since] is compared as the text it is kept as, which is exact to the second only.
+     */
+    @Transaction
+    @Query("SELECT * FROM todos WHERE done_at IS NULL OR done_at >= :since")
+    fun observeOpenOrDoneSince(since: Instant): Flow<List<TodoWithDetails>>
+
+    /** The to-dos ticked off, in the archive, as they change. */
+    @Query("SELECT * FROM todos WHERE done_at IS NOT NULL")
+    fun observeArchived(): Flow<List<Todo>>
+
+    /** How many to-dos are in the archive, as it changes. */
+    @Query("SELECT COUNT(*) FROM todos WHERE done_at IS NOT NULL")
+    fun observeArchivedCount(): Flow<Int>
+
+    /** When the to-dos were ticked off, those ticked off at [since] or later, as [observeOpenOrDoneSince] compares it. */
+    @Query("SELECT done_at FROM todos WHERE done_at >= :since")
+    fun observeDoneSince(since: Instant): Flow<List<Instant>>
+
+    /** As [observeDoneSince], once. */
+    @Query("SELECT done_at FROM todos WHERE done_at >= :since")
+    suspend fun doneSince(since: Instant): List<Instant>
+
+    /** When the to-do ticked off first was, if there is one; as the text it is kept as, exact to the second only. */
+    @Query("SELECT MIN(done_at) FROM todos")
+    suspend fun firstDone(): Instant?
 
     /** The to-do with its checklist, tags and places, as it changes; null once it is deleted. */
     @Transaction

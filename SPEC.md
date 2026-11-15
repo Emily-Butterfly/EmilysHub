@@ -1,6 +1,6 @@
 # EmilysHub – Spezifikation
 
-Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele, Notizen, Haushaltsbuch und eine gesperrte Dokumentation zu Patienten.
+Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufstelle für Routinen, Erinnerungen, To-dos, Ziele, Notizen, Haushaltsbuch, Sprachunterricht und eine gesperrte Dokumentation zu Patienten.
 
 ## 1. Grundlagen
 
@@ -18,20 +18,38 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
-Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab) und **Dokumentation** (§14). Beide öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Die Ziele bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14) und **Sprachen** (§15). Alle drei öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
 
 ### Heute-Übersicht
 
-- Alle heute fälligen Routinen und To-dos, nach Uhrzeit sortiert, direkt abhakbar
+- **Kopfzeile** mit dem Datum und dem Stand des Tages („Fr., 23. Okt. · 2 von 13 erledigt“)
+- Die Zeile des **Eingangs** (§16): ein Gedanke, mit Enter festgehalten; darunter „Eingang (3)“, solange etwas darin liegt
+- Alle heute fälligen Routinen und To-dos, direkt abhakbar, in **drei Blöcken** (unten)
 - Einträge, die auf das Erreichen eines Ortes warten
-- Überfällige To-dos oben
 - Angepinnte Notizen
-- Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5)
+- Abschnitt **Demnächst**: To-dos, die schon vor ihrer Fälligkeit gezeigt werden (§5), und Abos, deren Kündigungsfrist näher rückt (§13)
 - **Heatmap** der letzten 6 Monate unter den Einträgen: je Tag ein Kästchen, je mehr Routinen und To-dos erledigt, desto kräftiger
-- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau, solange heute noch etwas offen und nichts erledigt ist; Tippen öffnet die Statistik
+- **Flamme** in der oberen Leiste mit den Tagen des Gesamt-Streaks (§8); grau mit dem Streak bis gestern, solange der heutige Tag noch nicht zählt, und grau mit „0“, wenn kein Streak läuft; es gibt sie, sobald in der Geschichte etwas für oder gegen einen Tag zählt; Tippen öffnet die Statistik
 - **„€“** in der oberen Leiste links neben der Flamme: öffnet den laufenden Monat im Haushaltsbuch (§13)
 - **„‹ Gestern“** über der Liste: der Vortag zum Nachtragen (unten)
-- Warnbanner bei fehlenden Berechtigungen, fehlgeschlagenem oder veraltetem Backup
+- Warnbanner bei fehlenden Berechtigungen, fehlgeschlagenem oder veraltetem Backup und wenn die Backups zu lange nicht vom Handy wegkopiert wurden (§10)
+
+### Drei Blöcke
+
+- **Überfällig (n)**: ganz oben eine einzelne Zeile mit der Zahl der überfälligen To-dos; Antippen klappt sie auf, die am längsten überfälligen zuerst. Zugeklappt bei jedem Öffnen von Heute.
+- **Jetzt und als Nächstes**: alles, was heute noch offen ist: die To-dos des Tages ohne Uhrzeit, dann Routinen und To-dos mit Uhrzeit, nach ihr. Dazu gehört auch, was seine Uhrzeit schon hinter sich hat, solange es offen ist.
+- **Schon vorbei**: zugeklappt, mit einer Zeile wie „3 erledigt · 1 verpasst“: Erledigtes, Übersprungenes, Ausgelassenes, durch eine gekoppelte Routine Erledigtes und Verpasstes, nach Uhrzeit. Aufgeklappt lässt sich zurücknehmen, was sich zurücknehmen lässt. Eine verpasste Routine zeigt ihre Checkliste nicht.
+- Was abgehakt wird, wandert nach „Schon vorbei“; eine Leiste bietet „Rückgängig“. Eine Routine mit Checkliste bleibt oben, bis ihr letzter Unterpunkt abgehakt ist.
+- Ist nichts mehr offen, sagt der mittlere Block das („Für heute ist alles erledigt“).
+- Der Stand in der Kopfzeile zählt die Einträge des Tages ohne Übersprungenes; erledigt ist, was abgehakt ist.
+- Der Vortag (unten) bleibt eine Liste ohne Blöcke.
+
+### Menü je Eintrag
+
+- Jeder Eintrag in Heute hat ein Menü, auch per langem Druck. Antippen der Zeile hakt weiter ab.
+- **To-do**: „Morgen · Am Wochenende · Nächste Woche · Datum wählen · Öffnen“. Verschieben ändert nur das Datum der Fälligkeit, die Uhrzeit bleibt; danach bietet eine Leiste „Rückgängig“. „Am Wochenende“ ist der kommende Samstag, „Nächste Woche“ der kommende Montag. Dasselbe Menü haben die To-dos im Tab To-dos.
+- **Routine**: „Überspringen · Heute nicht · Öffnen“; einen eigenen Knopf „Überspringen“ hat die Zeile nicht mehr. Eine offene Routine mit Checkliste zeigt dort „Starten“ (§2, Ablauf-Modus).
+- „Öffnen“ führt in den Editor.
 
 ### Gestern nachtragen
 
@@ -57,9 +75,10 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 | Kopplung | Mit anderen Routinen zu einer Gruppe, in der eine erledigte für den Tag reicht; nur Routinen mit genau einer Uhrzeit am Tag |
 | Wiederholungs-Erinnerungen | Abstand (Standard 30 min) und Anzahl (Standard 3, max. 5) pro Routine |
 | Priorität | Niedrig / Normal / Hoch |
-| Checkliste | Unterpunkte; Routine ist erledigt, wenn alle abgehakt sind, oder direkt komplett abhaken |
+| Checkliste | Unterpunkte; Routine ist erledigt, wenn alle abgehakt sind, oder direkt komplett abhaken; je Unterpunkt optional Minuten für den Ablauf-Modus (unten) |
 | Tags | Gemeinsame Tags (alle Bereiche) |
 | Routinen-Ziel (optional) | z. B. „30 Tage Streak“ oder „100 × erledigt“ – für den Fortschritt verknüpfter Ziele (§6) |
+| Erledigt durch Vokabeln | Optional eine Sprache: Ist ihr Tagespensum im Vokabeltrainer geschafft, gilt die Routine an dem Tag als erledigt (§15) |
 | Status | Aktiv, pausiert, archiviert; Statistik bleibt erhalten |
 
 ### Tracking
@@ -77,12 +96,24 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 - Das gilt für alles, was an dem Tag noch offen oder schon **verpasst** ist, und für eine Routine, deren „Überspringen“ an dem Tag rückgängig gemacht wird: Sie gilt dann gleich als durch die erledigte übersprungen.
 - Überspringen und „Heute nicht“ betreffen nur die eine Routine, außer im gemeinsamen Alarm (§3).
 
+### Ablauf-Modus
+
+Eine Routine mit Checkliste lässt sich Schritt für Schritt abarbeiten.
+
+- **Starten** an der offenen Routine in Heute, in ihrer Erinnerung und im Vollbild-Alarm (§3). Der Ablauf zeigt einen Unterpunkt groß, „Schritt 2 von 4“, „Fertig“ und „Schritt zurück“; schon Abgehaktes überspringt er.
+- „Fertig“ hakt den Unterpunkt ab, wie in Heute. Mit dem letzten ist die Routine erledigt; ein kurzer Abschluss zeigt die Dauer und den Streak.
+- Der Ablauf ist nur eine andere Sicht auf die Checkliste: Verlassen lässt die Haken, wie sie sind, und er lässt sich wieder aufnehmen, solange die Fälligkeit offen ist.
+- **Zeit**: Hat der Unterpunkt Minuten (1–180), läuft ein Ring mit seiner Restzeit; ohne Minuten eine Stoppuhr. Ist die Zeit um, zählt er weiter und meldet sich einmal; weiter geht es nur mit „Fertig“. Haben alle restlichen Unterpunkte Minuten, steht dabei „noch 3 Schritte, fertig gegen 07:42“.
+- **Laufende Benachrichtigung**, solange ein Ablauf läuft: mit dem Countdown und „Fertig“. Der Unterpunkt steht dort nur, wenn die Routine ihren Namen auf dem Sperrbildschirm zeigen darf, sonst „Ablauf läuft“. Kein Dauerdienst; das Ende eines Schritts meldet ein Wecker.
+- Der Bildschirm bleibt an, solange der Ablauf offen ist. Ein laufender Ablauf übersteht das Beenden der App.
+- Nur für Routinen; To-dos mit Checkliste haben keinen Ablauf-Modus. Der gemeinsame Alarm gekoppelter Routinen bietet „Starten“ nicht.
+
 ## 3. Erinnerungen (Pop-ups)
 
-- Standard: Benachrichtigung mit hoher Priorität (Heads-up) und Aktionen **Erledigt · Später · Überspringen**.
-- Optional pro Routine und To-do: **Vollbild-Alarm** (auch auf dem Sperrbildschirm). Bei Routinen bietet er entsperrt **Erledigt · Später · Überspringen · Heute nicht**.
+- Standard: Benachrichtigung mit hoher Priorität (Heads-up) und Aktionen **Erledigt · Später · Überspringen**; bei einer Routine mit Checkliste **Starten · Erledigt · Später** (§2, Ablauf-Modus), Überspringen bleibt in Heute und im Vollbild-Alarm.
+- Optional pro Routine und To-do: **Vollbild-Alarm** (auch auf dem Sperrbildschirm). Bei Routinen bietet er entsperrt **Erledigt · Später · Überspringen · Heute nicht**, mit Checkliste dazu **Starten**.
 - **Keine** Overlays über anderen Apps (`SYSTEM_ALERT_WINDOW` wird nicht verwendet).
-- **Später**: Auswahl 10 min / 30 min / 1 h. In der Benachrichtigung einer Routine 10 min / 30 min / **Heute nicht** (§2), da Android dort höchstens drei Knöpfe zeigt; der Vollbild-Alarm bietet alle drei Zeiten.
+- **Später**: Auswahl 10 min / 30 min / 1 h. In der Benachrichtigung einer Routine 10 min / 30 min / **Heute nicht** (§2), da Android dort höchstens drei Knöpfe zeigt; der Vollbild-Alarm bietet alle drei Zeiten. Bei To-dos kommen **Heute Abend** (20:00, angeboten bis 19:00) und **Morgen früh** (08:00 am nächsten Tag, nachts vor 04:00 am selben) dazu: Ihre Benachrichtigung bietet 30 min / Heute Abend / Morgen früh, nach 19:00 statt „Heute Abend“ 1 h; der Vollbild-Alarm bietet alle. „Später“ verschiebt nur die Erinnerung, nicht die Fälligkeit.
 - **Ignoriert**: erneute Erinnerung im eingestellten Abstand, höchstens die eingestellte Anzahl (max. 5); danach bleibt die Benachrichtigung still stehen, bis das Zeitfenster abläuft.
 - Sperrbildschirm: nur „Erinnerung fällig“, außer der Eintrag erlaubt seinen Namen dort (dann Name und Uhrzeit, im Vollbild-Alarm wie in der Benachrichtigung). Aktionen in jedem Fall erst nach Entsperren.
 - **Ton**: je Routine und To-do ein Ton; der Vollbild-Alarm spielt ihn in Schleife, die Benachrichtigung einmal. Zur Wahl stehen die Töne des Handys und eigene Audiodateien, die die App dafür in die Töne des Handys kopiert. In den Einstellungen je ein Standard für Wecker und für Benachrichtigungen; fehlt ein Ton, gilt der Standard. Benachrichtigungen mit eigenem Ton laufen über einen eigenen Kanal je Ton.
@@ -90,7 +121,7 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 
 ## 4. Orte
 
-- Benannte Orte (z. B. „Zuhause“, „Arbeit“, „Gym“), verwaltet in den Einstellungen.
+- Benannte Orte (z. B. „Zuhause“, „Arbeit“, „Gym“), verwaltet in den Einstellungen. Ein neuer Ort lässt sich auch direkt im Feld „Orte“ des Routine- und des To-do-Editors anlegen („Neuer Ort“); er ist danach dort gewählt, und der Entwurf bleibt.
 - **WLAN-Ort**: aktuelles WLAN übernehmen oder Name (SSID) eintippen; mehrere WLANs pro Ort.
 - **GPS-Ort**: aktuellen Standort übernehmen oder Koordinaten eingeben; Radius einstellbar (50–500 m, Standard 150 m).
 - Ortserkennung ohne Google Play Services (Android `LocationManager` / `ConnectivityManager`).
@@ -127,6 +158,7 @@ Ankommen erkennt die App beim Verbinden mit einem WLAN. Solange ein To-do auf ei
 - Überfällige To-dos stehen oben in der Heute-Übersicht.
 - Am Vortag (§1, Gestern nachtragen) abgehakt, gilt ein To-do als **gestern erledigt**.
 - To-dos mit Vorlauf stehen in Heute unter **Demnächst**, nach Fälligkeit sortiert, bis sie fällig sind; abhaken geht dort sofort. „Demnächst“ erinnert nicht.
+- **Verschieben** mit einem Tipp, aus Heute und aus dem Tab To-dos (§1, Menü je Eintrag).
 
 ## 6. Ziele
 
@@ -141,7 +173,7 @@ Bis v1 hieß der Bereich „Wunschliste“; überall ist jetzt von Zielen die Re
 | Zeitraum | Freitext (z. B. „2027“, „Sommer“), keine Erinnerung |
 
 - **Mehrstufig**: beliebig tief verschachtelte Unterziele, eingerückt und auf-/zuklappbar.
-- Verknüpfbar: **To-dos** und **Routinen** (Routinen mit optionalem Routinen-Ziel, z. B. 30 Tage Streak).
+- Verknüpfbar: **To-dos** und **Routinen** (Routinen mit optionalem Routinen-Ziel, z. B. 30 Tage Streak) und **Prüfungen** aus dem Bereich Sprachen (§15), dazu ein **Karten-Ziel** aus dem Vokabeltrainer (§15).
 - **Fortschritt**: automatisch aus erledigten Unterpunkten, manuell überschreibbar.
 - Ziel mit einem Tipp in verknüpfte To-dos umwandeln.
 - **Rückblick**: Liste erreichter Ziele mit Datum.
@@ -187,7 +219,8 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 - **Markdown** mit Vorschau; Rendering ohne HTML und ohne ausführbare Links.
 - Notizen anpinnen (auch in die Heute-Übersicht).
 - Verknüpfung mit Zielen, To-dos und Routinen.
-- **Keine Anhänge** in Version 1.
+- Der Editor speichert beim Verlassen von selbst (§8, Editoren).
+- **Keine Anhänge** an Notizen; Anhänge gibt es nur an den Sessions im Bereich Sprachen (§15).
 
 ### Archiv
 
@@ -198,7 +231,12 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 ## 8. Übergreifend
 
 - **Gemeinsame Tags** für alle Bereiche.
-- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch); die Dokumentation hat ihre eigene (§14).
+- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch mit Abos, Sprachen mit ihren Karten, Eingang); die Dokumentation hat ihre eigene (§14).
+- **Editoren** (alle außer denen der Dokumentation, die beim Schließen schon von selbst speichert):
+  - Wer einen geänderten Entwurf verlässt, per Pfeil oder Zurück, wird gefragt: „Speichern · Verwerfen · Weiter bearbeiten“. Ohne Änderung schließt der Editor sofort.
+  - Notizen und Sessions speichern beim Verlassen von selbst, wenn sie sich speichern lassen; einer Notiz ohne Titel gibt die erste Zeile ihres Textes den Titel. Sonst gilt die Rückfrage.
+  - Bei einem neuen Eintrag steht die Tastatur im Titelfeld. „Speichern“ ist ein gefüllter Knopf unten, über der Tastatur.
+  - Die Editoren für Routinen und To-dos zeigen zuerst das Nötige (Name, Uhrzeiten bzw. Fälligkeit, Wiederholung); alles Weitere liegt zugeklappt unter „Mehr Optionen“, mit einer Zeile, die nennt, was gesetzt ist.
 - **Statistik** pro Routine und gesamt:
   - Aktueller und längster Streak
   - Kalender-Ansicht (erledigt / übersprungen / ausgelassen / verpasst)
@@ -207,31 +245,45 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
   - **Übersprungen** unterbricht den Streak nicht, **Verpasst** und **Ausgelassen** schon; Ausgelassen zählt in der Erledigt-Quote als nicht erledigt.
   - Durch eine gekoppelte Routine erledigte Fälligkeiten zählen wie Übersprungen.
   - Am Vortag Nachgetragenes zählt wie Erledigt.
+  - Läuft kein Streak, nennt die Statistik den letzten: seine Tage und bis wann er lief.
+  - **Gesamt-Streak** (die Flamme in Heute, §1): Für einen Tag zählen erledigte Fälligkeiten der Routinen und abgehakte To-dos, ein To-do an dem Tag, an dem es abgehakt wurde. Gegen einen Tag zählen nur verpasste und ausgelassene Fälligkeiten; ein offenes oder überfälliges To-do zählt nie dagegen, Übersprungenes und Offenes weder dafür noch dagegen. Ab wann ein Tag zählt, bestimmt die Einstellung „Ein Tag zählt für den Gesamt-Streak“ (Einstellungen, Statistik): **ab einer Anzahl Erledigungen** (Standard, 1–30, vorbelegt mit 1) oder **ab einer Quote** (10–100 % in Zehnerschritten: der Anteil der Erledigungen an allem, was dafür oder dagegen zählt). Ein vergangener Tag, an dem etwas dafür oder dagegen zählt und der die Regel nicht erfüllt, bricht den Streak; ein Tag, an dem nichts zählt, zählt nicht und bricht nicht. Der heutige Tag zählt, sobald er die Regel erfüllt, und bricht den Streak nicht vor Mitternacht. Die Einstellung wirkt rückwirkend auf die ganze Geschichte und bleibt auf dem Gerät. Der Streak je Routine und die Routinen-Ziele (§2) folgen ihr nicht; für sie bricht weiter jede verpasste oder ausgelassene Fälligkeit.
 
 ## 9. Sicherheit
 
 | Bedrohung | Maßnahme |
 |---|---|
 | Datenabfluss | **Keine `INTERNET`-Berechtigung**, keine Google-Dienste, keine Analytics, minimale Abhängigkeiten |
-| Andere Apps | Keine exportierten Komponenten außer dem Launcher; `PendingIntent`s immutable und explizit; strikte Eingabeprüfung |
+| Andere Apps | Keine exportierten Komponenten außer dem Launcher; `PendingIntent`s immutable und explizit, mit einer Ausnahme: Das Antwortfeld der Benachrichtigung „Gedanke festhalten“ (§16) braucht ein veränderliches, wie Android es verlangt; es bleibt explizit und geht nur an den eigenen, nicht exportierten Empfänger (entschieden am 12.11.2026); strikte Eingabeprüfung |
 | Diebstahl / Speicher auslesen | Datenbank mit SQLCipher verschlüsselt, Schlüssel im Android Keystore; `allowBackup=false`, Datenextraktionsregeln schließen alles aus |
 | Zugriff auf entsperrtes Handy | App-Sperre per Fingerabdruck mit Geräte-PIN als Ersatz; erneute Sperre nach 1 min im Hintergrund |
 | Mitlesen | `FLAG_SECURE` (keine Screenshots, ausgeblendet in „Zuletzt verwendet“); Sperrbildschirm zeigt nur „Erinnerung fällig“, Namen nur von Einträgen, die es erlauben (Standard: aus) |
 | Manipulierte Dateien | Backup-Import mit Authentifizierung (AES-GCM) und strenger Schemaprüfung; Markdown ohne HTML/Links |
+| Unlesbare Daten | Rettungsbildschirm statt Absturz: Backup laden oder neu beginnen; die unlesbaren Dateien werden beiseitegelegt, nicht gelöscht (§10) |
+| Importierte Dateien (Sprachen, §15) | Anhänge liegen nur verschlüsselt im Speicher der App, nie im Klartext; Fotos werden neu kodiert, PDFs nur angezeigt (Androids eigener Renderer), nichts daraus ausgeführt; Größengrenzen beim Import; keine Kamera-Berechtigung, „Foto aufnehmen“ läuft über die Kamera-App des Handys |
 | Gesundheitsdaten (Dokumentation, §14) | Eigene SQLCipher-Datenbank, deren Schlüssel nur Doku-Passwort oder Fingerabdruck freigeben, nicht der Schlüssel der übrigen App; Sperre beim Verlassen, im Hintergrund und nach 5 min ohne Eingabe; nicht in Suche, Heute und Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich und beim Sperren geleert; gelöschte Daten überschrieben |
 
 Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 
 ## 10. Backups
 
-- **Backup-Passwort** wird einmal festgelegt; daraus abgeleiteter Schlüssel (Argon2id bzw. PBKDF2) wird im Android Keystore geschützt abgelegt.
+- **Backup-Passwort** wird einmal festgelegt; daraus abgeleiteter Schlüssel (Argon2id bzw. PBKDF2) wird im Android Keystore geschützt abgelegt. **„Passwort ändern“** im Backup-Bildschirm verlangt das alte Passwort; daraus wird ein neuer Schlüssel mit neuem Salz, mit dem alle künftigen Backups verschlüsselt werden, auch die nächtlichen. Ist das alte vergessen, lässt sich nach der App-Sperre (auch bei offener App) ein neues festlegen; ohne Displaysperre gibt es diesen Weg nicht, und der Dialog sagt, dass erst eine einzurichten ist. Schon gespeicherte Backups öffnen in beiden Fällen weiter nur mit dem Passwort, mit dem sie gespeichert wurden; der Bildschirm sagt das vorher.
 - Verschlüsselung: AES-256-GCM.
 - **Automatisch**: täglich nachts in einen vom Nutzer gewählten Ordner (Storage Access Framework); die letzten 7 nächtlichen bleiben erhalten, ältere löscht die App.
 - **Manuell**: Export und Import jederzeit; Export in einen beliebigen Ordner, auch den der nächtlichen; von Hand gespeicherte Backups löscht die App nie. Import auf neuem Gerät mit dem Passwort.
 - Hinweis in der Heute-Übersicht, wenn das letzte Backup älter als 30 Tage ist oder fehlgeschlagen ist.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
+- **Auslagern**: In den Backups bestätigt „Heute weggekopiert“, dass die Backups auch auf einem anderen Gerät liegen; der Bildschirm zeigt „Zuletzt ausgelagert am …“. Ist das über 30 Tage her, oder wurde es 30 Tage nach dem ersten Backup noch nie bestätigt, warnt Heute („Deine Backups liegen nur auf dem Handy“). Die Bestätigung bleibt auf dem Gerät und steht nicht im Backup.
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
+- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein.
 - Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
+
+### Wenn sich die Daten nicht öffnen lassen
+
+- Geht die Datenbank beim Start nicht auf (Schlüsseldatei beschädigt, Schlüssel im Android Keystore verloren, Datei beschädigt, Daten aus einer neueren Version der App), zeigt die App statt abzustürzen den Bildschirm „Deine Daten lassen sich nicht öffnen“, mit dem Grund in einem Satz und ohne technische Einzelheiten.
+- Er bietet „Erneut versuchen“, „Backup laden“ (wie in den Backups, mit dem Passwort des Backups) und „Neu beginnen“ (mit Rückfrage). Bei Daten aus einer neueren Version nennt er stattdessen den Weg: die neuere App installieren.
+- „Backup laden“ und „Neu beginnen“ löschen die unlesbaren Dateien nicht, sondern legen sie beiseite; die Backups zeigen sie danach mit „Endgültig löschen“.
+- Die Dokumentation (§14) hat ihre eigene Datenbank und bleibt davon unberührt.
+- Solange der Bildschirm steht, kommen keine Erinnerungen; er sagt das.
 
 ## 11. Berechtigungen
 
@@ -250,7 +302,7 @@ Ausschließlich:
 - `FOREGROUND_SERVICE_LOCATION` (nur falls für die Ortserkennung nötig)
 
 - Abfrage **erst bei Bedarf**, jeweils mit deutscher Erklärung.
-- **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s.
+- **Statusseite „Funktioniert alles?“** in den Einstellungen: zeigt fehlende Berechtigungen, Samsung-Hinweis („Nie in Standby versetzen“), Testbutton für eine Probe-Erinnerung in 10 s. Was fehlt, richtet sich danach, was Routinen, To-dos und Abos (§13) brauchen.
 - Warnbanner in der Heute-Übersicht bei fehlenden wichtigen Berechtigungen.
 
 ## 12. Lieferung
@@ -258,6 +310,7 @@ Ausschließlich:
 - GitHub Actions baut bei jedem Push eine **signierte Release-APK** (Artefakt zum Herunterladen).
 - Signaturschlüssel liegt ausschließlich als **GitHub-Secret**, nie im Repo.
 - Automatische Tests für die Logik (Wiederholungen, Zeitfenster, Streaks, Verschlüsselung).
+- Jeder Build der CI trägt eine eigene, steigende Versionsnummer (`versionCode` = laufende Nummer des Builds), damit sich kein älterer Build über einen neueren installieren lässt. Die Einstellungen zeigen unten Version und Commit („0.1.412 · 2dc38f5“).
 
 ### Etappen
 
@@ -274,12 +327,14 @@ Ausschließlich:
 | 9 | Erweiterungen: Anfangssaldo und Saldo-Übertrag im Haushaltsbuch, Haushaltsbuch-Knopf in der Mitte der Notizen-Leiste, voraussichtlicher Endsaldo, Fixbuchungen mit Ende |
 | 10 | Sonstiges mit Zielen und Dokumentation, „€“ und „Gestern nachtragen“ in Heute, Dokumentation: Sperre, Patienten, Termine, Tests, Backup |
 | 11 | Dokumentation: Assessmentbögen (eingebaut, nach Unterkategorie) |
+| 12 | Haushaltsbuch: Gesamtbudget und Budget-Rechner, Abos mit Kündigungsfrist und Erinnerung; Sprachen: Sessions, Lehrer, Themen, Prüfungen, Anhänge |
+| 13 | Aus dem Gutachten vom 12.11.2026: Editoren mit Rückfrage und Selbstspeichern, Auslagern der Backups, Versionsnummer; Eingang; Heute in drei Blöcken mit Menü je Eintrag; Rettungsbildschirm; Ablauf-Modus für Routinen; Vokabeltrainer; Abfragen eingrenzen |
 
 Nach jeder Etappe: installierbare APK.
 
 ## 13. Haushaltsbuch
 
-Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen und über das „€“ in Heute (§1).
+Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen und über das „€“ in Heute (§1). Fixbuchungen, Abos, Kategorien und Archiv öffnet das Menü „⋮“ oben rechts im Haushaltsbuch, in dieser Reihenfolge und mit Text.
 
 | Feld | Details |
 |---|---|
@@ -297,9 +352,41 @@ Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der M
 - **Übertrag**: Ein offener Monat ohne Anfangssaldo bietet „Saldo aus Vormonat übertragen“ (aus einem offenen Vormonat mit Rückfrage, sein Endsaldo kann sich noch ändern) und „Anfangssaldo festlegen“. In offenen Monaten lässt er sich von Hand ändern und entfernen. Beim Abschließen fragt der Dialog „Abbrechen · Nur abschließen · Abschließen & übertragen“: Der Endsaldo geht als Anfangssaldo in den Folgemonat (nie in den Kalendermonat von heute) und ersetzt einen vorhandenen, den der Dialog nennt; in einen abgeschlossenen Folgemonat wird nicht übertragen. Ein Übertrag ist ein fester Wert und ändert sich nicht mit dem Vormonat.
 - **Budget** je Ausgaben-Kategorie und Monat: Balken ab 80 % orange, darüber rot („12,50 € über Budget“); kurzer Hinweis beim Speichern einer Buchung, die es überschreitet. Keine Benachrichtigungen.
 - **Monatsbudget**: In der Monatsansicht eines offenen Monats lässt sich das Budget einer Ausgaben-Kategorie nur für diesen Monat ändern: ein anderer Betrag, ein neues oder keins. Es geht dem monatlichen vor, sieht aber aus wie jedes Budget; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat es fest.
-- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält sein Budget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat.
-- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden.
-- Buchungen kommen in die Backups und in die Suche.
+- **Gesamtbudget** für alle Ausgaben eines Monats, als Standard für alle offenen und kommenden Monate eins von dreien:
+  - **keins** (wie bisher),
+  - ein **fester Betrag**, Euro mit Cent, größer als 0,
+  - **aus Einnahmen**: die im Monat eingetragenen Einnahmen samt den Fixbuchungen, die bis zum Monatsende noch als Einnahme kommen, minus einem **Sparbetrag** (Standard 0 €); nie unter 0 €. Der Anfangssaldo zählt nicht.
+
+  Jeder offene Monat kann abweichen: ein eigener Betrag, „aus Einnahmen“ mit eigenem Sparbetrag oder keins; „Wie sonst“ nimmt es zurück. Beim Abschließen hält der Monat sein Gesamtbudget als Betrag fest; wieder geöffnet gilt die Einstellung von damals, auch der Standard von damals, nicht ein inzwischen geänderter.
+  - Monatsansicht: oben ein **Gesamtbalken** „ausgegeben von Gesamtbudget“ mit den Farben der Kategorie-Balken (ab 80 % orange, darüber rot); ohne Gesamtbudget keiner.
+  - Kurzer Hinweis beim Speichern einer Buchung, die das Gesamtbudget ihres Monats überschreitet. Keine Benachrichtigungen.
+- **Budget-Rechner**: eine Seite mit allen Ausgaben-Kategorien, je einem Budget-Feld, der laufenden Summe, dem Gesamtbudget und der Differenz („50 € frei“ oder rot „120 € drüber“). Neben jedem Feld steht als Hilfe der Durchschnitt der Ausgaben der letzten drei abgeschlossenen Monate. Kategorien ohne Budget heißen „ohne Budget“ und zählen 0 €. Gespeichert wird alles auf einmal, auch über dem Gesamtbudget; gekürzt wird nichts von selbst. Zwei Einstiege:
+  - aus den **Kategorien**: die monatlichen Budgets gegen das Standard-Gesamtbudget (ist das „aus Einnahmen“, mit dem Wert des laufenden Monats, was die Seite sagt); hier lässt sich auch das Standard-Gesamtbudget ändern,
+  - aus einer **offenen Monatsansicht**: die Budgets dieses Monats gegen sein Gesamtbudget; was vom monatlichen abweicht, wird ein Monatsbudget. Hier lässt sich auch das Gesamtbudget des Monats ändern.
+- **Monatsabschluss** von Hand: abgeschlossene Monate liegen im **Archiv**, nur zum Lesen, und lassen sich mit Rückfrage wieder öffnen. Mehrere Monate können gleichzeitig offen sein. Ein abgeschlossener Monat behält seine Budgets und sein Gesamtbudget von damals; sein Anfangssaldo ist nur zu lesen. Das Archiv zeigt je Monat auch den Endsaldo, wenn er einen Anfangssaldo hat, und neben den Ausgaben das Gesamtbudget mit der Differenz („1 840 € von 2 000 € · 160 € frei“ oder rot „… · 75 € drüber“), wenn er eins hat.
+- **Jahresübersicht**: Summen je Monat und je Kategorie über ein Jahr; dazu oben der Anfangssaldo des Januars und unten der Endsaldo des Dezembers, wo vorhanden. Unter den Ausgaben eine Zeile **Gesamtbudget** je Monat (offene Monate mit ihrem von jetzt) und in der Jahresspalte deren Summe neben den Ausgaben derselben Monate; Monate ohne Gesamtbudget bleiben leer und zählen in diesem Vergleich auf keiner Seite mit.
+- Buchungen und Abos kommen in die Backups und in die Suche.
+
+### Abos
+
+Verträge, die gekündigt werden müssen, bevor sie sich verlängern. Eine eigene Liste **Abos** im Haushaltsbuch neben den Fixbuchungen, sortiert nach dem nächsten letzten Kündigungstag; oben die Summe der laufenden Abos, auf den Monat umgerechnet (Abos ohne Betrag zählen nicht).
+
+| Feld | Details |
+|---|---|
+| Name | Pflicht |
+| Betrag und Abstand | Optional; Abstand monatlich, vierteljährlich, halbjährlich oder jährlich |
+| Fixbuchung | Optional verknüpft; dann kommen Betrag und Abstand von ihr und sind am Abo nicht änderbar |
+| Notiz | Optional (Kundennummer, Kündigungsweg) |
+| Frist | Ein Datum „kündigen bis“, oder gerechnet (unten) |
+| Vorlauf | Tage vor dem letzten Kündigungstag, an denen die Erinnerung beginnt; Standard 14 |
+
+- **Gerechnete Frist**: „Laufzeit bis“ (Datum), Kündigungsfrist (eine Anzahl Tage, Wochen oder Monate vor dem Ende der Laufzeit) und Verlängerung um eine Anzahl Monate. Der letzte Kündigungstag ergibt sich daraus. Verstreicht er ohne Kündigung, rückt das Abo von selbst auf die nächste Laufzeit vor.
+- **Einzelnes Datum**: Verstreicht es ohne Kündigung, zeigt das Abo „Frist verstrichen“ und erinnert nicht mehr, bis ein neues Datum eingetragen ist.
+- **Verknüpfung**: Eine Fixbuchung gehört zu höchstens einem Abo. Der Editor der Fixbuchung bietet „Als Abo führen“, das ein verknüpftes Abo anlegt. Wird die Fixbuchung gelöscht, bleibt das Abo und behält Betrag und Abstand als eigene Angabe.
+- **Erinnerung**: eine Benachrichtigung um 21:00 Uhr, mit dem Standard-Ton für Benachrichtigungen, kein Vollbild-Alarm: am ersten Tag des Vorlaufs und noch einmal am letzten Kündigungstag. Auf dem Sperrbildschirm steht nur „Ein Abo ist zu kündigen“, ohne Namen. Antippen öffnet das Abo. Knöpfe „Gekündigt“ (öffnet das Abo und fragt dort wie in der App nach dem Enddatum) und „Läuft weiter“. Lief das Handy um 21:00 nicht, kommt sie beim nächsten Start nach, solange die Frist nicht verstrichen ist. Vom ersten Tag des Vorlaufs bis zum letzten Kündigungstag steht das Abo in Heute unter **Demnächst** (§1).
+- **Gekündigt**: Das Abo wandert in den Abschnitt „Gekündigt“ mit seinem Enddatum (dem Ende der Laufzeit, beim einzelnen Datum einem selbst gewählten) und erinnert nicht mehr. Ist eine Fixbuchung verknüpft, fragt die App, ob sie deren Ende auf dieses Datum setzen soll. Zurücknehmen lässt es sich.
+- **Läuft weiter**: beendet die Erinnerungen dieser Laufzeit; ein gerechnetes Abo rückt auf die nächste vor, eins mit einzelnem Datum wartet auf ein neues.
+- Löschen jederzeit, mit Rückfrage; die Fixbuchung bleibt.
 
 ## 14. Dokumentation
 
@@ -370,3 +457,87 @@ Abgestimmt im Interview vom 08.11.2026.
 - **Auswahl** bei „+ Bogen“: nach Unterkategorie wie bei DIGOTOR, Suche nach Name und Abkürzung, oben „Zuletzt benutzt“ (die letzten 5). Ein Bogen in mehreren Kategorien ist derselbe Bogen. Unter **Bögen** im Menü lassen sich Bögen ausblenden.
 - **Reiter Bögen** beim Patienten: je Bogen mit Ergebnis eine Karte wie bei den Tests (letztes Ergebnis, Veränderung zur ersten Ausfüllung, besser oder schlechter); der Verlauf mit einem Liniendiagramm je Ergebnis (bei Teilskalen je Teilskala) und einer Tabelle, eine Zeile öffnet den Bogen am Termin. Darunter die Bögen ohne Ergebnis nach Datum.
 - Die Doku-Suche findet die Freitexte der Bögen; Bögen kommen ins Backup; es gelten die Regeln der Insel.
+
+## 15. Sprachen
+
+Sprachunterricht festhalten: gehaltene Sessions mit Zeit, Lehrer, Themen und Notizen, dazu die Themen, die bis zu einer Prüfung noch dran sind. Gedacht für Unterricht über italki, aber für jeden Unterricht brauchbar. Erreichbar über Sonstiges (§1). Die App holt nichts ab (§9: kein Internet); alles wird von Hand eingetragen. Hinter der App-Sperre wie alles andere, ohne eigene Sperre.
+
+### Sprachen & Lehrer
+
+- **Sprachen**: Name (Pflicht, eindeutig). Anlegen, umbenennen, archivieren; eine archivierte wird nicht mehr angeboten, ihre Sessions bleiben.
+- **Lehrer**: Name (Pflicht), optionale Notiz, mindestens eine Sprache, die sie unterrichten. Anlegen, ändern, archivieren wie Sprachen. Eine weggenommene Sprache lässt die alten Sessions, wie sie sind; der Lehrer wird für sie nur nicht mehr angeboten.
+- Beides lässt sich im Session-Editor nebenbei anlegen und über das Menü der Startseite verwalten.
+
+### Sessions
+
+Nur gehaltene Sessions; geplant wird mit To-dos und Routinen.
+
+| Feld | Details |
+|---|---|
+| Datum | Pflicht, Standard heute; keine Uhrzeit |
+| Dauer | Pflicht, in Minuten; Schnellwahl 30 / 45 / 60 / 90 und freie Eingabe |
+| Sprache | Pflicht |
+| Lehrer | Pflicht; angeboten werden die Lehrer der gewählten Sprache, dazu „Neuer Lehrer“ (gleich mit dieser Sprache) und „Anderen Lehrer wählen“ (gibt einem vorhandenen die Sprache dazu) |
+| Preis | Optional, Euro mit Cent; nur für die Auswertung, keine Buchung im Haushaltsbuch |
+| Themen | Die behandelten Themen: aus der Liste der Sprache gewählt oder neu getippt |
+| Notiz | Optional, Markdown wie in den Notizen (§7), bis 100 000 Zeichen |
+| Anhänge | Bis zu 10 Fotos und PDFs |
+
+- Ändern und, mit Rückfrage, löschen; eine gelöschte Session nimmt ihre Anhänge mit.
+- Keine Tags, nichts in Heute, keine Erinnerungen.
+
+### Import & Anhänge
+
+- **Textdatei**: Ihr Text wird an die Notiz der Session angehängt und ist danach wie getippter Text. Was die Notiz über 100 000 Zeichen brächte, wird abgelehnt.
+- **Foto und PDF** werden Anhänge: über den Dateiwähler des Handys gewählt, ein Foto auch mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung (§11). Das so aufgenommene Foto liegt als einzige Ausnahme von §9 unverschlüsselt im Speicher der App, und nur bis die App es eingelesen hat; gleich danach wird es gelöscht. Fotos werden auf höchstens 2000 px an der langen Kante verkleinert; ein PDF darf höchstens 10 MB haben.
+- Anhänge liegen verschlüsselt im Speicher der App (§9) und werden in der App angezeigt: Fotos mit Zoom, PDFs seitenweise. Einzeln löschbar; „Exportieren“ speichert eine Kopie über den Dateiwähler. Kein Teilen an andere Apps, keine Texterkennung.
+- Anhänge stehen im Backup (§10).
+
+### Themen & Prüfungen
+
+- **Themen** gehören zu einer Sprache und sind optional einer Prüfung zugeordnet. Anlegen in der Themenliste oder beim Tippen in einer Session; ein dort neu getipptes landet offen und ohne Prüfung auf der Liste.
+- Ein Thema ist **offen** oder **abgehakt**. Abgehakt wird nur von Hand, und es lässt sich wieder öffnen; dass eine Session es behandelt hat, hakt es nicht ab. Das Thema zeigt, in wie vielen Sessions es dran war und wann zuletzt.
+- **Prüfungen**: je Sprache beliebig viele, mit Name und Datum. Die nächste anstehende steht oben mit den Tagen bis dahin und den offenen Themen („noch 43 Tage · 12 von 30 offen“).
+- Eine Prüfung wird von Hand als **abgelegt** markiert, optional mit einem Ergebnis als Freitext; zurücknehmen lässt es sich. Ihre Themen bleiben bei ihr, nur zum Nachlesen; offene lassen sich einzeln oder alle zusammen zu einer anderen Prüfung verschieben.
+- **Ziel**: Eine Prüfung kann an höchstens einem Ziel hängen (§6), gewählt im Editor der Prüfung. Dort ist sie ein Teil wie ein To-do, mit eigener Zeile („Prüfung: Arabisch A2 · 18 von 30 Themen“): Ihr Fortschritt ist der Anteil abgehakter Themen (ohne Themen 0 %), erledigt ist sie, sobald sie abgelegt ist. Nimmt man „abgelegt“ zurück, öffnet das ein dadurch erledigtes Ziel wieder. Eine gelöschte Prüfung verschwindet aus dem Ziel; wird das Ziel gelöscht, bleibt die Prüfung ohne Ziel.
+
+### Auswertung & Aufbau
+
+- **Startseite**: oben Stunden und Anzahl Sessions für diesen Monat, dieses Jahr und insgesamt; darunter je Sprache eine Karte mit ihren Zahlen, ihrer nächsten Prüfung und, sobald sie Karteikarten hat, „Heute fällig: 23“ mit „Üben“ (unten, Vokabeltrainer); „+“ legt eine Session an.
+- **Seite einer Sprache** mit vier Reitern: **Sessions** (nach Datum, filterbar nach Lehrer), **Themen** (nach Prüfung gruppiert, mit Abhaken), **Karten** (Vokabeltrainer) und **Auswertung** (Stunden, Sessions und, wo Preise stehen, Kosten je Lehrer, für Monat, Jahr und insgesamt). Unterrichtet ein Lehrer mehrere Sprachen, zählt jede Sprache für sich.
+- Keine Diagramme.
+- Sessions kommen in die Backups und in die Suche (§8): Notiz, Themen und Name des Lehrers.
+
+### Vokabeltrainer
+
+Karteikarten je Sprache, abgefragt in wachsenden Abständen, die der Algorithmus FSRS-6 plant (Formeln, Parameter und Testwerte: `docs/research/spaced-repetition.md`).
+
+| Feld | Details |
+|---|---|
+| Vorderseite | Pflicht, bis 200 Zeichen: das Wort oder der Satz in der Sprache |
+| Rückseite | Pflicht, bis 500 Zeichen: die Übersetzung |
+| Umschrift | Optional |
+| Notiz | Optional |
+| Thema | Optional, aus den Themen der Sprache |
+
+- **Planung**: FSRS-6 mit seinen 21 Standardparametern und einer gewünschten Behaltensquote von 90 %, in ganzen Kalendertagen, ohne Lernschritte in Minuten und ohne zufällige Streuung; selbst gerechnet, ohne fremde Bibliothek. Je Karte merkt sich die App Stabilität, Schwierigkeit, den Tag der letzten Abfrage und die Fälligkeit, dazu ein Protokoll jeder Abfrage. **Sicher** ist eine Karte, deren zuletzt geplanter Abstand mindestens 21 Tage beträgt.
+- **Abfrage**: Die Karte zeigt die Vorderseite; „Aufdecken“ zeigt den Rest. Vier Antworten: **Nochmal · Schwer · Gut · Leicht**, jede mit dem Abstand, den sie ergäbe. „Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“. Nach „Nochmal“ kommt die Karte in derselben Runde wieder.
+- **Tagespensum** einer Sprache: alle fälligen Karten und dazu höchstens 10 neue am Tag (je Sprache einstellbar, 0–50). Geschafft ist es, wenn nichts davon mehr offen ist.
+- Abgefragt wird nur von der Vorderseite zur Rückseite. Keine Tonaufnahmen, keine Bilder.
+- **Anlegen**: von Hand; aus einer Session-Notiz (Zeilen mit „ – “, „ = “ oder Tabulator werden als Vorder- und Rückseite vorgeschlagen, zum Ankreuzen); aus einer Textdatei über den Dateiwähler (je Zeile Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon, bis 2 000 Zeilen). Eine Karte, deren Vorderseite es in der Sprache schon gibt, wird übersprungen und gezählt.
+- **Reiter Karten** auf der Seite einer Sprache: alle Karten mit ihrer nächsten Fälligkeit und der Marke „sicher“, filterbar nach Thema; ändern und löschen.
+- **Routine**: Eine Routine kann „erledigt durch Vokabeln“ einer Sprache sein (§2): Ist deren Tagespensum geschafft, ist die offene Fälligkeit der Routine von heute erledigt. Ist an dem Tag nichts fällig und nichts neu, bleibt die Routine offen.
+- **Karten-Ziel**: An einem Ziel (§6) hängt optional „N sichere Karten“ einer Sprache, mit eigener Zeile („Karten: Arabisch · 412 von 1 000“). Der Fortschritt ist ihr Anteil; erreicht, ist der Teil erledigt, wie eine abgelegte Prüfung.
+- **Themen**: Ein Thema zeigt „12 Karten · 5 sicher“, die nächste Prüfung die Summe ihrer Themen. „Thema üben“ fragt alle Karten des Themas ab; jede Antwort zählt wie sonst, der Algorithmus rechnet ein, wenn eine Karte früh kommt.
+- Karten einer archivierten Sprache bleiben, werden aber nicht abgefragt. Karten kommen in die Backups und in die Suche (§8).
+
+## 16. Eingang
+
+Ein Gedanke soll in der App landen, bevor er weg ist; sortiert wird später.
+
+- **Festhalten**: Die Zeile oben in Heute („Was geht dir durch den Kopf?“) nimmt einen Text, Enter legt ihn im Eingang ab. Kein Formular, kein Speichern-Knopf. Bis 1 000 Zeichen.
+- **Eingang**: Liegt etwas darin, zeigt Heute unter der Zeile „Eingang (3)“; Antippen öffnet die Liste, das Neueste oben.
+- **Einsortieren**: Jeder Eintrag bietet „To-do · Notiz · Routine · Löschen“. Die ersten drei öffnen den bekannten Editor, die erste Zeile des Textes als Titel bzw. Name, der Rest als Beschreibung bzw. Text. Der Eintrag verschwindet erst, wenn dort gespeichert ist. Löschen mit „Rückgängig“.
+- **Kurzbefehl**: Langes Drücken auf das App-Symbol bietet „Neuer Gedanke“: Die App öffnet, nach ihrer Sperre, eine schlanke Eingabe mit offener Tastatur, über dem, was offen war.
+- **Ohne Entsperren**: Optional (Einstellungen, Standard aus) steht dauerhaft eine stille Benachrichtigung „Gedanke festhalten“ mit Antwortfeld. Was dort getippt wird, landet im Eingang. Sie kann nur schreiben: Sie zeigt nie, was im Eingang liegt, auch nicht das eben Getippte. Auf dem Sperrbildschirm verlangt Android vorher die Entsperrung des Handys, nicht die der App.
+- Keine Erinnerungen, keine Tags, keine Verknüpfungen. Der Eingang kommt in die Backups und in die Suche (§8).

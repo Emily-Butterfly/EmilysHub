@@ -32,10 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
@@ -50,14 +52,19 @@ import de.emilyshub.ledger.LedgerCategory
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.RadioOption
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.monthAndYear
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
+import java.time.YearMonth
 
 /** What the booking editor opens: a new booking, or one saved already. */
 sealed interface BookingEditorTarget : Serializable {
@@ -78,6 +85,8 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (bookingId == null) BookingEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(ledger.newDraft(BookingKind.Expense)) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showProblems by rememberSaveable { mutableStateOf(false) }
     var choosingDate by rememberSaveable { mutableStateOf(false) }
@@ -107,25 +116,39 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
     val locked = known == null || closedMonth != null
     val context = LocalContext.current.applicationContext
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = bookingId == null)
     val save = save@{
         if (locked) return@save
         if (problems.isNotEmpty()) {
             showProblems = true
+            firstField.saveFailed(atField = problems.any { it in AMOUNT_PROBLEMS })
         } else {
             val saved = draft
             val category = categories.find { it.id == saved.categoryId }?.name.orEmpty()
             closeWith {
                 val over = ledger.overrunOf(saved, replacing = bookingId)
+                val overTotal = ledger.totalOverrunOf(saved, replacing = bookingId)
                 // A month closed meanwhile, elsewhere, refuses it: nothing is saved, as it says when opened again.
                 val saving = ledger.save(opened, saved)
                 // Briefly, once saved: no notification (SPEC.md §13).
-                if (saving is Saving.Saved && over != null) {
-                    val text = context.getString(R.string.booking_over_budget, Money.format(over), category)
-                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                val texts = listOfNotNull(
+                    over?.let { context.getString(R.string.booking_over_budget, Money.format(it), category) },
+                    overTotal?.let {
+                        context.getString(R.string.booking_over_total_budget, Money.format(it), YearMonth.from(saved.date).monthAndYear())
+                    },
+                )
+                if (saving is Saving.Saved && texts.isNotEmpty()) {
+                    Toast.makeText(context, texts.joinToString("\n"), Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, BookingDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -137,7 +160,7 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -147,10 +170,10 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save, enabled = !locked) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save, enabled = !locked) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -165,7 +188,9 @@ fun BookingEditorScreen(ledger: Ledger, target: BookingEditorTarget, onClose: ()
                 // A category of the other kind does not fit any more.
                 draft = draft.copy(kind = kind, categoryId = null)
             }
-            AmountField(draft.amount, draft.cents, problems, showProblems) { draft = draft.copy(amount = it) }
+            AmountField(draft.amount, draft.cents, problems, showProblems, Modifier.focusRequester(firstField.requester)) {
+                draft = draft.copy(amount = it)
+            }
             DateValue(stringResource(R.string.booking_date), draft.date, onClick = { choosingDate = true })
             CategoryChoice(categories, draft.kind, draft.categoryId, showProblems && BookingProblem.CategoryMissing in problems) {
                 draft = draft.copy(categoryId = it)
@@ -222,17 +247,22 @@ internal fun KindChips(kind: BookingKind, onChange: (BookingKind) -> Unit) {
  * ([showProblems]); while it is right, how it is read, "1.234,56 €".
  */
 @Composable
-internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProblem>, showProblems: Boolean, onChange: (String) -> Unit) {
-    val problem = problems.firstOrNull {
-        it in setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)
-    }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
+internal fun AmountField(
+    amount: String,
+    cents: Long?,
+    problems: Set<BookingProblem>,
+    showProblems: Boolean,
+    modifier: Modifier = Modifier,
+    onChange: (String) -> Unit,
+) {
+    val problem = problems.firstOrNull { it in AMOUNT_PROBLEMS }?.takeIf { showProblems || it != BookingProblem.AmountMissing }
     OutlinedTextField(
         value = amount,
         onValueChange = { typed -> onChange(typed.filter { it.isDigit() || it == ',' || it == '.' }) },
         label = { Text(stringResource(R.string.booking_amount)) },
         singleLine = true,
         suffix = { Text("€") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
         isError = problem != null,
         supportingText = {
             Text(
@@ -244,7 +274,7 @@ internal fun AmountField(amount: String, cents: Long?, problems: Set<BookingProb
                 },
             )
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
@@ -273,3 +303,6 @@ internal fun kindLabel(kind: BookingKind): String = stringResource(
         BookingKind.Income -> R.string.booking_kind_income
     },
 )
+
+/** What keeps an amount from being saved, shown at it. */
+internal val AMOUNT_PROBLEMS = setOf(BookingProblem.AmountMissing, BookingProblem.AmountInvalid, BookingProblem.AmountNotAboveZero)

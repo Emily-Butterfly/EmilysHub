@@ -1,16 +1,19 @@
 package de.emilyshub.today
 
 import de.emilyshub.Day
+import de.emilyshub.ledger.SubscriptionReminder
+import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Note
 import de.emilyshub.notes.Notes
 import de.emilyshub.routines.DueRoutine
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Routines
 import de.emilyshub.stats.Heatmap
-import de.emilyshub.stats.RoutineHistory
+import de.emilyshub.stats.Progress
 import de.emilyshub.stats.StreakFlame
-import de.emilyshub.stats.flame
+import de.emilyshub.stats.StreakRule
 import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.TodoMove
 import de.emilyshub.todos.Todos
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -19,24 +22,32 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import kotlin.coroutines.CoroutineContext
 
 /**
- * Heute as it stands on [date] (SPEC.md §1): its [entries] in their order ([todayList]), the to-dos shown before their
- * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without one, and
- * the [heatmap] of the last six months.
+ * Heute as it stands on [date] (SPEC.md §1): its entries in their [blocks] ([todayBlocks]), with how far the day is, the to-dos shown before their
+ * day under Demnächst ([upcoming]), the notes [pinned] here, the [flame] of the overall streak, none without anything ever due, the
+ * [heatmap] of the last six months, and under Demnächst too the Abos to cancel soon ([subscriptions], #80), from the first
+ * day of their lead to their last day.
  */
 data class HeuteDay(
     val date: LocalDate,
-    val entries: List<TodayEntry>,
+    val blocks: TodayBlocks,
     val upcoming: List<TodayEntry.OfTodo>,
     val pinned: List<Note>,
     val flame: StreakFlame?,
     val heatmap: Heatmap,
-)
+    val subscriptions: List<SubscriptionReminder> = emptyList(),
+) {
+    /** All of its entries, block by block. */
+    val entries: List<TodayEntry> get() = blocks.all
+}
 
 /**
  * The day before Heute's [date], to catch up on (SPEC.md §1, Gestern nachtragen): its routines' occurrences and to-dos
@@ -45,50 +56,58 @@ data class HeuteDay(
 data class Yesterday(val date: LocalDate, val entries: List<TodayEntry>)
 
 /**
- * Heute (SPEC.md §1), from the routines, the to-dos and the notes, for the day it is by [day]: what is on it, and what
- * is done with it. A screen only draws a [HeuteDay] and says what was tapped.
+ * Heute (SPEC.md §1), from the routines, the to-dos, the notes and the Abos, for the day it is by [day]: what is on it,
+ * and what is done with it. A screen only draws a [HeuteDay] and says what was tapped.
  */
 class Heute(
     private val routines: Routines,
     private val todos: Todos,
     private val notes: Notes,
+    private val subscriptions: Subscriptions,
     private val day: Day,
+    private val work: CoroutineContext,
 ) {
+    private val progress = Progress(routines, todos)
 
     /**
      * Heute for the day it is, once all of it is there: anew as the day turns, each minute, for to-dos turning
      * overdue, as the clock or time zone changes, and as anything on it changes. Never half of one day and half of the
-     * next: all of a [HeuteDay] is of its [HeuteDay.date].
+     * next: all of a [HeuteDay] is of its [HeuteDay.date]. The flame and the heatmap are read anew only as the day or
+     * time zone turns, or as something on them changes, not each minute (#108); its parts are read, and put together,
+     * on [work], not on the main thread, which only follows the clock.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun day(): Flow<HeuteDay> = channelFlow {
+    fun day(streakRule: StreakRule = StreakRule.DEFAULT): Flow<HeuteDay> = channelFlow {
         // One clock for all parts, so that they turn to the new day together.
-        val moments = day.minutes().map { Moment(it, day.dayOf(it)) }.stateIn(this)
+        val moments = day.minutes().map { Moment(it, day.dayOf(it), day.zone()) }.stateIn(this)
         // The routines' occurrences only change with the day; the to-dos turn overdue by the minute.
-        val routinesDue = moments.map { it.date }.distinctUntilChanged()
-            .flatMapLatest { date -> routines.dueOn(date).map { date to it } }
+        val dates = moments.map { it.date }.distinctUntilChanged()
+        val routinesDue = dates.flatMapLatest { date -> routines.dueOn(date).map { date to it } }
         val todosDue = moments.flatMapLatest { (now, date) ->
             combine(todos.dueOn(date, now), todos.upcoming(date, now)) { due, upcoming -> TodosDue(date, due, upcoming) }
         }
-        val done = combine(routines.history(), todos.archived()) { history, archived -> history to archived }
-        combine(routinesDue, todosDue, notes.onToday(), done) { (date, dueRoutines), dueTodos, pinned, (history, archived) ->
-            // Until both are of the same day, as one of them may not have followed the clock yet.
-            if (dueTodos.date != date) return@combine null
+        val subscriptionsDue = dates.flatMapLatest { date -> subscriptions.upcoming(date).map { date to it } }
+        // The to-dos to the days they were ticked off on in the zone it is now, so that they move in a new one.
+        val progressed = moments.map { it.date to it.zone }.distinctUntilChanged().flatMapLatest { (date, zone) ->
+            combine(progress.flame(date, zone, streakRule), progress.heatmap(date, zone)) { flame, heatmap ->
+                Progressed(date, flame, heatmap)
+            }
+        }
+        combine(routinesDue, todosDue, notes.onToday(), progressed, subscriptionsDue) {
+                (date, dueRoutines), dueTodos, pinned, progressed, (subscriptionsDate, dueSubscriptions) ->
+            // Until all are of the same day, as one of them may not have followed the clock yet.
+            if (dueTodos.date != date || progressed.date != date || subscriptionsDate != date) return@combine null
             HeuteDay(
                 date = date,
-                entries = todayList(dueRoutines, dueTodos.due, date),
+                blocks = todayBlocks(dueRoutines, dueTodos.due, date),
                 upcoming = dueTodos.upcoming.map { TodayEntry.OfTodo(it) },
                 pinned = pinned,
-                flame = RoutineHistory(history).flame(date),
-                heatmap = Heatmap.of(
-                    today = date,
-                    routinesDone = history.filter { it.status == OccurrenceStatus.Done }.map { it.date },
-                    todosDone = archived.mapNotNull { it.doneAt },
-                    // The zone now, so that the to-dos move to their days in a new one.
-                    zone = day.zone(),
-                ),
+                // By the rule of the overall streak (#109): to-dos count for a day on the one they were ticked off.
+                flame = progressed.flame,
+                heatmap = progressed.heatmap,
+                subscriptions = dueSubscriptions,
             )
-        }.filterNotNull().collect { send(it) }
+        }.filterNotNull().flowOn(work).collect { send(it) }
     }
 
     /**
@@ -134,10 +153,22 @@ class Heute(
     /** Undoes a skip or "Heute nicht". */
     suspend fun undo(routine: DueRoutine) = routines.reopen(routine.occurrenceId)
 
+    /**
+     * Moves the to-do to [date] (SPEC.md §1, Menü je Eintrag), as [Todos.moveTo] has it; tells how it moved, to
+     * [undoMove] it, and nothing for one done or gone.
+     */
+    suspend fun move(todo: DueTodo, date: LocalDate): TodoMove? = todos.moveTo(todo.todoId, date)
+
+    /** Undoes the [move], as [Todos.undo] has it. */
+    suspend fun undoMove(move: TodoMove) = todos.undo(move)
+
     /** Takes the note off Heute. */
     suspend fun unpin(noteId: Long) = notes.pinOnToday(noteId, pinned = false)
 
-    private data class Moment(val now: Instant, val date: LocalDate)
+    private data class Moment(val now: Instant, val date: LocalDate, val zone: ZoneId)
+
+    /** The flame and the heatmap of [date]. */
+    private data class Progressed(val date: LocalDate, val flame: StreakFlame?, val heatmap: Heatmap)
 
     private data class TodosDue(val date: LocalDate, val due: List<DueTodo>, val upcoming: List<DueTodo>)
 }
@@ -175,6 +206,12 @@ val DueRoutine.offer: RoutineOffer
         OccurrenceStatus.Skipped, OccurrenceStatus.Dropped -> if (covered) RoutineOffer.None else RoutineOffer.Undo
         OccurrenceStatus.Done, OccurrenceStatus.Missed -> RoutineOffer.None
     }
+
+/**
+ * Whether it can be run through step by step (SPEC.md §2, Ablauf-Modus): open, with a checklist. Only on Heute, not
+ * when catching up on yesterday.
+ */
+val DueRoutine.startable: Boolean get() = offer == RoutineOffer.SkipOrDrop && checklist.isNotEmpty()
 
 /** Ticking entries of one day off, or unticking them: whether a routine's occurrence or a to-do, by its id. */
 class Ticking internal constructor(

@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10** und #77 **Etappe 11**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13** und #110 **Etappe 14**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -139,3 +139,63 @@ Abgestimmt im Interview vom 08.11.2026; Sammel-Issue #77. #66 braucht #65, weil 
 | 74 | [Bögen: Neurologie](74-boegen-neurologie.md) | 🤖 | 66 |
 | 75 | [Bögen: Schlafverhalten](75-boegen-schlaf.md) | 🤖 | 66 |
 | 76 | [Bögen: Verschiedenes](76-boegen-verschiedenes.md) | 🤖 | 66 |
+
+## Etappe 12 – Budget-Rechner, Abos & Sprachen
+
+Abgestimmt im Interview vom 11.11.2026; Sammel-Issue #85. Gebaut wird in der Reihenfolge der Tabelle. #78, #79 und #81 hängen von nichts ab.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 78 | [Haushaltsbuch: Gesamtbudget & Budget-Rechner](78-haushaltsbuch-gesamtbudget-budget-rechner.md) | 🤖 | – |
+| 79 | [Haushaltsbuch: Abos mit Kündigungsfrist](79-haushaltsbuch-abos.md) | 🤖 | – |
+| 80 | [Abos: Erinnerung zum Kündigen & „Demnächst“ in Heute](80-abos-erinnerung.md) | 🤖 | 79 |
+| 81 | [Sprachen: Sessions, Sprachen, Lehrer & Auswertung](81-sprachen-sessions.md) | 🤖 | – |
+| 82 | [Sprachen: Themen & Prüfungen](82-sprachen-themen-pruefungen.md) | 🤖 | 81 |
+| 83 | [Sprachen: Session-Notizen importieren – Textdatei, Foto, PDF](83-sprachen-import-anhaenge.md) | 🤖 | 81 |
+| 84 | [Sprachen: Suche & Prüfungen an Zielen](84-sprachen-suche-ziele.md) | 🤖 | 82 |
+
+## Etappe 13 – Absichern, Eingang, Heute, Ablauf-Modus & Vokabeltrainer
+
+Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und die Entscheidungen zu #95, #96, #98, #104 und #109 sind vom 12.11.2026; die Einzelheiten der Slices sind nicht in einem Interview abgestimmt. Gebaut wird in der Reihenfolge der Tabelle. #91 und #92 sind der Rest von „UX 1“ und können auch später gebaut werden; #108 ist dran, sobald Heute merklich zäh wird.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 87 | [Editoren: Rückfrage statt stillem Verwerfen](87-editoren-rueckfrage.md) | 🤖 | – |
+| 88 | [Notizen & Sessions: beim Verlassen von selbst speichern](88-notizen-sessions-selbstspeichern.md) | 🤖 | 87 |
+| 89 | [Backups: ans Auslagern erinnern](89-backups-auslagern-erinnern.md) | 🤖 | – |
+| 90 | [Versionsnummer aus dem Build, sichtbar in den Einstellungen](90-versionsnummer.md) | 🤖 | – |
+| 91 | [Editoren: Titel im Fokus & „Speichern“ unten](91-editoren-fokus-speichern-unten.md) | 🤖 | – |
+| 92 | [Routine & To-do: das Nötige zuerst, der Rest unter „Mehr Optionen“](92-editoren-das-noetige-zuerst.md) | 🤖 | 91 |
+| 93 | [Eingang: Gedanken festhalten & einsortieren](93-eingang.md) | 🤖 | – |
+| 94 | [Eingang: Kurzbefehl am App-Symbol](94-eingang-kurzbefehl.md) | 🤖 | 93 |
+| 95 | [Eingang: Benachrichtigung mit Antwortfeld](95-eingang-benachrichtigung.md) | 🤖 | 93 |
+| 96 | [Heute: Kopfzeile & drei Blöcke](96-heute-drei-bloecke.md) | 🤖 | – |
+| 97 | [Heute: Menü je Eintrag – verschieben, öffnen, überspringen](97-heute-menue-je-eintrag.md) | 🤖 | 96 |
+| 98 | [Erinnerungen: „Später“ für To-dos bis heute Abend und morgen früh](98-spaeter-fuer-todos.md) | 🤖 | – |
+| 99 | [Flamme: bei null stehen bleiben, letzter Streak in der Statistik](99-flamme-bei-null.md) | 🤖 | – |
+| 109 | [Gesamt-Streak: ab wann ein Tag zählt (Anzahl oder Quote), einstellbar](109-gesamt-streak-quote.md) | 🤖 | 99 |
+| 100 | [Rettungsbildschirm, wenn sich die Daten nicht öffnen lassen](100-rettungsbildschirm.md) | 🤖 | – |
+| 101 | [Ablauf-Modus: eine Routine Schritt für Schritt](101-ablauf-modus.md) | 🤖 | 97 |
+| 102 | [Ablauf-Modus: Minuten je Schritt, Restzeit & laufende Benachrichtigung](102-ablauf-modus-zeit.md) | 🤖 | 101 |
+| 103 | [Ablauf-Modus: Start aus Erinnerung und Vollbild-Alarm](103-ablauf-modus-start-aus-erinnerung.md) | 🤖 | 101 |
+| 104 | [Vokabeltrainer: Karten, FSRS & Abfrage](104-vokabeltrainer-karten.md) | 🤖 | – |
+| 105 | [Vokabeltrainer: Karten aus Session-Notiz und Textdatei](105-vokabeltrainer-karten-anlegen.md) | 🤖 | 104 |
+| 106 | [Vokabeltrainer: Routine und Ziel zählen mit](106-vokabeltrainer-routine-und-ziel.md) | 🤖 | 104 |
+| 107 | [Vokabeltrainer: Zahlen an Themen, Thema üben & Suche](107-vokabeltrainer-themen-suche.md) | 🤖 | 104 |
+| 108 | [Heute & To-dos: nur laden, was gebraucht wird](108-nur-laden-was-gebraucht-wird.md) | 🤖 | – |
+
+## Etappe 14 – Kleinigkeiten aus dem Gutachten
+
+Die fünf kleinen Themen aus dem Gutachten vom 12.11.2026, die in Etappe 13 kein Ticket hatten; die offenen Fragen dazu sind am 14.11.2026 entschieden. Sammel-Issue #110. Keins hängt von einem anderen ab; gebaut wird in der Reihenfolge der Tabelle.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 111 | [Backup-Passwort ändern](111-backup-passwort-aendern.md) | 🤖 | – |
+| 112 | [Orte: einen neuen Ort direkt im Feld anlegen](112-orte-im-feld-anlegen.md) | 🤖 | – |
+| 113 | [Haushaltsbuch: ein Menü mit Text statt vier Symbolen](113-haushaltsbuch-menue.md) | 🤖 | – |
+| 114 | [Untere Leiste: Tab-Namen bei großer Schrift ohne Umbruch](114-tab-namen-grosse-schrift.md) | 🤖 | – |
+| 115 | [Abhängigkeiten: Dependabot schlägt neue Versionen vor](115-dependabot.md) | 🤖 | – |
+
+## Ohne Ticket
+
+Was aus dem Gutachten noch kein Ticket hat, steht in [ohne-ticket.md](ohne-ticket.md), mit Befund, Fundstelle und Vorschlag, damit es sich in einem neuen Chat aufgreifen lässt.

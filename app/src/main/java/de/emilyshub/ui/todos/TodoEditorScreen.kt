@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -33,15 +34,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.inbox.Sorting
 import de.emilyshub.notes.NoteLink
 import de.emilyshub.notes.Notes
 import de.emilyshub.places.Places
@@ -54,6 +61,7 @@ import de.emilyshub.todos.TodoProblem
 import de.emilyshub.todos.Todos
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.ChecklistFields
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
@@ -61,12 +69,22 @@ import de.emilyshub.ui.fields.EndFields
 import de.emilyshub.ui.fields.GoalField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.MoreOptions
 import de.emilyshub.ui.fields.PlacesField
 import de.emilyshub.ui.fields.PriorityField
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
 import de.emilyshub.ui.fields.TimeDialog
+import de.emilyshub.ui.fields.checklistOption
+import de.emilyshub.ui.fields.goalOption
+import de.emilyshub.ui.fields.placesOption
+import de.emilyshub.ui.fields.priorityOption
+import de.emilyshub.ui.fields.rememberFirstField
+import de.emilyshub.ui.fields.styleOptions
+import de.emilyshub.ui.fields.tagsOption
 import de.emilyshub.ui.notes.LinkedNotes
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.ui.reminders.RemindingStyleFields
 import de.emilyshub.wishes.Wishes
 import java.io.Serializable
@@ -77,12 +95,15 @@ import java.time.LocalDateTime
 sealed interface TodoEditorTarget : Serializable {
     data object New : TodoEditorTarget
 
+    /** A new one, of an entry of the inbox sorted in (SPEC.md §16), which leaves the inbox once this is saved. */
+    data class FromInbox(val sorting: Sorting) : TodoEditorTarget
+
     data class Edit(val todoId: Long) : TodoEditorTarget
 }
 
 /**
  * Creates or changes a to-do with its title, description, due, how it comes again once due, places, priority, checklist,
- * tags and the goal it is part of (SPEC.md §5, §6), or deletes it. Leaving without saving drops the changes.
+ * tags and the goal it is part of (SPEC.md §5, §6), or deletes it. Leaving with changes asks whether to save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,20 +114,27 @@ fun TodoEditorScreen(
     tags: Tags,
     places: Places,
     notes: Notes,
+    inbox: Inbox,
     target: TodoEditorTarget,
     tones: ToneCollection,
     onClose: () -> Unit,
     onOpenNote: (Long) -> Unit,
+    onNewPlace: () -> Unit,
 ) {
     val todoId = (target as? TodoEditorTarget.Edit)?.todoId
+    val sorting = (target as? TodoEditorTarget.FromInbox)?.sorting
     // What is edited, as it was saved: known at once for a new one, read first for one saved.
     var editing by rememberSaveable { mutableStateOf(if (todoId == null) TodoEditing.New else null) }
-    var draft by rememberSaveable { mutableStateOf(TodoDraft(title = "")) }
+    var draft by rememberSaveable { mutableStateOf(TodoDraft(title = sorting?.title.orEmpty(), description = sorting?.rest.orEmpty())) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Chosen here, a recurrence follows the day the to-do is due; one saved keeps its day when the to-do is put off.
     var recurrenceChosen by rememberSaveable { mutableStateOf(false) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+    // Folded also for one saved, so that the editor always looks the same; its summary names what is set.
+    var moreOptions by rememberSaveable { mutableStateOf(false) }
 
     val opened = editing
     if (opened == null) {
@@ -127,14 +155,27 @@ fun TodoEditorScreen(
     val problems = draft.problems
     val cleaned = draft.cleaned()
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = todoId == null)
     val save = {
         if (problems.isNotEmpty()) {
             showMissingTitle = true
+            // A problem in what is folded away unfolds it, to be seen.
+            if (problems.any { it !in UNFOLDED }) moreOptions = true
+            firstField.saveFailed(atField = TodoProblem.TitleMissing in problems || TodoProblem.TitleTooLong in problems)
         } else {
             val saved = draft
-            closeWith { todos.save(opened, saved) }
+            closeWith {
+                // An entry of the inbox sorted in leaves it now, not before.
+                if (todos.save(opened, saved) is Saving.Saved && sorting != null) inbox.sortedOut(sorting.entryId)
+            }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, TodoDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -146,7 +187,7 @@ fun TodoEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -156,10 +197,10 @@ fun TodoEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -175,7 +216,12 @@ fun TodoEditorScreen(
                 onValueChange = { draft = draft.copy(title = it) },
                 label = { Text(stringResource(R.string.todo_title)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                // A new one needs no more than its title: "Fertig" saves it (SPEC.md §8).
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = if (todoId == null) ImeAction.Done else ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(onDone = { save() }),
                 isError = TodoProblem.TitleTooLong in problems || titleMissing,
                 supportingText = {
                     when {
@@ -183,7 +229,15 @@ fun TodoEditorScreen(
                         else -> LengthHint(InputText.lengthOf(cleaned.title), TodoDraft.TITLE_MAX)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.requester),
+            )
+            DueFields(
+                due = draft.due,
+                today = day.today(),
+                start = todos.nextFullHour(),
+                onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
             )
             OutlinedTextField(
                 value = draft.description,
@@ -195,66 +249,68 @@ fun TodoEditorScreen(
                 supportingText = { LengthHint(InputText.lengthOf(cleaned.description), TodoDraft.DESCRIPTION_MAX) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            DueFields(
-                due = draft.due,
-                today = day.today(),
-                start = todos.nextFullHour(),
-                onChange = { draft = draft.dueOn(it, recurrenceFollows = recurrenceChosen) },
-            )
-            draft.due.date?.let { dueDay ->
-                ShowBeforeFields(draft.showsDaysBefore, onChange = { draft = draft.copy(showsDaysBefore = it) })
-                RecurrenceFields(
-                    recurrence = draft.recurrence,
-                    due = dueDay,
-                    onChange = {
-                        draft = draft.copy(recurrence = it)
-                        recurrenceChosen = true
-                    },
-                )
-                if (draft.recurrence != null) {
-                    EndFields(
-                        draft.end,
-                        earliest = dueDay,
-                        tooEarly = TodoProblem.EndDateTooEarly in problems,
-                        seriesNumber = seriesNumber,
-                        onChange = { draft = draft.copy(end = it) },
+            MoreOptions(
+                expanded = moreOptions,
+                onExpandedChange = { moreOptions = it },
+                summary = optionsSet(cleaned, places, wishes),
+                available = stringResource(R.string.more_options_todo),
+            ) {
+                draft.due.date?.let { dueDay ->
+                    ShowBeforeFields(draft.showsDaysBefore, onChange = { draft = draft.copy(showsDaysBefore = it) })
+                    RecurrenceFields(
+                        recurrence = draft.recurrence,
+                        due = dueDay,
+                        onChange = {
+                            draft = draft.copy(recurrence = it)
+                            recurrenceChosen = true
+                        },
                     )
+                    if (draft.recurrence != null) {
+                        EndFields(
+                            draft.end,
+                            earliest = dueDay,
+                            tooEarly = TodoProblem.EndDateTooEarly in problems,
+                            seriesNumber = seriesNumber,
+                            onChange = { draft = draft.copy(end = it) },
+                        )
+                    }
                 }
+                WakeFields(
+                    wake = cleaned.wake,
+                    due = draft.due,
+                    today = day.today(),
+                    start = todos.nextFullHour(),
+                    past = cleaned.wake?.let { todos.isPast(it, cleaned.due) } == true,
+                    onChange = { draft = draft.copy(wake = it) },
+                )
+                PlacesField(
+                    places = places,
+                    selected = draft.placeIds,
+                    hintNone = R.string.todo_places_none,
+                    hintChosen = R.string.todo_places_chosen,
+                    onChange = { draft = draft.copy(placeIds = it) },
+                    onNewPlace = onNewPlace,
+                )
+                RemindingStyleFields(
+                    style = draft.style,
+                    tones = tones,
+                    onChange = { draft = draft.copy(style = it) },
+                    // Without a time, a full-screen alarm comes only on arrival at a place (SPEC.md §5).
+                    fullScreenNote = stringResource(R.string.todo_full_screen_no_time)
+                        .takeIf { draft.due !is Due.At && cleaned.wake == null },
+                )
+                PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
+                ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
+                TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
+                GoalField(
+                    wishes = wishes,
+                    selected = draft.goalId,
+                    label = R.string.goal_field,
+                    none = R.string.goal_field_none,
+                    onChange = { draft = draft.copy(goalId = it) },
+                )
+                if (todoId != null) LinkedNotes(notes, NoteLink.Todo(todoId), onOpen = onOpenNote)
             }
-            WakeFields(
-                wake = cleaned.wake,
-                due = draft.due,
-                today = day.today(),
-                start = todos.nextFullHour(),
-                past = cleaned.wake?.let { todos.isPast(it, cleaned.due) } == true,
-                onChange = { draft = draft.copy(wake = it) },
-            )
-            PlacesField(
-                places = places,
-                selected = draft.placeIds,
-                hintNone = R.string.todo_places_none,
-                hintChosen = R.string.todo_places_chosen,
-                onChange = { draft = draft.copy(placeIds = it) },
-            )
-            RemindingStyleFields(
-                style = draft.style,
-                tones = tones,
-                onChange = { draft = draft.copy(style = it) },
-                // Without a time, a full-screen alarm comes only on arrival at a place (SPEC.md §5).
-                fullScreenNote = stringResource(R.string.todo_full_screen_no_time)
-                    .takeIf { draft.due !is Due.At && cleaned.wake == null },
-            )
-            PriorityField(draft.priority, onChange = { draft = draft.copy(priority = it) })
-            ChecklistFields(draft.checklist, onChange = { draft = draft.copy(checklist = it) })
-            TagsField(tags, draft.tagIds, onChange = { draft = draft.copy(tagIds = it) })
-            GoalField(
-                wishes = wishes,
-                selected = draft.goalId,
-                label = R.string.goal_field,
-                none = R.string.goal_field_none,
-                onChange = { draft = draft.copy(goalId = it) },
-            )
-            if (todoId != null) LinkedNotes(notes, NoteLink.Todo(todoId), onOpen = onOpenNote)
         }
     }
 
@@ -272,6 +328,23 @@ fun TodoEditorScreen(
         )
     }
 }
+
+/** The problems shown in the fields above "Mehr Optionen"; all others are under it. */
+private val UNFOLDED = setOf(TodoProblem.TitleMissing, TodoProblem.TitleTooLong, TodoProblem.DescriptionTooLong)
+
+/** What under "Mehr Optionen" differs from a new to-do, in the order of its fields. */
+@Composable
+private fun optionsSet(draft: TodoDraft, places: Places, wishes: Wishes): List<String> = listOfNotNull(
+    draft.showsDaysBefore?.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.option_shows_before, it, it) },
+    stringResource(R.string.option_recurrence).takeIf { draft.recurrence != null },
+    stringResource(R.string.option_wake).takeIf { draft.wake != null },
+    placesOption(places, draft.placeIds),
+) + styleOptions(draft.style) + listOfNotNull(
+    priorityOption(draft.priority),
+    checklistOption(draft.checklist.size),
+    tagsOption(draft.tagIds),
+    goalOption(wishes, draft.goalId),
+)
 
 /** Which of [Due] the editor offers, in its order. */
 private enum class DueKind { None, On, At }

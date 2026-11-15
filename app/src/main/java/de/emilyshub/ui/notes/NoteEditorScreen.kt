@@ -1,5 +1,6 @@
 package de.emilyshub.ui.notes
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,33 +38,45 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.inbox.Sorting
 import de.emilyshub.notes.Container
 import de.emilyshub.notes.Markdown
 import de.emilyshub.notes.NoteDraft
+import de.emilyshub.notes.NoteEditing
 import de.emilyshub.notes.NoteProblem
 import de.emilyshub.notes.Notes
-import de.emilyshub.notes.toDraft
 import de.emilyshub.tags.Tags
+import de.emilyshub.ui.differsAsSaved
+import de.emilyshub.ui.fields.FirstField
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.TagsField
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import java.io.Serializable
 
 /** Which note the editor shows. Serializable, so that the open editor survives rotation and the lock. */
 sealed interface NoteEditorTarget : Serializable {
     /** A new note, in [container]. */
     data class New(val container: Container) : NoteEditorTarget
+
+    /** A new one, of an entry of the inbox sorted in (SPEC.md §16), which leaves the inbox once this is saved. */
+    data class FromInbox(val sorting: Sorting) : NoteEditorTarget
 
     data class Edit(val noteId: Long) : NoteEditorTarget
 }
@@ -72,17 +85,22 @@ sealed interface NoteEditorTarget : Serializable {
  * Writes a note (SPEC.md §7): its title, its text in Markdown, where it lies, its tags and what it is linked to, while
  * "Bearbeiten" shows; "Vorschau" shows the text as it reads, without HTML and with no link to open (SPEC.md §9), and
  * what it is linked to. A new note starts in "Bearbeiten", one saved opens in "Vorschau", to be read. Deleting one asks
- * first; leaving without saving drops the changes; archiving it saves them first. One in the archive (SPEC.md §7) only
+ * first; left with changes it saves them by itself, if it can, else it asks; archiving it saves them first. One in the archive (SPEC.md §7) only
  * shows its preview, to read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose: () -> Unit) {
+fun NoteEditorScreen(notes: Notes, tags: Tags, inbox: Inbox, target: NoteEditorTarget, onClose: () -> Unit) {
     val noteId = (target as? NoteEditorTarget.Edit)?.noteId
     val startIn = (target as? NoteEditorTarget.New)?.container ?: Container()
-    var draft by rememberSaveable { mutableStateOf(NoteDraft(title = "", container = startIn)) }
-    var loaded by rememberSaveable { mutableStateOf(noteId == null) }
-    var archived by rememberSaveable { mutableStateOf(false) }
+    val sorting = (target as? NoteEditorTarget.FromInbox)?.sorting
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (noteId == null) NoteEditing.New else null) }
+    var draft by rememberSaveable {
+        mutableStateOf(NoteDraft(title = sorting?.title.orEmpty(), text = sorting?.rest.orEmpty(), container = startIn))
+    }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     var previewing by rememberSaveable { mutableStateOf(noteId != null) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var showMissingTitle by rememberSaveable { mutableStateOf(false) }
@@ -90,15 +108,15 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
     // Counts the tries to save without a title fit to save, each of which goes to the title.
     var titleAsked by remember { mutableIntStateOf(0) }
 
-    if (!loaded && noteId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(noteId) {
-            val note = notes.get(noteId)
-            if (note == null) {
+            val saved = notes.editing(checkNotNull(noteId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = note.toDraft(notes.linksOf(noteId), notes.tagIdsOf(noteId))
-                archived = notes.isArchived(noteId)
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
@@ -106,6 +124,13 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
 
     val problems = draft.problems
     val closeWith = rememberClosing(onClose)
+    // A new one opens with the keyboard in its title (SPEC.md §8), once, not again on each return from the preview.
+    val title = rememberFirstField(new = noteId == null)
+    // An entry of the inbox sorted in leaves it once the note is saved, not before.
+    suspend fun sortedOut() {
+        if (sorting != null) inbox.sortedOut(sorting.entryId)
+    }
+
     /** Saves the note, then does [after] with it, if any; or shows what keeps it from being saved. */
     fun save(after: (suspend (Long) -> Unit)? = null) {
         if (problems.isNotEmpty()) {
@@ -116,16 +141,42 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
         } else {
             val saved = draft
             closeWith {
-                val id = noteId?.also { notes.update(it, saved) } ?: notes.create(saved)
-                after?.invoke(id)
+                val saving = notes.save(opened, saved)
+                if (saving is Saving.Saved) {
+                    sortedOut()
+                    after?.invoke(saving.id)
+                }
             }
         }
     }
 
-    if (archived) {
+    if (opened.archived) {
         ArchivedNote(notes, draft, onClose)
         return
     }
+    val context = LocalContext.current.applicationContext
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, NoteDraft::cleaned) },
+        onSave = { save() },
+        onDiscard = onClose,
+        // Saved by itself if it can be, a title missing taken from its text (SPEC.md §8); a new one with neither title
+        // nor text is no note.
+        leavesItself = leavesItself@{
+            val titled = draft.withTitleFromText()
+            when {
+                noteId == null && !InputText.isVisible(titled.title) && !InputText.isVisible(titled.text) -> closeWith {}
+                titled.problems.isNotEmpty() -> return@leavesItself false
+                else -> closeWith {
+                    if (notes.save(opened, titled) is Saving.Saved) {
+                        sortedOut()
+                        Toast.makeText(context, R.string.note_saved_itself, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            true
+        },
+    )
 
     Scaffold(
         topBar = {
@@ -137,7 +188,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -148,10 +199,10 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
                         }
                         TextButton(onClick = { save(after = notes::archiveNote) }) { Text(stringResource(R.string.note_archive)) }
                     }
-                    TextButton(onClick = { save() }) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = { save() }) },
     ) { contentPadding ->
         Column(
             Modifier
@@ -162,7 +213,7 @@ fun NoteEditorScreen(notes: Notes, tags: Tags, target: NoteEditorTarget, onClose
             if (previewing) {
                 Preview(notes, draft)
             } else {
-                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, onChange = { draft = it })
+                Writing(notes, tags, draft, problems, showMissingTitle, titleAsked, title, onChange = { draft = it })
             }
         }
     }
@@ -236,11 +287,11 @@ private fun Writing(
     problems: Set<NoteProblem>,
     showMissingTitle: Boolean,
     titleAsked: Int,
+    title: FirstField,
     onChange: (NoteDraft) -> Unit,
 ) {
     val cleaned = draft.cleaned()
-    val titleFocus = remember { FocusRequester() }
-    LaunchedEffect(titleAsked) { if (titleAsked > 0) titleFocus.requestFocus() }
+    LaunchedEffect(titleAsked) { if (titleAsked > 0) title.focus() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -254,7 +305,7 @@ private fun Writing(
             onValueChange = { onChange(draft.copy(title = it)) },
             label = { Text(stringResource(R.string.note_title)) },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
             isError = NoteProblem.TitleTooLong in problems || titleMissing,
             supportingText = {
                 when {
@@ -264,7 +315,7 @@ private fun Writing(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(titleFocus),
+                .focusRequester(title.requester),
         )
         LocationField(notes, draft.container, onChange = { onChange(draft.copy(container = it)) })
         TagsField(tags, draft.tagIds, onChange = { onChange(draft.copy(tagIds = it)) })

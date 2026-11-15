@@ -2,7 +2,19 @@ package de.emilyshub.search
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
+import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.inbox.Inbox
+import de.emilyshub.languages.CardDraft
+import de.emilyshub.languages.FakeLessonDocuments
+import de.emilyshub.languages.Flashcards
+import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
+import de.emilyshub.languages.testAttachmentStore
 import de.emilyshub.ledger.BookingDraft
 import de.emilyshub.ledger.BookingKind
 import de.emilyshub.ledger.Ledger
@@ -16,6 +28,7 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.TodoDraft
+import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.Todos
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.Wishes
@@ -148,6 +161,66 @@ class SearchTest {
 
         assertEquals(todos.get(rent)?.nextId, found.id)
     }
+
+    @Test
+    fun `lessons are found by their note, their topics and their teacher, newest first, by language and teacher`() = runBlocking {
+        val languages = Languages(
+            { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+        )
+        val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
+        val amal = (languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal Straße", languageIds = setOf(arabic))) as Saving.Saved).id
+        val older = lesson(languages, arabic, amal, "2026-10-01", note = "Wir übten das Präsens")
+        val newer = lesson(languages, arabic, amal, "2026-10-20", topics = listOf("Zahlen bis 100"))
+
+        assertEquals(listOf(older), search.find("präsens").lessonIds())
+        assertEquals(listOf(newer), search.find("ZAHLEN").lessonIds())
+        assertEquals("by the teacher, ß as ss, the newest first", listOf(newer, older), search.find("strasse").lessonIds())
+        val pasted = lesson(languages, arabic, amal, "2026-10-21", note = "Mor\u200Bgen\u00ADstunde")
+        assertEquals("what prints nothing is left out", listOf(pasted), search.find("morgenstunde").lessonIds())
+        repeat(51) { lesson(languages, arabic, amal, "2026-09-01", note = "Wiederholung") }
+        val many = search.find("wiederholung").single { it.area == SearchArea.Lessons }
+        assertEquals(50 to 1, many.hits.size to many.more)
+        val hit = search.find("zahlen").single().hits.single()
+        assertEquals(SearchHit(newer, "Arabisch · Amal Straße", LocalDate.parse("2026-10-20")), hit)
+    }
+
+    @Test
+    fun `cards are found by front, back, transcription and note, with their language, Arabic with or without its vowel marks`() =
+        runBlocking {
+            val languages = Languages(
+                { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+            )
+            val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined)
+            val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
+            val book = (cards.create(arabic, CardDraft("كِتَاب", "Buch", "kitāb", "Plural kutub")) as Saving.Saved).id
+
+            assertEquals(listOf(book), search.find("كتاب").cardIds())
+            assertEquals(listOf(book), search.find("buch").cardIds())
+            assertEquals(listOf(book), search.find("kitāb").cardIds())
+            assertEquals(listOf(book), search.find("kutub").cardIds())
+            assertEquals(SearchHit(book, "كِتَاب – Buch · Arabisch"), search.find("buch").single { it.area == SearchArea.Cards }.hits.single())
+        }
+
+    @Test
+    fun `entries of the inbox are found by their text, in an area of their own, each by its first line`() = runBlocking {
+        val inbox = Inbox({ database }, clock, Dispatchers.Unconfined)
+        inbox.capture("Einkaufen\nMilch und Brot")
+        inbox.capture("Zahnarzt anrufen")
+        todos.save(TodoEditing.New, TodoDraft(title = "Brot backen"))
+
+        val found = search.find("brot")
+
+        assertEquals(listOf("Einkaufen"), titles(found, SearchArea.Inbox))
+        assertEquals(listOf("Brot backen"), titles(found, SearchArea.Todos))
+        assertEquals(inbox.entries().first().last().id, found.single { it.area == SearchArea.Inbox }.hits.single().id)
+    }
+
+    private fun List<SearchGroup>.cardIds() = single { it.area == SearchArea.Cards }.hits.map { it.id }
+
+    private fun List<SearchGroup>.lessonIds() = single { it.area == SearchArea.Lessons }.hits.map { it.id }
+
+    private suspend fun lesson(languages: Languages, language: Long, teacher: Long, date: String, note: String = "", topics: List<String> = emptyList()) =
+        (languages.save(LessonEditing.New, LessonDraft(LocalDate.parse(date), "60", language, teacher, note = note, newTopics = topics)) as Saving.Saved).id
 
     private fun titles(found: List<SearchGroup>, area: SearchArea) = found.find { it.area == area }?.hits.orEmpty().map { it.title }
 

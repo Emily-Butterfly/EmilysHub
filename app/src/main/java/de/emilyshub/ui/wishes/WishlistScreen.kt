@@ -50,6 +50,8 @@ import de.emilyshub.ui.fields.treeIndent
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.wishes.Goal
+import de.emilyshub.wishes.GoalCards
+import de.emilyshub.wishes.GoalExam
 import de.emilyshub.wishes.GoalRoutine
 import de.emilyshub.wishes.GoalTodo
 import de.emilyshub.wishes.WishStatus
@@ -60,9 +62,9 @@ import kotlinx.coroutines.flow.map
  * The wishes not yet done (SPEC.md §6): those in progress, then the open ones, each with its period, tags, description
  * and progress; above them, once there are tags, the choice of one to show only the goals that have it, at any depth. A
  * goal with parts opens up to show them, indented below it: its subgoals, which open up in turn, its to-dos, ticked off
- * right there, and its routines, with how far they have come towards what they aim at. Nothing here reminds. Tapping a
- * goal, a to-do or a routine opens it in its editor, "+" starts a new wish. Below them, the way to the review of the
- * wishes come true, once there is one.
+ * right there, its routines, with how far they have come towards what they aim at, and its exams, with their topics.
+ * Nothing here reminds. Tapping a goal, a to-do or a routine opens it in its editor, an exam its language's topics;
+ * "+" starts a new wish. Below them, the way to the review of the wishes come true, once there is one.
  */
 @Composable
 fun WishlistScreen(
@@ -75,6 +77,8 @@ fun WishlistScreen(
     onOpen: (Long) -> Unit,
     onOpenTodo: (Long) -> Unit,
     onOpenRoutine: (Long) -> Unit,
+    onOpenExam: (GoalExam) -> Unit,
+    onOpenCards: (languageId: Long) -> Unit,
     onCreate: () -> Unit,
     onOpenReview: () -> Unit,
 ) {
@@ -91,7 +95,9 @@ fun WishlistScreen(
     fun lines(goal: Goal, depth: Int): List<TreeLine> = listOf(TreeLine.OfGoal(goal, depth)) + if (goal.wish.id in opened) {
         goal.subgoals.flatMap { lines(it, depth + 1) } +
             goal.todos.map { TreeLine.OfTodo(it, depth + 1) } +
-            goal.routines.map { TreeLine.OfRoutine(it, depth + 1) }
+            goal.routines.map { TreeLine.OfRoutine(it, depth + 1) } +
+            goal.exams.map { TreeLine.OfExam(it, depth + 1) } +
+            listOfNotNull(goal.cards?.let { TreeLine.OfCards(it, depth + 1) })
     } else {
         emptyList()
     }
@@ -143,6 +149,8 @@ fun WishlistScreen(
                             )
                             is TreeLine.OfRoutine ->
                                 RoutinePartRow(line.routine, line.depth, onClick = { onOpenRoutine(line.routine.id) })
+                            is TreeLine.OfExam -> ExamPartRow(line.exam, line.depth, onClick = { onOpenExam(line.exam) })
+                            is TreeLine.OfCards -> CardsPartRow(line.cards, line.depth, onClick = { onOpenCards(line.cards.languageId) })
                         }
                     }
                 }
@@ -181,6 +189,14 @@ private sealed interface TreeLine {
 
     data class OfRoutine(val routine: GoalRoutine, val depth: Int) : TreeLine {
         override val key get() = "routine ${routine.id}"
+    }
+
+    data class OfExam(val exam: GoalExam, val depth: Int) : TreeLine {
+        override val key get() = "exam ${exam.id}"
+    }
+
+    data class OfCards(val cards: GoalCards, val depth: Int) : TreeLine {
+        override val key get() = "cards ${cards.goalId}"
     }
 }
 
@@ -251,6 +267,42 @@ private fun RoutinePartRow(routine: GoalRoutine, depth: Int, onClick: () -> Unit
             .padding(start = treeIndent(depth, INDENT)),
     )
 }
+
+/**
+ * An exam of Sprachen that is part of a goal (SPEC.md §15), on a line of its own: "Prüfung: Arabisch A2 · 18 von 30
+ * Themen", or that it is taken; tapped, its topics.
+ */
+@Composable
+private fun ExamPartRow(exam: GoalExam, depth: Int, onClick: () -> Unit) {
+    val state = if (exam.taken) {
+        stringResource(R.string.goal_exam_taken)
+    } else {
+        stringResource(R.string.goal_exam_topics, exam.ticked, exam.topics)
+    }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.goal_exam, exam.title, state)) },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(start = treeIndent(depth, INDENT)),
+    )
+}
+
+/**
+ * A goal's Karten-Ziel (SPEC.md §15; #106), on a line of its own: "Karten: Arabisch · 412 von 1 000", the sure cards
+ * of those it asks for; tapped, the tab Karten of its language.
+ */
+@Composable
+private fun CardsPartRow(cards: GoalCards, depth: Int, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.goal_cards_line, cards.language, grouped(cards.sure), grouped(cards.count))) },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(start = treeIndent(depth, INDENT)),
+    )
+}
+
+/** [number] with its thousands set apart by a narrow space, as in "1 000". */
+private fun grouped(number: Int): String = number.toString().reversed().chunked(3).joinToString("\u202F").reversed()
 
 /**
  * "Routine · 12 von 30 Tagen am Stück", "Routine · Pausiert · Erreicht: 100 Mal erledigt", or "Routine" for one without

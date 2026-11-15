@@ -18,11 +18,16 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** An occurrence with its routine, which says how it is reminded of, where, and how long it stays open. */
+/**
+ * An occurrence with its routine, which says how it is reminded of, where, and how long it stays open, and the ids of
+ * its routine's checklist items, which tell whether it can be run through (SPEC.md §2, Ablauf-Modus).
+ */
 data class OccurrenceOfRoutine(
     @Embedded val occurrence: Occurrence,
     @Relation(parentColumn = "routine_id", entityColumn = "id") val routine: Routine,
     @Relation(parentColumn = "routine_id", entityColumn = "routine_id") val routinePlaces: List<RoutinePlace>,
+    @Relation(parentColumn = "routine_id", entityColumn = "routine_id", entity = ChecklistItem::class, projection = ["id"])
+    val checklistItemIds: List<Long> = emptyList(),
 ) {
     /** The places it pops up at; none: everywhere. */
     val placeIds: Set<Long> get() = routinePlaces.map { it.placeId }.toSet()
@@ -58,7 +63,7 @@ data class OccurrenceWithChecklist(
     fun entries(): List<ChecklistEntry> {
         val ticked = ticks.map { it.itemId }.toSet()
         return checklist.sortedBy { it.position }.map {
-            ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked)
+            ChecklistEntry(it.id, it.text, ticked = occurrence.status == OccurrenceStatus.Done || it.id in ticked, minutes = it.minutes)
         }
     }
 }
@@ -111,6 +116,18 @@ interface RoutineDao {
     @Query("SELECT routine_id, date, status FROM occurrences")
     fun observeOutcomes(): Flow<List<OccurrenceOutcome>>
 
+    /** How the occurrences from [from] on ended, for the flame (#108). */
+    @Query("SELECT routine_id, date, status FROM occurrences WHERE date >= :from")
+    suspend fun outcomesFrom(from: LocalDate): List<OccurrenceOutcome>
+
+    /** The day of the first occurrence, if there is one. */
+    @Query("SELECT MIN(date) FROM occurrences")
+    suspend fun firstDate(): LocalDate?
+
+    /** The days of the occurrences done from [from] on, once for each, for the heatmap (#108). */
+    @Query("SELECT date FROM occurrences WHERE status = :done AND date >= :from")
+    fun observeDoneFrom(from: LocalDate, done: OccurrenceStatus = OccurrenceStatus.Done): Flow<List<LocalDate>>
+
     @Query("SELECT routine_id, date, status FROM occurrences WHERE routine_id = :routineId")
     fun observeOutcomesOf(routineId: Long): Flow<List<OccurrenceOutcome>>
 
@@ -159,6 +176,10 @@ interface RoutineDao {
     /** Moves it to [time], where it is reminded of at that time again. */
     @Query("UPDATE occurrences SET time = :time, remind_at = NULL WHERE id = :id")
     suspend fun moveOccurrence(id: Long, time: LocalTime)
+
+    /** Keeps [at] as when the occurrence's run was first started, unless one was started before. */
+    @Query("UPDATE occurrences SET run_started_at = :at WHERE id = :id AND run_started_at IS NULL")
+    suspend fun startRun(id: Long, at: Instant)
 
     @Query("UPDATE occurrences SET remind_at = :until WHERE id = :id")
     suspend fun putOff(id: Long, until: Instant)
@@ -220,6 +241,11 @@ interface RoutineDao {
     @Transaction
     @Query("SELECT * FROM occurrences WHERE date BETWEEN :from AND :to")
     fun observeOccurrencesWithChecklists(from: LocalDate, to: LocalDate): Flow<List<OccurrenceWithChecklist>>
+
+    /** The occurrence with its routine and checklist; none once it is gone. */
+    @Transaction
+    @Query("SELECT * FROM occurrences WHERE id = :id")
+    fun observeOccurrenceWithChecklist(id: Long): Flow<OccurrenceWithChecklist?>
 
     @Query("SELECT place_id FROM routine_places WHERE routine_id = :routineId")
     suspend fun placeIdsOf(routineId: Long): List<Long>

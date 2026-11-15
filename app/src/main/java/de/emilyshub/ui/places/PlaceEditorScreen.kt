@@ -40,11 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -53,16 +55,21 @@ import de.emilyshub.places.Area
 import de.emilyshub.places.CurrentLocation
 import de.emilyshub.places.CurrentWifi
 import de.emilyshub.places.PlaceDraft
+import de.emilyshub.places.PlaceEditing
 import de.emilyshub.places.PlaceProblem
 import de.emilyshub.places.Places
 import de.emilyshub.places.Position
 import de.emilyshub.places.Ssid
 import de.emilyshub.places.Wifi
-import de.emilyshub.places.toDraft
 import de.emilyshub.ui.Checked
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
+import de.emilyshub.ui.differsAsSaved
+import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.fields.SaveBar
+import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.rememberClosing
+import de.emilyshub.ui.rememberLeaving
 import kotlinx.coroutines.launch
 import java.io.Serializable
 import kotlin.math.roundToInt
@@ -75,8 +82,8 @@ sealed interface PlaceEditorTarget : Serializable {
 }
 
 /**
- * Creates or changes a place with its name, WLANs and GPS area, or deletes it. Leaving without saving drops the
- * changes.
+ * Creates or changes a place with its name, WLANs and GPS area, or deletes it. Leaving with changes asks whether to
+ * save them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,38 +95,50 @@ fun PlaceEditorScreen(
     onClose: () -> Unit,
 ) {
     val placeId = (target as? PlaceEditorTarget.Edit)?.placeId
+    // What is edited, as it was saved: known at once for a new one, read first for one saved.
+    var editing by rememberSaveable { mutableStateOf(if (placeId == null) PlaceEditing.New else null) }
     var draft by rememberSaveable { mutableStateOf(PlaceDraft(name = "", wifis = emptyList())) }
-    var loaded by rememberSaveable { mutableStateOf(placeId == null) }
+    // The form as a new one starts out, to tell whether anything was typed.
+    val fresh = rememberSaveable { draft }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var triedToSave by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     val all by remember(places) { places.all() }.collectAsState(initial = null)
     val access = rememberLocationAccess()
 
-    if (!loaded && placeId != null) {
+    val opened = editing
+    if (opened == null) {
         LaunchedEffect(placeId) {
-            val place = places.get(placeId)
-            if (place == null) {
+            val saved = places.editing(checkNotNull(placeId))
+            if (saved == null) {
                 onClose()
             } else {
-                draft = place.toDraft()
-                loaded = true
+                draft = checkNotNull(saved.original)
+                editing = saved
             }
         }
         return
     }
-    // The other places, which its name is checked against; saving waits for them.
+    // The other places, which its name is checked against as it is typed; saving checks it again, as they are saved.
     val others = all?.filter { it.id != placeId } ?: return
     val problems = draft.problems(others)
     val closeWith = rememberClosing(onClose)
+    val firstField = rememberFirstField(new = placeId == null)
     val save = {
         if (problems.isNotEmpty()) {
             triedToSave = true
+            firstField.saveFailed(atField = problems.any { it in NAME_PROBLEMS })
         } else {
             val saved = draft
-            closeWith { if (placeId == null) places.create(saved) else places.update(placeId, saved) }
+            closeWith { places.save(opened, saved) }
         }
     }
+    val leave = rememberLeaving(
+        closing = closeWith,
+        changed = { differsAsSaved(draft, opened.original ?: fresh, PlaceDraft::cleaned) },
+        onSave = save,
+        onDiscard = onClose,
+    )
 
     Scaffold(
         topBar = {
@@ -131,7 +150,7 @@ fun PlaceEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
                     }
                 },
@@ -141,10 +160,10 @@ fun PlaceEditorScreen(
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
-                    TextButton(onClick = save) { Text(stringResource(R.string.save)) }
                 },
             )
         },
+        bottomBar = { SaveBar(onSave = save) },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -165,10 +184,12 @@ fun PlaceEditorScreen(
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text(stringResource(R.string.place_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 isError = nameProblem != null,
                 supportingText = nameProblem?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstField.requester),
             )
             // Both the WLAN connected to and the position now need the location allowed and on.
             if (access.current != LocationAccess.Granted) LocationAccessNotice(access)
@@ -240,13 +261,7 @@ private fun WifisField(
                 }
             }
         }
-        if (showMissing) {
-            Text(
-                stringResource(R.string.place_wifi_or_area_missing),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
+        if (showMissing) Problem(stringResource(R.string.place_wifi_or_area_missing))
         if (wifis.size >= PlaceDraft.WIFIS_MAX) {
             Text(stringResource(R.string.place_too_many_wifis, PlaceDraft.WIFIS_MAX), style = MaterialTheme.typography.bodyMedium)
             return@Column
@@ -391,3 +406,6 @@ private fun DegreesField(value: String, label: String, hint: String, problem: St
 
 /** The radius goes in steps of 10 m. */
 private const val RADIUS_STEP = 10
+
+/** What keeps a place's name from being saved, shown at it. */
+private val NAME_PROBLEMS = setOf(PlaceProblem.NameMissing, PlaceProblem.NameTaken, PlaceProblem.NameTooLong)
