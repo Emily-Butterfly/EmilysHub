@@ -6,6 +6,10 @@ import android.database.sqlite.SQLiteDatabaseCorruptException
 import android.database.sqlite.SQLiteException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.R
+import de.emilyshub.island.IslandClipboard
+import de.emilyshub.island.RawKey
+import de.emilyshub.island.SystemFingerprint
 import de.emilyshub.security.DatabaseKeyFile
 import de.emilyshub.security.KeystoreKeys
 import kotlinx.coroutines.CoroutineScope
@@ -37,9 +41,10 @@ class DokuDatabaseTest {
     private val doku = Doku(
         keyFile = keyFile,
         databaseFile = file,
-        fingerprint = SystemFingerprint(context),
+        schema = DokuDatabase.VERSION,
+        fingerprint = SystemFingerprint(context, "doku-test-fingerprint-key", R.string.doku_fingerprint_unlock_title, R.string.doku_fingerprint_enable_title),
         openDatabase = { rawKey -> DokuDatabase.open(context, rawKey, name) },
-        clipboard = DokuClipboard(context),
+        clipboard = IslandClipboard(context),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = 1_000,
@@ -127,7 +132,7 @@ class DokuDatabaseTest {
     }
 
     private fun readWithKey(key: ByteArray): String? {
-        val database = DokuDatabase.open(context, DokuDatabase.rawKey(key), name)
+        val database = DokuDatabase.open(context, RawKey.of(key), name)
         try {
             return runBlocking { database.settings().get("probe") }
         } finally {

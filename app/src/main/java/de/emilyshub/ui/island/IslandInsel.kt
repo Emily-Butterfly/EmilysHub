@@ -1,4 +1,4 @@
-package de.emilyshub.ui.doku
+package de.emilyshub.ui.island
 
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
@@ -20,41 +20,41 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.PlatformTextInputInterceptor
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
 import androidx.compose.ui.platform.PlatformTextInputSession
-import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuClipboard
+import de.emilyshub.island.Island
+import de.emilyshub.island.IslandClipboard
 
 /**
- * Keeps what is typed and copied in [content] on the island the Doku is (SPEC.md §14, "Insel"): every text field asks
- * the keyboard to learn nothing and to suggest no corrections, what is copied is marked sensitive for [doku]'s
- * clipboard to take off again, and each touch, key or keystroke tells [doku] it is still in use ([Doku.touched]).
- * Dialogs and menus have windows of their own: their touches reach [doku] by [touchesDoku] on them.
+ * Keeps what is typed and copied in [content] on the [island], the Doku or Tracking (SPEC.md §14 "Insel", §17): every
+ * text field asks the keyboard to learn nothing and to suggest no corrections, what is copied is marked sensitive for
+ * the island's clipboard to take off again, and each touch, key or keystroke tells the island it is still in use
+ * ([Island.touched]). Dialogs and menus have windows of their own: their touches reach it by [touchesIsland] on them.
  */
 @Composable
-fun DokuInsel(doku: Doku, content: @Composable () -> Unit) {
-    val keyboard = remember(doku) { PrivateKeyboard(doku::touched) }
+fun IslandInsel(island: Island<*>, content: @Composable () -> Unit) {
+    val keyboard = remember(island) { PrivateKeyboard(island::touched) }
     val platform = LocalClipboard.current
-    val clipboard = remember(platform, doku) { SensitiveClipboard(platform, doku.clipboard) }
+    val clipboard = remember(platform, island) { SensitiveClipboard(platform, island.clipboard) }
     InterceptPlatformTextInput(keyboard) {
         CompositionLocalProvider(LocalClipboard provides clipboard) {
-            Box(Modifier.touchesDoku(doku)) {
+            Box(Modifier.touchesIsland(island)) {
                 content()
             }
         }
     }
 }
 
-/** Tells [doku] of each touch and key in what it modifies, before anything there handles them. */
-fun Modifier.touchesDoku(doku: Doku): Modifier = this
-    .pointerInput(doku) {
+/** Tells [island] of each touch and key in what it modifies, before anything there handles them. */
+fun Modifier.touchesIsland(island: Island<*>): Modifier = this
+    .pointerInput(island) {
         awaitPointerEventScope {
             while (true) {
                 awaitPointerEvent(PointerEventPass.Initial)
-                doku.touched()
+                island.touched()
             }
         }
     }
     .onPreviewKeyEvent {
-        doku.touched()
+        island.touched()
         false
     }
 
@@ -104,8 +104,8 @@ private class TouchingConnection(target: InputConnection, private val onInput: (
     }
 }
 
-/** The [platform]'s clipboard, with what is copied marked by the Doku's [clipboard]. */
-private class SensitiveClipboard(private val platform: Clipboard, private val clipboard: DokuClipboard) : Clipboard by platform {
+/** The [platform]'s clipboard, with what is copied marked by the island's [clipboard]. */
+private class SensitiveClipboard(private val platform: Clipboard, private val clipboard: IslandClipboard) : Clipboard by platform {
     override suspend fun setClipEntry(clipEntry: ClipEntry?) {
         platform.setClipEntry(clipEntry?.let { ClipEntry(clipboard.markCopied(it.clipData)) })
     }

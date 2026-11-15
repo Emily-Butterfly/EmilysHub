@@ -6,32 +6,32 @@ import androidx.core.net.toUri
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupKey
 import de.emilyshub.backup.BackupMigration
-import de.emilyshub.backup.DataRescue
 import de.emilyshub.backup.Backups
+import de.emilyshub.backup.DataRescue
 import de.emilyshub.backup.DocumentFolder
 import de.emilyshub.backup.NightAlarm
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.data.AppSettings
 import de.emilyshub.data.DataUnavailable
 import de.emilyshub.data.HubData
+import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.KEYSTORE_ALIAS
+import de.emilyshub.data.SettingsDao
 import de.emilyshub.data.openOnPhone
 import de.emilyshub.data.phoneDataFiles
-import de.emilyshub.data.HubDatabase
-import de.emilyshub.data.SettingsDao
 import de.emilyshub.doku.Appointments
 import de.emilyshub.doku.Assessments
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuClipboard
 import de.emilyshub.doku.DokuDatabase
-import de.emilyshub.doku.Fingerprint
 import de.emilyshub.doku.Measurements
 import de.emilyshub.doku.Patients
-import de.emilyshub.doku.RawKey
-import de.emilyshub.doku.SystemFingerprint
 import de.emilyshub.doku.TestCatalog
 import de.emilyshub.inbox.CaptureNotification
 import de.emilyshub.inbox.Inbox
+import de.emilyshub.island.Fingerprint
+import de.emilyshub.island.IslandClipboard
+import de.emilyshub.island.RawKey
+import de.emilyshub.island.SystemFingerprint
 import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.Flashcards
@@ -49,15 +49,15 @@ import de.emilyshub.places.Places
 import de.emilyshub.places.SystemLocation
 import de.emilyshub.places.SystemWifi
 import de.emilyshub.reminders.AlarmRinger
+import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.Alarmed
 import de.emilyshub.reminders.Answer
-import de.emilyshub.reminders.AlarmSound
 import de.emilyshub.reminders.PhoneToneFiles
 import de.emilyshub.reminders.PhoneTones
 import de.emilyshub.reminders.Reminders
-import de.emilyshub.reminders.RunToOpen
 import de.emilyshub.reminders.RoutineReminding
 import de.emilyshub.reminders.RunNotification
+import de.emilyshub.reminders.RunToOpen
 import de.emilyshub.reminders.Sounds
 import de.emilyshub.reminders.SubscriptionReminding
 import de.emilyshub.reminders.TodoReminding
@@ -120,7 +120,9 @@ open class EmilysHubApplication : Application(), Hub {
     protected open val openDokuDatabase: (RawKey) -> DokuDatabase = { rawKey -> DokuDatabase.open(this, rawKey) }
 
     /** The fingerprint that may unlock the Doku. */
-    open val fingerprint: Fingerprint by lazy { SystemFingerprint(this) }
+    open val fingerprint: Fingerprint by lazy {
+        SystemFingerprint(this, "doku-fingerprint-key", R.string.doku_fingerprint_unlock_title, R.string.doku_fingerprint_enable_title)
+    }
 
     /** Where the settings are kept: in the database, opened only once it is asked, off the main thread. */
     protected open val settingsStore: () -> SettingsDao = { database.settings() }
@@ -302,9 +304,10 @@ open class EmilysHubApplication : Application(), Hub {
         Doku(
             keyFile = File(noBackupFilesDir, "doku.key"),
             databaseFile = getDatabasePath(DokuDatabase.NAME),
+            schema = DokuDatabase.VERSION,
             fingerprint = fingerprint,
             openDatabase = openDokuDatabase,
-            clipboard = DokuClipboard(this),
+            clipboard = IslandClipboard(this),
             io = io,
             background = background,
             iterations = backupIterations,

@@ -6,7 +6,8 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.HubDatabase
-import de.emilyshub.doku.DokuSnapshot
+import de.emilyshub.island.IslandSnapshot
+import de.emilyshub.island.IslandVault
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.Places
@@ -149,10 +150,10 @@ class BackupsOnDeviceTest {
     )
 
     /** No Doku is set up: the backups here are of the rest of the app. */
-    private object NoDoku : DokuVault {
-        override suspend fun snapshot(): DokuSnapshot? = null
+    private object NoDoku : IslandVault {
+        override suspend fun snapshot(): IslandSnapshot? = null
 
-        override suspend fun <T> replacedBy(snapshot: DokuSnapshot, during: suspend () -> T): T = during()
+        override suspend fun <T> replacedBy(snapshot: IslandSnapshot, during: suspend () -> T): T = during()
     }
 
     /** No lesson has attachments here. */

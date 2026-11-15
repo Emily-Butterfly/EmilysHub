@@ -4,6 +4,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.island.IslandVault
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
@@ -68,7 +69,7 @@ class Backups(
     private val wrappingKey: () -> SecretKey,
     private val clock: Clock,
     private val migration: BackupMigration,
-    private val doku: DokuVault,
+    private val doku: IslandVault,
     private val attachments: AttachmentVault,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,

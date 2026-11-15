@@ -5,9 +5,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuClipboard
+import de.emilyshub.island.IslandClipboard
 import de.emilyshub.doku.DokuDatabase
-import de.emilyshub.doku.DokuState
+import de.emilyshub.island.IslandState
 import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.PatientOrder
 import de.emilyshub.doku.FakeFingerprint
@@ -69,7 +69,7 @@ class DokuBackupTest {
 
         restore(file, dokuPassword = DOKU_PASSWORD)
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         unlock()
         assertEquals(listOf("Frau M."), patients())
         assertEquals(emptyList<String>(), routineNames())
@@ -80,7 +80,7 @@ class DokuBackupTest {
         setUpDoku()
         patient("Frau M.")
         val file = exported()
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
         patient("Herr K.")
 
         restore(file, dokuPassword = DOKU_PASSWORD)
@@ -98,7 +98,7 @@ class DokuBackupTest {
         val backup = open(exported())
 
         assertTrue(backup.hasDoku)
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
     }
 
     @Test
@@ -166,12 +166,12 @@ class DokuBackupTest {
 
         restore(file, dokuPassword = DOKU_PASSWORD)
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         assertFalse(app.fingerprint.hasKey)
         runBlocking { assertFalse(doku.unlockWithPassword("Ganz neues Passwort")) }
         unlock()
         turnOnFingerprint()
-        assertEquals(DokuState.Open(fingerprint = true), doku.state)
+        assertEquals(IslandState.Open(fingerprint = true), doku.state)
     }
 
     @Test
@@ -246,11 +246,11 @@ class DokuBackupTest {
         doku.lock()
         app.deleteDatabase(DokuDatabase.NAME)
         val elsewhere = dokuAt(File(app.noBackupFilesDir, "doku-elsewhere.key"))
-        assertEquals(DokuState.New, elsewhere.state)
+        assertEquals(IslandState.New, elsewhere.state)
 
         runBlocking { elsewhere.replacedBy(snapshot) {} }
 
-        assertEquals(DokuState.Locked(fingerprint = false), elsewhere.state)
+        assertEquals(IslandState.Locked(fingerprint = false), elsewhere.state)
         runBlocking { assertTrue(elsewhere.unlockWithPassword(DOKU_PASSWORD)) }
         assertEquals(listOf("Frau M."), runBlocking { elsewhere.withDatabase { db -> db.patients().all().map { it.name } } })
         elsewhere.lock()
@@ -270,7 +270,7 @@ class DokuBackupTest {
 
         val restarted = dokuAt(keyFile)
 
-        assertEquals(DokuState.Locked(fingerprint = false), restarted.state)
+        assertEquals(IslandState.Locked(fingerprint = false), restarted.state)
         runBlocking { assertTrue(restarted.unlockWithPassword(DOKU_PASSWORD)) }
         assertEquals(listOf("Frau M."), runBlocking { restarted.withDatabase { db -> db.patients().all().map { it.name } } })
         restarted.lock()
@@ -287,7 +287,7 @@ class DokuBackupTest {
 
         val restarted = dokuAt(keyFile)
 
-        assertEquals(DokuState.Locked(fingerprint = false), restarted.state)
+        assertEquals(IslandState.Locked(fingerprint = false), restarted.state)
         assertEquals(emptyList<String>(), leftOver())
     }
 
@@ -318,9 +318,10 @@ class DokuBackupTest {
     private fun dokuAt(keyFile: File) = Doku(
         keyFile = keyFile,
         databaseFile = databaseFile,
+        schema = DokuDatabase.VERSION,
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(app) },
-        clipboard = DokuClipboard(app),
+        clipboard = IslandClipboard(app),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = FEW_ITERATIONS,

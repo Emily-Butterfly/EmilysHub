@@ -1,4 +1,4 @@
-package de.emilyshub.doku
+package de.emilyshub.island
 
 import de.emilyshub.backup.BackupKey
 import de.emilyshub.security.KeyWrap
@@ -11,12 +11,12 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * What is kept of the Doku's database key (SPEC.md §14): never the key itself, only sealed by [KeyWrap], once under a
- * key derived from the Doku password ([byPassword], with its [salt] and [iterations]) and, with the fingerprint on,
+ * What is kept of the island's database key (SPEC.md §14): never the key itself, only sealed by [KeyWrap], once under a
+ * key derived from the island password ([byPassword], with its [salt] and [iterations]) and, with the fingerprint on,
  * once under the Keystore key that needs a fingerprint for each use ([byFingerprint]). Once a new fingerprint on the
  * phone made that key invalid, the fingerprint is off and [fingerprintLost] says so, until it is offered again.
  */
-internal class DokuKeys private constructor(
+internal class IslandKeys private constructor(
     private val salt: ByteArray,
     val iterations: Int,
     private val byPassword: ByteArray,
@@ -25,10 +25,10 @@ internal class DokuKeys private constructor(
 ) {
     val hasFingerprint: Boolean get() = byFingerprint != null
 
-    /** Only sealed under the Doku password, as a backup takes it along: the fingerprint's key stays on this phone. */
-    fun passwordOnly(): DokuKeys = DokuKeys(salt, iterations, byPassword, byFingerprint = null, fingerprintLost = false)
+    /** Only sealed under the island password, as a backup takes it along: the fingerprint's key stays on this phone. */
+    fun passwordOnly(): IslandKeys = IslandKeys(salt, iterations, byPassword, byFingerprint = null, fingerprintLost = false)
 
-    /** The database key, or null if [password] is not the Doku password. */
+    /** The database key, or null if [password] is not the island password. */
     fun openWithPassword(password: String): ByteArray? = try {
         KeyWrap.unwrap(byPassword, passwordKey(password, salt, iterations), KEY_BYTES, NAME)
     } catch (_: IllegalStateException) {
@@ -40,15 +40,15 @@ internal class DokuKeys private constructor(
         KeyWrap.unwrap(checkNotNull(byFingerprint) { "The fingerprint is off" }, cipher, KEY_BYTES, NAME)
 
     /** The same database [key], sealed anew under a new [password]; the fingerprint's stays as it is. */
-    fun withPassword(key: ByteArray, password: String, iterations: Int): DokuKeys =
+    fun withPassword(key: ByteArray, password: String, iterations: Int): IslandKeys =
         sealedWithPassword(key, password, iterations, byFingerprint, fingerprintLost)
 
     /** With the database [key] also sealed by [cipher], which the fingerprint has set free for sealing. */
-    fun withFingerprint(key: ByteArray, cipher: Cipher): DokuKeys =
-        DokuKeys(salt, iterations, byPassword, KeyWrap.wrap(key, cipher), fingerprintLost = false)
+    fun withFingerprint(key: ByteArray, cipher: Cipher): IslandKeys =
+        IslandKeys(salt, iterations, byPassword, KeyWrap.wrap(key, cipher), fingerprintLost = false)
 
     /** With the fingerprint off; [lost] when a new fingerprint on the phone turned it off, to offer it again. */
-    fun withoutFingerprint(lost: Boolean = false): DokuKeys = DokuKeys(salt, iterations, byPassword, null, lost)
+    fun withoutFingerprint(lost: Boolean = false): IslandKeys = IslandKeys(salt, iterations, byPassword, null, lost)
 
     /** As written to the key file ([fromBytes] reads it back). */
     fun toBytes(): ByteArray = ByteArrayOutputStream().also { bytes ->
@@ -70,7 +70,7 @@ internal class DokuKeys private constructor(
 
     companion object {
         const val KEY_BYTES = 32
-        private const val NAME = "Doku key"
+        private const val NAME = "island key"
         private const val FORMAT = 1
         private const val FINGERPRINT_OFF = 0
         private const val FINGERPRINT_ON = 1
@@ -81,22 +81,22 @@ internal class DokuKeys private constructor(
         fun newKey(): ByteArray = ByteArray(KEY_BYTES).also(SecureRandom()::nextBytes)
 
         /** The database [key] sealed under [password], without the fingerprint. */
-        fun sealed(key: ByteArray, password: String, iterations: Int): DokuKeys =
+        fun sealed(key: ByteArray, password: String, iterations: Int): IslandKeys =
             sealedWithPassword(key, password, iterations, byFingerprint = null, fingerprintLost = false)
 
         /** What [toBytes] wrote; fails on a file that is damaged or of an unknown format. */
-        fun fromBytes(bytes: ByteArray): DokuKeys = DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            check(input.readInt() == FORMAT) { "The Doku key file has an unknown format" }
+        fun fromBytes(bytes: ByteArray): IslandKeys = DataInputStream(ByteArrayInputStream(bytes)).use { input ->
+            check(input.readInt() == FORMAT) { "The island key file has an unknown format" }
             val iterations = input.readInt()
             val salt = input.readBlock(MAX_SALT)
             val sealedSize = KeyWrap.wrappedSize(KEY_BYTES)
-            val byPassword = input.readBlock(sealedSize).also { check(it.size == sealedSize) { "The Doku key file is damaged" } }
+            val byPassword = input.readBlock(sealedSize).also { check(it.size == sealedSize) { "The island key file is damaged" } }
             val fingerprint = input.readUnsignedByte()
-            check(fingerprint in FINGERPRINT_OFF..FINGERPRINT_LOST) { "The Doku key file is damaged" }
+            check(fingerprint in FINGERPRINT_OFF..FINGERPRINT_LOST) { "The island key file is damaged" }
             val byFingerprint = if (fingerprint == FINGERPRINT_ON) input.readBlock(sealedSize) else null
-            check(byFingerprint == null || byFingerprint.size == sealedSize) { "The Doku key file is damaged" }
-            check(input.read() == -1) { "The Doku key file is damaged" }
-            DokuKeys(salt, iterations, byPassword, byFingerprint, fingerprintLost = fingerprint == FINGERPRINT_LOST)
+            check(byFingerprint == null || byFingerprint.size == sealedSize) { "The island key file is damaged" }
+            check(input.read() == -1) { "The island key file is damaged" }
+            IslandKeys(salt, iterations, byPassword, byFingerprint, fingerprintLost = fingerprint == FINGERPRINT_LOST)
         }
 
         private fun sealedWithPassword(
@@ -105,11 +105,11 @@ internal class DokuKeys private constructor(
             iterations: Int,
             byFingerprint: ByteArray?,
             fingerprintLost: Boolean,
-        ): DokuKeys {
-            require(key.size == KEY_BYTES) { "The Doku key must be $KEY_BYTES bytes" }
+        ): IslandKeys {
+            require(key.size == KEY_BYTES) { "The island key must be $KEY_BYTES bytes" }
             val salt = ByteArray(BackupKey.SALT_BYTES).also(SecureRandom()::nextBytes)
             val sealed = KeyWrap.wrap(key, passwordKey(password, salt, iterations))
-            return DokuKeys(salt, iterations, sealed, byFingerprint, fingerprintLost)
+            return IslandKeys(salt, iterations, sealed, byFingerprint, fingerprintLost)
         }
 
         /** The AES key PBKDF2 derives from [password], as for the backups' ([BackupKey]); the derived bytes are wiped once set. */
@@ -129,7 +129,7 @@ internal class DokuKeys private constructor(
 
         private fun DataInputStream.readBlock(max: Int): ByteArray {
             val size = readInt()
-            check(size in 0..max) { "The Doku key file is damaged" }
+            check(size in 0..max) { "The island key file is damaged" }
             return ByteArray(size).also(::readFully)
         }
     }

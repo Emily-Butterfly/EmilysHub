@@ -77,6 +77,8 @@ import de.emilyshub.doku.assessments.TextItem
 import de.emilyshub.doku.assessments.TimeItem
 import de.emilyshub.doku.assessments.YesNoItem
 import de.emilyshub.doku.assessments.toggled
+import de.emilyshub.ui.island.IslandInsel
+import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.rememberClosing
 
@@ -153,7 +155,7 @@ internal fun ChooseAssessment(doku: Doku, assessments: Assessments, onChoose: (S
                 .semantics { heading() },
         )
     }
-    DokuInsel(doku) {
+    IslandInsel(doku) {
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(R.string.doku_assessment_choose)) },
@@ -184,7 +186,7 @@ internal fun ChooseAssessment(doku: Doku, assessments: Assessments, onChoose: (S
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-            modifier = Modifier.touchesDoku(doku),
+            modifier = Modifier.touchesIsland(doku),
         )
     }
 }
@@ -533,7 +535,7 @@ private fun AssessmentMenu(doku: Doku, onDelete: () -> Unit) {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_assessment_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesIsland(doku)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_assessment_delete)) },
                 onClick = {

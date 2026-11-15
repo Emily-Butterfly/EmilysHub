@@ -1,4 +1,4 @@
-package de.emilyshub.doku
+package de.emilyshub.island
 
 import de.emilyshub.security.writeDurably
 import java.io.File
@@ -6,11 +6,11 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 
 /**
- * The files the Doku lies in: its [keyFile], and its [database] with the files SQLite keeps beside it; read for a
+ * The files the island lies in: its [keyFile], and its [database] with the files SQLite keeps beside it; read for a
  * backup ([snapshot]) and put in place of from one ([replaceWith]), both while the database is closed or nothing
  * writes to it.
  */
-internal class DokuFiles(private val keyFile: File, private val database: File) {
+internal class IslandFiles(private val keyFile: File, private val database: File, private val schema: Int) {
     private val wal = File("${database.path}-wal")
     private val sharedMemory = File("${database.path}-shm")
     private val journal = File("${database.path}-journal")
@@ -19,18 +19,18 @@ internal class DokuFiles(private val keyFile: File, private val database: File) 
     private val kept = listOf(keyFile, database, wal, journal)
 
     /** The database as it lies, with its write-ahead log if there is one, and [keys]; null if larger than [maxBytes]. */
-    fun snapshot(keys: DokuKeys, maxBytes: Int): DokuSnapshot? {
+    fun snapshot(keys: IslandKeys, maxBytes: Int): IslandSnapshot? {
         val log = wal.takeIf { it.length() > 0 }
         if (database.length() + (log?.length() ?: 0) > maxBytes) return null
         val bytes = if (database.exists()) database.readBytes() else ByteArray(0)
-        return DokuSnapshot(DokuDatabase.VERSION, keys, bytes, log?.readBytes())
+        return IslandSnapshot(schema, keys, bytes, log?.readBytes())
     }
 
     /**
      * Puts [snapshot] in place of the files there are, which are kept aside until the [Replacement] is [Replacement.done]
      * or [Replacement.undo]ne. Failing, it leaves the files as they were.
      */
-    fun replaceWith(snapshot: DokuSnapshot): Replacement {
+    fun replaceWith(snapshot: IslandSnapshot): Replacement {
         database.parentFile?.mkdirs()
         val staged = mutableListOf<Pair<File, File>>()
         val aside = mutableListOf<File>()

@@ -1,6 +1,6 @@
 package de.emilyshub.backup
 
-import de.emilyshub.doku.DokuSnapshot
+import de.emilyshub.island.IslandSnapshot
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -26,7 +26,7 @@ class BackupContent(
     val schema: Int,
     val created: Instant,
     val tables: Map<String, TableRows>,
-    val doku: DokuSnapshot? = null,
+    val doku: IslandSnapshot? = null,
     val attachments: List<BackupAttachment> = emptyList(),
 ) {
 
@@ -45,7 +45,7 @@ class BackupContent(
         return root.toString().toByteArray()
     }
 
-    private fun dokuJson(doku: DokuSnapshot): JSONObject {
+    private fun dokuJson(doku: IslandSnapshot): JSONObject {
         val base64 = Base64.getEncoder()
         return JSONObject()
             .put(SCHEMA, doku.schema)
@@ -93,11 +93,11 @@ class BackupContent(
         }
 
         /** Its keys must be sealed under the Doku password alone; the database is checked only once it is opened. */
-        private fun doku(doku: JSONObject): DokuSnapshot {
+        private fun doku(doku: JSONObject): IslandSnapshot {
             if (doku.keySet() - WAL != setOf(SCHEMA, KEYS, DATABASE)) damaged()
             val base64 = Base64.getDecoder()
             fun bytes(key: String) = base64.decode(doku.get(key) as? String ?: damaged())
-            return DokuSnapshot.of(
+            return IslandSnapshot.of(
                 schema = doku.get(SCHEMA) as? Int ?: damaged(),
                 sealedKeys = bytes(KEYS),
                 database = bytes(DATABASE),

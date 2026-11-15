@@ -1,6 +1,9 @@
 package de.emilyshub.doku
 
 import android.app.Activity
+import de.emilyshub.island.Fingerprint
+import de.emilyshub.island.FingerprintPurpose
+import de.emilyshub.island.PromptResult
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.crypto.Cipher

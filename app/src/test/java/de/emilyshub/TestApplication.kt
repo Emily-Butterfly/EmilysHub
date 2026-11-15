@@ -11,7 +11,7 @@ import de.emilyshub.data.Unopenable
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.FakeFingerprint
-import de.emilyshub.doku.RawKey
+import de.emilyshub.island.RawKey
 import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi

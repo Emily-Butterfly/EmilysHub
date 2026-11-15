@@ -50,6 +50,7 @@ import de.emilyshub.doku.PatientField
 import de.emilyshub.doku.toDraft
 import de.emilyshub.notes.Markdown
 import de.emilyshub.ui.clockTime
+import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.notes.MarkdownText
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.rememberClosing
@@ -197,7 +198,7 @@ private fun Header(
             IconButton(onClick = { menu = true }) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_patient_menu))
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.touchesDoku(doku)) {
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.touchesIsland(doku)) {
                 val item = @Composable { label: Int, action: () -> Unit ->
                     DropdownMenuItem(
                         text = { Text(stringResource(label)) },
@@ -330,7 +331,7 @@ internal fun ConfirmDeleting(doku: Doku, title: String, text: String?, onDelete:
         text = text?.let { { Text(it) } },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.doku_patient_delete)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        modifier = Modifier.touchesDoku(doku),
+        modifier = Modifier.touchesIsland(doku),
     )
 }
 

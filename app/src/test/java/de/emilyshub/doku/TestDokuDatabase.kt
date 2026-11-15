@@ -3,12 +3,13 @@ package de.emilyshub.doku
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
+import de.emilyshub.island.SECURE_DELETE
 import org.json.JSONObject
 import java.io.File
 
 /**
  * `doku.db` in a file, so that what is in it outlives locking, but with Android's own SQLite, as SQLCipher's needs its
- * native library: the key is checked by [DokuKeys] before, and here takes no part.
+ * native library: the key is checked by [IslandKeys] before, and here takes no part.
  */
 fun testDokuDatabase(context: Context): DokuDatabase =
     Room.databaseBuilder(context, DokuDatabase::class.java, DokuDatabase.NAME)
@@ -16,7 +17,7 @@ fun testDokuDatabase(context: Context): DokuDatabase =
         .setQueryExecutor(Runnable::run)
         .setTransactionExecutor(Runnable::run)
         .addMigrations(*DokuDatabase.MIGRATIONS.toTypedArray())
-        .addCallback(DokuDatabase.SECURE_DELETE)
+        .addCallback(SECURE_DELETE)
         .build()
 
 /** `doku.db` laid out as [version] had it, by the schema Room exported, and [fill]ed; with no key, as [testDokuDatabase]. */

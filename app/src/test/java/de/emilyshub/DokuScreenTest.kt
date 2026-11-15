@@ -13,7 +13,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.text.TextRange
-import de.emilyshub.ui.doku.DokuInsel
+import de.emilyshub.ui.island.IslandInsel
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.AbstractComposeView
@@ -36,8 +36,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import de.emilyshub.doku.DokuState
-import de.emilyshub.doku.FingerprintPurpose
+import de.emilyshub.island.IslandState
+import de.emilyshub.island.FingerprintPurpose
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -107,7 +107,7 @@ class DokuScreenTest {
 
             compose.onNode(isSelectable() and hasText("Heute")).performClick()
             compose.waitForIdle()
-            assertTrue(app.doku.state is DokuState.Locked)
+            assertTrue(app.doku.state is IslandState.Locked)
             compose.openDoku()
 
             compose.onNodeWithText("Die Dokumentation ist gesperrt").assertIsDisplayed()
@@ -131,7 +131,7 @@ class DokuScreenTest {
             compose.onNodeWithContentDescription("Zurück").performClick()
             compose.waitForIdle()
 
-            assertTrue(app.doku.state is DokuState.Locked)
+            assertTrue(app.doku.state is IslandState.Locked)
             compose.onNodeWithText("Dokumentation").assertIsDisplayed()
         }
     }
@@ -224,7 +224,7 @@ class DokuScreenTest {
             compose.waitForIdle()
             fingerprint.succeed()
             compose.waitForIdle()
-            assertEquals(DokuState.Open(fingerprint = true), app.doku.state)
+            assertEquals(IslandState.Open(fingerprint = true), app.doku.state)
         }
     }
 
@@ -265,12 +265,12 @@ class DokuScreenTest {
             compose.waitForIdle()
             fingerprint.succeed()
             compose.waitForIdle()
-            assertEquals(DokuState.Open(fingerprint = true), app.doku.state)
+            assertEquals(IslandState.Open(fingerprint = true), app.doku.state)
 
             compose.onNodeWithContentDescription("Menü der Dokumentation").performClick()
             compose.onNodeWithText("Fingerabdruck").performClick()
             compose.waitForIdle()
-            assertEquals(DokuState.Open(fingerprint = false), app.doku.state)
+            assertEquals(IslandState.Open(fingerprint = false), app.doku.state)
         }
     }
 
@@ -356,7 +356,7 @@ class DokuScreenTest {
             // A text field such as the patients' editors will have (#59), on the island the Doku is.
             scenario.onActivity { activity ->
                 activity.setContent {
-                    DokuInsel(app.doku) {
+                    IslandInsel(app.doku) {
                         var text by remember { mutableStateOf("") }
                         TextField(value = text, onValueChange = { text = it }, label = { Text("Diagnose") })
                     }

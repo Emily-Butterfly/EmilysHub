@@ -1,4 +1,4 @@
-package de.emilyshub.ui.doku
+package de.emilyshub.ui.island
 
 import android.content.Context
 import androidx.lifecycle.Lifecycle
@@ -7,9 +7,9 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.doku.Doku
-import de.emilyshub.doku.DokuClipboard
+import de.emilyshub.island.IslandClipboard
 import de.emilyshub.doku.DokuDatabase
-import de.emilyshub.doku.DokuState
+import de.emilyshub.island.IslandState
 import de.emilyshub.doku.FakeFingerprint
 import de.emilyshub.doku.testDokuDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -23,22 +23,23 @@ import java.io.File
 
 /** When the screen locks the Doku (SPEC.md §14): on leaving it, and as the app leaves the screen or the screen goes off. */
 @RunWith(AndroidJUnit4::class)
-class DokuLockerTest {
+class IslandLockerTest {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val doku = Doku(
         keyFile = File(context.noBackupFilesDir, "doku-locker-test.key"),
         databaseFile = context.getDatabasePath(DokuDatabase.NAME),
+        schema = DokuDatabase.VERSION,
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(context) },
-        clipboard = DokuClipboard(context),
+        clipboard = IslandClipboard(context),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = 1_000,
     ).also { runBlocking { it.load(); it.setUp("geheim-geheim") } }
 
     private var rotating = false
-    private val locker = DokuLocker(doku) { rotating }
+    private val locker = IslandLocker(doku) { rotating }
 
     /** The activity showing the Doku, in front. */
     private val owner = object : LifecycleOwner {
@@ -59,7 +60,7 @@ class DokuLockerTest {
     fun `leaving the Doku locks it`() {
         locker.left()
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
     }
 
     @Test
@@ -67,14 +68,14 @@ class DokuLockerTest {
         // Both stop the activity.
         lifecycle.currentState = Lifecycle.State.CREATED
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
     }
 
     @Test
     fun `merely pausing, as under a dialog of the system, keeps it open`() {
         lifecycle.currentState = Lifecycle.State.STARTED
 
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
 
     @Test
@@ -84,6 +85,6 @@ class DokuLockerTest {
         lifecycle.currentState = Lifecycle.State.CREATED
         locker.left()
 
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
 }

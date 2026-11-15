@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.doku.assessments.Answer
 import de.emilyshub.doku.assessments.BodyRegion
+import de.emilyshub.island.IslandClipboard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -35,9 +36,10 @@ class AssessmentsTest {
     private val doku = Doku(
         keyFile = File(context.noBackupFilesDir, "assessments-test.key"),
         databaseFile = context.getDatabasePath(DokuDatabase.NAME),
+        schema = DokuDatabase.VERSION,
         fingerprint = FakeFingerprint(),
         openDatabase = { testDokuDatabase(context) },
-        clipboard = DokuClipboard(context),
+        clipboard = IslandClipboard(context),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = 1_000,

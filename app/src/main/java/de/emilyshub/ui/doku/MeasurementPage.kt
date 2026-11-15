@@ -52,6 +52,7 @@ import de.emilyshub.doku.TestNumber
 import de.emilyshub.doku.TestValue
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.rememberClosing
 
 /**
@@ -109,7 +110,7 @@ internal fun ChooseTest(doku: Doku, tests: TestCatalog, onChoose: (Long) -> Unit
         },
         confirmButton = {},
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        modifier = Modifier.touchesDoku(doku),
+        modifier = Modifier.touchesIsland(doku),
     )
 }
 
@@ -250,7 +251,7 @@ private fun MeasurementMenu(doku: Doku, onDelete: () -> Unit) {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_measurement_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesIsland(doku)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_measurement_delete)) },
                 onClick = {

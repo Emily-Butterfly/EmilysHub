@@ -35,6 +35,8 @@ import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.fields.DateValue
 import de.emilyshub.ui.fields.LabelledValue
 import de.emilyshub.ui.fields.TimeDialog
+import de.emilyshub.ui.island.IslandInsel
+import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.rememberClosing
 import kotlinx.coroutines.launch
@@ -155,7 +157,7 @@ internal fun AppointmentPage(
 
     if (pickingDate) {
         // The time is typed: its fields too ask the keyboard to learn nothing.
-        DokuInsel(doku) {
+        IslandInsel(doku) {
             DateDialog(
                 initial = current.date,
                 onConfirm = { date ->
@@ -163,12 +165,12 @@ internal fun AppointmentPage(
                     scope.launch { appointments.setDate(page.id, date) }
                 },
                 onDismiss = { pickingDate = false },
-                modifier = Modifier.touchesDoku(doku),
+                modifier = Modifier.touchesIsland(doku),
             )
         }
     }
     if (pickingTime) {
-        DokuInsel(doku) {
+        IslandInsel(doku) {
             TimeDialog(
                 initial = current.time ?: LocalTime.of(DEFAULT_HOUR, 0),
                 onConfirm = { time ->
@@ -176,7 +178,7 @@ internal fun AppointmentPage(
                     scope.launch { appointments.setTime(page.id, time) }
                 },
                 onDismiss = { pickingTime = false },
-                modifier = Modifier.touchesDoku(doku),
+                modifier = Modifier.touchesIsland(doku),
             )
         }
     }
@@ -206,7 +208,7 @@ private fun AppointmentMenu(doku: Doku, onDelete: () -> Unit) {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_appointment_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesIsland(doku)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.doku_appointment_delete)) },
                 onClick = {
@@ -246,7 +248,7 @@ private fun ConfirmDeletingAppointment(
         },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.doku_appointment_delete)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        modifier = Modifier.touchesDoku(doku),
+        modifier = Modifier.touchesIsland(doku),
     )
 }
 

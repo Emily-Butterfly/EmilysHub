@@ -1,4 +1,4 @@
-package de.emilyshub.doku
+package de.emilyshub.island
 
 import android.app.Activity
 import android.content.Context
@@ -7,6 +7,7 @@ import android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STR
 import android.hardware.biometrics.BiometricPrompt
 import android.os.CancellationSignal
 import android.security.keystore.KeyPermanentlyInvalidatedException
+import androidx.annotation.StringRes
 import de.emilyshub.R
 import de.emilyshub.security.KeyWrap
 import de.emilyshub.security.KeystoreKeys
@@ -16,7 +17,7 @@ import kotlin.coroutines.resume
 
 /** What the fingerprint's prompt is shown for: its title and second button differ. */
 enum class FingerprintPurpose {
-    /** To open the Doku; its second button says "Passwort". */
+    /** To open the island; its second button says "Passwort". */
     Unlock,
 
     /** To turn the fingerprint on; its second button says "Abbrechen". */
@@ -36,7 +37,7 @@ sealed interface PromptResult {
 }
 
 /**
- * The fingerprint as the Doku uses it (SPEC.md §14): a Keystore key that needs a strong fingerprint for every use, set
+ * The fingerprint as the island uses it (SPEC.md §14): a Keystore key that needs a strong fingerprint for every use, set
  * free by the system's prompt. The phone's PIN, pattern or password never set it free.
  */
 interface Fingerprint {
@@ -59,16 +60,25 @@ interface Fingerprint {
     suspend fun prompt(activity: Activity, cipher: Cipher, purpose: FingerprintPurpose): PromptResult
 }
 
-/** The platform's: from Android 11 (the app's minSdk) BiometricPrompt takes a cipher to set free, without the androidx library. */
-class SystemFingerprint(private val context: Context) : Fingerprint {
+/**
+ * The platform's: from Android 11 (the app's minSdk) BiometricPrompt takes a cipher to set free, without the androidx
+ * library. Each island has its own, under its own Keystore [alias], so that one's fingerprint never opens the other;
+ * the prompt is titled [unlockTitle] to unlock and [turnOnTitle] to turn it on.
+ */
+class SystemFingerprint(
+    private val context: Context,
+    private val alias: String,
+    @param:StringRes private val unlockTitle: Int,
+    @param:StringRes private val turnOnTitle: Int,
+) : Fingerprint {
 
     override fun isEnrolled() =
         context.getSystemService(BiometricManager::class.java).canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
 
-    override fun sealingCipher(): Cipher = KeyWrap.sealingCipher(KeystoreKeys.createFingerprintKey(ALIAS))
+    override fun sealingCipher(): Cipher = KeyWrap.sealingCipher(KeystoreKeys.createFingerprintKey(alias))
 
     override fun openingCipher(wrapped: ByteArray): Cipher? {
-        val key = KeystoreKeys.get(ALIAS) ?: return null
+        val key = KeystoreKeys.get(alias) ?: return null
         return try {
             KeyWrap.openingCipher(wrapped, key)
         } catch (_: KeyPermanentlyInvalidatedException) {
@@ -76,13 +86,13 @@ class SystemFingerprint(private val context: Context) : Fingerprint {
         }
     }
 
-    override fun deleteKey() = KeystoreKeys.delete(ALIAS)
+    override fun deleteKey() = KeystoreKeys.delete(alias)
 
     override suspend fun prompt(activity: Activity, cipher: Cipher, purpose: FingerprintPurpose): PromptResult =
         suspendCancellableCoroutine { continuation ->
             val (title, other) = when (purpose) {
-                FingerprintPurpose.Unlock -> R.string.doku_fingerprint_unlock_title to R.string.doku_password
-                FingerprintPurpose.TurnOn -> R.string.doku_fingerprint_enable_title to R.string.cancel
+                FingerprintPurpose.Unlock -> unlockTitle to R.string.doku_password
+                FingerprintPurpose.TurnOn -> turnOnTitle to R.string.cancel
             }
             // The first of the ways it ends counts; the others, as the error that follows a cancelled prompt, are ignored.
             val end = { result: PromptResult -> if (continuation.isActive) continuation.resume(result) }
@@ -101,8 +111,4 @@ class SystemFingerprint(private val context: Context) : Fingerprint {
             continuation.invokeOnCancellation { activity.mainExecutor.execute(cancellation::cancel) }
             prompt.authenticate(BiometricPrompt.CryptoObject(cipher), cancellation, activity.mainExecutor, callback)
         }
-
-    private companion object {
-        const val ALIAS = "doku-fingerprint-key"
-    }
 }

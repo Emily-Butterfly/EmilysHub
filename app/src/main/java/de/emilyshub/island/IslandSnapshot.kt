@@ -1,24 +1,24 @@
-package de.emilyshub.doku
+package de.emilyshub.island
 
 import de.emilyshub.backup.BackupKey
 import java.io.IOException
 
 /**
- * The Doku as a backup holds it (SPEC.md §10): `doku.db` as it lies on disk, encrypted by SQLCipher, with its
- * write-ahead log if there is one, and the database key sealed under the Doku password ([keys]), never under the
- * fingerprint; nothing of it decrypted. [schema] is the version of `doku.db` the app that made it knew: the file itself
- * may be older, as only opening the Doku brings it up to date, which its migrations then do once it is put back.
+ * The island as a backup holds it (SPEC.md §10): its database as it lies on disk, encrypted by SQLCipher, with its
+ * write-ahead log if there is one, and the database key sealed under the island password ([keys]), never under the
+ * fingerprint; nothing of it decrypted. [schema] is the version of its database the app that made it knew: the file itself
+ * may be older, as only opening the island brings it up to date, which its migrations then do once it is put back.
  */
-class DokuSnapshot internal constructor(
+class IslandSnapshot internal constructor(
     val schema: Int,
-    internal val keys: DokuKeys,
+    internal val keys: IslandKeys,
     val database: ByteArray,
     val wal: ByteArray?,
 ) {
     /** The keys as the key file holds them. */
     val sealedKeys: ByteArray get() = keys.toBytes()
 
-    /** Whether [password] is the Doku password the key is sealed under; as slow as unlocking. */
+    /** Whether [password] is the island password the key is sealed under; as slow as unlocking. */
     fun opensWith(password: String): Boolean = keys.openWithPassword(password)?.also { it.fill(0) } != null
 
     companion object {
@@ -26,16 +26,16 @@ class DokuSnapshot internal constructor(
          * The snapshot of these parts, as a backup holds them; null if they are not one: the keys damaged, sealed under
          * the fingerprint, or with more iterations than the app would ever set.
          */
-        fun of(schema: Int, sealedKeys: ByteArray, database: ByteArray, wal: ByteArray?): DokuSnapshot? {
+        fun of(schema: Int, sealedKeys: ByteArray, database: ByteArray, wal: ByteArray?): IslandSnapshot? {
             val keys = try {
-                DokuKeys.fromBytes(sealedKeys)
+                IslandKeys.fromBytes(sealedKeys)
             } catch (_: IllegalStateException) {
                 return null
             } catch (_: IOException) {
                 return null
             }
             if (keys.hasFingerprint || keys.fingerprintLost || keys.iterations !in BackupKey.ACCEPTED_ITERATIONS || schema < 1) return null
-            return DokuSnapshot(schema, keys, database, wal)
+            return IslandSnapshot(schema, keys, database, wal)
         }
     }
 }

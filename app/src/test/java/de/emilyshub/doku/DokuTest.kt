@@ -6,6 +6,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.island.FingerprintPurpose
+import de.emilyshub.island.FingerprintUnlock
+import de.emilyshub.island.IslandClipboard
+import de.emilyshub.island.IslandPasswordProblem
+import de.emilyshub.island.IslandState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -40,9 +45,10 @@ class DokuTest {
     private fun newDoku() = Doku(
         keyFile = keyFile,
         databaseFile = context.getDatabasePath(DokuDatabase.NAME),
+        schema = DokuDatabase.VERSION,
         fingerprint = fingerprint,
         openDatabase = { rawKey -> opened += rawKey.bytes; testDokuDatabase(context) },
-        clipboard = DokuClipboard(context),
+        clipboard = IslandClipboard(context),
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = 1_000,
@@ -85,17 +91,17 @@ class DokuTest {
 
     @Test
     fun `at first the Doku has no password, and setting it opens it`() {
-        assertEquals(DokuState.New, doku.state)
+        assertEquals(IslandState.New, doku.state)
 
         setUp()
 
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
 
     @Test
     fun `the Doku password has at least eight characters, typed twice alike`() {
-        assertEquals(DokuPasswordProblem.TooShort, Doku.passwordProblem("1234567", "1234567"))
-        assertEquals(DokuPasswordProblem.NotRepeated, Doku.passwordProblem("12345678", "12345679"))
+        assertEquals(IslandPasswordProblem.TooShort, Doku.passwordProblem("1234567", "1234567"))
+        assertEquals(IslandPasswordProblem.NotRepeated, Doku.passwordProblem("12345678", "12345679"))
         assertNull(Doku.passwordProblem("12345678", "12345678"))
         assertThrows(IllegalArgumentException::class.java) { setUp("1234567") }
     }
@@ -108,7 +114,7 @@ class DokuTest {
 
         assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
 
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
         assertEquals("Frau M.", read())
     }
 
@@ -119,7 +125,7 @@ class DokuTest {
 
         assertFalse(runBlocking { doku.unlockWithPassword("falsches Passwort") })
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         assertNull(openDatabase())
     }
 
@@ -129,7 +135,7 @@ class DokuTest {
 
         val afterRestart = newDoku()
 
-        assertEquals(DokuState.Locked(fingerprint = false), afterRestart.state)
+        assertEquals(IslandState.Locked(fingerprint = false), afterRestart.state)
         assertTrue(runBlocking { afterRestart.unlockWithPassword(PASSWORD) })
         afterRestart.lock()
     }
@@ -163,7 +169,7 @@ class DokuTest {
 
         doku.lock()
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         assertFalse(database.isOpen)
         assertTrue(opened.single().all { it == 0.toByte() })
         assertNull(openDatabase())
@@ -217,10 +223,10 @@ class DokuTest {
         val idle = backgroundScope.launch { doku.lockWhenIdle() }
 
         wait(Doku.IDLE_MILLIS - 1)
-        assertTrue(doku.state is DokuState.Open)
+        assertTrue(doku.state is IslandState.Open)
 
         wait(1)
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         assertTrue("it returns once locked", idle.isCompleted)
     }
 
@@ -232,10 +238,10 @@ class DokuTest {
         wait(Doku.IDLE_MILLIS - 1)
         doku.touched()
         wait(Doku.IDLE_MILLIS - 1)
-        assertTrue(doku.state is DokuState.Open)
+        assertTrue(doku.state is IslandState.Open)
 
         wait(1)
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
     }
 
     @Test
@@ -259,12 +265,12 @@ class DokuTest {
         write("Frau M.")
         doku.lock()
 
-        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = true), doku.state)
         val result = answering({ doku.unlockWithFingerprint(activity) }) { succeed() }
 
         assertEquals(FingerprintUnlock.Opened, result)
         assertEquals(FingerprintPurpose.Unlock, fingerprint.lastPurpose)
-        assertEquals(DokuState.Open(fingerprint = true), doku.state)
+        assertEquals(IslandState.Open(fingerprint = true), doku.state)
         assertEquals("Frau M.", read())
     }
 
@@ -277,7 +283,7 @@ class DokuTest {
 
         assertEquals(FingerprintUnlock.Password, answering({ doku.unlockWithFingerprint(activity) }) { chooseOther() })
         assertEquals(FingerprintUnlock.Dismissed, answering({ doku.unlockWithFingerprint(activity) }) { dismiss() })
-        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = true), doku.state)
     }
 
     @Test
@@ -287,7 +293,7 @@ class DokuTest {
 
         assertFalse(answering({ doku.turnOnFingerprint(activity) }) { chooseOther() })
 
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
 
     @Test
@@ -303,7 +309,7 @@ class DokuTest {
         }
 
         assertEquals(FingerprintUnlock.Password, result)
-        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = true), doku.state)
     }
 
     @Test
@@ -317,8 +323,8 @@ class DokuTest {
         }
 
         assertFalse(turnedOn)
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
-        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), newDoku().state)
     }
 
     @Test
@@ -333,7 +339,7 @@ class DokuTest {
             succeed()
         }
 
-        assertEquals(DokuState.Locked(fingerprint = true), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = true), doku.state)
     }
 
     @Test
@@ -343,10 +349,11 @@ class DokuTest {
         val racing = Doku(
             keyFile = keyFile,
             databaseFile = context.getDatabasePath(DokuDatabase.NAME),
+            schema = DokuDatabase.VERSION,
             fingerprint = fingerprint,
             // The app leaves the screen just while the database opens.
             openDatabase = { racingDoku.lock(); testDokuDatabase(context) },
-            clipboard = DokuClipboard(context),
+            clipboard = IslandClipboard(context),
             io = Dispatchers.Unconfined,
             background = CoroutineScope(Dispatchers.Unconfined),
             iterations = 1_000,
@@ -355,7 +362,7 @@ class DokuTest {
 
         runBlocking { racing.unlockWithPassword(PASSWORD) }
 
-        assertEquals(DokuState.Locked(fingerprint = false), racing.state)
+        assertEquals(IslandState.Locked(fingerprint = false), racing.state)
         assertNull(runBlocking { racing.withDatabase { it } })
     }
 
@@ -368,7 +375,7 @@ class DokuTest {
         answering({ doku.turnOnFingerprint(activity) }) { succeed() }
         runBlocking { doku.turnOffFingerprint() }
 
-        assertEquals(DokuState.Locked(fingerprint = false), newDoku().state)
+        assertEquals(IslandState.Locked(fingerprint = false), newDoku().state)
         assertFalse(fingerprint.hasKey)
     }
 
@@ -383,7 +390,7 @@ class DokuTest {
 
         assertEquals(FingerprintUnlock.Password, runBlocking { doku.unlockWithFingerprint(activity) })
         assertEquals(1, fingerprint.prompts) // only to turn it on
-        val lost = DokuState.Locked(fingerprint = false, fingerprintLost = true)
+        val lost = IslandState.Locked(fingerprint = false, fingerprintLost = true)
         assertEquals(lost, doku.state)
         assertEquals(lost, newDoku().state)
         assertFalse(fingerprint.hasKey)
@@ -400,11 +407,11 @@ class DokuTest {
 
         runBlocking { doku.unlockWithPassword(PASSWORD) }
 
-        assertEquals(DokuState.Open(fingerprint = false, offerFingerprint = true), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false, offerFingerprint = true), doku.state)
         assertTrue(answering({ doku.turnOnFingerprint(activity) }) { succeed() })
-        assertEquals(DokuState.Open(fingerprint = true), doku.state)
+        assertEquals(IslandState.Open(fingerprint = true), doku.state)
         doku.lock()
-        assertEquals(DokuState.Locked(fingerprint = true), newDoku().state)
+        assertEquals(IslandState.Locked(fingerprint = true), newDoku().state)
     }
 
     @Test
@@ -420,9 +427,9 @@ class DokuTest {
         runBlocking { doku.declineFingerprint() }
         doku.lock()
 
-        assertEquals(DokuState.Locked(fingerprint = false), doku.state)
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
         assertTrue(runBlocking { doku.unlockWithPassword(PASSWORD) })
-        assertEquals(DokuState.Open(fingerprint = false), doku.state)
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
 
     @Test
@@ -439,11 +446,11 @@ class DokuTest {
 
     @Test
     fun `something copied elsewhere since stays on the clipboard`() {
-        val copied = DokuClipboard(context)
+        val copied = IslandClipboard(context)
         clipboard.setPrimaryClip(copied.markCopied(ClipData.newPlainText("", "Diagnose")))
         clipboard.setPrimaryClip(ClipData.newPlainText("", "Einkaufsliste"))
 
-        copied.clearIfFromDoku()
+        copied.clearIfFromIsland()
 
         assertEquals("Einkaufsliste", clipboard.primaryClip?.getItemAt(0)?.text)
     }

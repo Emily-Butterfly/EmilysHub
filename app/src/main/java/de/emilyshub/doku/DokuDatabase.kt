@@ -12,8 +12,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import de.emilyshub.data.Converters
+import de.emilyshub.island.RawKey
+import de.emilyshub.island.SECURE_DELETE
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -33,15 +34,6 @@ interface DokuSettingsDao {
     /** Sets [setting], in place of the value under its key. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(setting: DokuSetting)
-}
-
-/**
- * The Doku's database key in SQLCipher's raw form, x'<64 hex digits>', used as is without a slow passphrase derivation.
- * The bytes stay SQLCipher's while the database is open, so that wiping them once it is closed wipes SQLCipher's copy.
- */
-@JvmInline
-value class RawKey(val bytes: ByteArray) {
-    fun wipe() = bytes.fill(0)
 }
 
 /**
@@ -79,23 +71,11 @@ abstract class DokuDatabase : RoomDatabase() {
 
     abstract fun assessments(): AssessmentDao
 
-    /** Moves what the write-ahead log holds into the database file, so that the file alone holds it. */
-    fun checkpoint() {
-        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-    }
-
     companion object {
         const val VERSION = 5
         const val NAME = "doku.db"
 
         val MIGRATIONS: List<Migration> = listOf(DOKU_MIGRATION_1_2, DOKU_MIGRATION_2_3, DOKU_MIGRATION_3_4, DOKU_MIGRATION_4_5)
-
-        /** What is deleted is overwritten on disk, not only marked free (SPEC.md §14): on each opening, as the pragma lasts as long as the connection. */
-        val SECURE_DELETE = object : Callback() {
-            override fun onOpen(db: SupportSQLiteDatabase) {
-                db.query("PRAGMA secure_delete = ON").use { it.moveToFirst() }
-            }
-        }
 
         /** Opens `doku.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): DokuDatabase {
@@ -106,21 +86,5 @@ abstract class DokuDatabase : RoomDatabase() {
                 .addCallback(SECURE_DELETE)
                 .build()
         }
-
-        /** The [RawKey] of [key], written straight into bytes, so that no string of it lingers. */
-        fun rawKey(key: ByteArray): RawKey {
-            require(key.size == DokuKeys.KEY_BYTES) { "The Doku key must be ${DokuKeys.KEY_BYTES} bytes" }
-            val raw = ByteArray(3 + key.size * 2)
-            raw[0] = 'x'.code.toByte()
-            raw[1] = '\''.code.toByte()
-            key.forEachIndexed { i, byte ->
-                raw[2 + 2 * i] = HEX[(byte.toInt() shr 4) and 0xF].code.toByte()
-                raw[3 + 2 * i] = HEX[byte.toInt() and 0xF].code.toByte()
-            }
-            raw[raw.lastIndex] = '\''.code.toByte()
-            return RawKey(raw)
-        }
-
-        private const val HEX = "0123456789abcdef"
     }
 }

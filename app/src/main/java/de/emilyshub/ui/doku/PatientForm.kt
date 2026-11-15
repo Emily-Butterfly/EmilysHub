@@ -24,6 +24,7 @@ import de.emilyshub.doku.Doku
 import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.PatientProblem
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.island.touchesIsland
 import kotlinx.coroutines.launch
 
 /**
@@ -97,6 +98,6 @@ internal fun PatientDialog(
             }
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cancel)) } },
-        modifier = Modifier.touchesDoku(doku),
+        modifier = Modifier.touchesIsland(doku),
     )
 }

@@ -59,6 +59,7 @@ import de.emilyshub.doku.ValueDraft
 import de.emilyshub.doku.ValueProblem
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
+import de.emilyshub.ui.island.touchesIsland
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.rememberClosing
 
@@ -231,7 +232,7 @@ internal fun TestEditorPage(doku: Doku, tests: TestCatalog, page: DokuPage.TestE
                 }
             },
             dismissButton = { TextButton(onClick = { confirmingSave = false }) { Text(stringResource(R.string.cancel)) } },
-            modifier = Modifier.touchesDoku(doku),
+            modifier = Modifier.touchesIsland(doku),
         )
     }
     if (deleting && details != null) {
@@ -380,7 +381,7 @@ private fun TestMenu(doku: Doku, archived: Boolean, onArchive: () -> Unit, onRes
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doku_test_menu))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesDoku(doku)) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.touchesIsland(doku)) {
             val item = @Composable { label: Int, action: () -> Unit ->
                 DropdownMenuItem(
                     text = { Text(stringResource(label)) },
