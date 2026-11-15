@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12** und #86 **Etappe 13**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13** und #110 **Etappe 14**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -183,6 +183,18 @@ Aus dem Gutachten vom 12.11.2026; Sammel-Issue #86. Die Reihenfolge und die Ents
 | 106 | [Vokabeltrainer: Routine und Ziel zählen mit](106-vokabeltrainer-routine-und-ziel.md) | 🤖 | 104 |
 | 107 | [Vokabeltrainer: Zahlen an Themen, Thema üben & Suche](107-vokabeltrainer-themen-suche.md) | 🤖 | 104 |
 | 108 | [Heute & To-dos: nur laden, was gebraucht wird](108-nur-laden-was-gebraucht-wird.md) | 🤖 | – |
+
+## Etappe 14 – Kleinigkeiten aus dem Gutachten
+
+Die fünf kleinen Themen aus dem Gutachten vom 12.11.2026, die in Etappe 13 kein Ticket hatten; die offenen Fragen dazu sind am 14.11.2026 entschieden. Sammel-Issue #110. Keins hängt von einem anderen ab; gebaut wird in der Reihenfolge der Tabelle.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 111 | [Backup-Passwort ändern](111-backup-passwort-aendern.md) | 🤖 | – |
+| 112 | [Orte: einen neuen Ort direkt im Feld anlegen](112-orte-im-feld-anlegen.md) | 🤖 | – |
+| 113 | [Haushaltsbuch: ein Menü mit Text statt vier Symbolen](113-haushaltsbuch-menue.md) | 🤖 | – |
+| 114 | [Untere Leiste: Tab-Namen bei großer Schrift ohne Umbruch](114-tab-namen-grosse-schrift.md) | 🤖 | – |
+| 115 | [Abhängigkeiten: Dependabot schlägt neue Versionen vor](115-dependabot.md) | 🤖 | – |
 
 ## Ohne Ticket
 
