@@ -20,7 +20,7 @@ Dependabot meldet neue Versionen der Bibliotheken und der GitHub Actions als Pul
 - [ ] Der Build läuft für Dependabots Pull Requests durch, ohne die Signatur-Secrets: Das Signieren wird übersprungen, wie schon ohne Secrets
 - [x] `targetSdk` und die Versionen, die die Spezifikation festlegt, schlägt Dependabot nicht vor, oder sie sind ausgenommen
 - [x] `docs/agents/` beschreibt in einer kurzen Datei, wie ein Pull Request von Dependabot übernommen wird: Claude prüft CI und Changelog und behebt, was bricht; Emily merged
-- [ ] Geprüft, dass Dependabot die Datei annimmt (der Tab „Dependabot“ in GitHub zeigt keine Fehler)
+- [x] Geprüft, dass Dependabot die Datei annimmt (der Tab „Dependabot“ in GitHub zeigt keine Fehler): seine ersten Läufe am 15.11.2026 waren grün und brachten die Pull Requests #118 und #119
 
 ## Entscheidungen
 
