@@ -2,6 +2,7 @@ package de.emilyshub.ui.backups
 
 import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -64,6 +65,7 @@ import de.emilyshub.backup.PasswordProblem
 import de.emilyshub.data.HubData
 import de.emilyshub.data.SetAside
 import de.emilyshub.logged
+import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.ui.Hint
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.dateAndTime
@@ -75,16 +77,24 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The backups (SPEC.md §10): the backup password, set once; a backup of all data saved to a file chosen in Android's
- * dialog; the folder the [nightly] backups go to; and one loaded from such a file with the password it was saved with,
- * which replaces all data only once confirmed, its Doku only with the Doku password that held when it was saved. Below,
+ * The backups (SPEC.md §10): the backup password, set once and changed with the old one, or anew past the app lock
+ * ([authenticator]) once forgotten (#111); a backup of all data saved to a file chosen in Android's dialog; the folder
+ * the [nightly] backups go to; and one loaded from such a file with the password it was saved with, which replaces all
+ * data only once confirmed, its Doku only with the Doku password that held when it was saved. Below,
  * the advice to copy the backups off the phone; last, the [data] laid aside when they could not be opened (#100), each with
  * its date, to delete for good once confirmed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BackupScreen(backups: Backups, nightly: NightlyBackups, data: HubData, onBack: () -> Unit) {
+fun BackupScreen(
+    backups: Backups,
+    nightly: NightlyBackups,
+    data: HubData,
+    authenticator: DeviceAuthenticator,
+    onBack: () -> Unit,
+) {
     val resolver = LocalContext.current.contentResolver
+    val activity = LocalActivity.current
     val scope = rememberCoroutineScope()
     var hasPassword by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(backups) { hasPassword = backups.hasPassword() }
@@ -103,6 +113,9 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, data: HubData, onBac
     var setAside by remember { mutableStateOf<List<SetAside>>(emptyList()) }
     LaunchedEffect(data) { setAside = data.setAside() }
     var deleting by remember { mutableStateOf<SetAside?>(null) }
+    // How far the backup password is being changed (#111), and whether the old one given was not the one set.
+    var changing by rememberSaveable { mutableStateOf<PasswordChange?>(null) }
+    var wrongOld by remember { mutableStateOf(false) }
     val zone = ZoneId.systemDefault()
 
     fun work(block: suspend () -> Unit) {
@@ -184,6 +197,9 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, data: HubData, onBac
             SectionTitle(stringResource(R.string.backup_password_title))
             if (passwordSet) {
                 Text(stringResource(R.string.backup_password_is_set))
+                OutlinedButton(onClick = { changing = PasswordChange.Changing }, enabled = !busy) {
+                    Text(stringResource(R.string.backup_password_change))
+                }
             } else {
                 NewPassword(
                     busy = busy,
@@ -238,6 +254,61 @@ fun BackupScreen(backups: Backups, nightly: NightlyBackups, data: HubData, onBac
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             outcome?.let { Text(stringResource(it), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         }
+    }
+
+    when (changing) {
+        PasswordChange.Changing -> ChangePassword(
+            busy = busy,
+            wrongOld = wrongOld,
+            onEditOld = { wrongOld = false },
+            onChange = { old, new ->
+                work {
+                    outcome = failingWith(R.string.backup_password_change_failed) {
+                        if (backups.changePassword(old, new)) {
+                            changing = null
+                            R.string.backup_password_changed
+                        } else {
+                            wrongOld = true
+                            null
+                        }
+                    }
+                }
+            },
+            onForgot = {
+                wrongOld = false
+                changing = PasswordChange.Forgetting
+            },
+            onDismiss = {
+                wrongOld = false
+                changing = null
+            },
+        )
+        PasswordChange.Forgetting -> ForgetPassword(
+            onContinue = {
+                // The app lock even while the app is open, so that a phone left alone for a moment does not do; without
+                // a screen lock there is none to ask for, and the app lock is off.
+                if (authenticator.canAuthenticate() && activity != null) {
+                    authenticator.authenticate(activity) { changing = PasswordChange.Forgotten }
+                } else {
+                    changing = PasswordChange.Forgotten
+                }
+            },
+            onDismiss = { changing = null },
+        )
+        PasswordChange.Forgotten -> PasswordInsteadOfForgotten(
+            busy = busy,
+            onSet = { new ->
+                work {
+                    outcome = failingWith(R.string.backup_password_change_failed) {
+                        backups.forgotPassword(new)
+                        changing = null
+                        R.string.backup_password_changed
+                    }
+                }
+            },
+            onDismiss = { changing = null },
+        )
+        null -> Unit
     }
 
     deleting?.let { laid ->
@@ -527,7 +598,7 @@ internal fun ConfirmReplacing(
 }
 
 @Composable
-private fun PasswordField(value: String, onChange: (String) -> Unit, label: String, problem: String?, hint: String? = null) {
+internal fun PasswordField(value: String, onChange: (String) -> Unit, label: String, problem: String?, hint: String? = null) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,

@@ -13,6 +13,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -45,10 +46,10 @@ class Backup internal constructor(internal val content: BackupContent, internal 
 }
 
 /**
- * The backups of all data (SPEC.md §10). The backup password is set once, and only the key derived from it is kept, in
- * the settings, sealed with the Keystore key [wrappingKey]; backups are made with it, without asking for the password.
- * A backup opens with the password it was made with, on this device or another; one of an older version of the app is
- * brought up to this one by [migration]. It is checked strictly before it can be restored. Restoring puts it in place of
+ * The backups of all data (SPEC.md §10). The backup password is set once, and changed only with the old one, or anew
+ * once forgotten (#111); only the key derived from it is kept, in the settings, sealed with the Keystore key
+ * [wrappingKey]; backups are made with it, without asking for the password. A backup opens with the password it was
+ * made with, on this device or another; one of an older version of the app is brought up to this one by [migration]. It is checked strictly before it can be restored. Restoring puts it in place of
  * all data but the settings of the device, all in one or nothing at all; then [onRestore] runs, for the reminders to
  * follow. [database] and [settings] are only called on [io].
  *
@@ -74,11 +75,36 @@ class Backups(
 ) {
     suspend fun hasPassword(): Boolean = withContext(io) { settings().get(KEY) != null }
 
-    /** Sets the backup password, which must have no [passwordProblem]: once, it cannot be changed. */
+    /** Sets the backup password, which must have no [passwordProblem], while none is set; [changePassword] changes it. */
     suspend fun setPassword(password: String) = withContext(io + NonCancellable) {
         require(passwordProblem(password, password) == null) { "The backup password is too short" }
         check(settings().get(KEY) == null) { "The backup password is set once" }
         store(BackupKey.derive(password, iterations = iterations))
+    }
+
+    /**
+     * Changes the backup password to [new], which must have no [passwordProblem], if [old] is the one set (#111): the
+     * backups made from then on, by hand and by night, are made with a key of the new one, with a salt of its own. Those
+     * made before open with the old one, as ever. False, changing nothing, if [old] is not the one set.
+     */
+    suspend fun changePassword(old: String, new: String): Boolean = withContext(io + NonCancellable) {
+        require(passwordProblem(new, new) == null) { "The backup password is too short" }
+        val stored = checkNotNull(storedKey()) { "The backup password is not set" }
+        val given = BackupKey.derive(old, stored.salt, stored.iterations)
+        if (!MessageDigest.isEqual(given.secret, stored.secret)) return@withContext false
+        store(BackupKey.derive(new, iterations = iterations))
+        true
+    }
+
+    /**
+     * Sets [new], which must have no [passwordProblem], in place of a backup password forgotten (#111), as [changePassword]
+     * does but without the old one; the screen asks for the app lock before. The backups made before then open only with
+     * the old one, as ever.
+     */
+    suspend fun forgotPassword(new: String) = withContext(io + NonCancellable) {
+        require(passwordProblem(new, new) == null) { "The backup password is too short" }
+        checkNotNull(settings().get(KEY)) { "The backup password is not set" }
+        store(BackupKey.derive(new, iterations = iterations))
     }
 
     /**

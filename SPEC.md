@@ -266,7 +266,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 
 ## 10. Backups
 
-- **Backup-Passwort** wird einmal festgelegt; daraus abgeleiteter Schlüssel (Argon2id bzw. PBKDF2) wird im Android Keystore geschützt abgelegt.
+- **Backup-Passwort** wird einmal festgelegt; daraus abgeleiteter Schlüssel (Argon2id bzw. PBKDF2) wird im Android Keystore geschützt abgelegt. **„Passwort ändern“** im Backup-Bildschirm verlangt das alte Passwort; daraus wird ein neuer Schlüssel mit neuem Salz, mit dem alle künftigen Backups verschlüsselt werden, auch die nächtlichen. Ist das alte vergessen, lässt sich nach der App-Sperre (auch bei offener App) ein neues festlegen. Schon gespeicherte Backups öffnen in beiden Fällen weiter nur mit dem Passwort, mit dem sie gespeichert wurden; der Bildschirm sagt das vorher.
 - Verschlüsselung: AES-256-GCM.
 - **Automatisch**: täglich nachts in einen vom Nutzer gewählten Ordner (Storage Access Framework); die letzten 7 nächtlichen bleiben erhalten, ältere löscht die App.
 - **Manuell**: Export und Import jederzeit; Export in einen beliebigen Ordner, auch den der nächtlichen; von Hand gespeicherte Backups löscht die App nie. Import auf neuem Gerät mit dem Passwort.

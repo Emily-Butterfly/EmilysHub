@@ -67,6 +67,60 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `the backup password is changed with the old one, and a wrong old one is told`() {
+        runBlocking { app.backups.setPassword(PASSWORD) }
+        launchApp().use {
+            openBackups()
+            compose.onNodeWithText("Passwort ändern").performScrollTo().performClick()
+            compose.onNodeWithText("Backups, die schon gespeichert sind, öffnen weiter nur mit dem alten.", substring = true)
+                .assertIsDisplayed()
+
+            changePassword(old = "Lila und Flieder", new = NEW_PASSWORD)
+            compose.onNodeWithText("Das alte Passwort stimmt nicht").assertIsDisplayed()
+            changePassword(old = PASSWORD, new = NEW_PASSWORD)
+
+            compose.onNode(isDialog()).assertDoesNotExist()
+            compose.onNodeWithText("Das Backup-Passwort ist geändert.").performScrollTo().assertIsDisplayed()
+        }
+        assertFalse(runBlocking { app.backups.changePassword(PASSWORD, PASSWORD) })
+        assertTrue(runBlocking { app.backups.changePassword(NEW_PASSWORD, NEW_PASSWORD) })
+    }
+
+    @Test
+    fun `a forgotten backup password is set anew past the app lock, and leaving off changes nothing`() {
+        app.authenticator.deviceSecure = true
+        runBlocking { app.backups.setPassword(PASSWORD) }
+        launchApp().use {
+            compose.unlockWithFingerprint(app.authenticator)
+            openBackups()
+            compose.onNodeWithText("Passwort ändern").performScrollTo().performClick()
+            compose.onNodeWithText("Passwort vergessen?").performClick()
+            compose.onNodeWithText("lassen sich dann nicht mehr öffnen", substring = true).assertIsDisplayed()
+            val prompts = app.authenticator.prompts
+            compose.onNodeWithText("Weiter").performClick()
+            // The app lock, though the app is open.
+            assertEquals(prompts + 1, app.authenticator.prompts)
+            compose.onNodeWithText("Neues Backup-Passwort").assertDoesNotExist()
+            app.authenticator.succeed()
+            compose.waitForIdle()
+
+            compose.onNodeWithText("Neues Backup-Passwort").assertIsDisplayed()
+            compose.onNodeWithText("Abbrechen").performClick()
+            assertTrue(runBlocking { app.backups.changePassword(PASSWORD, PASSWORD) })
+
+            compose.onNodeWithText("Passwort ändern").performScrollTo().performClick()
+            compose.onNodeWithText("Passwort vergessen?").performClick()
+            compose.onNodeWithText("Weiter").performClick()
+            app.authenticator.succeed()
+            compose.waitForIdle()
+            newPassword(NEW_PASSWORD, NEW_PASSWORD)
+            compose.onNodeWithText("Passwort festlegen").performClick()
+            compose.onNodeWithText("Das Backup-Passwort ist geändert.").performScrollTo().assertIsDisplayed()
+        }
+        assertTrue(runBlocking { app.backups.changePassword(NEW_PASSWORD, NEW_PASSWORD) })
+    }
+
+    @Test
     fun `a backup is saved to the file chosen in Android's dialog, offered a name with the date`() {
         app.routine("Vitamine", "07:30")
         val saved = ByteArrayOutputStream()
@@ -342,6 +396,17 @@ class BackupScreenTest {
         compose.onNodeWithText("Passwort festlegen").performScrollTo().performClick()
     }
 
+    private fun changePassword(old: String, new: String) {
+        compose.onNode(hasSetTextAction() and hasText("Altes Passwort")).performTextReplacement(old)
+        newPassword(new, new)
+        compose.onNodeWithText("Ändern").performClick()
+    }
+
+    private fun newPassword(password: String, repeated: String) {
+        compose.onNode(hasSetTextAction() and hasText("Neues Passwort")).performTextReplacement(password)
+        compose.onNode(hasSetTextAction() and hasText("Neues Passwort wiederholen")).performTextReplacement(repeated)
+    }
+
     private fun enterBackupPassword(password: String) {
         compose.onNode(hasSetTextAction() and hasText("Passwort") and hasAnyAncestor(isDialog())).performTextReplacement(password)
         compose.onNodeWithText("Öffnen").performClick()
@@ -364,6 +429,7 @@ class BackupScreenTest {
 
     private companion object {
         const val PASSWORD = "Flieder und Lila"
+        const val NEW_PASSWORD = "Lavendel im Juni"
         const val DOKU_PASSWORD = "Doku-Geheimnis"
         val FILE: Uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ABackup.emhb")
         val FOLDER: Uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABackups")

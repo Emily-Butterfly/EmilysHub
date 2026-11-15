@@ -419,7 +419,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 )
                 Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)
                 Destination.Tags -> TagsScreen(hub.tags, onBack = back)
-                Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, hub.data, onBack = back)
+                Destination.Backups -> BackupScreen(hub.backups, hub.nightlyBackups, hub.data, hub.authenticator, onBack = back)
                 Destination.Settings -> SettingsScreen(
                     appSettings = hub.settings,
                     appLock = hub.appLock,

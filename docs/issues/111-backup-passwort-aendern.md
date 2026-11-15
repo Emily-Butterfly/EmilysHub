@@ -15,24 +15,24 @@ Das Backup-Passwort lässt sich im Backup-Bildschirm ändern. Bisher wird es ein
 
 ### Ändern
 
-- [ ] Der Backup-Bildschirm hat, sobald ein Passwort festgelegt ist, „Passwort ändern“
-- [ ] Gefragt werden das alte Passwort und zweimal das neue; für das neue gelten dieselben Regeln wie beim Festlegen
-- [ ] Das alte Passwort wird gegen den gespeicherten Schlüssel geprüft (gleiches Salz, gleiche Runden); ist es falsch, sagt das der Dialog, und nichts ändert sich
-- [ ] Danach entsteht aus dem neuen Passwort ein neuer Schlüssel mit neuem Salz, wie beim ersten Festlegen im Android Keystore geschützt; alle künftigen Backups nutzen ihn, die von Hand und die nächtlichen
-- [ ] Der Dialog sagt vorher, dass schon geschriebene Backup-Dateien mit dem alten Passwort lesbar bleiben und dass sie dafür das alte Passwort brauchen
+- [x] Der Backup-Bildschirm hat, sobald ein Passwort festgelegt ist, „Passwort ändern“
+- [x] Gefragt werden das alte Passwort und zweimal das neue; für das neue gelten dieselben Regeln wie beim Festlegen
+- [x] Das alte Passwort wird gegen den gespeicherten Schlüssel geprüft (gleiches Salz, gleiche Runden); ist es falsch, sagt das der Dialog, und nichts ändert sich
+- [x] Danach entsteht aus dem neuen Passwort ein neuer Schlüssel mit neuem Salz, wie beim ersten Festlegen im Android Keystore geschützt; alle künftigen Backups nutzen ihn, die von Hand und die nächtlichen
+- [x] Der Dialog sagt vorher, dass schon geschriebene Backup-Dateien mit dem alten Passwort lesbar bleiben und dass sie dafür das alte Passwort brauchen
 
 ### Vergessen
 
-- [ ] Im Dialog führt „Passwort vergessen?“ dazu, ein neues festzulegen, ohne das alte zu kennen; davor steht die App-Sperre, auch wenn die App gerade entsperrt ist
-- [ ] Davor sagt eine Rückfrage, dass schon geschriebene Backups ohne das alte Passwort nicht mehr lesbar sind und dass das nächste Backup bald geschrieben werden sollte
-- [ ] Danach gilt der neue Schlüssel wie beim Ändern
+- [x] Im Dialog führt „Passwort vergessen?“ dazu, ein neues festzulegen, ohne das alte zu kennen; davor steht die App-Sperre, auch wenn die App gerade entsperrt ist
+- [x] Davor sagt eine Rückfrage, dass schon geschriebene Backups ohne das alte Passwort nicht mehr lesbar sind und dass das nächste Backup bald geschrieben werden sollte
+- [x] Danach gilt der neue Schlüssel wie beim Ändern
 
 ### Sonst
 
-- [ ] Ein Abbruch an irgendeiner Stelle lässt das alte Passwort, wie es war; ein Fehler beim Schreiben des neuen Schlüssels ebenso
-- [ ] Das Einspielen eines Backups fragt weiter nach dem Passwort, mit dem es geschrieben wurde
-- [ ] SPEC §10 sagt, dass sich das Passwort ändern lässt, mit dem alten oder nach der App-Sperre
-- [ ] Unit-Tests: Ändern mit richtigem und falschem altem Passwort; ein Backup vor und eins nach dem Ändern lassen sich je mit ihrem Passwort einspielen; Vergessen legt ein neues fest; ein Abbruch lässt das alte; UI-Tests: beide Wege im Backup-Bildschirm
+- [x] Ein Abbruch an irgendeiner Stelle lässt das alte Passwort, wie es war; ein Fehler beim Schreiben des neuen Schlüssels ebenso
+- [x] Das Einspielen eines Backups fragt weiter nach dem Passwort, mit dem es geschrieben wurde
+- [x] SPEC §10 sagt, dass sich das Passwort ändern lässt, mit dem alten oder nach der App-Sperre
+- [x] Unit-Tests: Ändern mit richtigem und falschem altem Passwort; ein Backup vor und eins nach dem Ändern lassen sich je mit ihrem Passwort einspielen; Vergessen legt ein neues fest; ein Abbruch lässt das alte; UI-Tests: beide Wege im Backup-Bildschirm
 
 ## Entscheidungen
 
