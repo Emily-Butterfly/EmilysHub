@@ -34,7 +34,7 @@ class TrackingMigrationTest {
             runBlocking {
                 assertEquals("kept", database.settings().get("probe"))
                 val day = LocalDate.parse("2026-11-15")
-                database.entries().putMorning(MorningEntry(date = day, restingPulse = 64, recordedOn = day))
+                database.entries().insertMorning(MorningEntry(date = day, restingPulse = 64, recordedOn = day))
                 assertEquals(64, database.entries().morning(day)?.restingPulse)
                 val id = database.medications().insert(Medication(name = "Medikament A", times = listOf(LocalTime.of(8, 0)), start = day))
                 assertEquals("Medikament A", database.medications().get(id)?.name)

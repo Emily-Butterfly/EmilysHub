@@ -64,7 +64,7 @@ class Converters {
     fun fromTimes(times: List<LocalTime>): String = times.joinToString(",")
 
     @TypeConverter
-    fun toTimes(text: String): List<LocalTime> = text.split(",").map(LocalTime::parse)
+    fun toTimes(text: String): List<LocalTime> = if (text.isEmpty()) emptyList() else text.split(",").map(LocalTime::parse)
 
     /** "daily", "weekdays:1,3,5" (ISO day numbers, Monday is 1), "every:3:2026-10-23" or "once:2026-10-30". */
     @TypeConverter

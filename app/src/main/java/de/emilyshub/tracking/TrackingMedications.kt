@@ -31,10 +31,6 @@ class TrackingMedications(private val tracking: TrackingStore, private val clock
         database.medications().get(id)?.let { MedicationTimeline(it, database.medications().doseChanges(id)) }
     }
 
-    /** The medications taken on [day]; none once locked. */
-    suspend fun activeOn(day: LocalDate): List<Medication>? =
-        tracking.withDatabase { database -> database.medications().all().filter { it.isActiveOn(day) } }
-
     /** Saves [medication], a new one if its id is 0: its id, or null if it has a [problemOf] or Tracking is locked. */
     suspend fun save(medication: Medication): Long? = tracking.changing { write(it, medication) }
 
@@ -57,11 +53,6 @@ class TrackingMedications(private val tracking: TrackingStore, private val clock
             val medication = database.medications().get(id)?.takeIf { !day.isBefore(it.start) } ?: return@changing
             database.medications().update(medication.copy(end = day))
         }
-    }
-
-    /** Deletes medication [id] for good, with its timeline and the intakes noted of it. */
-    suspend fun delete(id: Long) {
-        tracking.changing { it.medications().delete(id) }
     }
 
     /** Notes that the dose of [medicationId] changed on [date] from [from] to [to]; false if either is empty. */

@@ -39,3 +39,4 @@ Beim Bauen festgelegt (15.11.2026), nicht einzeln bestätigt:
 - „Abweichend gemessen“ ist ein Haken, kein Ja/Nein, weil es die Ausnahme ist. Erholt aufgewacht, Arbeitstag und Hitze/langes Stehen sind ja/nein/nicht erfasst.
 - Das Datum lässt sich nur auf einen Tag ändern, der noch keinen Eintrag derselben Art hat.
 - Die Startliste der Symptome kommt beim ersten Öffnen in die Datenbank; Symptome werden ausgeblendet, nicht gelöscht.
+- „Nachgetragen“ und die 7 Tage zählen nach demselben Tag wie der Vorschlag (bis 04:00 der Vortag): Ein Abendeintrag kurz nach Mitternacht gilt nicht als nachgetragen.

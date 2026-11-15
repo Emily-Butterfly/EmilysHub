@@ -113,7 +113,7 @@ internal fun EveningPage(tracking: Tracking, modules: TrackingModules, page: Tra
         NumberField(stringResource(R.string.tracking_caffeine), caffeine, { caffeine = it }, caffeineNumber.problem())
         NumberField(stringResource(R.string.tracking_alcohol), alcohol, { alcohol = it }, alcoholNumber.problem())
         // Those of the day it is for now: a day changed may take others.
-        val medications = sheet.medications.filter { it.isActiveOn(day) }
+        val medications = sheet.takenOn(day)
         if (medications.isNotEmpty()) {
             EntryHeading(stringResource(R.string.tracking_intakes_heading))
             Text(stringResource(R.string.tracking_medication_hint), style = MaterialTheme.typography.bodySmall)

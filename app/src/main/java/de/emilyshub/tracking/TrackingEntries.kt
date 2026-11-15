@@ -16,8 +16,9 @@ enum class EntryKind { Morning, Evening }
 
 /**
  * What the evening entry of [entry]'s day shows (SPEC.md §17, "Abends"): the [symptoms] to ask, those not hidden and
- * the hidden ones that have a value here, with their [levels] by symptom; the [medications] taken that day, with how
- * their intakes went otherwise than planned ([deviations]), none of them "wie geplant". [stored] if it was saved before.
+ * the hidden ones that have a value here, with their [levels] by symptom; all [medications], to ask those taken on the
+ * day it is for ([takenOn]), which can change in the entry, with how their intakes went otherwise than planned
+ * ([deviations]), none of them "wie geplant". [stored] if it was saved before.
  */
 data class EveningSheet(
     val entry: EveningEntry,
@@ -26,24 +27,41 @@ data class EveningSheet(
     val medications: List<Medication>,
     val deviations: Map<Long, IntakeDeviation>,
     val stored: Boolean,
-)
+) {
+    /** The medications taken on [day], to ask how their intakes went. */
+    fun takenOn(day: LocalDate): List<Medication> = medications.filter { it.isActiveOn(day) }
+}
 
 /** The ranges a value of an entry must lie in to be saved; outside, it is not saved. */
 object EntryLimits {
+    /** The resting pulse, per minute, as the ticket gives it. */
     val PULSE = 30..220
+
+    /** The blood pressure, in mmHg; a typing error lies outside, never a value one measures. */
     val SYSTOLIC = 50..300
+
+    /** As [SYSTOLIC]. */
     val DIASTOLIC = 30..200
+
+    /** The scale of symptoms, load and sleep's quality. */
     val LEVEL = 0..3
+
+    /** A night's sleep, in minutes. */
     val SLEEP_MINUTES = 0..24 * 60
+
+    /** What was drunk, in tenths of a litre. */
     val FLUID_DECILITRES = 0..150
+
+    /** Meals, coffees and drinks. */
     val COUNT = 0..50
 }
 
 /**
  * The morning and evening entries of Tracking (SPEC.md §17, "Tageseinträge"), read and written only while it is open:
  * one of each per day, saved as they stand, also unfinished, what is left empty null, never 0. A new one is for the
- * day [EntryDay.suggested] says, which the entry can change, back [EntryDay.BACKFILL_DAYS] days at most; one first
- * recorded later than the day after counts as made up, silently.
+ * day [EntryDay.suggested] says, which the entry can change, back [EntryDay.BACKFILL_DAYS] days from that day at most;
+ * one first recorded later than the day after counts as made up, silently. "Recorded on" counts by the same day, so
+ * that an evening entry made after midnight, before 04:00, is not made up.
  */
 class TrackingEntries(private val tracking: TrackingStore, private val symptoms: TrackingSymptoms, private val clock: Clock) {
 
@@ -53,8 +71,8 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
     /** The day a new entry is for: until 04:00 the day before. */
     fun suggestedDay(): LocalDate = EntryDay.suggested(ZonedDateTime.now(clock))
 
-    /** The earliest day an entry can be made for. */
-    fun earliestDay(): LocalDate = EntryDay.earliest(today())
+    /** The earliest day an entry can be made for: seven before the one a new entry is for. */
+    fun earliestDay(): LocalDate = EntryDay.earliest(suggestedDay())
 
     /** Whether the entries of [day] are made; none once locked. */
     suspend fun status(day: LocalDate): DayStatus? = tracking.withDatabase { database ->
@@ -72,7 +90,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
     /** The morning entry of [day] to show, a new and empty one if there is none yet; none once locked. */
     suspend fun morning(day: LocalDate): MorningSheet? = tracking.withDatabase { database ->
         val stored = database.entries().morning(day)
-        MorningSheet(stored ?: MorningEntry(date = day, recordedOn = today()), stored != null)
+        MorningSheet(stored ?: MorningEntry(date = day, recordedOn = suggestedDay()), stored != null)
     }
 
     /** The evening entry of [day] to show, a new and empty one if there is none yet; none once locked. */
@@ -83,10 +101,10 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         val stored = database.entries().evening(day)
         val levels = database.entries().values(day).associate { it.symptomId to it.level }
         return EveningSheet(
-            entry = stored ?: EveningEntry(date = day, recordedOn = today()),
+            entry = stored ?: EveningEntry(date = day, recordedOn = suggestedDay()),
             levels = levels,
             symptoms = symptoms.listed(database).filter { !it.hidden || it.id in levels },
-            medications = database.medications().all().filter { it.isActiveOn(day) },
+            medications = database.medications().all(),
             deviations = database.entries().deviations(day).associateBy { it.medicationId },
             stored = stored != null,
         )
@@ -104,7 +122,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
     suspend fun writeMorning(database: TrackingDatabase, entry: MorningEntry, replacing: LocalDate?): Boolean {
         val entries = database.entries()
         if (!canMoveTo(entry.date, replacing) || (entry.date != replacing && entries.morning(entry.date) != null)) return false
-        val recordedOn = replacing?.let { entries.morning(it)?.recordedOn } ?: today()
+        val recordedOn = replacing?.let { entries.morning(it)?.recordedOn } ?: suggestedDay()
         entries.putMorning(entry.withinLimits().copy(recordedOn = recordedOn), replacing)
         return true
     }
@@ -129,7 +147,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
         val entries = database.entries()
         val day = entry.date
         if (!canMoveTo(day, replacing) || (day != replacing && entries.evening(day) != null)) return false
-        val recordedOn = replacing?.let { entries.evening(it)?.recordedOn } ?: today()
+        val recordedOn = replacing?.let { entries.evening(it)?.recordedOn } ?: suggestedDay()
         val known = database.symptoms().all().map { it.id }.toSet()
         val taken = database.medications().all().filter { it.isActiveOn(day) }.map { it.id }.toSet()
         entries.putEvening(
@@ -144,7 +162,7 @@ class TrackingEntries(private val tracking: TrackingStore, private val symptoms:
     }
 
     /** Whether an entry can be at [day], having been at [replacing]: within reach, or where it was. */
-    private fun canMoveTo(day: LocalDate, replacing: LocalDate?) = day == replacing || EntryDay.canRecord(day, today())
+    private fun canMoveTo(day: LocalDate, replacing: LocalDate?) = day == replacing || (!day.isAfter(today()) && !day.isBefore(earliestDay()))
 
     private fun MorningEntry.withinLimits() = copy(
         restingPulse = restingPulse.within(EntryLimits.PULSE),

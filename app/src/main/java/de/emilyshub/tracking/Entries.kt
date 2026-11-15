@@ -86,45 +86,51 @@ data class SymptomValue(val date: LocalDate, @ColumnInfo(name = "symptom_id") va
 /** The morning and evening entries and what belongs to them. */
 @Dao
 interface EntryDao {
+    /** The morning entry of [date], if any. */
     @Query("SELECT * FROM morning_entry WHERE date = :date")
     suspend fun morning(date: LocalDate): MorningEntry?
 
+    /** The evening entry of [date], if any. */
     @Query("SELECT * FROM evening_entry WHERE date = :date")
     suspend fun evening(date: LocalDate): EveningEntry?
 
+    /** The days from [from] to [to] that have a morning entry. */
     @Query("SELECT date FROM morning_entry WHERE date BETWEEN :from AND :to")
     suspend fun morningDays(from: LocalDate, to: LocalDate): List<LocalDate>
 
+    /** The days from [from] to [to] that have an evening entry. */
     @Query("SELECT date FROM evening_entry WHERE date BETWEEN :from AND :to")
     suspend fun eveningDays(from: LocalDate, to: LocalDate): List<LocalDate>
 
+    /** Writes [entry], in place of the one of its date. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun putMorning(entry: MorningEntry)
+    suspend fun insertMorning(entry: MorningEntry)
 
+    /** Deletes the morning entry of [date]. */
     @Query("DELETE FROM morning_entry WHERE date = :date")
     suspend fun deleteMorning(date: LocalDate)
 
+    /** Writes [entry], in place of the one of its date. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvening(entry: EveningEntry)
 
+    /** Deletes the evening entry of [date], with its symptoms and intakes. */
     @Query("DELETE FROM evening_entry WHERE date = :date")
     suspend fun deleteEvening(date: LocalDate)
 
+    /** The symptoms' values in the evening entry of [date]. */
     @Query("SELECT * FROM symptom_value WHERE date = :date")
     suspend fun values(date: LocalDate): List<SymptomValue>
 
-    @Query("DELETE FROM symptom_value WHERE date = :date")
-    suspend fun deleteValues(date: LocalDate)
-
+    /** Adds [values]. */
     @Insert
     suspend fun insertValues(values: List<SymptomValue>)
 
+    /** The intakes of [date] that went otherwise than planned. */
     @Query("SELECT * FROM intake_deviation WHERE date = :date")
     suspend fun deviations(date: LocalDate): List<IntakeDeviation>
 
-    @Query("DELETE FROM intake_deviation WHERE date = :date")
-    suspend fun deleteDeviations(date: LocalDate)
-
+    /** Adds [deviations]. */
     @Insert
     suspend fun insertDeviations(deviations: List<IntakeDeviation>)
 
@@ -146,28 +152,30 @@ interface EntryDao {
     @Transaction
     suspend fun putMorning(entry: MorningEntry, replacing: LocalDate?) {
         if (replacing != null && replacing != entry.date) deleteMorning(replacing)
-        putMorning(entry)
+        insertMorning(entry)
     }
 }
 
 /** The symptoms, in their order. */
 @Dao
 interface SymptomDao {
+    /** All symptoms, in their order. */
     @Query("SELECT * FROM symptom ORDER BY position, id")
     suspend fun all(): List<Symptom>
 
-    @Query("SELECT * FROM symptom WHERE id = :id")
-    suspend fun get(id: Long): Symptom?
-
+    /** Adds [symptoms]: their ids. */
     @Insert
     suspend fun insert(symptoms: List<Symptom>): List<Long>
 
+    /** Renames symptom [id] to [name]. */
     @Query("UPDATE symptom SET name = :name WHERE id = :id")
     suspend fun rename(id: Long, name: String)
 
+    /** Hides symptom [id], or shows it again. */
     @Query("UPDATE symptom SET hidden = :hidden WHERE id = :id")
     suspend fun setHidden(id: Long, hidden: Boolean)
 
+    /** Puts symptom [id] at [position] in the list. */
     @Query("UPDATE symptom SET position = :position WHERE id = :id")
     suspend fun setPosition(id: Long, position: Int)
 }

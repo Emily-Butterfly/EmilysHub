@@ -76,6 +76,15 @@ class TrackingEntriesTest {
     }
 
     @Test
+    fun `an evening entry made after midnight, before 04 00, is not made up, and the seven days count from its day`() {
+        fixture.at("2026-11-17T00:30:00Z") // 01:30 on the 17th in Berlin, still the 16th
+        assertTrue(runBlocking { entries.saveEvening(evening(LocalDate.parse("2026-11-15")).entry, emptyMap(), emptyList(), replacing = null) })
+
+        assertFalse(evening(LocalDate.parse("2026-11-15")).entry.backfilled)
+        assertEquals(LocalDate.parse("2026-11-09"), entries.earliestDay())
+    }
+
+    @Test
     fun `entries go back seven days, not further and not ahead`() {
         assertTrue(runBlocking { entries.saveMorning(morning(today.minusDays(7)), replacing = null) })
         assertFalse(runBlocking { entries.saveMorning(morning(today.minusDays(8)), replacing = null) })
@@ -170,7 +179,8 @@ class TrackingEntriesTest {
         val later = checkNotNull(runBlocking { fixture.medications.save(Medication(name = "Medikament B", times = listOf(LocalTime.of(8, 0)), start = today.plusDays(1))) })
         val other = checkNotNull(runBlocking { fixture.medications.save(Medication(name = "Medikament C", times = listOf(LocalTime.of(20, 0)), start = today.minusDays(5))) })
 
-        assertEquals(listOf(taken, other), evening().medications.map { it.id })
+        assertEquals(listOf(taken, other), evening().takenOn(today).map { it.id })
+        assertEquals("taken from tomorrow", listOf(taken, later, other), evening().takenOn(today.plusDays(1)).map { it.id })
         runBlocking {
             entries.saveEvening(
                 evening().entry,

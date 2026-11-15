@@ -82,27 +82,31 @@ data class IntakeDeviation(
 /** The medications and their dose changes. */
 @Dao
 interface MedicationDao {
+    /** All medications, by name. */
     @Query("SELECT * FROM medication ORDER BY name COLLATE NOCASE, id")
     suspend fun all(): List<Medication>
 
+    /** Medication [id], if any. */
     @Query("SELECT * FROM medication WHERE id = :id")
     suspend fun get(id: Long): Medication?
 
+    /** Adds [medication]: its id. */
     @Insert
     suspend fun insert(medication: Medication): Long
 
+    /** Writes [medication] in place of the one of its id. */
     @Update
     suspend fun update(medication: Medication)
 
-    @Query("DELETE FROM medication WHERE id = :id")
-    suspend fun delete(id: Long)
-
+    /** The dose changes of [medicationId], in the order of their dates. */
     @Query("SELECT * FROM dose_change WHERE medication_id = :medicationId ORDER BY date, id")
     suspend fun doseChanges(medicationId: Long): List<DoseChange>
 
+    /** Adds [change]: its id. */
     @Insert
     suspend fun insertDoseChange(change: DoseChange): Long
 
+    /** Takes [change] off its timeline. */
     @Delete
     suspend fun deleteDoseChange(change: DoseChange)
 }
