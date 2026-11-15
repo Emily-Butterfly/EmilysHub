@@ -269,7 +269,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
     val screens = rememberSaveableStateHolder()
     ForgetClosedScreens(screens, stack)
     val openNote = { id: Long -> open(Destination.NoteEditor(NoteEditorTarget.Edit(id))) }
-    // A place made right in the field of an editor (#112), which is chosen there once saved.
+    // A new place, from the places in the settings or right in the field of an editor (#112).
     val newPlace = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) }
     val top = stack.top
     if (top == null) {
@@ -416,7 +416,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     wifi = hub.wifi,
                     location = hub.location,
                     onOpen = { open(Destination.PlaceEditor(PlaceEditorTarget.Edit(it))) },
-                    onCreate = { open(Destination.PlaceEditor(PlaceEditorTarget.New)) },
+                    onCreate = newPlace,
                     onBack = back,
                 )
                 Destination.Status -> StatusScreen(hub.routines, hub.todos, hub.subscriptions, hub::probe, onBack = back)

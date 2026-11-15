@@ -22,10 +22,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.shadows.ShadowSystemClock
+import java.time.Duration
 
 /**
  * A new place made right in the field "Orte" of the routine and the to-do editor (SPEC.md §4, §8; #112): the place
- * editor opens over the editor, whose draft stays, and the new place is chosen once saved; left off, nothing changes.
+ * editor opens over the editor, whose draft stays through a rotation and the lock, and the new place is chosen once
+ * saved; left off, nothing changes.
  */
 @RunWith(AndroidJUnit4::class)
 class NewPlaceInFieldTest {
@@ -93,6 +96,51 @@ class NewPlaceInFieldTest {
             field("Titel").assertTextContains("Pakete")
             placeChip("Arbeit").performScrollTo().assertIsNotSelected()
             compose.onNodeWithText("Neuer Ort").performScrollTo().assertIsDisplayed()
+        }
+        assertEquals(listOf("Arbeit"), runBlocking { app.places.all().first() }.map { it.name })
+    }
+
+    @Test
+    fun `the routine's draft stays through the lock while a place is made, which is then chosen`() {
+        app.authenticator.deviceSecure = true
+        launchApp().use { scenario ->
+            compose.unlockWithFingerprint(app.authenticator)
+            tab("Routinen").performClick()
+            compose.onNodeWithContentDescription("Routine anlegen").performClick()
+            field("Name").performTextInput("Tabletten")
+            compose.openMoreOptions()
+            newPlace()
+            field("Name").performTextInput("Zuhause")
+
+            scenario.leaveAndReturn { ShadowSystemClock.advanceBy(Duration.ofMinutes(5)) }
+            compose.unlockWithFingerprint(app.authenticator)
+
+            field("Name").assertTextContains("Zuhause")
+            field("WLAN-Name (SSID)").performTextInput("FritzBox")
+            compose.onNodeWithText("Hinzufügen").performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            field("Name").assertTextContains("Tabletten")
+            placeChip("Zuhause").performScrollTo().assertIsSelected()
+        }
+    }
+
+    @Test
+    fun `a place begun and discarded in the routine editor changes nothing in the field`() {
+        app.place("Arbeit", "Büro-WLAN")
+        launchApp().use {
+            tab("Routinen").performClick()
+            compose.onNodeWithContentDescription("Routine anlegen").performClick()
+            field("Name").performTextInput("Tabletten")
+            compose.openMoreOptions()
+
+            newPlace()
+            field("Name").performTextInput("Gym")
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNodeWithText("Verwerfen").performClick()
+
+            field("Name").assertTextContains("Tabletten")
+            placeChip("Arbeit").performScrollTo().assertIsNotSelected()
         }
         assertEquals(listOf("Arbeit"), runBlocking { app.places.all().first() }.map { it.name })
     }

@@ -5,13 +5,6 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,13 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.places.Places
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.Hint
+import de.emilyshub.ui.NewChip
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.places.BackgroundLocationNotice
 
@@ -38,7 +31,8 @@ import de.emilyshub.ui.places.BackgroundLocationNotice
  *
  * "Neuer Ort" opens the place editor over the editor ([onNewPlace], #112), whose draft stays as it is. A place made
  * there is chosen here once the field shows again: one that was not there when it was tapped, which the field keeps in
- * mind through a rotation and the lock. Left without a place, nothing changes.
+ * mind through a rotation and the lock. Left without a place, nothing changes; choosing one by hand then forgets
+ * what there was.
  */
 @Composable
 fun PlacesField(
@@ -50,7 +44,8 @@ fun PlacesField(
     onNewPlace: () -> Unit,
 ) {
     val all by remember(places) { places.all() }.collectAsState(initial = null)
-    // The places there were when "Neuer Ort" was tapped, until one more is there.
+    // The places there were when "Neuer Ort" was tapped, until one more is there, or one is chosen by hand. Only the
+    // place editor opened from here can make one meanwhile: nothing else that makes places opens over an editor.
     var before by rememberSaveable { mutableStateOf<ArrayList<Long>?>(null) }
     val list = all ?: return
     // One deleted meanwhile is chosen no more.
@@ -70,16 +65,21 @@ fun PlacesField(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             list.forEach { place ->
                 val isChosen = place.id in chosen
-                ChoiceChip(place.name, isChosen, onClick = { onChange(if (isChosen) chosen - place.id else chosen + place.id) })
+                ChoiceChip(
+                    place.name,
+                    isChosen,
+                    onClick = {
+                        // Chosen by hand: a place made after the editor was left without one is not this field's.
+                        before = null
+                        onChange(if (isChosen) chosen - place.id else chosen + place.id)
+                    },
+                )
             }
-            AssistChip(
+            NewChip(
+                R.string.place_new,
                 onClick = {
                     before = ArrayList(list.map { it.id })
                     onNewPlace()
-                },
-                label = { Text(stringResource(R.string.place_new)) },
-                leadingIcon = {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
                 },
             )
         }

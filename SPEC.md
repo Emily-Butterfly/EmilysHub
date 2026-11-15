@@ -121,7 +121,7 @@ Eine Routine mit Checkliste lässt sich Schritt für Schritt abarbeiten.
 
 ## 4. Orte
 
-- Benannte Orte (z. B. „Zuhause“, „Arbeit“, „Gym“), verwaltet in den Einstellungen.
+- Benannte Orte (z. B. „Zuhause“, „Arbeit“, „Gym“), verwaltet in den Einstellungen. Ein neuer Ort lässt sich auch direkt im Feld „Orte“ des Routine- und des To-do-Editors anlegen („Neuer Ort“); er ist danach dort gewählt, und der Entwurf bleibt.
 - **WLAN-Ort**: aktuelles WLAN übernehmen oder Name (SSID) eintippen; mehrere WLANs pro Ort.
 - **GPS-Ort**: aktuellen Standort übernehmen oder Koordinaten eingeben; Radius einstellbar (50–500 m, Standard 150 m).
 - Ortserkennung ohne Google Play Services (Android `LocationManager` / `ConnectivityManager`).
