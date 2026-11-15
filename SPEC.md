@@ -599,6 +599,7 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 - „In Ruhe“ heißt: keine Schritte in der Minute davor und danach, oder ein Stehtest. Die Zuordnung steht mit ihren Quellen an einer Stelle im Code. [GARMIN-HF] [GARMIN-HRV] [GARMIN-SCHLAF] [GARMIN-SCHRITTE] [GARMIN-SCORES]
 - Der Ruhepuls von Garmin ist eine eigene Kurve neben dem Morgenwert. Regeln mit Schwellen aus Leitlinien nutzen nur den Morgenwert.
 - HRV, Stress, Body Battery und SpO₂ liefert Garmin nicht über Health Connect; sie kommen mit dem Import der FIT-Dateien in der HRV-Etappe.
+- Datenwege, Validierung je Wert und Pacing-Schwellen mit Quellen: [garmin-health-connect.md](docs/research/garmin-health-connect.md).
 
 ### Stehtest
 
