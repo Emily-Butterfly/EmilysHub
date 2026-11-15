@@ -1819,6 +1819,7 @@
     <string name="tracking_stand_drop_late">Größter Abfall danach: systolisch %1$s, diastolisch %2$s</string>
     <string name="tracking_stand_below_90">Systolisch unter 90 mmHg: %1$s</string>
     <string name="tracking_stand_none_value">keine</string>
+    <string name="tracking_stand_mmhg">%1$d mmHg</string>
     <string name="tracking_stand_missing">–</string>
     <string name="tracking_stand_minutes">Minute %1$s</string>
     <string name="tracking_stand_table_minute">min</string>

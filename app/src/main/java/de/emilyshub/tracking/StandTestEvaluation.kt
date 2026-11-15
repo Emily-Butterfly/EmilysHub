@@ -76,6 +76,10 @@ object StandTestRules {
  */
 object StandTestEvaluation {
 
+    /**
+     * The result of [test] from its own [points] and Garmin's [curve] for its time: each point of its variant reached,
+     * those up to an abort and any measured before it, with the pulse missing filled from the curve.
+     */
     fun evaluate(test: StandTest, points: List<StandPoint>, curve: List<Beat>): StandTestResult {
         val standingAt = test.standingAt
         val byMinute = points.associateBy { it.minute }
@@ -84,7 +88,10 @@ object StandTestEvaluation {
         val lying = ownLying ?: filledLying
         val reached = when {
             standingAt == null -> emptyList()
-            test.abortCause != null -> test.variant.minutes.filter { minute -> test.abortedMinute != null && minute <= test.abortedMinute }
+            // Up to the minute it was aborted at, and any point measured already, as one due a few seconds before.
+            test.abortCause != null -> test.variant.minutes.filter { minute ->
+                minute in byMinute || (test.abortedMinute != null && minute <= test.abortedMinute)
+            }
             else -> test.variant.minutes
         }
         val results = reached.map { minute ->

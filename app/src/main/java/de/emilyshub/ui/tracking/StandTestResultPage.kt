@@ -274,7 +274,7 @@ private fun minutes(list: List<Int>): String =
     if (list.isEmpty()) stringResource(R.string.tracking_stand_none_value) else stringResource(R.string.tracking_stand_minutes, list.joinToString())
 
 @Composable
-private fun mmHg(value: Int?): String = value?.let { "$it mmHg" } ?: missing()
+private fun mmHg(value: Int?): String = value?.let { stringResource(R.string.tracking_stand_mmhg, it) } ?: missing()
 
 @Composable
 private fun pressure(systolic: Int?, diastolic: Int?): String =

@@ -91,6 +91,7 @@ class TrackingStandTestScreenTest {
             var minute = 0
             listOf(1 to "80", 3 to "95", 5 to "96", 8 to "90", 10 to "88").forEach { (next, pulse) ->
                 compose.onNodeWithText("Messung bei Minute $next").performScrollTo().assertIsDisplayed()
+                compose.onNodeWithText("Messung speichern").performScrollTo().assertIsNotEnabled()
                 pass(Duration.ofMinutes((next - minute).toLong()))
                 minute = next
                 compose.onNodeWithText("Jetzt messen").performScrollTo().assertIsDisplayed()

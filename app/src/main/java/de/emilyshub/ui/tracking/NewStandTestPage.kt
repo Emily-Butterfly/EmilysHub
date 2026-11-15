@@ -94,9 +94,12 @@ internal fun NewStandTestPage(standTests: TrackingStandTests, contentPadding: Pa
 
 /** The short guide of [variant] with the codes of its sources. */
 @Composable
-internal fun variantText(variant: StandVariant): String = when (variant) {
-    StandVariant.Standing -> stringResource(R.string.tracking_stand_standing_text, "CMAJ-POTS-2022, DGN-SYNK-2020")
-    StandVariant.Leaning -> stringResource(R.string.tracking_stand_leaning_text, "LEE-2020")
+internal fun variantText(variant: StandVariant): String {
+    val sources = variant.sources.joinToString { it.code }
+    return when (variant) {
+        StandVariant.Standing -> stringResource(R.string.tracking_stand_standing_text, sources)
+        StandVariant.Leaning -> stringResource(R.string.tracking_stand_leaning_text, sources)
+    }
 }
 
 /** What [item] of the checklist says. */

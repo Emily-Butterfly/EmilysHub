@@ -237,4 +237,27 @@ class StandTestEvaluationTest {
         assertNull(StandVariant.Standing.nextMinute(setOf(1, 3, 5, 8, 10)))
         assertEquals(10, StandVariant.Leaning.nextMinute((1..9).toSet()))
     }
+
+    @Test
+    fun `a point measured before the minute it was aborted at is kept in the evaluation`() {
+        val result = StandTestEvaluation.evaluate(
+            test(StandVariant.Standing, aborted = true, abortedMinute = 4),
+            listOf(point(1, 80), point(3, 85), point(5, 99)),
+            curve = emptyList(),
+        )
+
+        assertEquals(listOf(1, 3, 5), result.points.map { it.minute })
+        assertEquals(39, result.maxRise)
+    }
+
+    @Test
+    fun `systolic 90 is not below 90`() {
+        val result = StandTestEvaluation.evaluate(
+            test(StandVariant.Standing),
+            listOf(point(1, 80, systolic = 90), point(3, 80, systolic = 89)),
+            curve = emptyList(),
+        )
+
+        assertEquals(listOf(3), result.systolicBelow90)
+    }
 }

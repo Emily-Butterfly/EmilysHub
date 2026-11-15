@@ -13,12 +13,12 @@ import androidx.room.Update
 import java.time.Instant
 
 /** The two ways of a Stehtest at home (SPEC.md §17, "Stehtest"), with the [minutes] after standing up it measures at. */
-enum class StandVariant(val stored: String, val minutes: List<Int>) {
+enum class StandVariant(val stored: String, val minutes: List<Int>, val sources: List<Source>) {
     /** Standing freely, measured after 1, 3, 5, 8 and 10 minutes. [CMAJ-POTS-2022] [DGN-SYNK-2020] */
-    Standing("standing", listOf(1, 3, 5, 8, 10)),
+    Standing("standing", listOf(1, 3, 5, 8, 10), listOf(Source.CmajPots2022, Source.DgnSyncope2020)),
 
     /** The NASA Lean Test: shoulder blades against the wall, heels some 15–20 cm before it, measured each minute. [LEE-2020] */
-    Leaning("leaning", (1..10).toList()),
+    Leaning("leaning", (1..10).toList(), listOf(Source.Lee2020)),
     ;
 
     /** The first of its [minutes] not in [done], the measured and the skipped; none once all are. */

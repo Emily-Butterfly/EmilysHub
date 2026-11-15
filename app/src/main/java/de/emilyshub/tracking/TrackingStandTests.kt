@@ -107,14 +107,16 @@ class TrackingStandTests(private val tracking: TrackingStore, private val clock:
     }
 
     /** Aborts Stehtest [id], as [writeAbort] does. */
-    suspend fun abort(id: Long, cause: AbortCause, reason: String): Boolean =
-        tracking.changing { database -> writeAbort(database, id, cause, reason) } ?: false
+    suspend fun abort(id: Long, cause: AbortCause, reason: String, typed: StandPoint? = null): Boolean =
+        tracking.changing { database -> writeAbort(database, id, cause, reason, typed) } ?: false
 
     /**
      * Aborts Stehtest [id] in [database] now, for [cause] and [reason], at the whole minutes since standing up, none if
-     * still lying; what was measured stays. False if it no longer runs.
+     * still lying; what was measured stays, and the point [typed] but not saved yet, if any, is kept first. False if it
+     * no longer runs.
      */
-    suspend fun writeAbort(database: TrackingDatabase, id: Long, cause: AbortCause, reason: String): Boolean {
+    suspend fun writeAbort(database: TrackingDatabase, id: Long, cause: AbortCause, reason: String, typed: StandPoint? = null): Boolean {
+        typed?.takeIf { it.testId == id }?.let { writePoint(database, it) }
         val test = database.standTests().get(id)?.takeIf { it.running } ?: return false
         database.standTests().update(
             test.copy(
@@ -143,9 +145,13 @@ class TrackingStandTests(private val tracking: TrackingStore, private val clock:
         StandTestReport(test, points, intakes.sortedBy { it.second }, curve, StandTestEvaluation.evaluate(test, points, curve))
     }
 
-    /** Garmin's heart rates from lying down up to a minute after the last point, or to the abort. */
+    /** Garmin's heart rates from lying down up to a minute after the last point, or a minute after the abort. */
     private suspend fun curveOf(database: TrackingDatabase, test: StandTest): List<Beat> {
-        val last = test.standingAt?.plus(Duration.ofMinutes(test.variant.minutes.last() + 1L))
+        val standingMinutes = when {
+            test.abortCause == null -> test.variant.minutes.last()
+            else -> maxOf(test.abortedMinute ?: 0, database.standTests().points(test.id).maxOfOrNull { it.minute } ?: 0)
+        }
+        val last = test.standingAt?.plus(Duration.ofMinutes(standingMinutes + 1L))
             ?: test.startedAt.plus(Duration.ofMinutes(StandTestRules.LYING_MINUTES.last.toLong()))
         return database.garmin()
             .overlapping(SampleKind.HeartRate, test.startedAt.toEpochMilli() - 1, last.toEpochMilli())

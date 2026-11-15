@@ -196,6 +196,32 @@ class TrackingStandTestsTest {
         assertEquals(listOf(second, first), standTests.list()!!.map { it.test.id })
     }
 
+    @Test
+    fun `aborted with a point typed but not saved, the point is kept first`() = runBlocking {
+        val id = stoodUp()
+        fixture.at("2026-11-15T10:07:10Z")
+
+        assertTrue(standTests.abort(id, AbortCause.Locked, "", typed = StandPoint(id, 1, pulse = 97)))
+
+        val report = checkNotNull(standTests.report(id))
+        assertEquals(AbortCause.Locked, report.test.abortCause)
+        assertEquals(97, report.result.points.single().pulse)
+    }
+
+    @Test
+    fun `the curve of an aborted test ends a minute after the abort`() = runBlocking {
+        fixture.health.grantedNow = HealthSource.PERMISSIONS
+        val standing = Instant.parse("2026-11-15T10:06:00Z")
+        fixture.health.samples += listOf(heartRate("during", standing.plusSeconds(100), 90), heartRate("after", standing.plusSeconds(300), 70))
+        val id = stoodUp()
+        fixture.at("2026-11-15T10:08:30Z")
+        standTests.abort(id, AbortCause.Pressed, "")
+        fixture.at("2026-11-15T10:30:00Z")
+        fixture.garmin.read()
+
+        assertEquals(listOf(90), checkNotNull(standTests.report(id)).curve.map { it.bpm })
+    }
+
     private fun heartRate(key: String, at: Instant, bpm: Long) =
         GarminSample.of(key, SampleKind.HeartRate, at, at, bpm, HealthSource.GARMIN_CONNECT, DeviceKind.Watch)
 }
