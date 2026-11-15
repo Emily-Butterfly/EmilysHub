@@ -25,6 +25,9 @@ sealed interface TrackingPage : Serializable {
 
     /** The base data. */
     data object BaseData : TrackingPage
+
+    /** Garmin's values from Health Connect: setting up, reading, where they come from. */
+    data object Garmin : TrackingPage
 }
 
 /**

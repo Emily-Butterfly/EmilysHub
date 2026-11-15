@@ -51,6 +51,46 @@ class ManifestPolicyTest {
     }
 
     @Test
+    fun `an alias to the launcher that only the system may start, for Health Connect's rationale, is allowed`() {
+        val manifest = mergedManifest(
+            components = """
+                <activity-alias
+                    android:name="de.emilyshub.HealthPermissionUsage"
+                    android:exported="true"
+                    android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+                    android:targetActivity="de.emilyshub.MainActivity" />
+            """,
+        )
+
+        assertEquals(emptyList<ManifestViolation>(), violations(manifest))
+    }
+
+    @Test
+    fun `an alias to another activity, or one anyone may start, is not`() {
+        val manifest = mergedManifest(
+            components = """
+                <activity-alias
+                    android:name="de.emilyshub.Other"
+                    android:exported="true"
+                    android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+                    android:targetActivity="de.emilyshub.ShareActivity" />
+                <activity-alias
+                    android:name="de.emilyshub.Open"
+                    android:exported="true"
+                    android:targetActivity="de.emilyshub.MainActivity" />
+            """,
+        )
+
+        assertEquals(
+            listOf(
+                ManifestViolation.ExportedComponent("activity-alias", "de.emilyshub.Other"),
+                ManifestViolation.ExportedComponent("activity-alias", "de.emilyshub.Open"),
+            ),
+            violations(manifest),
+        )
+    }
+
+    @Test
     fun `backups must be explicitly disabled`() {
         val manifest = mergedManifest(
             applicationAttributes = """

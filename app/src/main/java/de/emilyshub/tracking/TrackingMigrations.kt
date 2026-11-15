@@ -52,3 +52,15 @@ val TRACKING_MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_intake_deviation_medication_id` ON `intake_deviation` (`medication_id`)")
     }
 }
+
+/** 2 → 3: the values read from Health Connect (#126). */
+val TRACKING_MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `garmin_sample` (`key` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`start_ms` INTEGER NOT NULL, `end_ms` INTEGER NOT NULL, `value` INTEGER NOT NULL, " +
+                "`source_app` TEXT NOT NULL, `device` TEXT NOT NULL, `model` TEXT, PRIMARY KEY(`key`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_garmin_sample_kind_start_ms` ON `garmin_sample` (`kind`, `start_ms`)")
+    }
+}

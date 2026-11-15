@@ -8,5 +8,6 @@ data class TrackingModules(
     val symptoms: TrackingSymptoms,
     val medications: TrackingMedications,
     val baseData: TrackingBaseData,
+    val garmin: TrackingGarmin,
     val writes: IslandWrites<TrackingDatabase>,
 )

@@ -35,6 +35,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
 
+    <!-- Tracking reads Garmin's values from Health Connect, only to read and only while it is open (SPEC.md §11, §17):
+         heart rate, resting heart rate, steps and sleep, and once the right to read further back than 30 days. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
     <application
@@ -57,7 +65,25 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Health Connect shows why Tracking reads it (SPEC.md §17), up to Android 13: the launcher opens only a
+                 text that says so, behind the app's lock. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- The same from Android 14 on. Only the system may start it (START_VIEW_PERMISSION_USAGE), the one exported
+             component besides the launcher (SPEC.md §9), and it is the launcher. -->
+        <activity-alias
+            android:name=".HealthPermissionUsage"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity="de.emilyshub.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- The full-screen alarm, in a task of its own that Recents leaves out; it shows over the lock screen.
              Not exported (SPEC.md §9): only the reminder opens it, with its full-screen intent or when tapped. -->
@@ -116,6 +142,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/camera_paths" />
         </provider>
+
+        <!-- Exported by the Health Connect client, with no permission, for the Health Connect app before Android 14 to
+             bind to. Tracking reads only from Android 14 on, where Health Connect is part of the system (SPEC.md §17);
+             only the launcher may be exported (SPEC.md §9). -->
+        <service
+            android:name="androidx.health.platform.client.impl.sdkservice.HealthDataSdkService"
+            tools:node="remove" />
 
         <!-- Exported by androidx.profileinstaller for adb/Play-triggered profile installs.
              Only the launcher may be exported (SPEC.md §9), and a sideloaded app does not need it. -->

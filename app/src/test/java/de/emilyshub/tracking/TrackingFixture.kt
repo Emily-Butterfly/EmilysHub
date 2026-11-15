@@ -47,6 +47,8 @@ class TrackingFixture(private val context: Context, now: String = "2026-11-15T10
     val entries = TrackingEntries(tracking, symptoms, ticking)
     val medications = TrackingMedications(tracking, ticking)
     val baseData = TrackingBaseData(tracking)
+    val health = FakeHealthSource()
+    val garmin = TrackingGarmin(tracking, health, ticking)
 
     /** Locks Tracking and deletes its files. */
     fun close() {

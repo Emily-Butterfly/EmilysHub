@@ -166,6 +166,9 @@ sealed interface Destination : Serializable {
     /** The line for a new thought, from the shortcut on the app's icon, over what was open (SPEC.md §16). */
     data object Capture : Destination
 
+    /** Why Tracking reads Health Connect, as Health Connect asks the app to show (SPEC.md §17). */
+    data object HealthRationale : Destination
+
     companion object {
         /** The editor of an entry the search found (SPEC.md §7), in [area], by its [id]. */
         fun found(area: SearchArea, id: Long): Destination = when (area) {

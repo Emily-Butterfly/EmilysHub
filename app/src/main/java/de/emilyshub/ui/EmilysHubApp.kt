@@ -145,6 +145,7 @@ import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.todos.TodosScreen
+import de.emilyshub.ui.tracking.HealthRationaleScreen
 import de.emilyshub.ui.tracking.TrackingArea
 import de.emilyshub.ui.tracking.TrackingMenu
 import de.emilyshub.ui.wishes.WishEditorScreen
@@ -378,6 +379,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
                 is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)
                 Destination.Capture -> CaptureScreen(hub.inbox, onBack = back)
+                Destination.HealthRationale -> HealthRationaleScreen(onBack = back)
                 Destination.Inbox -> InboxScreen(
                     hub.inbox, hub.day, onSort = { into, entry -> open(Destination.sorting(into, entry)) }, onBack = back,
                 )

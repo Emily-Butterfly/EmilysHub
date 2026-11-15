@@ -20,6 +20,7 @@ import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.security.FakeAuthenticator
+import de.emilyshub.tracking.FakeHealthSource
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.testTrackingDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +57,7 @@ class TestApplication : EmilysHubApplication() {
     override val authenticator = FakeAuthenticator()
     override val fingerprint = FakeFingerprint()
     override val trackingFingerprint = FakeFingerprint()
+    override val healthSource = FakeHealthSource()
 
     /** In a file, so that it outlives locking, but with Android's own SQLite, which takes no key. */
     override val openDokuDatabase: (RawKey) -> DokuDatabase = { testDokuDatabase(this) }

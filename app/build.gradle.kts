@@ -113,6 +113,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.room.runtime)
     implementation(libs.sqlcipher.android)
+    // Tracking reads Garmin's values from Health Connect, only to read (SPEC.md §17).
+    implementation(libs.androidx.health.connect.client)
     ksp(libs.androidx.room.compiler)
 
     testImplementation(platform(libs.androidx.compose.bom))

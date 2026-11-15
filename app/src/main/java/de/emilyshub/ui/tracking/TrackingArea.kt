@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +70,8 @@ internal fun TrackingArea(hub: Hub, pages: TrackingPages, onPagesChange: (Tracki
         // What was open goes with the lock: the next unlock starts on the start page.
         onLocked = { if (pages != TrackingPages()) onPagesChange(TrackingPages()) },
     ) {
+        // Health Connect is read only while Tracking is open (SPEC.md §17): once as it opens, then by "Jetzt lesen".
+        LaunchedEffect(tracking) { hub.trackingModules.garmin.read() }
         OpenPage(tracking, hub.trackingModules, pages, onPagesChange, contentPadding)
     }
 }
@@ -86,6 +89,7 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         TrackingPage.Medications -> MedicationsPage(tracking, modules.medications, contentPadding, onOpen = { open(TrackingPage.Medication(it)) })
         is TrackingPage.Medication -> MedicationPage(tracking, modules, page, contentPadding, onDone = back)
         TrackingPage.BaseData -> BaseDataPage(tracking, modules, contentPadding)
+        TrackingPage.Garmin -> GarminPage(tracking, modules.garmin, contentPadding)
     }
 }
 

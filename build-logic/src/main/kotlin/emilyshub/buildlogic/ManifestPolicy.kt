@@ -44,7 +44,20 @@ private fun forbiddenPermissionsIn(manifest: Element) =
 private fun exportedComponentsIn(application: Element, except: String) =
     application.children("activity", "activity-alias", "service", "receiver", "provider")
         .filter { it.androidAttr("exported") == "true" && it.androidAttr("name") != except }
+        .filterNot { it.isSystemOnlyAliasTo(except) }
         .map { ManifestViolation.ExportedComponent(it.tagName, it.androidAttr("name")) }
+
+/**
+ * The one exception (SPEC.md §9): an alias of the launcher that only the system may start, as Health Connect needs to
+ * show why the app reads it, from Android 14 on (SPEC.md §17). It opens nothing the launcher would not.
+ */
+private fun Element.isSystemOnlyAliasTo(launcher: String) =
+    tagName == "activity-alias" &&
+        androidAttr("targetActivity") == launcher &&
+        androidAttr("permission") == SYSTEM_ONLY_PERMISSION_USAGE
+
+/** Held only by the system: its permission controller shows an app's rationale for what it reads. */
+private const val SYSTEM_ONLY_PERMISSION_USAGE = "android.permission.START_VIEW_PERMISSION_USAGE"
 
 private fun parse(xml: String): Element {
     val factory = DocumentBuilderFactory.newInstance().apply {

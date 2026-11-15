@@ -1,0 +1,67 @@
+package de.emilyshub.tracking
+
+import java.time.Duration
+import java.time.Instant
+
+/**
+ * How far a Garmin value can be trusted (SPEC.md §17, "Stufen"): what each tier may do in a hint, the evaluation of
+ * #131 deciding by it.
+ */
+enum class Tier {
+    /** Measured and well checked: can set off a hint, as one's own measurements. */
+    A,
+
+    /** Derived or partly checked: backs up a hint set off otherwise, sets off none. */
+    B,
+
+    /** Garmin's own reckoning or poorly checked: only in the history and the PDF, marked "Garmin-Schätzung". */
+    C,
+}
+
+/** The [tier] of a kind of value, and the [sources] the choice rests on. */
+data class TierRule(val tier: Tier, val sources: List<Source>)
+
+/**
+ * Which tier a Garmin value has (SPEC.md §17, "Stufen"), in one place with the sources of each choice; pure logic.
+ * A heart rate counts as A at rest, which is no steps in the [REST_MARGIN] before and after it, or from a chest strap
+ * by the device type Health Connect gives; otherwise, from the wrist or a device unknown, as B. Steps are A; Garmin's
+ * resting heart rate and the length of sleep B; the stages of sleep C.
+ */
+object GarminTiers {
+    /** How long before and after a heart rate no steps may be counted for it to be at rest. */
+    val REST_MARGIN: Duration = Duration.ofMinutes(1)
+
+    /** The rule for heart rates at rest and from a chest strap. [GARMIN-HF]: accurate at rest and with a chest strap. */
+    val HEART_RATE_AT_REST = TierRule(Tier.A, listOf(Source.GarminHeartRate))
+
+    /** The rule for heart rates in motion from the wrist or unknown. [GARMIN-HF]: wrist sensors fall short in motion. */
+    val HEART_RATE_IN_MOTION = TierRule(Tier.B, listOf(Source.GarminHeartRate))
+
+    /** The rule of each kind but the heart rate, which [heartRate] decides. */
+    fun ruleOf(kind: SampleKind): TierRule = when (kind) {
+        SampleKind.HeartRate -> HEART_RATE_IN_MOTION
+        // [GARMIN-SCHRITTE]: steps are counted with acceptable errors.
+        SampleKind.Steps -> TierRule(Tier.A, listOf(Source.GarminSteps))
+        // [GARMIN-HF]: Garmin's resting heart rate is its own reckoning over the day, checked by no study.
+        SampleKind.RestingHeartRate -> TierRule(Tier.B, listOf(Source.GarminHeartRate))
+        // [GARMIN-SCHLAF]: the length of sleep is moderately checked against polysomnography.
+        SampleKind.Sleep -> TierRule(Tier.B, listOf(Source.GarminSleep))
+        // [GARMIN-SCHLAF]: the stages of sleep agree poorly with polysomnography.
+        SampleKind.SleepStage -> TierRule(Tier.C, listOf(Source.GarminSleep))
+    }
+
+    /** The tier of [sample], heart rates by [steps], the steps counted around them. */
+    fun tierOf(sample: GarminSample, steps: List<GarminSample>): Tier =
+        if (sample.kind == SampleKind.HeartRate) heartRate(sample, steps).tier else ruleOf(sample.kind).tier
+
+    /** The rule for heart rate [sample]: from a chest strap or at rest, A; otherwise B. */
+    fun heartRate(sample: GarminSample, steps: List<GarminSample>): TierRule =
+        if (sample.device == DeviceKind.ChestStrap || atRest(sample.start, steps)) HEART_RATE_AT_REST else HEART_RATE_IN_MOTION
+
+    /** Whether no steps of [steps] were counted within [REST_MARGIN] before or after [at]. */
+    fun atRest(at: Instant, steps: List<GarminSample>): Boolean {
+        val from = at.minus(REST_MARGIN)
+        val to = at.plus(REST_MARGIN)
+        return steps.none { it.kind == SampleKind.Steps && it.value > 0 && it.start.isBefore(to) && it.end.isAfter(from) }
+    }
+}

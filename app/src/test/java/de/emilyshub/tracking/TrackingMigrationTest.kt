@@ -8,6 +8,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -38,6 +39,25 @@ class TrackingMigrationTest {
                 assertEquals(64, database.entries().morning(day)?.restingPulse)
                 val id = database.medications().insert(Medication(name = "Medikament A", times = listOf(LocalTime.of(8, 0)), start = day))
                 assertEquals("Medikament A", database.medications().get(id)?.name)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `version 2 gains the values from Health Connect and keeps its entries`() {
+        createTrackingAsExported(context, version = 2) {
+            it.execSQL("INSERT INTO morning_entry (date, resting_pulse, measured_differently, recorded_on) VALUES ('2026-11-15', 64, 0, '2026-11-15')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals(64, database.entries().morning(LocalDate.parse("2026-11-15"))?.restingPulse)
+                val at = Instant.parse("2026-11-15T10:00:00Z")
+                database.garmin().put(listOf(GarminSample.of("hr#0", SampleKind.HeartRate, at, at, 64, "com.example", DeviceKind.Watch)))
+                assertEquals(1, database.garmin().count())
             }
         } finally {
             database.close()

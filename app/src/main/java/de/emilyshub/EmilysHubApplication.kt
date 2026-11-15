@@ -79,10 +79,13 @@ import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.tracking.HealthConnectSource
+import de.emilyshub.tracking.HealthSource
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingBaseData
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.TrackingEntries
+import de.emilyshub.tracking.TrackingGarmin
 import de.emilyshub.tracking.TrackingMedications
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingSymptoms
@@ -139,6 +142,9 @@ open class EmilysHubApplication : Application(), Hub {
     open val trackingFingerprint: Fingerprint by lazy {
         SystemFingerprint(this, "tracking-fingerprint-key", R.string.tracking_fingerprint_unlock_title, R.string.tracking_fingerprint_enable_title)
     }
+
+    /** Health Connect, read by Tracking only while it is open (SPEC.md §17). */
+    open val healthSource: HealthSource by lazy { HealthConnectSource(this) }
 
     /** Where the settings are kept: in the database, opened only once it is asked, off the main thread. */
     protected open val settingsStore: () -> SettingsDao = { database.settings() }
@@ -363,6 +369,7 @@ open class EmilysHubApplication : Application(), Hub {
             symptoms = symptoms,
             medications = TrackingMedications(tracking, clock),
             baseData = TrackingBaseData(tracking),
+            garmin = TrackingGarmin(tracking, healthSource, clock),
             writes = IslandWrites(tracking, background),
         )
     }

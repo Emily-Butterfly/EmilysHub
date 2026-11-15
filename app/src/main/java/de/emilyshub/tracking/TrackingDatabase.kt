@@ -37,7 +37,8 @@ interface TrackingSettingsDao {
 /**
  * Tracking's own database, `tracking.db` (SPEC.md §17), apart from [de.emilyshub.data.HubDatabase] and from the Doku's,
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
- * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125); the base data in its settings.
+ * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125), the values read from Health
+ * Connect (#126); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
@@ -52,6 +53,7 @@ interface TrackingSettingsDao {
         Medication::class,
         DoseChange::class,
         IntakeDeviation::class,
+        GarminSample::class,
     ],
     version = TrackingDatabase.VERSION,
 )
@@ -65,11 +67,13 @@ abstract class TrackingDatabase : RoomDatabase() {
 
     abstract fun medications(): MedicationDao
 
+    abstract fun garmin(): GarminDao
+
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
@@ -90,4 +94,16 @@ class TrackingConverters {
 
     @TypeConverter
     fun toDeviation(text: String): Deviation = Deviation.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromSampleKind(kind: SampleKind): String = kind.stored
+
+    @TypeConverter
+    fun toSampleKind(text: String): SampleKind = SampleKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromDeviceKind(device: DeviceKind): String = device.stored
+
+    @TypeConverter
+    fun toDeviceKind(text: String): DeviceKind = DeviceKind.entries.first { it.stored == text }
 }
