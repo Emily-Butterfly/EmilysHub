@@ -31,9 +31,12 @@ Tracking liest aus Health Connect, was Garmin Connect dorthin schreibt (Herzfreq
 
 Abgestimmt im Interview vom 15.11.2026: Health Connect jetzt, FIT-Import (HRV, Stress, Body Battery, SpO₂) in der zweiten Stufe; drei Stufen statt Zahlengewichten; Brustgurt nach Gerätetyp, sonst Handgelenk-Regel. Ob Garmin Connect den Gerätetyp setzt, zeigt die Übersicht am echten Gerät.
 
+Bestätigt am 15.11.2026:
+
+- **Ausnahme in §9 (bestätigt):** Health Connect zeigt ab Android 14 über einen Alias auf die Launcher-Activity, wozu die App liest; der Alias ist exportiert, aber nur das System darf ihn starten (`START_VIEW_PERMISSION_USAGE`). Die Manifest-Prüfung im Build erlaubt genau diesen Fall, SPEC §9 nennt ihn. Der Text, den er öffnet, zeigt nichts aus Tracking. Den exportierten `HealthDataSdkService` der Bibliothek (für die Health-Connect-App vor Android 14, ohne Berechtigung geschützt) entfernt das Manifest.
+
 Beim Bauen festgelegt (15.11.2026), nicht einzeln bestätigt:
 
-- **Ausnahme in §9:** Health Connect zeigt ab Android 14 über einen Alias auf die Launcher-Activity, wozu die App liest; der Alias ist exportiert, aber nur das System darf ihn starten (`START_VIEW_PERMISSION_USAGE`). Die Manifest-Prüfung im Build erlaubt genau diesen Fall, SPEC §9 nennt ihn. Der Text, den er öffnet, zeigt nichts aus Tracking. Den exportierten `HealthDataSdkService` der Bibliothek (für die Health-Connect-App vor Android 14, ohne Berechtigung geschützt) entfernt das Manifest.
 - Bibliothek `androidx.health.connect:connect-client` 1.1.0 (stabil). Den Health-Connect-Testclient gibt es nur als Alpha, die eine Vorabversion des Clients festnagelt; statt des instrumentierten Tests prüfen Unit-Tests die Umwandlung echter Health-Connect-Records (`HealthRecordsTest`) und das Lesen über eine eigene Fälschung der Schnittstelle (`TrackingGarminTest`).
 - `tracking.db` auf Version 3 mit Migration und Test; Zeitpunkte der Garmin-Werte in Millisekunden, damit die Datenbank sie als Zahlen vergleicht.
 - Gelesen wird beim Entsperren von Tracking und über „Jetzt lesen“, nur Werte von Garmin Connect und nur die Arten, deren Berechtigung erteilt ist. Das erste Mal ein Jahr zurück, danach ab dem letzten Lesen mit einem Tag Überlappung; in Abschnitten von 30 Tagen, jeder sofort gespeichert, damit ein abgebrochenes Lesen beim nächsten Mal dort weitermacht. Kommt die Berechtigung für ältere Werte später, wird das Jahr einmal nachgelesen. Schreibt Health Connect einen Eintrag mit weniger Werten neu, fallen die alten weg.
