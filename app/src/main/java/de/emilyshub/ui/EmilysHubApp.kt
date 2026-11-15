@@ -589,7 +589,7 @@ private fun TopLevelScaffold(
                         selected = destination == current,
                         onClick = { onSelect(destination) },
                         icon = { Icon(destination.icon, contentDescription = null) },
-                        label = { Text(stringResource(destination.label)) },
+                        label = { TabLabel(stringResource(destination.label)) },
                     )
                 }
             }
