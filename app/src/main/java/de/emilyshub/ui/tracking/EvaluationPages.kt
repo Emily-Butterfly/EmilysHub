@@ -221,7 +221,7 @@ internal fun WeekPage(tracking: Tracking, evaluation: TrackingEvaluation, page: 
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tracking_week_next))
             }
         }
-        if (figures?.week == week) WeekFigureList(figures)
+        if (figures?.from == week.monday) WeekFigureList(figures)
     }
 }
 
@@ -283,7 +283,7 @@ private fun FigureLine(label: String, figure: Figure, percent: Boolean = false) 
 }
 
 /** A number as Germans write it: whole ones without a comma, others with one place. */
-private fun formatNumber(value: Double): String =
+internal fun formatNumber(value: Double): String =
     if (value == Math.rint(value)) value.toLong().toString() else String.format(Locale.GERMANY, "%.1f", value)
 
 /**

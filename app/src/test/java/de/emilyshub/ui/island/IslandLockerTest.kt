@@ -87,4 +87,46 @@ class IslandLockerTest {
 
         assertEquals(IslandState.Open(fingerprint = false), doku.state)
     }
+
+    @Test
+    fun `on a trip out to the camera or the folder picker, the activity stopping keeps it open`() {
+        val trip = doku.goingOut()
+
+        lifecycle.currentState = Lifecycle.State.CREATED
+
+        assertEquals(IslandState.Open(fingerprint = false), doku.state)
+        trip.close()
+    }
+
+    @Test
+    fun `back from the trip, the activity stopping locks it again`() {
+        val trip = doku.goingOut()
+        lifecycle.currentState = Lifecycle.State.CREATED
+        lifecycle.currentState = Lifecycle.State.RESUMED
+        trip.close()
+
+        lifecycle.currentState = Lifecycle.State.CREATED
+
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
+    }
+
+    @Test
+    fun `leaving it on a trip locks it all the same`() {
+        doku.goingOut()
+
+        locker.left()
+
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
+    }
+
+    @Test
+    fun `locked during the trip, as the screen goes off, the trip is over`() {
+        doku.goingOut()
+        doku.lock()
+        runBlocking { doku.unlockWithPassword("geheim-geheim") }
+
+        lifecycle.currentState = Lifecycle.State.CREATED
+
+        assertEquals(IslandState.Locked(fingerprint = false), doku.state)
+    }
 }

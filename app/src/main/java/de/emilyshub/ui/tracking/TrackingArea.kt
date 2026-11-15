@@ -114,6 +114,7 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         is TrackingPage.Week -> WeekPage(tracking, modules.evaluation, page, contentPadding, onWeek = { onPagesChange(pages.replaceTop(TrackingPage.Week(it))) })
         is TrackingPage.History -> HistoryChartsPage(tracking, modules.evaluation, page, contentPadding, onRange = { onPagesChange(pages.replaceTop(TrackingPage.History(it))) })
         is TrackingPage.Hint -> HintPage(tracking, modules.evaluation, page, contentPadding, onDone = back)
+        TrackingPage.Summary -> SummaryPage(tracking, modules, contentPadding)
     }
 }
 

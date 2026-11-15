@@ -69,6 +69,9 @@ sealed interface TrackingPage : Serializable {
 
     /** The hint of [rule], with its sources and "Erledigt". */
     data class Hint(val rule: HintRule) : TrackingPage
+
+    /** The doctor's summary, with its preview and the PDF. */
+    data object Summary : TrackingPage
 }
 
 /**

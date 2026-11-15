@@ -556,6 +556,7 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 - **Tracking-Passwort** (mindestens 8 Zeichen) und optional Fingerabdruck, unabhängig vom Doku-Passwort; eigene SQLCipher-Datenbank, deren Schlüssel nur Passwort oder Fingerabdruck freigeben.
 - Sperre, Insel-Regeln und Überschreiben gelöschter Daten wie §14: sofort beim Verlassen, im Hintergrund, bei ausgehendem Bildschirm und nach 5 Minuten ohne Eingabe; nicht in Suche, Heute, Statistik oder Benachrichtigungen; keine Verknüpfung mit Routinen oder anderen Bereichen; Tastatur ohne Lernen; Zwischenablage vertraulich.
 - **Ausnahme Messassistent:** Solange ein Stehtest oder eine Ereignismessung läuft, bleibt der Bildschirm an und die 5-Minuten-Sperre ruht. Hintergrund und Bildschirm aus sperren weiter; die Werte bis dahin bleiben erhalten.
+- **Ausnahme Kamera und Speicherdialog:** Für ein Foto (Kamera-App) oder die Arzt-PDF (Speicherdialog) bleibt Tracking offen, nur für diesen einen Ausflug, bis das Ergebnis da ist. Kommt die App ohne Ergebnis wieder nach vorn (über den Launcher etwa), sperrt sie. Bildschirm aus sperrt weiter, zurück nach 5 Minuten oder mehr ohne Berührung auch ([ADR 0003](docs/adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)).
 - **Erinnern** tut Tracking nicht. Wer erinnert werden will, legt eine normale Routine an (z. B. „Abendeintrag“); sie weiß nichts von Tracking.
 - **Backup** in eigener Verschlüsselung wie die Dokumentation (§10); einspielen braucht das Tracking-Passwort, das beim Backup galt. Übernommene Garmin-Werte sind als Kopie im Backup.
 - **Export** nur der Arzt-Zusammenfassung als PDF, nur von Hand (unten).
@@ -620,7 +621,7 @@ Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, lange
 - Puls vorher, direkt danach und nach 5 und 10 Minuten mit Timer; Sauerstoffsättigung optional; Atemnot und Schwindel 0–3; hinsetzen nötig (nach wie vielen Minuten).
 - **Haut:** wo (Beine, Arme, Rumpf, Finger oder Zehen), Muster (gleichmäßig-geschlossen oder unterbrochen-netzartig), schmerzt ja/nein, verschwindet im Liegen ja/nein, Minuten bis zur Rückbildung; Minuten bis wieder belastbar.
 - Herzfrequenz von Garmin von 15 Minuten davor bis 30 Minuten danach als Zusatzkurve, mit ihrer Stufe.
-- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt in Tracking abgelegt, nie in der Galerie; im Backup.
+- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt in der Datenbank von Tracking abgelegt, nie in der Galerie; im Backup. Höchstens 1600 px an der langen Kante und 6 je Ereignis (eigene Festlegung), damit sie ins Backup passen.
 
 ### Anstrengungen, PEM & Crash
 
@@ -662,7 +663,7 @@ Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für da
 ### Arzt-Zusammenfassung
 
 - Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
-- Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek. Fotos optional (Standard: ohne).
+- Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek, A4, schwarz auf weiß. Fotos optional (Standard: ohne). Die eigenen Fragen bleiben für den nächsten Termin gespeichert.
 - Vor dem Speichern der Hinweis: Die PDF ist **nicht verschlüsselt**; nach dem Termin löschen.
 
 ### Quellen der Schwellen

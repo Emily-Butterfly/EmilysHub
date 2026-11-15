@@ -154,3 +154,15 @@ val TRACKING_MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("ALTER TABLE `evening_entry` ADD COLUMN `load_social` INTEGER")
     }
 }
+
+/** 7 → 8: the photos of the events (#133). */
+val TRACKING_MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `event_photo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`event_id` INTEGER NOT NULL, `taken_at` TEXT NOT NULL, `jpeg` BLOB NOT NULL, " +
+                "FOREIGN KEY(`event_id`) REFERENCES `tracking_event`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_photo_event_id` ON `event_photo` (`event_id`)")
+    }
+}

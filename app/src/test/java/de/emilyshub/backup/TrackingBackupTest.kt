@@ -9,10 +9,13 @@ import de.emilyshub.doku.PatientOrder
 import de.emilyshub.island.IslandState
 import de.emilyshub.routine
 import de.emilyshub.tracking.DeviceKind
+import de.emilyshub.tracking.EventKind
+import de.emilyshub.tracking.EventPhoto
 import de.emilyshub.tracking.GarminSample
 import de.emilyshub.tracking.HealthSource
 import de.emilyshub.tracking.SampleKind
 import de.emilyshub.tracking.TrackingDatabase
+import de.emilyshub.tracking.TrackingEvent
 import de.emilyshub.tracking.TrackingSetting
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -189,6 +192,28 @@ class TrackingBackupTest {
 
         unlock()
         assertEquals(64L, runBlocking { tracking.withDatabase { it.garmin().overlapping(SampleKind.HeartRate, 0, Long.MAX_VALUE) } }?.single()?.value)
+    }
+
+    @Test
+    fun `the photos of the events go along and come back`() {
+        setUpTracking()
+        val photo = byteArrayOf(-1, -40, 1, 2, 3)
+        runBlocking {
+            tracking.changing { database ->
+                val event = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-10-23T04:00:00Z")))
+                database.photos().insert(EventPhoto(eventId = event, takenAt = Instant.parse("2026-10-23T04:05:00Z"), jpeg = photo))
+            }
+        }
+        tracking.lock()
+        val file = exported()
+        unlock()
+        runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
+
+        restore(file, trackingPassword = TRACKING_PASSWORD)
+
+        unlock()
+        val kept = runBlocking { tracking.withDatabase { database -> database.events().all().flatMap { database.photos().of(it.id) }.map { database.photos().jpeg(it.id) } } }
+        assertEquals(listOf(photo.toList()), kept?.map { it?.toList() })
     }
 
     @Test

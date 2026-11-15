@@ -1,5 +1,8 @@
 package de.emilyshub.tracking
 
+import de.emilyshub.languages.Photos
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -90,6 +93,33 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
     /** Deletes event [id]. */
     suspend fun delete(id: Long) {
         tracking.changing { it.events().delete(id) }
+    }
+
+    /**
+     * Keeps [taken], a photo for event [id], shrunk and encoded anew ([EventPhotos]), with the moment it is now; it is
+     * encrypted with Tracking's database as soon as it is written.
+     */
+    suspend fun addPhoto(id: Long, taken: ByteArray): PhotoAdd {
+        if (taken.size > EventPhotos.MAX_TAKEN_BYTES) return PhotoAdd.Unreadable
+        // Before the database is held, so that nothing waits for a large photo to be encoded anew.
+        val jpeg = withContext(Dispatchers.Default) { Photos.shrink(taken, EventPhotos.MAX_EDGE) } ?: return PhotoAdd.Unreadable
+        return tracking.changing { database ->
+            if (database.events().get(id) == null) return@changing PhotoAdd.NoEvent
+            val photos = database.photos()
+            if (photos.count(id) >= EventPhotos.MAX_PER_EVENT) return@changing PhotoAdd.TooMany
+            PhotoAdd.Added(photos.insert(EventPhoto(eventId = id, takenAt = clock.instant().truncatedTo(ChronoUnit.SECONDS), jpeg = jpeg)))
+        } ?: PhotoAdd.Locked
+    }
+
+    /** The photos of event [id], the first taken first; none once locked. */
+    suspend fun photos(id: Long): List<PhotoInfo>? = tracking.withDatabase { it.photos().of(id) }
+
+    /** The JPEG of photo [id]; none if gone, or once locked. */
+    suspend fun photo(id: Long): ByteArray? = tracking.withDatabase { it.photos().jpeg(id) }
+
+    /** Deletes photo [id]; overwritten on disk, as all deleted in Tracking. */
+    suspend fun deletePhoto(id: Long) {
+        tracking.changing { it.photos().delete(id) }
     }
 
     /** Event [id] for its page; none if gone, or once locked. */

@@ -2,11 +2,13 @@ package de.emilyshub.tracking
 
 import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneId
 
 /**
- * The week evaluation, the history and the hints of Tracking (SPEC.md §17): what was recorded read at once while it is
- * open ([TrackingRecords]), then evaluated as pure logic ([WeekEvaluation], [TrackingHistory], [Hints]); which hints were
- * marked done is kept in its settings, with the evidence they rested on then.
+ * The week evaluation, the history, the hints and the doctor's summary of Tracking (SPEC.md §17): what was recorded read
+ * at once while it is open ([TrackingRecords]), then evaluated as pure logic ([WeekEvaluation], [TrackingHistory],
+ * [Hints], [DoctorSummary]); which hints were marked done is kept in its settings, with the evidence they rested on then,
+ * and so are one's own questions for the doctor.
  */
 class TrackingEvaluation(
     private val tracking: TrackingStore,
@@ -17,6 +19,9 @@ class TrackingEvaluation(
 ) {
     /** The day it is, by the calendar. */
     fun today(): LocalDate = LocalDate.now(clock)
+
+    /** Where the moments are shown. */
+    fun zone(): ZoneId = clock.zone
 
     /** The figures of [week]; none once locked. */
     suspend fun week(week: Week): WeekFigures? = tracking.withDatabase { database ->
@@ -30,11 +35,57 @@ class TrackingEvaluation(
     }
 
     /** The hints of today, those marked done left out while their evidence stays as it was; none once locked. */
-    suspend fun hints(): HintList? = tracking.withDatabase { database ->
-        val done = HintRule.entries.mapNotNull { rule ->
-            database.settings().get(doneKey(rule))?.let { rule to it.split(EVIDENCE_SEPARATOR).filter(String::isNotEmpty).toSet() }
-        }.toMap()
-        hintsOf(database, done)
+    suspend fun hints(): HintList? = tracking.withDatabase { database -> hintsOf(database, doneOf(database)) }
+
+    /** The hints marked done, with the evidence they rested on then. */
+    private suspend fun doneOf(database: TrackingDatabase): Map<HintRule, Set<String>> = HintRule.entries.mapNotNull { rule ->
+        database.settings().get(doneKey(rule))?.let { rule to it.split(EVIDENCE_SEPARATOR).filter(String::isNotEmpty).toSet() }
+    }.toMap()
+
+    /**
+     * How many weeks are tracked ([SummaryWeeks.tracked]): from the first day with an entry, a Stehtest, an event, an
+     * exertion or an episode; none once locked.
+     */
+    suspend fun weeksTracked(): Int? = tracking.withDatabase { database ->
+        val zone = clock.zone
+        val firsts = listOfNotNull(
+            database.entries().firstMorning(),
+            database.entries().firstEvening(),
+            database.standTests().first()?.atZone(zone)?.toLocalDate(),
+            database.events().first()?.atZone(zone)?.toLocalDate(),
+            database.exertions().first(),
+            database.episodes().first(),
+        )
+        SummaryWeeks.tracked(firsts.minOrNull(), today())
+    }
+
+    /**
+     * The doctor's summary of the [weeks] ending today, with today's hints as the start page shows them and, if
+     * [withPhotos], the photos of its events; none once locked.
+     */
+    suspend fun summary(weeks: Int, withPhotos: Boolean): DoctorSummary? = tracking.withDatabase { database ->
+        val (from, to) = SummaryWeeks.days(weeks, today())
+        val records = records(database, from, to)
+        val hints = hintsOf(database, doneOf(database)).shown
+        val summary = DoctorSummary.of(records, from, to, hints)
+        if (!withPhotos) return@withDatabase summary
+        val photos = database.photos().ofEvents(summary.events.map { it.id }).mapNotNull { photo ->
+            database.photos().jpeg(photo.id)?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
+        }
+        summary.copy(photos = photos)
+    }
+
+    /** One's own questions for the doctor, as typed (Markdown), "" before any; none once locked. */
+    suspend fun questions(): String? = tracking.withDatabase { it.settings().get(QUESTIONS).orEmpty() }
+
+    /** Keeps [text] as one's own questions for the doctor; nothing once locked. */
+    suspend fun saveQuestions(text: String) {
+        tracking.changing { writeQuestions(it, text) }
+    }
+
+    /** Keeps [text] as one's own questions for the doctor, in [database]. */
+    suspend fun writeQuestions(database: TrackingDatabase, text: String) {
+        database.settings().put(TrackingSetting(QUESTIONS, text))
     }
 
     /** The hint of [rule] as it stands, done or not, for its page; none if it has none now, or once locked. */
@@ -101,6 +152,9 @@ class TrackingEvaluation(
     }
 
     private companion object {
+        /** The setting that keeps one's own questions for the doctor. */
+        const val QUESTIONS = "summary.questions"
+
         /** Between the keys of the evidence kept for a hint done. */
         const val EVIDENCE_SEPARATOR = "\n"
 

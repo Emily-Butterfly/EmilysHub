@@ -89,8 +89,8 @@ internal fun EventKindDialog(tracking: Tracking, onChosen: (EventKind) -> Unit, 
 /**
  * Event [page] (SPEC.md §17, "Ereignisse"): all its fields, saved as they stand as the page closes and before Tracking
  * locks, to be filled in later as well; "Vorbei – Timer starten" starts the pulse timer, which while it runs keeps the
- * screen on and the five minutes resting, with a tone and a vibration as each pulse is due. Garmin's heart rate around
- * it with its tiers, the intakes before it, and deleting it after asking.
+ * screen on and the five minutes resting, with a tone and a vibration as each pulse is due. Its photos (#133), Garmin's
+ * heart rate around it with its tiers, the intakes before it, and deleting it after asking.
  */
 @Composable
 internal fun EventPage(tracking: Tracking, modules: TrackingModules, page: TrackingPage.Event, contentPadding: PaddingValues, onDone: () -> Unit) {
@@ -254,6 +254,7 @@ private fun EventForm(tracking: Tracking, modules: TrackingModules, events: Trac
         NumberField(stringResource(R.string.tracking_event_skin_fade_minutes), skinFade, { skinFade = it }, numbers.getValue("fade").problem())
         NumberField(stringResource(R.string.tracking_event_recovered), recovered, { recovered = it }, numbers.getValue("recovered").problem())
         Text(stringResource(R.string.tracking_event_later_hint), style = MaterialTheme.typography.bodySmall)
+        EventPhotosSection(tracking, events, event.id)
         EventAround(tracking, events, event.id)
         OutlinedButton(onClick = { deleting = true }) { Text(stringResource(R.string.tracking_event_delete)) }
     }
@@ -393,7 +394,7 @@ internal fun kindName(kind: EventKind): Int = when (kind) {
 }
 
 @StringRes
-private fun areaName(area: SkinArea): Int = when (area) {
+internal fun areaName(area: SkinArea): Int = when (area) {
     SkinArea.Legs -> R.string.tracking_event_skin_legs
     SkinArea.Arms -> R.string.tracking_event_skin_arms
     SkinArea.Trunk -> R.string.tracking_event_skin_trunk

@@ -12,8 +12,8 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.max
 
 /**
- * Photos as a lesson keeps them (SPEC.md §15): encoded anew as JPEG, no longer than [MAX_EDGE] at the long edge, the
- * right way up as the camera turned it; nothing of the original's metadata, such as where it was taken, goes along.
+ * Photos as a lesson keeps them (SPEC.md §15), and an event in Tracking (§17): encoded anew as JPEG, no longer than
+ * [MAX_EDGE] at the long edge, or the edge given, the right way up as the camera turned it; nothing of the original's metadata, such as where it was taken, goes along.
  */
 object Photos {
     /** The longest edge a photo keeps, in pixels. */
@@ -21,10 +21,10 @@ object Photos {
 
     private const val QUALITY = 85
 
-    /** [bytes] as a photo is kept; none if they are no picture Android can read. */
-    fun shrink(bytes: ByteArray): ByteArray? {
-        val decoded = decode(bytes, MAX_EDGE) ?: return null
-        val scale = minOf(1f, MAX_EDGE.toFloat() / max(decoded.width, decoded.height))
+    /** [bytes] as a photo is kept, no longer than [edge] at the long edge; none if they are no picture Android can read. */
+    fun shrink(bytes: ByteArray, edge: Int = MAX_EDGE): ByteArray? {
+        val decoded = decode(bytes, edge) ?: return null
+        val scale = minOf(1f, edge.toFloat() / max(decoded.width, decoded.height))
         val matrix = orientationOf(bytes).apply { postScale(scale, scale) }
         val turned = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
         val out = ByteArrayOutputStream()

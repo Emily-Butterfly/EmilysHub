@@ -6,7 +6,8 @@ import androidx.core.content.FileProvider
 import java.io.File
 
 /**
- * The one file the camera app writes a photo for a lesson to (SPEC.md §15), lent to it through the app's FileProvider,
+ * The one file the camera app writes a photo for a lesson (SPEC.md §15) or an event in Tracking (§17) to, lent to it
+ * through the app's FileProvider,
  * so that the app needs no camera permission. The photo lies in it in plain text only until the app has read it: it is
  * deleted at once after; and anything left of it on a later start, once it is older than any photo still on its way
  * back from the camera app, which Android may bring back to an app it ended meanwhile.
@@ -20,6 +21,13 @@ object CameraShot {
             createNewFile()
         }
         return FileProvider.getUriForFile(context, "${context.packageName}.camera", file)
+    }
+
+    /** The photo taken, read from its file; none if there is none, or it is larger than [maxBytes]. Blocking. */
+    fun read(context: Context, maxBytes: Int): ByteArray? {
+        val file = fileOf(context)
+        if (!file.isFile || file.length() == 0L || file.length() > maxBytes) return null
+        return runCatching { file.readBytes() }.getOrNull()
     }
 
     /** Deletes the photo taken, if it is older than [STALE_MILLIS]: what a crash left, not one being taken. */

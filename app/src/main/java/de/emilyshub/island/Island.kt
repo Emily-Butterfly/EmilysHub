@@ -113,6 +113,9 @@ class Island<D : RoomDatabase> internal constructor(
     /** How many measurements run ([measuring]), while which the [IDLE_MILLIS] rest. */
     private var measurements = 0
 
+    /** The trip out of the island under way ([goingOut]), if any. */
+    private var trip: Any? = null
+
     /** How often the island was told to lock: an unlock still under way when it is told so again does not open it. */
     private var locks = 0
 
@@ -301,6 +304,27 @@ class Island<D : RoomDatabase> internal constructor(
     }
 
     /**
+     * A trip out of the island to another app it sends the user to, the camera app for a photo or the folder picker for
+     * a PDF, until the returned handle is closed as the user is back: meanwhile the activity stopping does not lock it
+     * ([isOut]). Leaving the island and the screen going off lock it all the same, which ends the trip; and back after
+     * [IDLE_MILLIS] or more without a touch, it locks then.
+     */
+    fun goingOut(): AutoCloseable {
+        touched()
+        val token = Any()
+        trip = token
+        return AutoCloseable {
+            if (trip === token) {
+                trip = null
+                if (opened != null && millisUntilIdle() == 0L) lock()
+            }
+        }
+    }
+
+    /** Whether a trip out of the island is under way ([goingOut]). */
+    val isOut: Boolean get() = trip != null
+
+    /**
      * Locks the island once it has been idle for [IDLE_MILLIS], waiting while it is open, and returns once it is locked,
      * this way or another. Run by the screen showing it, for as long as it shows it open.
      */
@@ -324,6 +348,7 @@ class Island<D : RoomDatabase> internal constructor(
      */
     fun lock() {
         locks++
+        trip = null
         clipboard.clearIfFromIsland()
         val closing = opened ?: return
         val pending = savers.mapNotNull { it.pending() }

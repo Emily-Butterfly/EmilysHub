@@ -147,6 +147,21 @@ class TrackingTest {
         assertTrue(tracking.state is IslandState.Locked)
     }
 
+    @Test
+    fun `back from a trip out that took five minutes or more, Tracking locks`() {
+        runBlocking { tracking.setUp(PASSWORD) }
+        val short = tracking.goingOut()
+        clock += Tracking.IDLE_MILLIS - 1
+        short.close()
+        assertTrue(tracking.state is IslandState.Open)
+
+        val long = tracking.goingOut()
+        clock += Tracking.IDLE_MILLIS
+        long.close()
+
+        assertTrue(tracking.state is IslandState.Locked)
+    }
+
     private companion object {
         const val PASSWORD = "tracking-geheim"
         const val DOKU_PASSWORD = "doku-geheim-geheim"

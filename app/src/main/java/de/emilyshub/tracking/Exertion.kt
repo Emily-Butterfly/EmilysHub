@@ -102,6 +102,10 @@ data class EpisodeTrigger(
 /** The exertions and the suggestions decided; the follow-up answers belong to the evening ([EntryDao]). */
 @Dao
 interface ExertionDao {
+    /** The day of the first exertion, if any. */
+    @Query("SELECT MIN(date) FROM exertion")
+    suspend fun first(): LocalDate?
+
     /** The exertions from [from] to [to], by date and time. */
     @Query("SELECT * FROM exertion WHERE date BETWEEN :from AND :to ORDER BY date, time, id")
     suspend fun between(from: LocalDate, to: LocalDate): List<Exertion>
@@ -142,6 +146,10 @@ interface ExertionDao {
 /** The episodes and their triggers. */
 @Dao
 interface EpisodeDao {
+    /** The day the first episode began, if any. */
+    @Query("SELECT MIN(start_date) FROM episode")
+    suspend fun first(): LocalDate?
+
     /** All episodes, the latest first. */
     @Query("SELECT * FROM episode ORDER BY start_date DESC, id DESC")
     suspend fun all(): List<Episode>

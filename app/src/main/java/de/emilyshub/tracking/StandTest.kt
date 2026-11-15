@@ -102,6 +102,10 @@ data class StandIntake(
 /** The Stehtests, their points and the intakes before them. */
 @Dao
 interface StandTestDao {
+    /** When the first Stehtest began, if any; kept as ISO text, which sorts by time. */
+    @Query("SELECT MIN(started_at) FROM stand_test")
+    suspend fun first(): Instant?
+
     /** All Stehtests, the latest first. */
     @Query("SELECT * FROM stand_test ORDER BY id DESC")
     suspend fun all(): List<StandTest>

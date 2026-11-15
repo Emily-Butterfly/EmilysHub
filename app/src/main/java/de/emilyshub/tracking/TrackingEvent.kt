@@ -86,6 +86,10 @@ data class EventIntake(
 /** The events and the intakes before them. */
 @Dao
 interface EventDao {
+    /** When the first event was, if any. */
+    @Query("SELECT MIN(at) FROM tracking_event")
+    suspend fun first(): Instant?
+
     /** All events, the latest first; their times are kept to the minute, so that they sort as text. */
     @Query("SELECT * FROM tracking_event ORDER BY at DESC, id DESC")
     suspend fun all(): List<TrackingEvent>

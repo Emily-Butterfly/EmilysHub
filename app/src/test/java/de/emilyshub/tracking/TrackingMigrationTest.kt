@@ -127,4 +127,45 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 6 gains the social load and keeps its evenings`() {
+        createTrackingAsExported(context, version = 6) {
+            it.execSQL("INSERT INTO evening_entry (date, load_emotional, note, recorded_on) VALUES ('2026-11-15', 2, '', '2026-11-15')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                val day = LocalDate.parse("2026-11-15")
+                val evening = checkNotNull(database.entries().evening(day))
+                assertEquals(2, evening.loadEmotional)
+                assertEquals(null, evening.loadSocial)
+                database.entries().insertEvening(evening.copy(date = day.minusDays(1), loadSocial = 3))
+                assertEquals(3, database.entries().evening(day.minusDays(1))?.loadSocial)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `version 7 gains the photos of the events and keeps its events`() {
+        createTrackingAsExported(context, version = 7) {
+            it.execSQL("INSERT INTO tracking_event (id, kind, at, skin_areas) VALUES (1, 'bath', '2026-11-15T10:00:00Z', 'legs')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals(EventKind.Bath, database.events().get(1)?.kind)
+                val id = database.photos().insert(EventPhoto(eventId = 1, takenAt = Instant.parse("2026-11-15T10:05:00Z"), jpeg = byteArrayOf(1, 2, 3)))
+                assertEquals(listOf(1.toByte(), 2.toByte(), 3.toByte()), database.photos().jpeg(id)?.toList())
+                database.events().delete(1)
+                assertEquals(0, database.photos().count(1))
+            }
+        } finally {
+            database.close()
+        }
+    }
 }

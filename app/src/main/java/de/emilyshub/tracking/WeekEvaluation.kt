@@ -49,7 +49,8 @@ data class Figure(val value: Double?, val basis: Int) {
 data class SymptomFigure(val symptom: Symptom, val mean: Figure)
 
 /**
- * The figures of a [week] (SPEC.md §17, "Wochenauswertung"), each with the entries it rests on: the morning resting
+ * The figures of a week, [from] Monday [to] Sunday (SPEC.md §17, "Wochenauswertung"), or of the weeks of the doctor's
+ * summary, each with the entries it rests on: the morning resting
  * pulse, its mean, least, most and the days above [WeekRules.PULSE_HIGH]; the Stehtests, their largest rise, how many
  * rose by [StandTestRules.RISE] in at least two measurements, how many dropped by [WeekRules.SYSTOLIC_DROP] /
  * [WeekRules.DIASTOLIC_DROP] mmHg within three minutes and after; the events with breathlessness of 2 or more and with a
@@ -59,7 +60,8 @@ data class SymptomFigure(val symptom: Symptom, val mean: Figure)
  * per day; and the share of entries made up later.
  */
 data class WeekFigures(
-    val week: Week,
+    val from: LocalDate,
+    val to: LocalDate,
     val pulseMean: Figure,
     val pulseMin: Figure,
     val pulseMax: Figure,
@@ -133,31 +135,36 @@ object WeekRules {
 object WeekEvaluation {
 
     /** The figures of [week] from [records]. */
-    fun of(records: TrackingRecords, week: Week): WeekFigures {
-        val mornings = records.mornings.filter { it.date in week }
-        val evenings = records.evenings.filter { it.date in week }
+    fun of(records: TrackingRecords, week: Week): WeekFigures = of(records, week.monday, week.sunday)
+
+    /** The same figures over the days [from] to [to], as the doctor's summary has them for its weeks. */
+    fun of(records: TrackingRecords, from: LocalDate, to: LocalDate): WeekFigures {
+        val span = from..to
+        val mornings = records.mornings.filter { it.date in span }
+        val evenings = records.evenings.filter { it.date in span }
         val pulses = mornings.mapNotNull { it.restingPulse }
-        val tests = records.standTests.filter { records.dayOf(it.test.startedAt) in week && it.stood }
+        val tests = records.standTests.filter { records.dayOf(it.test.startedAt) in span && it.stood }
         val risen = tests.mapNotNull { it.result.maxRise }
         val pressured = tests.filter { WeekRules.hasPressure(it.result) }
-        val events = records.events.filter { records.dayOf(it.at) in week }
-        val exertions = records.exertions.filter { it.date in week }
-        val episodes = records.episodes.filter { it.startDate in week }
+        val events = records.events.filter { records.dayOf(it.at) in span }
+        val exertions = records.exertions.filter { it.date in span }
+        val episodes = records.episodes.filter { it.startDate in span }
         val gaps = episodes.flatMap { episode ->
             records.triggers.filter { it.episodeId == episode.id }
                 .mapNotNull { trigger -> records.exertions.firstOrNull { it.id == trigger.exertionId } }
                 .map { ExertionRules.hoursAfter(it, episode).hours }
         }
-        val levels = records.symptomValues.filter { it.date in week }
+        val levels = records.symptomValues.filter { it.date in span }
         val fluids = evenings.mapNotNull { it.fluidDecilitres }
         val qualities = mornings.mapNotNull { it.sleepQuality }
         val withIntakes = evenings.filter { evening -> records.medications.any { it.isActiveOn(evening.date) } }
-        val days = generateSequence(week.monday) { it.plusDays(1) }.take(7).toList()
+        val days = generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }.toList()
         val steps = days.mapNotNull { records.garmin.steps[it] }
         val above = days.mapNotNull { records.garmin.minutesAbove[it] }
         val entries = mornings.map { it.backfilled } + evenings.map { it.backfilled }
         return WeekFigures(
-            week = week,
+            from = from,
+            to = to,
             pulseMean = Figure.mean(pulses),
             pulseMin = pulses.minOrNull()?.let { Figure(it.toDouble(), pulses.size) } ?: Figure.NONE,
             pulseMax = pulses.maxOrNull()?.let { Figure(it.toDouble(), pulses.size) } ?: Figure.NONE,

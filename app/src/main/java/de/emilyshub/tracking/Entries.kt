@@ -87,6 +87,14 @@ data class SymptomValue(val date: LocalDate, @ColumnInfo(name = "symptom_id") va
 /** The morning and evening entries and what belongs to them. */
 @Dao
 interface EntryDao {
+    /** The day of the first morning entry, if any. */
+    @Query("SELECT MIN(date) FROM morning_entry")
+    suspend fun firstMorning(): LocalDate?
+
+    /** The day of the first evening entry, if any. */
+    @Query("SELECT MIN(date) FROM evening_entry")
+    suspend fun firstEvening(): LocalDate?
+
     /** The morning entry of [date], if any. */
     @Query("SELECT * FROM morning_entry WHERE date = :date")
     suspend fun morning(date: LocalDate): MorningEntry?
