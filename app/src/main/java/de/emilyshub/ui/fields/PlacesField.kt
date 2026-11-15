@@ -46,7 +46,7 @@ fun PlacesField(
     val all by remember(places) { places.all() }.collectAsState(initial = null)
     // The places there were when "Neuer Ort" was tapped, until one more is there, or one is chosen by hand. Only the
     // place editor opened from here can make one meanwhile: nothing else that makes places opens over an editor.
-    var before by rememberSaveable { mutableStateOf<ArrayList<Long>?>(null) }
+    var before by rememberSaveable { mutableStateOf<LongArray?>(null) }
     val list = all ?: return
     // One deleted meanwhile is chosen no more.
     val chosen = selected.filter { id -> list.any { it.id == id } }.toSet()
@@ -78,7 +78,7 @@ fun PlacesField(
             NewChip(
                 R.string.place_new,
                 onClick = {
-                    before = ArrayList(list.map { it.id })
+                    before = list.map { it.id }.toLongArray()
                     onNewPlace()
                 },
             )
