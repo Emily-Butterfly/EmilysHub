@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -18,36 +19,55 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.reflect.KClass
 
-/** Android's Health Connect, from Android 14, where Garmin Connect writes to it. */
+/** Android's Health Connect, from Android 14, where Garmin Connect writes to it: only Garmin Connect's values are read. */
 class HealthConnectSource(private val context: Context) : HealthSource {
 
     private val client by lazy { HealthConnectClient.getOrCreate(context) }
 
     override fun availability(): HealthAvailability = when {
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> HealthAvailability.Unavailable
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> HealthAvailability.TooOld
         else -> when (HealthConnectClient.getSdkStatus(context)) {
             HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.Available
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.NeedsUpdate
-            else -> HealthAvailability.Unavailable
+            else -> HealthAvailability.Missing
         }
     }
 
     override suspend fun granted(): Set<String> = client.permissionController.getGrantedPermissions()
 
-    override suspend fun read(from: Instant, to: Instant): List<GarminSample> =
-        listOf(HeartRateRecord::class, RestingHeartRateRecord::class, StepsRecord::class, SleepSessionRecord::class)
+    override suspend fun read(from: Instant, to: Instant, kinds: Set<SampleKind>): List<GarminSample> =
+        RECORDS.filterKeys { it in kinds }.values.distinct()
             .flatMap { readAll(it, from, to) }
             .flatMap(HealthRecords::samplesOf)
+            .filter { it.kind in kinds }
 
     override fun permissionRequest(): ActivityResultContract<Set<String>, Set<String>> =
         PermissionController.createRequestPermissionResultContract()
 
+    private companion object {
+        /** The record each kind is read from. */
+        val RECORDS: Map<SampleKind, KClass<out Record>> = mapOf(
+            SampleKind.HeartRate to HeartRateRecord::class,
+            SampleKind.RestingHeartRate to RestingHeartRateRecord::class,
+            SampleKind.Steps to StepsRecord::class,
+            SampleKind.Sleep to SleepSessionRecord::class,
+            SampleKind.SleepStage to SleepSessionRecord::class,
+        )
+    }
+
     /** All records of [type] from [from] to [to], page by page. */
-    private suspend fun <T : Record> readAll(type: KClass<T>, from: Instant, to: Instant): List<T> {
-        val records = mutableListOf<T>()
+    private suspend fun readAll(type: KClass<out Record>, from: Instant, to: Instant): List<Record> {
+        val records = mutableListOf<Record>()
         var page: String? = null
         do {
-            val response = client.readRecords(ReadRecordsRequest(type, TimeRangeFilter.between(from, to), pageToken = page))
+            val request = ReadRecordsRequest(
+                recordType = type,
+                timeRangeFilter = TimeRangeFilter.between(from, to),
+                // Only Garmin Connect's (SPEC.md §17): the tiers are Garmin's, as are the sources they rest on.
+                dataOriginFilter = setOf(DataOrigin(HealthSource.GARMIN_CONNECT)),
+                pageToken = page,
+            )
+            val response = client.readRecords(request)
             records += response.records
             page = response.pageToken
         } while (page != null)

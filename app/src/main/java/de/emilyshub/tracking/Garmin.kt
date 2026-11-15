@@ -8,6 +8,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import java.time.Instant
 
 /** What a value read from Health Connect is (SPEC.md §17, "Garmin über Health Connect"). */
@@ -30,8 +31,13 @@ enum class SampleKind(val stored: String) {
 
 /** What measured a value, as the writing app tells Health Connect; unknown when it does not. */
 enum class DeviceKind(val stored: String) {
+    /** A watch, measuring at the wrist. */
     Watch("watch"),
+
+    /** A chest strap, measuring electrically. */
     ChestStrap("chest_strap"),
+
+    /** Anything else, or not told. */
     Unknown("unknown"),
 }
 
@@ -52,10 +58,19 @@ data class GarminSample(
     val device: DeviceKind,
     val model: String? = null,
 ) {
+    /** When it begins, or the moment of a heart rate. */
     val start: Instant get() = Instant.ofEpochMilli(startMillis)
+
+    /** When it ends, the same as [start] for a heart rate. */
     val end: Instant get() = Instant.ofEpochMilli(endMillis)
 
+    /** The id of the record in Health Connect it came from. */
+    val recordId: String get() = key.substringBefore(PLACE)
+
     companion object {
+        /** Between a record's id and the place of a value within it, in [key]. */
+        const val PLACE = '#'
+
         /** A value of [kind] from [start] to [end]. */
         fun of(key: String, kind: SampleKind, start: Instant, end: Instant, value: Long, sourceApp: String, device: DeviceKind, model: String? = null) =
             GarminSample(key, kind, start.toEpochMilli(), end.toEpochMilli(), value, sourceApp, device, model)
@@ -75,7 +90,25 @@ data class SampleSource(
 interface GarminDao {
     /** Writes [samples], each in place of one of its key. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun put(samples: List<GarminSample>)
+    suspend fun insert(samples: List<GarminSample>)
+
+    /** Deletes the values of record [id], and those within it ([prefix]: its id and [GarminSample.PLACE], then %). */
+    @Query("DELETE FROM garmin_sample WHERE `key` = :id OR `key` LIKE :prefix")
+    suspend fun deleteRecord(id: String, prefix: String)
+
+    /**
+     * Writes [samples] in place of what their records held before, so that a record written anew with fewer values,
+     * such as heart rates, leaves none of its old ones behind.
+     */
+    @Transaction
+    suspend fun put(samples: List<GarminSample>) {
+        samples.map { it.recordId }.distinct().forEach { deleteRecord(it, "$it${GarminSample.PLACE}%") }
+        insert(samples)
+    }
+
+    /** Where the steps came in up to: the end of the last span of them. */
+    @Query("SELECT MAX(end_ms) FROM garmin_sample WHERE kind = 'steps'")
+    suspend fun stepsUntilMillis(): Long?
 
     /** The values of [kind] that overlap [fromMillis] to [toMillis], by their start. */
     @Query("SELECT * FROM garmin_sample WHERE kind = :kind AND start_ms < :toMillis AND end_ms > :fromMillis ORDER BY start_ms")

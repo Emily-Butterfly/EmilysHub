@@ -65,15 +65,11 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Health Connect shows why Tracking reads it (SPEC.md §17), up to Android 13: the launcher opens only a
-                 text that says so, behind the app's lock. -->
-            <intent-filter>
-                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-            </intent-filter>
         </activity>
 
-        <!-- The same from Android 14 on. Only the system may start it (START_VIEW_PERMISSION_USAGE), the one exported
-             component besides the launcher (SPEC.md §9), and it is the launcher. -->
+        <!-- Health Connect shows why Tracking reads it (SPEC.md §17), from Android 14 on, the only Android it is read on:
+             the launcher opens only a text that says so, behind the app's lock. Only the system may start it
+             (START_VIEW_PERMISSION_USAGE), the one exported component besides the launcher (SPEC.md §9). -->
         <activity-alias
             android:name=".HealthPermissionUsage"
             android:exported="true"

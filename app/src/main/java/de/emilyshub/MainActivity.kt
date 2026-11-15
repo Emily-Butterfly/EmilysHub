@@ -57,8 +57,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** How Health Connect asks the app why it reads it: up to Android 13, and from Android 14 on (the manifest's alias). */
-        private val HEALTH_RATIONALE = setOf("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE", "android.intent.action.VIEW_PERMISSION_USAGE")
+        /** How Health Connect asks the app why it reads it, from Android 14 on, through the manifest's alias. */
+        private const val HEALTH_RATIONALE = Intent.ACTION_VIEW_PERMISSION_USAGE
 
         private const val EXTRA_SUBSCRIPTION = "de.emilyshub.extra.OPEN_SUBSCRIPTION"
         private const val EXTRA_CANCEL = "de.emilyshub.extra.CANCEL"
@@ -127,7 +127,7 @@ class MainActivity : ComponentActivity() {
          */
         private fun Intent.opening(): Opening? {
             // Health Connect asks why Tracking reads it: only that text (SPEC.md §17).
-            if (action in HEALTH_RATIONALE) return Opening.Show(Destination.HealthRationale)
+            if (action == HEALTH_RATIONALE) return Opening.Show(Destination.HealthRationale)
             // The empty line for a thought, nothing else.
             if (getBooleanExtra(EXTRA_CAPTURE, false)) return Opening.Show(Destination.Capture)
             startOccurrence()?.let { return Opening.StartRun(it) }

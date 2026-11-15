@@ -21,6 +21,10 @@ enum class Source(val code: String, val citation: String) {
             "2017 (PubMed 28709155); Merrigan et al. 2023, doi:10.1080/1091367X.2022.2161820 (Brustgurt gegen EKG); " +
             "Casanova-Lizón et al. 2026, doi:10.3390/s26206549 (Ruhe)",
     ),
+    GarminHrv(
+        "GARMIN-HRV",
+        "Dial et al. 2025, doi:10.14814/phy2.70527 (Nacht-RMSSD gegen EKG); Miller et al. 2022, doi:10.3390/s22166317",
+    ),
     GarminSleep(
         "GARMIN-SCHLAF",
         "Schyvens et al. 2025, doi:10.1093/sleepadvances/zpaf021 (gegen Polysomnographie)",

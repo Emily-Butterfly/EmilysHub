@@ -50,6 +50,8 @@ internal fun GarminPage(tracking: Tracking, garmin: TrackingGarmin, contentPaddi
     var setUp by remember { mutableStateOf<Boolean?>(null) }
     var asked by remember { mutableStateOf(false) }
     var outcome by remember { mutableStateOf<GarminRead?>(null) }
+    // Asks Android, so once, not on every frame.
+    val availability = remember(garmin) { garmin.availability() }
     LaunchedEffect(checks) { setUp = garmin.isSetUp() }
     val request = rememberLauncherForActivityResult(garmin.permissionRequest()) {
         asked = true
@@ -67,8 +69,9 @@ internal fun GarminPage(tracking: Tracking, garmin: TrackingGarmin, contentPaddi
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(R.string.tracking_garmin_intro))
-        when (garmin.availability()) {
-            HealthAvailability.Unavailable -> Text(stringResource(R.string.tracking_garmin_unavailable), color = MaterialTheme.colorScheme.error)
+        when (availability) {
+            HealthAvailability.TooOld -> Text(stringResource(R.string.tracking_garmin_unavailable), color = MaterialTheme.colorScheme.error)
+            HealthAvailability.Missing -> Text(stringResource(R.string.tracking_garmin_missing_app), color = MaterialTheme.colorScheme.error)
             HealthAvailability.NeedsUpdate -> Text(stringResource(R.string.tracking_garmin_update), color = MaterialTheme.colorScheme.error)
             HealthAvailability.Available -> when (setUp) {
                 null -> Unit
@@ -123,7 +126,7 @@ private fun SourceLine(tracking: Tracking, garmin: TrackingGarmin, source: Sampl
         )
         if (last != null) {
             val details = listOfNotNull(
-                stringResource(R.string.tracking_garmin_last_value, last.shown(), last.start.atZone(ZoneId.systemDefault()).dateAndTime()),
+                stringResource(R.string.tracking_garmin_last_value, shown(last), last.start.atZone(ZoneId.systemDefault()).dateAndTime()),
                 tier?.let { stringResource(R.string.tracking_garmin_tier, it.name) },
             )
             Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -131,14 +134,27 @@ private fun SourceLine(tracking: Tracking, garmin: TrackingGarmin, source: Sampl
     }
 }
 
-/** [this] value as it reads: a heart rate per minute, steps as counted, a night in hours and minutes. */
-private fun GarminSample.shown(): String = when (kind) {
-    SampleKind.HeartRate, SampleKind.RestingHeartRate -> "$value/min"
-    SampleKind.Steps -> value.toString()
-    SampleKind.Sleep -> "%d:%02d h".format(value / 60, value % 60)
-    SampleKind.SleepStage -> value.toString()
+/** [sample]'s value as it reads: a heart rate per minute, steps as counted, a night in hours, a stage by its name. */
+@Composable
+private fun shown(sample: GarminSample): String = when (sample.kind) {
+    SampleKind.HeartRate, SampleKind.RestingHeartRate -> stringResource(R.string.tracking_garmin_per_minute, sample.value)
+    SampleKind.Steps -> sample.value.toString()
+    SampleKind.Sleep -> stringResource(R.string.tracking_garmin_hours, sample.value / 60, sample.value % 60)
+    SampleKind.SleepStage -> stringResource(SLEEP_STAGES[sample.value.toInt()] ?: R.string.tracking_garmin_stage_unknown)
 }
 
+/** The stages of sleep by Health Connect's numbers of them (SleepSessionRecord.STAGE_TYPE_…). */
+private val SLEEP_STAGES = mapOf(
+    1 to R.string.tracking_garmin_stage_awake,
+    2 to R.string.tracking_garmin_stage_sleeping,
+    3 to R.string.tracking_garmin_stage_out_of_bed,
+    4 to R.string.tracking_garmin_stage_light,
+    5 to R.string.tracking_garmin_stage_deep,
+    6 to R.string.tracking_garmin_stage_rem,
+    7 to R.string.tracking_garmin_stage_awake_in_bed,
+)
+
+/** What [this] kind is called on the page. */
 private fun SampleKind.label(): Int = when (this) {
     SampleKind.HeartRate -> R.string.tracking_garmin_kind_heart_rate
     SampleKind.RestingHeartRate -> R.string.tracking_garmin_kind_resting
@@ -147,6 +163,7 @@ private fun SampleKind.label(): Int = when (this) {
     SampleKind.SleepStage -> R.string.tracking_garmin_kind_stage
 }
 
+/** What [this] device is called on the page. */
 private fun DeviceKind.label(): Int = when (this) {
     DeviceKind.Watch -> R.string.tracking_garmin_device_watch
     DeviceKind.ChestStrap -> R.string.tracking_garmin_device_chest_strap

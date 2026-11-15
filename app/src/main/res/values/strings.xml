@@ -1721,6 +1721,17 @@
     <string name="tracking_menu_garmin">Garmin</string>
     <string name="tracking_garmin_intro">Tracking liest aus Health Connect, was Garmin Connect dorthin schreibt: Herzfrequenz, Ruhepuls, Schritte und Schlaf. Nur lesend und nur, solange Tracking offen ist; die Werte bleiben als Kopie in Tracking und kommen ins Backup.</string>
     <string name="tracking_garmin_unavailable">Garmin-Werte gibt es über Health Connect erst ab Android 14. Tracking funktioniert auch ohne sie.</string>
+    <string name="tracking_garmin_missing_app">Health Connect ist auf diesem Handy nicht da. Tracking funktioniert auch ohne Garmin-Werte.</string>
+    <string name="tracking_garmin_per_minute">%1$d/min</string>
+    <string name="tracking_garmin_hours">%1$d:%2$02d h</string>
+    <string name="tracking_garmin_stage_awake">wach</string>
+    <string name="tracking_garmin_stage_sleeping">Schlaf</string>
+    <string name="tracking_garmin_stage_out_of_bed">außerhalb des Betts</string>
+    <string name="tracking_garmin_stage_light">Leichtschlaf</string>
+    <string name="tracking_garmin_stage_deep">Tiefschlaf</string>
+    <string name="tracking_garmin_stage_rem">REM-Schlaf</string>
+    <string name="tracking_garmin_stage_awake_in_bed">wach im Bett</string>
+    <string name="tracking_garmin_stage_unknown">unbekannt</string>
     <string name="tracking_garmin_update">Health Connect muss erst aktualisiert werden. Tracking funktioniert auch ohne Garmin-Werte.</string>
     <string name="tracking_garmin_set_up">Einrichten</string>
     <string name="tracking_garmin_set_up_hint">Health Connect fragt einmal nach Herzfrequenz, Ruhepuls, Schritten, Schlaf und dem Lesen älterer Werte; ohne diese gibt Health Connect nur die letzten 30 Tage.</string>

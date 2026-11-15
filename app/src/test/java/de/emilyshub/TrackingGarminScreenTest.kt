@@ -56,14 +56,27 @@ class TrackingGarminScreenTest {
     private fun count() = checkNotNull(runBlocking { app.tracking.withDatabase { it.garmin().count() } })
 
     @Test
-    fun `before Android 14 or without Health Connect the page says so, and Tracking works without`() {
-        health.availability = HealthAvailability.Unavailable
+    fun `before Android 14 the page says so, and Tracking works without`() {
+        health.availability = HealthAvailability.TooOld
         launchApp().use {
             compose.openTracking()
             compose.setUpTracking()
             openGarmin()
 
             compose.onNodeWithText("Garmin-Werte gibt es über Health Connect erst ab Android 14", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Einrichten").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `without Health Connect the page says so`() {
+        health.availability = HealthAvailability.Missing
+        launchApp().use {
+            compose.openTracking()
+            compose.setUpTracking()
+            openGarmin()
+
+            compose.onNodeWithText("Health Connect ist auf diesem Handy nicht da", substring = true).assertIsDisplayed()
             compose.onNodeWithText("Einrichten").assertDoesNotExist()
         }
     }
@@ -154,6 +167,6 @@ class TrackingGarminScreenTest {
     }
 
     private companion object {
-        const val GARMIN = "com.garmin.android.apps.connectmobile"
+        const val GARMIN = HealthSource.GARMIN_CONNECT
     }
 }

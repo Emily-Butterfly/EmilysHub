@@ -33,30 +33,78 @@ class TrackingGarminTest {
         assertEquals(GarminRead.NotSetUp, runBlocking { garmin.read() })
 
         health.grantedNow = HealthSource.PERMISSIONS
-        health.availability = HealthAvailability.Unavailable
+        health.availability = HealthAvailability.Missing
         assertEquals(GarminRead.NotSetUp, runBlocking { garmin.read() })
         assertTrue(health.reads.isEmpty())
     }
 
     @Test
-    fun `the first reading goes back a year, later ones from the last, and reading again adds without doubling`() {
-        health.grantedNow = HealthSource.NEEDED
+    fun `the first reading goes back a year in windows, later ones from the last, and reading again adds without doubling`() {
+        health.grantedNow = HealthSource.PERMISSIONS
         health.samples += heartRate("hr#0", now.minusSeconds(3600))
 
         assertEquals(GarminRead.Read(1), runBlocking { garmin.read() })
-        assertEquals(now.minus(TrackingGarmin.FIRST_READ), health.reads.single().first)
+        assertEquals(now.minus(TrackingGarmin.FIRST_READ), health.reads.first().first)
+        assertTrue(health.reads.all { (from, to) -> Duration.between(from, to) <= TrackingGarmin.WINDOW })
+        assertEquals(now, health.reads.last().second)
 
+        health.reads.clear()
         health.samples += heartRate("hr#1", now.minusSeconds(1800))
         runBlocking { garmin.read() }
 
-        assertEquals(now.minus(TrackingGarmin.OVERLAP), health.reads[1].first)
+        assertEquals(now.minus(TrackingGarmin.OVERLAP), health.reads.single().first)
         assertEquals(2, count())
         assertEquals(now, runBlocking { garmin.lastRead() })
     }
 
     @Test
-    fun `a value written anew in Health Connect takes the place of its copy`() {
+    fun `a reading cut off by Health Connect keeps what it read and goes on from there next time`() {
+        health.grantedNow = HealthSource.PERMISSIONS
+        health.samples += heartRate("old#0", now.minus(Duration.ofDays(300)))
+        health.samples += heartRate("new#0", now.minusSeconds(60))
+        health.failAfter = 3
+
+        assertEquals(GarminRead.Failed, runBlocking { garmin.read() })
+        assertEquals(1, count())
+
+        health.failAfter = null
+        health.reads.clear()
+        runBlocking { garmin.read() }
+
+        assertEquals(now.minus(TrackingGarmin.FIRST_READ).plus(TrackingGarmin.WINDOW.multipliedBy(3)), health.reads.first().first)
+        assertEquals(2, count())
+    }
+
+    @Test
+    fun `granted later, the permission for older values reads the year once more`() {
         health.grantedNow = HealthSource.NEEDED
+        runBlocking { garmin.read() }
+        health.samples += heartRate("old#0", now.minus(Duration.ofDays(200)))
+        health.grantedNow = HealthSource.PERMISSIONS
+        health.reads.clear()
+
+        runBlocking { garmin.read() }
+        assertEquals(now.minus(TrackingGarmin.FIRST_READ), health.reads.first().first)
+        assertEquals(1, count())
+
+        health.reads.clear()
+        runBlocking { garmin.read() }
+        assertEquals("once", now.minus(TrackingGarmin.OVERLAP), health.reads.single().first)
+    }
+
+    @Test
+    fun `only the kinds granted are read, the others not`() {
+        health.grantedNow = setOf("android.permission.health.READ_HEART_RATE")
+        health.samples += heartRate("hr#0", now.minusSeconds(60))
+
+        assertEquals(GarminRead.Read(1), runBlocking { garmin.read() })
+        assertEquals(setOf(SampleKind.HeartRate), health.kindsRead.first())
+        assertTrue(runBlocking { garmin.isSetUp() })
+    }
+
+    @Test
+    fun `a value written anew in Health Connect takes the place of its copy`() {
+        health.grantedNow = HealthSource.PERMISSIONS
         health.samples += heartRate("hr#0", now.minusSeconds(60), value = 70)
         runBlocking { garmin.read() }
 
@@ -66,6 +114,18 @@ class TrackingGarminTest {
         assertEquals(1, count())
         val source = checkNotNull(runBlocking { garmin.sources() }).single()
         assertEquals(72L, source.second?.value)
+    }
+
+    @Test
+    fun `a record written anew with fewer values leaves none of its old ones`() {
+        health.grantedNow = HealthSource.PERMISSIONS
+        health.samples += listOf(heartRate("hr#0", now.minusSeconds(120)), heartRate("hr#1", now.minusSeconds(60)))
+        runBlocking { garmin.read() }
+
+        health.samples.removeAt(1)
+        runBlocking { garmin.read() }
+
+        assertEquals(1, count())
     }
 
     @Test

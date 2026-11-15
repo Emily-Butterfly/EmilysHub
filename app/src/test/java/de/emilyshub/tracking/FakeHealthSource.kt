@@ -18,6 +18,12 @@ class FakeHealthSource : HealthSource {
     /** The times asked for, from and to, each time it was read. */
     val reads = mutableListOf<Pair<Instant, Instant>>()
 
+    /** The kinds asked for, each time it was read. */
+    val kindsRead = mutableListOf<Set<SampleKind>>()
+
+    /** If set, reading fails once it was read so many more times, as Health Connect's rate limit would. */
+    var failAfter: Int? = null
+
     /** What it was asked for, each time. */
     val requests = mutableListOf<Set<String>>()
 
@@ -25,9 +31,14 @@ class FakeHealthSource : HealthSource {
 
     override suspend fun granted() = grantedNow
 
-    override suspend fun read(from: Instant, to: Instant): List<GarminSample> {
+    override suspend fun read(from: Instant, to: Instant, kinds: Set<SampleKind>): List<GarminSample> {
+        failAfter?.let { left ->
+            check(left > 0) { "Rate limit" }
+            failAfter = left - 1
+        }
         reads += from to to
-        return samples.filter { it.start.isBefore(to) && !it.end.isBefore(from) }
+        kindsRead += kinds
+        return samples.filter { it.kind in kinds && it.start.isBefore(to) && !it.start.isBefore(from) }
     }
 
     override fun permissionRequest() = object : ActivityResultContract<Set<String>, Set<String>>() {

@@ -8,6 +8,10 @@ import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.PatientOrder
 import de.emilyshub.island.IslandState
 import de.emilyshub.routine
+import de.emilyshub.tracking.DeviceKind
+import de.emilyshub.tracking.GarminSample
+import de.emilyshub.tracking.HealthSource
+import de.emilyshub.tracking.SampleKind
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.TrackingSetting
 import kotlinx.coroutines.flow.first
@@ -23,6 +27,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.time.Instant
 
 /**
  * Tracking in the backups (SPEC.md §10, §17): taken along in its own encryption, without unlocking it, as the Doku is,
@@ -168,6 +173,22 @@ class TrackingBackupTest {
         assertProblem(BackupProblem.NewerVersion) {
             open(sealed(content.put("tracking", JSONObject(section.toString()).put("schema", TrackingDatabase.VERSION + 1))))
         }
+    }
+
+    @Test
+    fun `the values read from Health Connect are in the backup as copies`() {
+        setUpTracking()
+        val at = Instant.parse("2026-10-23T04:00:00Z")
+        runBlocking {
+            tracking.changing { it.garmin().put(listOf(GarminSample.of("hr#0", SampleKind.HeartRate, at, at, 64, HealthSource.GARMIN_CONNECT, DeviceKind.Watch))) }
+        }
+        val file = exported()
+        runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
+
+        restore(file, trackingPassword = TRACKING_PASSWORD)
+
+        unlock()
+        assertEquals(64L, runBlocking { tracking.withDatabase { it.garmin().overlapping(SampleKind.HeartRate, 0, Long.MAX_VALUE) } }?.single()?.value)
     }
 
     @Test
