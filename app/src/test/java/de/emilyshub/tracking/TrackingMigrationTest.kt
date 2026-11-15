@@ -63,4 +63,28 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 3 gains the Stehtests and keeps its medications`() {
+        createTrackingAsExported(context, version = 3) {
+            it.execSQL(
+                "INSERT INTO medication (id, name, form, times, purpose, thrombosis_risk, lowers_pulse, side_effects, start) " +
+                    "VALUES (1, 'Medikament A', '', '08:00', '', 0, 0, '', '2026-11-01')",
+            )
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals("Medikament A", database.medications().get(1)?.name)
+                val id = database.standTests().insert(StandTest(variant = StandVariant.Leaning, startedAt = Instant.parse("2026-11-15T10:00:00Z")))
+                database.standTests().insertIntakes(listOf(StandIntake(id, 1, 120)))
+                database.standTests().putPoint(StandPoint(id, 1, pulse = 80))
+                assertEquals(1, database.standTests().points(id).size)
+                assertEquals(120, database.standTests().intakes(id).single().minutesBefore)
+            }
+        } finally {
+            database.close()
+        }
+    }
 }

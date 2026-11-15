@@ -38,6 +38,12 @@ object GarminTiers {
     /** The rule for heart rates in motion from the wrist or unknown. [GARMIN-HF]: wrist sensors fall short in motion. */
     val HEART_RATE_IN_MOTION = TierRule(Tier.B, listOf(Source.GarminHeartRate))
 
+    /**
+     * The rule for heart rates during a Stehtest, the curve beside its own points: at rest by SPEC.md §17 ("In Ruhe
+     * heißt … oder ein Stehtest"). [GARMIN-HF]: accurate at rest.
+     */
+    val STAND_TEST = HEART_RATE_AT_REST
+
     /** The rule of each kind; for a heart rate the cautious one, which [heartRate] lifts at rest or from a chest strap. */
     fun ruleOf(kind: SampleKind): TierRule = when (kind) {
         SampleKind.HeartRate -> HEART_RATE_IN_MOTION

@@ -38,7 +38,7 @@ interface TrackingSettingsDao {
  * Tracking's own database, `tracking.db` (SPEC.md §17), apart from [de.emilyshub.data.HubDatabase] and from the Doku's,
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
  * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125), the values read from Health
- * Connect (#126); the base data in its settings.
+ * Connect (#126), the Stehtests (#127); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
@@ -54,6 +54,9 @@ interface TrackingSettingsDao {
         DoseChange::class,
         IntakeDeviation::class,
         GarminSample::class,
+        StandTest::class,
+        StandPoint::class,
+        StandIntake::class,
     ],
     version = TrackingDatabase.VERSION,
 )
@@ -69,11 +72,13 @@ abstract class TrackingDatabase : RoomDatabase() {
 
     abstract fun garmin(): GarminDao
 
+    abstract fun standTests(): StandTestDao
+
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
@@ -106,4 +111,16 @@ class TrackingConverters {
 
     @TypeConverter
     fun toDeviceKind(text: String): DeviceKind = DeviceKind.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromStandVariant(variant: StandVariant): String = variant.stored
+
+    @TypeConverter
+    fun toStandVariant(text: String): StandVariant = StandVariant.entries.first { it.stored == text }
+
+    @TypeConverter
+    fun fromAbortCause(cause: AbortCause?): String? = cause?.stored
+
+    @TypeConverter
+    fun toAbortCause(text: String?): AbortCause? = text?.let { AbortCause.entries.first { cause -> cause.stored == it } }
 }

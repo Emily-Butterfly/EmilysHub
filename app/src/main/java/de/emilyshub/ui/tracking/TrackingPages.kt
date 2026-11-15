@@ -28,6 +28,15 @@ sealed interface TrackingPage : Serializable {
 
     /** Garmin's values from Health Connect: setting up, reading, where they come from. */
     data object Garmin : TrackingPage
+
+    /** A new Stehtest: its variant, the checklist and what came before. */
+    data object NewStandTest : TrackingPage
+
+    /** Stehtest [id]: as it runs, or its result once ended. */
+    data class StandTest(val id: Long) : TrackingPage
+
+    /** All Stehtests, the latest first. */
+    data object StandTests : TrackingPage
 }
 
 /**

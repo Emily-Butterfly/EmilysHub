@@ -64,3 +64,30 @@ val TRACKING_MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_garmin_sample_kind_start_ms` ON `garmin_sample` (`kind`, `start_ms`)")
     }
 }
+
+/** 3 → 4: the Stehtests with their points and the intakes before them (#127). */
+val TRACKING_MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `stand_test` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`variant` TEXT NOT NULL, `started_at` TEXT NOT NULL, `standing_at` TEXT, `lying_pulse` INTEGER, " +
+                "`lying_systolic` INTEGER, `lying_diastolic` INTEGER, `caffeine` INTEGER, " +
+                "`meal_minutes_before` INTEGER, `fluid_decilitres` INTEGER, `abort_cause` TEXT, " +
+                "`aborted_minute` INTEGER, `abort_reason` TEXT NOT NULL, `finished` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `stand_point` (`test_id` INTEGER NOT NULL, `minute` INTEGER NOT NULL, " +
+                "`pulse` INTEGER, `systolic` INTEGER, `diastolic` INTEGER, `dizziness` INTEGER, " +
+                "`palpitations` INTEGER, `breathlessness` INTEGER, `legs_discoloured` INTEGER, " +
+                "PRIMARY KEY(`test_id`, `minute`), " +
+                "FOREIGN KEY(`test_id`) REFERENCES `stand_test`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `stand_intake` (`test_id` INTEGER NOT NULL, `medication_id` INTEGER NOT NULL, " +
+                "`minutes_before` INTEGER NOT NULL, PRIMARY KEY(`test_id`, `medication_id`), " +
+                "FOREIGN KEY(`test_id`) REFERENCES `stand_test`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_stand_intake_medication_id` ON `stand_intake` (`medication_id`)")
+    }
+}

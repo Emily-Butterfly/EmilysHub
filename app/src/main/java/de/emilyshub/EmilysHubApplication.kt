@@ -86,6 +86,7 @@ import de.emilyshub.tracking.TrackingBaseData
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.TrackingEntries
 import de.emilyshub.tracking.TrackingGarmin
+import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingMedications
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingSymptoms
@@ -370,6 +371,7 @@ open class EmilysHubApplication : Application(), Hub {
             medications = TrackingMedications(tracking, clock),
             baseData = TrackingBaseData(tracking),
             garmin = TrackingGarmin(tracking, healthSource, clock),
+            standTests = TrackingStandTests(tracking, clock),
             writes = IslandWrites(tracking, background),
         )
     }

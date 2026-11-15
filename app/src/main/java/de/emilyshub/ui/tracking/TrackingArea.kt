@@ -90,6 +90,9 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         is TrackingPage.Medication -> MedicationPage(tracking, modules, page, contentPadding, onDone = back)
         TrackingPage.BaseData -> BaseDataPage(tracking, modules, contentPadding)
         TrackingPage.Garmin -> GarminPage(tracking, modules.garmin, contentPadding)
+        TrackingPage.NewStandTest -> NewStandTestPage(modules.standTests, contentPadding, onStarted = { onPagesChange(pages.replaceTop(TrackingPage.StandTest(it))) })
+        is TrackingPage.StandTest -> StandTestPage(tracking, modules, page.id, contentPadding)
+        TrackingPage.StandTests -> StandTestsPage(tracking, modules.standTests, contentPadding, onOpen = { open(TrackingPage.StandTest(it)) })
     }
 }
 
@@ -107,7 +110,7 @@ internal val TRACKING_TEXTS = IslandTexts(
 
 /**
  * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
- * each to open, and "Nachtragen" for one of the seven days before.
+ * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest" and the list of them.
  */
 @Composable
 private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
@@ -135,6 +138,10 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
             EntryLine(R.string.tracking_evening, status.eveningDone) { onOpen(TrackingPage.Evening(status.day)) }
             OutlinedButton(onClick = { backfilling = true }, modifier = Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.tracking_backfill))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp)) {
+                OutlinedButton(onClick = { onOpen(TrackingPage.NewStandTest) }) { Text(stringResource(R.string.tracking_stand_new)) }
+                TextButton(onClick = { onOpen(TrackingPage.StandTests) }) { Text(stringResource(R.string.tracking_stand_list)) }
             }
         }
     }
