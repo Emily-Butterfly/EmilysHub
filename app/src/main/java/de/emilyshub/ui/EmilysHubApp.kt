@@ -277,7 +277,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
     if (top == null) {
         // Heute is the start screen: back from any other area returns there before leaving the app.
         BackHandler(enabled = current != TopLevelDestination.Today) { current = TopLevelDestination.Today }
-        // What is open in Sonstiges goes back to its list first; within the Doku, to the page it was opened from first.
+        // What is open in Sonstiges goes back to its list first; within the Doku or Tracking, to the page it was opened from first.
         BackHandler(enabled = current == TopLevelDestination.More && tabs.more != null) { tabs = tabs.backInMore() }
         // Back from yesterday leads to Heute.
         BackHandler(enabled = current == TopLevelDestination.Today && yesterday) { yesterday = false }
@@ -543,7 +543,9 @@ private fun TopLevelScaffold(
                             DokuMenu(hub.doku, onOpen = { page -> onTabsChange(tabs.copy(doku = tabs.doku.open(page))) })
                         }
                         // Tracking's settings too, in its own menu, there only while it is open (SPEC.md §17).
-                        if (moreOpen == MoreEntry.Tracking) TrackingMenu(hub.tracking)
+                        if (moreOpen == MoreEntry.Tracking) {
+                            TrackingMenu(hub.tracking, onOpen = { page -> onTabsChange(tabs.copy(tracking = tabs.tracking.open(page))) })
+                        }
                         // Where the languages and teachers are managed (SPEC.md §15).
                         if (moreOpen == MoreEntry.Languages) {
                             LanguagesMenu(
@@ -682,7 +684,12 @@ private fun TopLevelScaffold(
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,
                 )
-                MoreEntry.Tracking -> TrackingArea(hub.tracking, contentPadding)
+                MoreEntry.Tracking -> TrackingArea(
+                    hub = hub,
+                    pages = tabs.tracking,
+                    onPagesChange = { onTabsChange(tabs.copy(tracking = it)) },
+                    contentPadding = contentPadding,
+                )
             }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,

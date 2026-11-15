@@ -82,7 +82,10 @@ internal fun TimeDialog(initial: LocalTime, onConfirm: (LocalTime) -> Unit, onDi
     )
 }
 
-/** A calendar to pick a day from, none before [earliest] and none after [latest]. The picker counts days in UTC milliseconds. */
+/**
+ * A calendar to pick a day from, none before [earliest], none after [latest] and only those [selectable]. The picker
+ * counts days in UTC milliseconds.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DateDialog(
@@ -90,6 +93,7 @@ internal fun DateDialog(
     modifier: Modifier = Modifier,
     earliest: LocalDate? = null,
     latest: LocalDate? = null,
+    selectable: (LocalDate) -> Boolean = { true },
     onConfirm: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -98,7 +102,7 @@ internal fun DateDialog(
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val date = dateOf(utcTimeMillis)
-                return (earliest == null || !date.isBefore(earliest)) && (latest == null || !date.isAfter(latest))
+                return (earliest == null || !date.isBefore(earliest)) && (latest == null || !date.isAfter(latest)) && selectable(date)
             }
         },
     )

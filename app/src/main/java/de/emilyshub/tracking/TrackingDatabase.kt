@@ -10,7 +10,10 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
+import de.emilyshub.data.Converters
 import de.emilyshub.island.RawKey
 import de.emilyshub.island.SECURE_DELETE
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
@@ -34,20 +37,39 @@ interface TrackingSettingsDao {
 /**
  * Tracking's own database, `tracking.db` (SPEC.md §17), apart from [de.emilyshub.data.HubDatabase] and from the Doku's,
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
- * ([Tracking]). The slices after #123 fill it.
+ * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
  */
-@Database(entities = [TrackingSetting::class], version = TrackingDatabase.VERSION)
+@Database(
+    entities = [
+        TrackingSetting::class,
+        MorningEntry::class,
+        EveningEntry::class,
+        Symptom::class,
+        SymptomValue::class,
+        Medication::class,
+        DoseChange::class,
+        IntakeDeviation::class,
+    ],
+    version = TrackingDatabase.VERSION,
+)
+@TypeConverters(Converters::class, TrackingConverters::class)
 abstract class TrackingDatabase : RoomDatabase() {
     abstract fun settings(): TrackingSettingsDao
 
+    abstract fun entries(): EntryDao
+
+    abstract fun symptoms(): SymptomDao
+
+    abstract fun medications(): MedicationDao
+
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = emptyList()
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
@@ -59,4 +81,13 @@ abstract class TrackingDatabase : RoomDatabase() {
                 .build()
         }
     }
+}
+
+/** What Room keeps of Tracking's own types. */
+class TrackingConverters {
+    @TypeConverter
+    fun fromDeviation(deviation: Deviation): String = deviation.stored
+
+    @TypeConverter
+    fun toDeviation(text: String): Deviation = Deviation.entries.first { it.stored == text }
 }

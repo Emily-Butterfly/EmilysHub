@@ -3,45 +3,89 @@ package de.emilyshub.ui.tracking
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.util.Log
+import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import de.emilyshub.Hub
 import de.emilyshub.R
 import de.emilyshub.tracking.ACUTE_WARNING_SIGNS
 import de.emilyshub.tracking.Tracking
+import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.Urgency
 import de.emilyshub.tracking.WarningSigns
+import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.island.IslandGate
 import de.emilyshub.ui.island.IslandTexts
+import de.emilyshub.ui.island.rememberIslandLoad
+import de.emilyshub.ui.island.touchesIsland
+import de.emilyshub.ui.numericDate
+import java.time.LocalDate
 
 /**
  * Tracking in the tab of Sonstiges (SPEC.md §17): behind its [IslandGate], as the Doku is, and only once unlocked its
- * start page. For now that holds "Akute Beschwerden?"; the slices after #123 add the rest.
+ * [pages] ([onPagesChange]). Each unlock starts on its start page.
  */
 @Composable
-internal fun TrackingArea(tracking: Tracking, contentPadding: PaddingValues) {
-    IslandGate(island = tracking, texts = TRACKING_TEXTS, contentPadding = contentPadding, onLocked = {}) {
-        TrackingHome(contentPadding)
+internal fun TrackingArea(hub: Hub, pages: TrackingPages, onPagesChange: (TrackingPages) -> Unit, contentPadding: PaddingValues) {
+    val tracking = hub.tracking
+    IslandGate(
+        island = tracking,
+        texts = TRACKING_TEXTS,
+        contentPadding = contentPadding,
+        // What was open goes with the lock: the next unlock starts on the start page.
+        onLocked = { if (pages != TrackingPages()) onPagesChange(TrackingPages()) },
+    ) {
+        OpenPage(tracking, hub.trackingModules, pages, onPagesChange, contentPadding)
+    }
+}
+
+/** The page of the open Tracking on top of [pages]. */
+@Composable
+private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: TrackingPages, onPagesChange: (TrackingPages) -> Unit, contentPadding: PaddingValues) {
+    val open = { page: TrackingPage -> onPagesChange(pages.open(page)) }
+    val back = { onPagesChange(pages.back()) }
+    when (val page = pages.top) {
+        TrackingPage.Home -> TrackingHome(tracking, modules, contentPadding, onOpen = open)
+        is TrackingPage.Morning -> MorningPage(tracking, modules, page, contentPadding, onDone = back)
+        is TrackingPage.Evening -> EveningPage(tracking, modules, page, contentPadding, onDone = back)
+        TrackingPage.Symptoms -> SymptomsPage(tracking, modules.symptoms, contentPadding)
+        TrackingPage.Medications -> MedicationsPage(tracking, modules.medications, contentPadding, onOpen = { open(TrackingPage.Medication(it)) })
+        is TrackingPage.Medication -> MedicationPage(tracking, modules, page, contentPadding, onDone = back)
+        TrackingPage.BaseData -> BaseDataPage(tracking, modules, contentPadding)
     }
 }
 
@@ -57,11 +101,88 @@ internal val TRACKING_TEXTS = IslandTexts(
     changePassword = R.string.tracking_menu_change_password,
 )
 
-/** Tracking's start page: first of all "Akute Beschwerden?". */
+/**
+ * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
+ * each to open, and "Nachtragen" for one of the seven days before.
+ */
 @Composable
-private fun TrackingHome(contentPadding: PaddingValues) {
-    LazyColumn(contentPadding = contentPadding) {
-        item { AcuteComplaints() }
+private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
+    val entries = modules.entries
+    val status = rememberIslandLoad(tracking) { entries.status(entries.suggestedDay()) }
+    var backfilling by remember { mutableStateOf(false) }
+    var backfillDay by remember { mutableStateOf<LocalDate?>(null) }
+    Column(
+        Modifier
+            .fillMaxSize()
+            // Outside the scrolling, so that nothing scrolls below the bars.
+            .padding(contentPadding)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        AcuteComplaints()
+        if (status != null) {
+            Text(
+                stringResource(R.string.tracking_entries_of, status.day.numericDate()),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp)
+                    .semantics { heading() },
+            )
+            EntryLine(R.string.tracking_morning, status.morningDone) { onOpen(TrackingPage.Morning(status.day)) }
+            EntryLine(R.string.tracking_evening, status.eveningDone) { onOpen(TrackingPage.Evening(status.day)) }
+            OutlinedButton(onClick = { backfilling = true }, modifier = Modifier.padding(16.dp)) {
+                Text(stringResource(R.string.tracking_backfill))
+            }
+        }
+    }
+    if (backfilling) {
+        DateDialog(
+            initial = entries.suggestedDay().minusDays(1).coerceAtLeast(entries.earliestDay()),
+            earliest = entries.earliestDay(),
+            latest = entries.today(),
+            onConfirm = {
+                backfilling = false
+                backfillDay = it
+            },
+            onDismiss = { backfilling = false },
+            modifier = Modifier.touchesIsland(tracking),
+        )
+    }
+    backfillDay?.let { day ->
+        AlertDialog(
+            onDismissRequest = { backfillDay = null },
+            title = { Text(stringResource(R.string.tracking_backfill_which, day.numericDate())) },
+            confirmButton = {
+                TextButton(onClick = {
+                    backfillDay = null
+                    onOpen(TrackingPage.Evening(day))
+                }) { Text(stringResource(R.string.tracking_evening)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    backfillDay = null
+                    onOpen(TrackingPage.Morning(day))
+                }) { Text(stringResource(R.string.tracking_morning)) }
+            },
+            modifier = Modifier.touchesIsland(tracking),
+        )
+    }
+}
+
+/** An entry of the day, [label]led, said [done] or open; tapped, it opens. */
+@Composable
+private fun EntryLine(@StringRes label: Int, done: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(stringResource(label), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(
+            stringResource(if (done) R.string.tracking_entry_done else R.string.tracking_entry_open),
+            color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

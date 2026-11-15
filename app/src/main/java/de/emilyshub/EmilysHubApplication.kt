@@ -30,6 +30,7 @@ import de.emilyshub.inbox.CaptureNotification
 import de.emilyshub.inbox.Inbox
 import de.emilyshub.island.Fingerprint
 import de.emilyshub.island.IslandClipboard
+import de.emilyshub.island.IslandWrites
 import de.emilyshub.island.RawKey
 import de.emilyshub.island.SystemFingerprint
 import de.emilyshub.languages.AttachmentStore
@@ -79,7 +80,12 @@ import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.tracking.Tracking
+import de.emilyshub.tracking.TrackingBaseData
 import de.emilyshub.tracking.TrackingDatabase
+import de.emilyshub.tracking.TrackingEntries
+import de.emilyshub.tracking.TrackingMedications
+import de.emilyshub.tracking.TrackingModules
+import de.emilyshub.tracking.TrackingSymptoms
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -347,6 +353,17 @@ open class EmilysHubApplication : Application(), Hub {
             io = io,
             background = background,
             iterations = backupIterations,
+        )
+    }
+
+    final override val trackingModules: TrackingModules by lazy {
+        val symptoms = TrackingSymptoms(tracking)
+        TrackingModules(
+            entries = TrackingEntries(tracking, symptoms, clock),
+            symptoms = symptoms,
+            medications = TrackingMedications(tracking, clock),
+            baseData = TrackingBaseData(tracking),
+            writes = IslandWrites(tracking, background),
         )
     }
 

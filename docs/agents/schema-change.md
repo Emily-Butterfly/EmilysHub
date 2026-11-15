@@ -24,7 +24,7 @@ version, a migration in `doku/DokuMigrations.kt` with a test in `DokuMigrationTe
 `VERSION` also goes into each backup, and a backup with a higher one is refused as of a newer version of the app.
 
 **`TrackingDatabase`** likewise: its encrypted file goes into the backups, a change takes the entity, its version, a
-migration in `TrackingDatabase.MIGRATIONS` with a test, and the exported schema, and a backup with a higher `VERSION`
+migration in `tracking/TrackingMigrations.kt` with a test in `TrackingMigrationTest`, and the exported schema, and a backup with a higher `VERSION`
 is refused.
 
 **Renaming** a table or column is the exception, in the tests only: the migration renames it in a backup of the

@@ -35,3 +35,9 @@ fun ComposeTestRule.unlockTracking(password: String = TRACKING_PASSWORD) {
     field("Passwort").performTextReplacement(password)
     onNodeWithText("Entsperren").performClick()
 }
+
+/** "Fertig" on a page of Tracking, and the page closed, which saves what it shows. */
+fun ComposeTestRule.done() {
+    onNodeWithText("Fertig").performClick()
+    waitForIdle()
+}

@@ -27,13 +27,18 @@ import de.emilyshub.ui.island.touchesIsland
 import kotlinx.coroutines.launch
 
 /**
- * Tracking's menu in the top bar, only while it is open (SPEC.md §17): "Passwort ändern", the fingerprint on or off,
- * and "Alles löschen". The slices after #123 add their items before these.
+ * Tracking's menu in the top bar, only while it is open (SPEC.md §17): the symptoms, the medications and the base
+ * data, which it opens ([onOpen]); "Passwort ändern", the fingerprint on or off, and "Alles löschen".
  */
 @Composable
-fun TrackingMenu(tracking: Tracking) {
+fun TrackingMenu(tracking: Tracking, onOpen: (TrackingPage) -> Unit) {
     var deleting by remember { mutableStateOf(false) }
-    IslandMenu(tracking, TRACKING_TEXTS, after = listOf(IslandMenuItem(R.string.tracking_menu_delete_all) { deleting = true }))
+    IslandMenu(
+        tracking,
+        TRACKING_TEXTS,
+        before = MENU_PAGES.map { (label, page) -> IslandMenuItem(label) { onOpen(page) } },
+        after = listOf(IslandMenuItem(R.string.tracking_menu_delete_all) { deleting = true }),
+    )
     // The password field of its dialog too asks the keyboard to learn nothing.
     if (deleting) IslandInsel(tracking) { DeleteAll(tracking, onClose = { deleting = false }) }
 }
@@ -83,3 +88,10 @@ private fun DeleteAll(tracking: Tracking, onClose: () -> Unit) {
         modifier = Modifier.touchesIsland(tracking),
     )
 }
+
+/** The pages the menu opens, by their label. */
+private val MENU_PAGES = listOf(
+    R.string.tracking_menu_symptoms to TrackingPage.Symptoms,
+    R.string.tracking_menu_medications to TrackingPage.Medications,
+    R.string.tracking_menu_base_data to TrackingPage.BaseData,
+)
