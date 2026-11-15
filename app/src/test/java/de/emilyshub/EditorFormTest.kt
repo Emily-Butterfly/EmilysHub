@@ -169,7 +169,7 @@ class EditorFormTest {
         launchApp().use {
             compose.onNode(hasText("Notizen") and hasClickAction()).performClick()
             compose.onNodeWithContentDescription("Haushaltsbuch öffnen").performClick()
-            compose.onNodeWithContentDescription("Abos").performClick()
+            compose.openFromLedgerMenu("Abos")
             compose.onNodeWithContentDescription("Abo anlegen").performClick()
             field("Name").assertIsFocused()
         }

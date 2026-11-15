@@ -334,7 +334,7 @@ Nach jeder Etappe: installierbare APK.
 
 ## 13. Haushaltsbuch
 
-Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen und über das „€“ in Heute (§1).
+Einnahmen und Ausgaben je Monat, mit Archiv. Erreichbar über den Knopf in der Mitte der oberen Leiste im Tab Notizen und über das „€“ in Heute (§1). Fixbuchungen, Abos, Kategorien und Archiv öffnet das Menü „⋮“ oben rechts im Haushaltsbuch, in dieser Reihenfolge und mit Text.
 
 | Feld | Details |
 |---|---|

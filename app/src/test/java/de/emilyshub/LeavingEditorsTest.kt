@@ -203,14 +203,14 @@ class LeavingEditorsTest {
     fun `the fixed booking editor asks only when changed`() =
         asksOnlyWhenChanged("Neue Fixbuchung", change = { field("Beschreibung (optional)").performScrollTo().performTextReplacement("Miete") }) {
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithContentDescription("Fixbuchung anlegen").performClick()
         }
 
     @Test
     fun `the Abo editor asks only when changed`() = asksOnlyWhenChanged("Neues Abo", change = { field("Name").performTextReplacement("Streaming") }) {
         openLedger()
-        compose.onNodeWithContentDescription("Abos").performClick()
+        compose.openFromLedgerMenu("Abos")
         compose.onNodeWithContentDescription("Abo anlegen").performClick()
     }
 
@@ -225,7 +225,7 @@ class LeavingEditorsTest {
 
         launchApp().use { scenario ->
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithText("Streaming").performClick()
             compose.onNodeWithText("Als Abo führen").performScrollTo().performClick()
             field("Name").assert(hasText("Streaming"))
@@ -282,7 +282,7 @@ class LeavingEditorsTest {
             },
         ) {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             compose.onNodeWithText("Budget-Rechner").performClick()
         }
 

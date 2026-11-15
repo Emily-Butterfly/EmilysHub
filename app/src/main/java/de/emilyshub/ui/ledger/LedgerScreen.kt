@@ -20,13 +20,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -124,18 +123,12 @@ fun LedgerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenArchive) {
-                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.ledger_archive))
-                    }
-                    IconButton(onClick = onOpenRecurring) {
-                        Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.recurring_title))
-                    }
-                    IconButton(onClick = onOpenSubscriptions) {
-                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.subscriptions_title))
-                    }
-                    IconButton(onClick = onOpenCategories) {
-                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.ledger_categories))
-                    }
+                    LedgerMenu(
+                        onOpenRecurring = onOpenRecurring,
+                        onOpenSubscriptions = onOpenSubscriptions,
+                        onOpenCategories = onOpenCategories,
+                        onOpenArchive = onOpenArchive,
+                    )
                 },
             )
         },
@@ -544,3 +537,38 @@ private val PIE_SIZE = 120.dp
 
 /** Orange, which stands out on the light background as on the dark one. */
 private val NEAR_BUDGET = Color(0xFFF57C00)
+
+/**
+ * The ledger's menu in its top bar (SPEC.md §13; #113), "Mehr" to a screen reader: its parts by name, from the most used
+ * to the archive, in place of symbols to guess.
+ */
+@Composable
+private fun LedgerMenu(
+    onOpenRecurring: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
+    onOpenCategories: () -> Unit,
+    onOpenArchive: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.ledger_menu))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            listOf(
+                R.string.recurring_title to onOpenRecurring,
+                R.string.subscriptions_title to onOpenSubscriptions,
+                R.string.ledger_categories to onOpenCategories,
+                R.string.ledger_archive to onOpenArchive,
+            ).forEach { (label, open) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(label)) },
+                    onClick = {
+                        expanded = false
+                        open()
+                    },
+                )
+            }
+        }
+    }
+}

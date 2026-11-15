@@ -13,11 +13,11 @@ Die obere Leiste des Haushaltsbuchs zeigt statt vier Symbolen ohne Text ein Men�
 
 ## Akzeptanzkriterien
 
-- [ ] In der Leiste steht nur noch ein Menü-Knopf (⋮), für Screenreader „Mehr“
-- [ ] Das Menü nennt in dieser Reihenfolge: Fixbuchungen, Abos, Kategorien, Archiv; jeder Eintrag öffnet, was bisher sein Symbol geöffnet hat
-- [ ] Sonst ändert sich am Haushaltsbuch nichts
-- [ ] SPEC §13 nennt, wo die vier Bereiche zu finden sind, falls es sie dort nach Symbolen nennt
-- [ ] UI-Tests: jeder Menüeintrag öffnet seinen Bildschirm; die Leiste hat keins der vier Symbole mehr
+- [x] In der Leiste steht nur noch ein Menü-Knopf (⋮), für Screenreader „Mehr“
+- [x] Das Menü nennt in dieser Reihenfolge: Fixbuchungen, Abos, Kategorien, Archiv; jeder Eintrag öffnet, was bisher sein Symbol geöffnet hat
+- [x] Sonst ändert sich am Haushaltsbuch nichts
+- [x] SPEC §13 nennt, wo die vier Bereiche zu finden sind, falls es sie dort nach Symbolen nennt
+- [x] UI-Tests: jeder Menüeintrag öffnet seinen Bildschirm; die Leiste hat keins der vier Symbole mehr
 
 ## Entscheidungen
 

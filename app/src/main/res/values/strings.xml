@@ -801,6 +801,7 @@
     <string name="ledger_month_previous">Voriger Monat</string>
     <string name="ledger_month_next">Nächster Monat</string>
     <string name="ledger_categories">Kategorien</string>
+    <string name="ledger_menu">Mehr</string>
     <string name="booking_create">Buchung anlegen</string>
     <string name="booking_new">Neue Buchung</string>
     <string name="booking_edit">Buchung bearbeiten</string>

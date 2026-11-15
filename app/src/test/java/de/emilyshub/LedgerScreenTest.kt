@@ -1,6 +1,7 @@
 package de.emilyshub
 
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
@@ -16,6 +17,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -74,6 +76,30 @@ class LedgerScreenTest {
 
             compose.onNodeWithContentDescription("Zurück").performClick()
             compose.onNodeWithContentDescription("Haushaltsbuch öffnen").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the top bar has a menu with text for the fixed bookings, the Abos, the categories and the archive`() {
+        launchApp().use {
+            openLedger()
+            listOf("Archiv", "Fixbuchungen", "Abos", "Kategorien").forEach { name ->
+                compose.onNode(hasContentDescription(name) and hasClickAction()).assertDoesNotExist()
+            }
+
+            compose.onNodeWithContentDescription("Mehr").performClick()
+            val items = compose.onAllNodes(hasClickAction() and hasAnyAncestor(isPopup()))
+                .fetchSemanticsNodes().map { it.config[SemanticsProperties.Text].joinToString() }
+            assertEquals(listOf("Fixbuchungen", "Abos", "Kategorien", "Archiv"), items)
+            compose.onNode(hasText("Abos") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNode(isHeading() and hasText("Abos")).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            mapOf("Fixbuchungen" to "Fixbuchungen", "Kategorien" to "Kategorien", "Archiv" to "Archiv").forEach { (item, title) ->
+                compose.openFromLedgerMenu(item)
+                compose.onNode(isHeading() and hasText(title)).assertIsDisplayed()
+                compose.onNodeWithContentDescription("Zurück").performClick()
+            }
         }
     }
 
@@ -159,7 +185,7 @@ class LedgerScreenTest {
 
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             compose.onNodeWithContentDescription("„Kleidung“ löschen").performClick()
             compose.onNodeWithText("„Kleidung“ hat eine Buchung oder Fixbuchung. Sie wandert nach „Sonstiges“.").assertIsDisplayed()
             compose.onNode(hasText("Löschen") and hasAnyAncestor(isDialog())).performClick()
@@ -175,7 +201,7 @@ class LedgerScreenTest {
     fun `a category is added and renamed`() {
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             ledgerList().performScrollToNode(hasText("Kategorie anlegen"))
             compose.onAllNodes(hasText("Kategorie anlegen") and hasClickAction())[0].performClick()
             field("Name").performTextInput("Reisen")
@@ -200,7 +226,7 @@ class LedgerScreenTest {
 
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithContentDescription("Fixbuchung anlegen").performClick()
             field("Betrag in Euro").performTextInput("200")
             option("Wohnen").tap()
@@ -226,7 +252,7 @@ class LedgerScreenTest {
     fun `a fixed booking made in its list is entered at once for this month, marked, and shows when it comes next`() {
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithContentDescription("Fixbuchung anlegen").performClick()
             option("Einnahme").performClick()
             field("Betrag in Euro").performTextInput("2500")
@@ -253,7 +279,7 @@ class LedgerScreenTest {
 
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithText("Monatlich am 31. · nächste am 31.10.2026").performClick()
             compose.onNodeWithText("In kürzeren Monaten am Monatsletzten.").performScrollTo().assertIsDisplayed()
             compose.onNodeWithContentDescription("Löschen").performClick()
@@ -288,7 +314,7 @@ class LedgerScreenTest {
             compose.onNodeWithContentDescription("Löschen").assertDoesNotExist()
             compose.onNodeWithContentDescription("Zurück").performClick()
 
-            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.openFromLedgerMenu("Archiv")
             compose.onNodeWithText("Einnahmen 0,00 € · Ausgaben 20,00 € · Saldo −20,00 €").assertIsDisplayed()
             compose.onNodeWithText("September 2026").performClick()
             compose.onNodeWithText("Wieder öffnen").performClick()
@@ -326,7 +352,7 @@ class LedgerScreenTest {
 
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             compose.onNodeWithContentDescription("Budget für „Lebensmittel“").performClick()
             field("Budget im Monat").performTextInput("300")
             compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
@@ -578,7 +604,7 @@ class LedgerScreenTest {
 
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.openFromLedgerMenu("Archiv")
             compose.onNodeWithText("Einnahmen 50,00 € · Ausgaben 0,00 € · Saldo 50,00 € · Endsaldo 350,00 €").assertIsDisplayed()
             compose.onNodeWithContentDescription("Zurück").performClick()
 
@@ -671,7 +697,7 @@ class LedgerScreenTest {
     fun `the calculator from the categories sums the monthly budgets against the standard and saves them all at once`() {
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             compose.onNodeWithText("Gesamtbudget: keins", substring = true).assertExists()
             compose.onNodeWithText("Budget-Rechner").performClick()
 
@@ -701,7 +727,7 @@ class LedgerScreenTest {
     fun `the calculator keeps nothing it was left without saving, nor saves with a field it cannot take`() {
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Kategorien").performClick()
+            compose.openFromLedgerMenu("Kategorien")
             compose.onNodeWithText("Budget-Rechner").performClick()
             calculatorField("Lebensmittel").performTextInput("0")
             compose.onNodeWithText("Der Betrag muss größer als 0 sein.").assertExists()
@@ -776,7 +802,7 @@ class LedgerScreenTest {
         }
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Archiv").performClick()
+            compose.openFromLedgerMenu("Archiv")
             compose.onNodeWithText("1.840,00 € von 2.000,00 € · 160,00 € frei").assertExists()
         }
         launchApp().use {

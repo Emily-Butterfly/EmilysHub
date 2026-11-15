@@ -70,7 +70,7 @@ class SubscriptionScreenTest {
         val streaming = template("Streaming", "12,99")
         launchApp().use {
             openLedger()
-            compose.onNodeWithContentDescription("Fixbuchungen").performClick()
+            compose.openFromLedgerMenu("Fixbuchungen")
             compose.onNodeWithText("Streaming").performClick()
             compose.onNodeWithText("Als Abo führen").performScrollTo().performClick()
 
@@ -123,7 +123,7 @@ class SubscriptionScreenTest {
 
     private fun openSubscriptions() {
         openLedger()
-        compose.onNodeWithContentDescription("Abos").performClick()
+        compose.openFromLedgerMenu("Abos")
     }
 
     private fun template(description: String, amount: String): Long = runBlocking {

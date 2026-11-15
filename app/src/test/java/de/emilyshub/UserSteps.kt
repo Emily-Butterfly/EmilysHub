@@ -5,11 +5,14 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -171,6 +174,15 @@ fun TestApplication.wish(
 fun ComposeTestRule.openGoals() {
     onNode(isSelectable() and hasText("Sonstiges")).performClick()
     onNode(hasText("Ziele") and hasClickAction()).performClick()
+}
+
+/**
+ * Opens [item] of the ledger's menu in its top bar (SPEC.md §13; #113): "Fixbuchungen", "Abos", "Kategorien" or
+ * "Archiv".
+ */
+fun ComposeTestRule.openFromLedgerMenu(item: String) {
+    onNodeWithContentDescription("Mehr").performClick()
+    onNode(hasText(item) and hasClickAction() and hasAnyAncestor(isPopup())).performClick()
 }
 
 /** Unfolds "Mehr Optionen" in the editor of a routine or to-do (SPEC.md §8), where all but what is needed lies. */
