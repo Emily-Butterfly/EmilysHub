@@ -18,7 +18,7 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
-Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14) und **Sprachen** (§15). Alle drei öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14), **Sprachen** (§15) und, sobald gebaut, **Gesundheitstagebuch** (§17, Entwurf). Alle öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, die Dokumentation sperrt sich dabei (§14). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
 
 ### Heute-Übersicht
 
@@ -541,3 +541,120 @@ Ein Gedanke soll in der App landen, bevor er weg ist; sortiert wird später.
 - **Kurzbefehl**: Langes Drücken auf das App-Symbol bietet „Neuer Gedanke“: Die App öffnet, nach ihrer Sperre, eine schlanke Eingabe mit offener Tastatur, über dem, was offen war.
 - **Ohne Entsperren**: Optional (Einstellungen, Standard aus) steht dauerhaft eine stille Benachrichtigung „Gedanke festhalten“ mit Antwortfeld. Was dort getippt wird, landet im Eingang. Sie kann nur schreiben: Sie zeigt nie, was im Eingang liegt, auch nicht das eben Getippte. Auf dem Sperrbildschirm verlangt Android vorher die Entsperrung des Handys, nicht die der App.
 - Keine Erinnerungen, keine Tags, keine Verknüpfungen. Der Eingang kommt in die Backups und in die Suche (§8).
+
+## 17. Gesundheitstagebuch (Entwurf)
+
+> **Entwurf vom 15.11.2026.** Entschieden sind nur die eigene Sperre und der PDF-Export (unten). Umfang und Reihenfolge klärt das Interview zum Tages-Check-in ([ohne-ticket.md](docs/issues/ohne-ticket.md) §1); erst danach gibt es Slices.
+
+Ein eigenes Tagebuch zu Befinden, Puls und Blutdruck, das Muster sammelt und für Arzttermine aufbereitet. Es stellt **keine Diagnose**, sagt nie „Du hast …“ und gibt keine Anweisungen zu Medikamenten. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher eine Insel wie die Dokumentation (§14). Erreichbar über Sonstiges (§1).
+
+**Grundsatz für das öffentliche Repo:** Code, Spezifikation und Tickets beschreiben nur die allgemeine Funktion. Persönliche Werte, Medikamente oder Beschwerden stehen nie im Repo, auch nicht als Beispiel oder Testdaten; Tests benutzen erfundene Werte und Namen wie „Medikament A“.
+
+### Sperre & Insel
+
+- **Tagebuch-Passwort** (mindestens 8 Zeichen) und optional Fingerabdruck, unabhängig vom Doku-Passwort; eigene SQLCipher-Datenbank, deren Schlüssel nur Passwort oder Fingerabdruck freigeben.
+- Sperre, Insel-Regeln und Überschreiben gelöschter Daten wie §14: sofort beim Verlassen, im Hintergrund, bei ausgehendem Bildschirm und nach 5 Minuten ohne Eingabe; nicht in Suche, Heute, Statistik oder Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich.
+- **Ausnahme Messassistent:** Solange ein Stehtest oder eine Ereignismessung läuft, bleibt der Bildschirm an und die 5-Minuten-Sperre ruht. Hintergrund und Bildschirm aus sperren weiter; die Werte bis dahin bleiben erhalten.
+- **Erinnern** tut das Tagebuch nicht. Wer erinnert werden will, legt eine normale Routine an (z. B. „Abendeintrag“); sie weiß nichts vom Tagebuch.
+- **Backup** in eigener Verschlüsselung wie die Dokumentation (§10); einspielen braucht das Tagebuch-Passwort, das beim Backup galt.
+- **Export** nur der Arzt-Zusammenfassung als PDF, nur von Hand (unten).
+- **Alles löschen** im Menü, mit Rückfrage und Eingabe des Passworts.
+
+### Startseite
+
+- Ganz oben **„Akute Beschwerden?“**: die Warnzeichen (unten); „112 anrufen“ öffnet die Telefon-App mit der Nummer, ohne Berechtigung.
+- Darunter der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Belastung“.
+- **Hinweise**, **Wochenauswertung**, **Verlauf**.
+- Menü: Symptome · Medikamente · Grunddaten · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
+
+### Tageseinträge
+
+- **Skala** für Symptome und Belastung: 0 = nicht vorhanden, 1 = leicht, 2 = mittel, 3 = schwer. Leer heißt „nicht erfasst“ und zählt nie als 0.
+- **Morgens:** Ruhepuls im Liegen, Blutdruck (optional), Schlafdauer, Schlafqualität 0–3 (0 = sehr gut), erholt aufgewacht ja/nein; Hinweis „nach 5 Minuten ruhig liegen, vor Koffein und Medikamenten – sonst vermerken“.
+- **Abends:** jedes aktive Symptom 0–3; Belastung körperlich, kognitiv, emotional 0–3; Arbeitstag, Hitze oder langes Stehen ja/nein; **Crash** ja/nein (eigenes Feld, kein Symptom); Trinkmenge in Litern, Mahlzeiten, Koffein und Alkohol als Anzahl; je Medikament „wie geplant“ oder abweichend (Uhrzeit oder vergessen); Notiz (Markdown).
+- **Symptome** im Menü: eine allgemeine Startliste (Erschöpfung, Konzentration, Schlafbedürfnis, Kopfschmerz, Schmerzen, Muskelschwäche, Atemnot, Herzrasen, Schwindel im Stehen, Übelkeit, Hautveränderungen, Kälte- und Hitzeempfinden, Stimmung gedrückt, Angst/innere Unruhe); umbenennen, sortieren, ausblenden, eigene ergänzen. Ausgeblendete behalten ihre Werte.
+- **Nachtragen** bis 7 Tage zurück.
+
+### Grunddaten & Medikamente
+
+- **Grunddaten:** feste Markdown-Felder mit Leitfragen als Platzhalter: Verlauf (Beginn, Schübe, Infekte oder Belastungen davor, was früher ging), Familie (Thrombosen, Herz, Autoimmunerkrankungen), Schlaf, Ernährung und Substanzen, Sonstiges.
+- **Medikamente:** frei eingegeben, ohne Vorschlagsliste: Name, Darreichung, Einnahmezeiten, wofür (optional); eine **Zeitleiste** mit Beginn, Dosisänderungen (Datum, alt → neu) und Ende; Schalter „erhöht laut Beipackzettel das Thromboserisiko“; Freitext „Nebenwirkungen, auf die ich achte“.
+- Überall der Hinweis: Medikamente nur mit den Behandelnden ändern oder absetzen.
+
+### Stehtest
+
+- **Varianten:** „Stehen“ mit Messungen nach 1, 3, 5, 8 und 10 Minuten oder „Anlehnen“ (NASA-Lean-Test: Schulterblätter an der Wand, Fersen etwa 15–20 cm davor) mit einer Messung je Minute. [CMAJ-POTS-2022] [LEE-2020] [DGN-SYNK-2020]
+- **Vorher** eine Prüfliste zum Abhaken: zweite Person dabei, neben Bett oder Sofa, heute keine Warnzeichen, nicht direkt nach heißem Duschen, Alkohol oder großer Mahlzeit, Medikamente wie gewohnt genommen.
+- 5–10 Minuten liegen mit Timer, dann Puls und Blutdruck im Liegen; dann aufstehen. Zu jedem Zeitpunkt Ton und Vibration in der App, Eingabe von Puls, Blutdruck (optional), Schwindel, Herzrasen, Atemnot 0–3 und Verfärbung der Beine ja/nein.
+- Ein großer Knopf **„Abbrechen – hinlegen“** jederzeit; gespeichert wird bis dahin, mit Minute und Grund.
+- Gespeichert werden außerdem Uhrzeit, Stunden seit den heute eingetragenen Einnahmen und Koffein, Mahlzeit und Trinkmenge davor.
+- **Auswertung** je Test: größter Pulsanstieg gegenüber dem Liegen, Messungen mit Anstieg ≥ 30/min, Mittel der letzten drei Minuten (Anlehnen), größter Abfall systolisch/diastolisch innerhalb von 3 Minuten und danach, systolisch < 90 mmHg.
+- Der Hinweis, dass ein Heimtest keine ärztliche Untersuchung ersetzt und Medikamente das Ergebnis verändern, steht auf dem Ergebnis.
+
+### Ereignisse
+
+Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, langes Stehen, Sonstiges):
+
+- Wassertemperatur lauwarm/warm/heiß, Dauer, stehend/sitzend.
+- Puls vorher, direkt danach und nach 5 und 10 Minuten mit Timer; Sauerstoffsättigung optional; Atemnot und Schwindel 0–3; hinsetzen nötig (nach wie vielen Minuten).
+- **Haut:** wo (Beine, Arme, Rumpf, Finger oder Zehen), Muster (gleichmäßig-geschlossen oder unterbrochen-netzartig), schmerzt ja/nein, verschwindet im Liegen ja/nein, Minuten bis zur Rückbildung; Minuten bis wieder belastbar.
+- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt im Tagebuch abgelegt, nie in der Galerie; im Backup.
+
+### Belastungen
+
+- „+ Belastung“: Datum, Art (körperlich, kognitiv, emotional, Stehen/Wärme), Dauer, Stärke 0–3.
+- Die Abendeinträge der folgenden drei Tage fragen zusätzlich „Schlechter als vor der Belastung?“ und ab wann (Stunden danach); dazu „Tage bis zum gewohnten Zustand“.
+
+### Wochenauswertung & Verlauf
+
+- Je Woche (Mo–So): Ruhepuls Mittel, Minimum, Maximum und Tage über 100/min; Stehtests mit größtem Anstieg, Anzahl mit Anstieg ≥ 30/min in mindestens zwei Messungen, Anzahl mit Abfall ≥ 20/10 mmHg innerhalb von 3 Minuten und später; Ereignisse mit Atemnot ≥ 2 und mit Hautveränderung, mittlere Rückbildungszeit; Belastungen mit Verschlechterung an Tag +1 oder +2; Crash-Tage; Mittel je Symptom; Tage mit weniger als 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie); Nächte mit Schlafqualität ≥ 2; Abweichungen bei Medikamenten.
+- **Verlauf:** je Symptom und für den Ruhepuls ein Liniendiagramm über 4 oder 12 Wochen, wie die Diagramme der Dokumentation (§14); Medikamentenänderungen als senkrechte Markierung.
+
+### Hinweise
+
+Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für das Arztgespräch vorschlagen. Jeder Hinweis nennt das Muster („passt zu“, „spricht für“), worauf er sich stützt (Anzahl Einträge, Zeitraum), was ärztlich als Nächstes sinnvoll ist (Fachrichtung und Frage) und seine Quelle. Fehlen Daten, sagt er, wie viele noch („noch 2 Stehtests“). Die Regeln sind reine Logik ohne Android, mit Schwellen und Quellen an einer Stelle.
+
+- **Mindestdaten** (eigene Festlegung): 14 Tage Einträge, 3 Stehtests an verschiedenen Tagen, 5 Ereignisse, 3 Belastungen mit den Tagen danach.
+- **Immer:** Erinnerung an die Basisuntersuchungen (EKG mit QTc, Elektrolyte), abhakbar, wenn erledigt. [HRS-2015] [NIH-POTS-2021]
+- **Atemnot** bei Belastung oder Wärme an mindestens 3 Tagen und ein Medikament mit Thromboserisiko → zeitnah ärztlich die Wahrscheinlichkeit einer Lungenembolie klären lassen. [ESC-LE-2019]
+- **Ruhepuls** an der Mehrzahl der Morgen über 100/min → Langzeit-EKG, Abklärung einer inadäquaten Sinustachykardie. [HRS-2015]
+- **Medikamente:** Verschlechterung innerhalb von 6 Wochen (eigener Arbeitswert) nach Beginn oder Erhöhung eines Medikaments → mit den Verordnenden besprechen, nichts selbst ändern.
+- **Stehtest, Pulsanstieg:** in mindestens 2 von mindestens 3 Tests ≥ 30/min in mindestens zwei Messungen innerhalb von 10 Minuten (beim Anlehnen: Mittel der letzten drei Minuten > 30/min über dem Liegen oder > 120/min), ohne Abfall ≥ 20/10 mmHg, Liegendpuls ≥ 60/min, mit Beschwerden im Stehen → passt zu einem POTS-Muster; Kardiologie oder autonome Ambulanz, ärztlicher Stehtest über 10 Minuten, bei negativem Ergebnis Kipptisch; Medikamente können die Ursache sein. [NIH-POTS-2021] [CMAJ-POTS-2022] [DGN-SYNK-2020] [LEE-2020]
+- **Stehtest, Blutdruckabfall** ≥ 20 mmHg systolisch, ≥ 10 mmHg diastolisch oder systolisch < 90 mmHg innerhalb von 3 Minuten → passt zu orthostatischer Hypotonie, Medikamente prüfen lassen; erst danach → verzögerte Form, Kipptisch erfragen. [ESC-SYNK-2018] [DGN-SYNK-2020]
+- **Stehtest, Beschwerden ohne Messauffälligkeit** → morgens wiederholen, ärztlichen Test erfragen. [CMAJ-POTS-2022]
+- **Belastung:** Verschlechterung an Tag +1 oder +2 nach mindestens 2 von 3 Belastungen → passt zu Verschlechterung nach Belastung (PEM); ME/CFS-Abklärung ansprechen, Belastung nicht austesten. [IOM-2015] [NICE-NG206]
+- **Haut:** bleibt über 30 Minuten (eigener Arbeitswert), ist unterbrochen-netzartig oder schmerzt → Dermatologie oder Rheumatologie, Antiphospholipid-Antikörper erfragen; Finger oder Zehen betroffen → Raynaud ansprechen; verschwindet im Liegen rasch und betrifft die Beine → passt zu Blutansammlung in den Beinen, stützt den Stehtest. [SAJJAN-2015]
+- **Schlaf:** Schlafqualität ≥ 2 an der Mehrzahl der Nächte → Schlaf ansprechen, auch Schnarchen und Atempausen. [DEGAM-MUEDIGKEIT]
+- **Stimmung:** gedrückt oder Angst ≥ 2 an der Mehrzahl der Tage → ansprechen, parallel zur körperlichen Abklärung, nicht danach. [DEGAM-MUEDIGKEIT]
+- **Trinkmenge** an der Mehrzahl der Tage unter 1,5 l → ansprechen (eigener Arbeitswert).
+
+**Warnzeichen** (Liste unter „Akute Beschwerden?“): sofort 112 bei plötzlicher oder rasch zunehmender Atemnot, Brustschmerz, Ohnmacht oder Beinahe-Ohnmacht, Bluthusten, Ohnmacht bei Belastung oder im Liegen, Herzrasen vor einer Ohnmacht, plötzlichem Sehverlust, Lähmung, Sprach- oder Gefühlsstörung, Krampfanfall. [ESC-LE-2019] [ESC-SYNK-2018] Zeitnah ärztlich bei einseitiger Beinschwellung oder -schmerz, fortschreitender Atemnot, neuen anhaltenden Kopfschmerzen oder Sehstörungen, Gelbfärbung von Haut oder Augen, Farbveränderungen oder Wunden an Fingern oder Zehen, Hautzeichnung, die bleibt, Ruhepuls dauerhaft über 100/min. [HRS-2015]
+
+### Arzt-Zusammenfassung
+
+- Eine Seite, vorausgefüllt für einen Zeitraum (Standard: die letzten 4 Wochen): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Belastungsmuster, Medikamente mit Zeitleiste, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
+- Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek. Fotos optional (Standard: ohne).
+- Vor dem Speichern der Hinweis: Die PDF ist **nicht verschlüsselt**; nach dem Termin löschen.
+
+### Quellen der Schwellen
+
+Die Kürzel verweisen auf Primärquellen; im Code stehen sie mit Fundstelle neben der Schwelle.
+
+| Kürzel | Quelle |
+|---|---|
+| CMAJ-POTS-2022 | Raj SR, Fedorowski A, Sheldon RS: Diagnosis and management of postural orthostatic tachycardia syndrome. CMAJ 2022; 194: E378–E385. doi:10.1503/cmaj.211373 |
+| DEGAM-MUEDIGKEIT | DEGAM: S3-Leitlinie Müdigkeit, AWMF-Register 053-002, Stand 12/2022 |
+| DGN-SYNK-2020 | Diehl RR et al.: Synkopen, S1-Leitlinie der DGN, 2020, AWMF-Register 030/072 |
+| ESC-LE-2019 | Konstantinides SV et al.: 2019 ESC Guidelines for the diagnosis and management of acute pulmonary embolism. Eur Heart J 2020; 41: 543–603. doi:10.1093/eurheartj/ehz405 |
+| ESC-SYNK-2018 | Brignole M et al.: 2018 ESC Guidelines for the diagnosis and management of syncope. Eur Heart J 2018; 39: 1883–1948. doi:10.1093/eurheartj/ehy037 |
+| HRS-2015 | Sheldon RS et al.: 2015 Heart Rhythm Society Expert Consensus Statement on the Diagnosis and Treatment of Postural Tachycardia Syndrome, Inappropriate Sinus Tachycardia, and Vasovagal Syncope. Heart Rhythm 2015; 12: e41–e63. doi:10.1016/j.hrthm.2015.03.029 |
+| IOM-2015 | Institute of Medicine: Beyond Myalgic Encephalomyelitis/Chronic Fatigue Syndrome: Redefining an Illness. National Academies Press 2015. doi:10.17226/19012 |
+| LEE-2020 | Lee J et al.: Hemodynamics during the 10-minute NASA Lean Test: evidence of circulatory decompensation in a subset of ME/CFS patients. J Transl Med 2020; 18: 314. doi:10.1186/s12967-020-02481-y |
+| NICE-NG206 | NICE: Myalgic encephalomyelitis (or encephalopathy)/chronic fatigue syndrome: diagnosis and management, NG206, 2021 |
+| NIH-POTS-2021 | Vernino S et al.: Postural orthostatic tachycardia syndrome (POTS): State of the science and clinical care from a 2019 National Institutes of Health Expert Consensus Meeting – Part 1. Auton Neurosci 2021; 235: 102828. doi:10.1016/j.autneu.2021.102828 |
+| SAJJAN-2015 | Sajjan VV et al.: Livedo reticularis: A review of the literature. Indian Dermatol Online J 2015; 6: 315–321. doi:10.4103/2229-5178.164493 |
+
+### Entscheidungen
+
+- **15.11.2026:** eigene Sperre wie die Dokumentation; Export der Arzt-Zusammenfassung als PDF erlaubt.
+- Noch nicht abgestimmt: alles Übrige in diesem Abschnitt, darunter Nachtragen bis 7 Tage, die Startliste der Symptome, Fotos, die Mindestdaten und die eigenen Arbeitswerte. Ebenso offen ist, wie sich das Tagebuch zum geplanten Check-in mit HRV und Stability ([pacing.md](docs/research/pacing.md), [visible-apk-hrv-symptomtracking.md](docs/research/visible-apk-hrv-symptomtracking.md)) verhält: ob es dessen erste Stufe ist und ob HRV hinzukommt.
