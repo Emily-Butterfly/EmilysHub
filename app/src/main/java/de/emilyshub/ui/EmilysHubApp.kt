@@ -145,6 +145,8 @@ import de.emilyshub.ui.todos.TodoArchiveScreen
 import de.emilyshub.ui.todos.TodoEditorScreen
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.todos.TodosScreen
+import de.emilyshub.ui.tracking.TrackingArea
+import de.emilyshub.ui.tracking.TrackingMenu
 import de.emilyshub.ui.wishes.WishEditorScreen
 import de.emilyshub.ui.wishes.WishEditorTarget
 import de.emilyshub.ui.wishes.WishReviewScreen
@@ -285,12 +287,12 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
             onSelect = {
                 yesterday = false
                 folds = HeuteFolds()
-                // Sonstiges tapped again leads to its list, as the back arrow does. Left for another tab, the Doku locks
-                // and Sonstiges shows its list again on return.
+                // Sonstiges tapped again leads to its list, as the back arrow does. Left for another tab, the Doku and
+                // Tracking lock and Sonstiges shows its list again on return.
                 if (it == TopLevelDestination.More && current == it) {
                     tabs = tabs.closeMore()
                 } else {
-                    if (tabs.more == MoreEntry.Doku) tabs = tabs.closeMore()
+                    if (tabs.more?.locks == true) tabs = tabs.closeMore()
                     current = it
                 }
             },
@@ -540,6 +542,8 @@ private fun TopLevelScaffold(
                         if (moreOpen == MoreEntry.Doku) {
                             DokuMenu(hub.doku, onOpen = { page -> onTabsChange(tabs.copy(doku = tabs.doku.open(page))) })
                         }
+                        // Tracking's settings too, in its own menu, there only while it is open (SPEC.md §17).
+                        if (moreOpen == MoreEntry.Tracking) TrackingMenu(hub.tracking)
                         // Where the languages and teachers are managed (SPEC.md §15).
                         if (moreOpen == MoreEntry.Languages) {
                             LanguagesMenu(
@@ -678,6 +682,7 @@ private fun TopLevelScaffold(
                     onPagesChange = { onTabsChange(tabs.copy(doku = it)) },
                     contentPadding = contentPadding,
                 )
+                MoreEntry.Tracking -> TrackingArea(hub.tracking, contentPadding)
             }
             TopLevelDestination.Notes -> NotesScreen(
                 notes = hub.notes,

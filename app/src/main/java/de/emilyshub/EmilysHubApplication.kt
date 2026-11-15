@@ -78,6 +78,8 @@ import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.tracking.Tracking
+import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -122,6 +124,14 @@ open class EmilysHubApplication : Application(), Hub {
     /** The fingerprint that may unlock the Doku. */
     open val fingerprint: Fingerprint by lazy {
         SystemFingerprint(this, "doku-fingerprint-key", R.string.doku_fingerprint_unlock_title, R.string.doku_fingerprint_enable_title)
+    }
+
+    /** Opens Tracking's database with its key in raw form, once the Tracking password or its fingerprint set it free. */
+    protected open val openTrackingDatabase: (RawKey) -> TrackingDatabase = { rawKey -> TrackingDatabase.open(this, rawKey) }
+
+    /** The fingerprint that may unlock Tracking: under a Keystore key of its own, apart from the Doku's. */
+    open val trackingFingerprint: Fingerprint by lazy {
+        SystemFingerprint(this, "tracking-fingerprint-key", R.string.tracking_fingerprint_unlock_title, R.string.tracking_fingerprint_enable_title)
     }
 
     /** Where the settings are kept: in the database, opened only once it is asked, off the main thread. */
@@ -282,6 +292,7 @@ open class EmilysHubApplication : Application(), Hub {
             clock = clock,
             migration = backupMigration,
             doku = doku,
+            tracking = tracking,
             attachments = lessonFiles,
             io = io,
             iterations = backupIterations,
@@ -323,6 +334,21 @@ open class EmilysHubApplication : Application(), Hub {
     final override val measurements: Measurements by lazy { Measurements(doku) }
 
     final override val assessments: Assessments by lazy { Assessments(doku, background) }
+
+    /** Lives as long as the process, as the Doku: a new process starts with Tracking locked. */
+    final override val tracking: Tracking by lazy {
+        Tracking(
+            keyFile = File(noBackupFilesDir, "tracking.key"),
+            databaseFile = getDatabasePath(TrackingDatabase.NAME),
+            schema = TrackingDatabase.VERSION,
+            fingerprint = trackingFingerprint,
+            openDatabase = openTrackingDatabase,
+            clipboard = IslandClipboard(this),
+            io = io,
+            background = background,
+            iterations = backupIterations,
+        )
+    }
 
     /** Lives as long as the process: a new process is a cold start and starts locked. */
     final override val appLock = AppLock(canAuthenticate = { authenticator.canAuthenticate() })

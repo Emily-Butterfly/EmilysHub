@@ -9,6 +9,7 @@ import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
+import de.emilyshub.tracking.TrackingDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -43,6 +44,9 @@ class Backup internal constructor(internal val content: BackupContent, internal 
     /** Whether it holds a Doku, to be restored only with the Doku password that held when it was made. */
     val hasDoku: Boolean get() = content.doku != null
 
+    /** Whether it holds Tracking, to be restored only with the Tracking password that held when it was made. */
+    val hasTracking: Boolean get() = content.tracking != null
+
     private fun count(table: String) = content.tables[table]?.rows?.size ?: 0
 }
 
@@ -57,7 +61,7 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  *
  * The [doku] goes along in its own encryption, taken as its files lie, so that a backup neither unlocks it nor asks
  * for its password, by night too. It comes back only with the Doku password that held when the backup was made, and
- * else, or from a backup without one, stays as it is.
+ * else, or from a backup without one, stays as it is. [tracking] likewise, with the Tracking password (SPEC.md §17).
  *
  * The lessons' [attachments] follow the content in the file, each in a record of its own, so that a backup is written
  * and read as a stream (format 2 of [BackupFile]). Opening a backup checks them all and lays them aside, encrypted;
@@ -70,6 +74,7 @@ class Backups(
     private val clock: Clock,
     private val migration: BackupMigration,
     private val doku: IslandVault,
+    private val tracking: IslandVault,
     private val attachments: AttachmentVault,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,
@@ -119,6 +124,7 @@ class Backups(
         val database = database()
         val now = clock.instant()
         val snapshot = doku.snapshot()
+        val trackingSnapshot = tracking.snapshot()
         attachments.steady {
             val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
             // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
@@ -127,7 +133,7 @@ class Backups(
             }
             // One that cannot be read is left out with its row, rather than keeping every backup from being made.
             val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
-            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, carried).toJson()
+            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried).toJson()
             output().use { out ->
                 val writer = BackupFile.writer(out, key, content)
                 carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
@@ -171,7 +177,10 @@ class Backups(
                 val reader = BackupFile.reader(stream, password)
                 val found = BackupContent.fromJson(reader.content())
                 // Told as such before anything else of it is read, whatever else may be amiss.
-                if (found.schema > HubDatabase.VERSION || (found.doku?.schema ?: 0) > DokuDatabase.VERSION) {
+                val newer = found.schema > HubDatabase.VERSION ||
+                    (found.doku?.schema ?: 0) > DokuDatabase.VERSION ||
+                    (found.tracking?.schema ?: 0) > TrackingDatabase.VERSION
+                if (newer) {
                     throw BackupException(BackupProblem.NewerVersion)
                 }
                 if (found.attachments.map { it.file }.toSet().size != found.attachments.size) damaged()
@@ -198,12 +207,17 @@ class Backups(
      *
      * Its Doku, if it has one, takes the place of the one here only with a [dokuPassword], which must be the Doku
      * password that held when it was made, or nothing changes ([BackupProblem.WrongDokuPassword]); without one, the
-     * Doku here stays as it is. Should the rest fail, the Doku is put back as it was.
+     * Doku here stays as it is. Its Tracking likewise, with the [trackingPassword] ([BackupProblem.WrongTrackingPassword]).
+     * Should the rest fail, the Doku and Tracking are put back as they were.
      */
-    suspend fun restore(backup: Backup, dokuPassword: String? = null) = withContext(NonCancellable) {
+    suspend fun restore(backup: Backup, dokuPassword: String? = null, trackingPassword: String? = null) = withContext(NonCancellable) {
         val dokuToRestore = backup.content.doku?.takeIf { dokuPassword != null }
         if (dokuToRestore != null && !withContext(io) { dokuToRestore.opensWith(dokuPassword.orEmpty()) }) {
             throw BackupException(BackupProblem.WrongDokuPassword)
+        }
+        val trackingToRestore = backup.content.tracking?.takeIf { trackingPassword != null }
+        if (trackingToRestore != null && !withContext(io) { trackingToRestore.opensWith(trackingPassword.orEmpty()) }) {
+            throw BackupException(BackupProblem.WrongTrackingPassword)
         }
         withContext(io) { if (settings().get(KEY) == null) store(backup.key) }
         val replace = suspend {
@@ -217,8 +231,9 @@ class Backups(
                 }
             }
         }
-        // The Doku's state changes where the caller is, as when it is unlocked.
-        if (dokuToRestore == null) replace() else doku.replacedBy(dokuToRestore, replace)
+        // The islands' state changes where the caller is, as when they are unlocked.
+        val withTracking = suspend { if (trackingToRestore == null) replace() else tracking.replacedBy(trackingToRestore, replace) }
+        if (dokuToRestore == null) withTracking() else doku.replacedBy(dokuToRestore, withTracking)
         withContext(io) { onRestore() }
     }
 

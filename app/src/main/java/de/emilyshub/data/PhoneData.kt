@@ -31,7 +31,7 @@ fun openOnPhone(context: Context, keyFile: File, name: String = HubDatabase.NAME
     return database
 }
 
-/** The files the app's data lie in on the phone besides the Doku (#100): the database, its key, and the lessons' attachments with theirs. */
+/** The files the app's data lie in on the phone besides the Doku and Tracking (#100): the database, its key, and the lessons' attachments with theirs. */
 fun phoneDataFiles(context: Context, keyFile: File, attachmentKeyFile: File, attachments: File): List<File> {
     val database = HubDatabase.file(context)
     val companions = listOf("-wal", "-shm", "-journal").map { File(database.path + it) }

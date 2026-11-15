@@ -32,6 +32,7 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.tracking.Tracking
 import de.emilyshub.wishes.Wishes
 
 /**
@@ -99,6 +100,9 @@ interface Hub {
 
     /** The built-in forms filled in at the appointments, as [patients]. */
     val assessments: Assessments
+
+    /** Tracking (SPEC.md §17), with its own lock, apart from the Doku's. */
+    val tracking: Tracking
 
     /** A reminder to try, from "Funktioniert alles?" (SPEC.md §11). */
     fun probe()

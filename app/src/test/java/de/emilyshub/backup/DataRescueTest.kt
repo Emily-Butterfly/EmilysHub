@@ -60,6 +60,7 @@ class DataRescueTest {
             clock = app.clock,
             migration = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() },
             doku = app.doku,
+            tracking = app.tracking,
             attachments = app.lessonFiles,
             io = Dispatchers.Unconfined,
             iterations = 1_000,

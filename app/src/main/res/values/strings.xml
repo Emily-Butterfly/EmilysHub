@@ -10,6 +10,7 @@
     <string name="destination_more">Sonstiges</string>
     <string name="destination_doku">Dokumentation</string>
     <string name="destination_languages">Sprachen</string>
+    <string name="destination_tracking">Tracking</string>
 
     <string name="settings">Einstellungen</string>
     <string name="navigate_back">Zurück</string>
@@ -705,6 +706,12 @@
     <string name="backup_doku_password_hint">Das Doku-Passwort, das galt, als das Backup gemacht wurde.</string>
     <string name="backup_wrong_doku_password">Falsches Doku-Passwort</string>
     <string name="backup_replace_without_doku">Ohne Dokumentation einspielen</string>
+    <string name="backup_replace_tracking">Auch Tracking wird durch das aus dem Backup ersetzt.</string>
+    <string name="backup_tracking_password">Tracking-Passwort</string>
+    <string name="backup_tracking_password_hint">Das Tracking-Passwort, das galt, als das Backup gemacht wurde.</string>
+    <string name="backup_wrong_tracking_password">Falsches Tracking-Passwort</string>
+    <string name="backup_replace_without_tracking">Ohne Tracking einspielen</string>
+    <string name="backup_replace_without_doku_and_tracking">Ohne Dokumentation und Tracking einspielen</string>
     <string name="backup_restored">Backup geladen.</string>
 
     <!-- When the data cannot be opened (#100). -->
@@ -1586,4 +1593,27 @@
     <string name="streak_rule_share_hint">Der Anteil der Erledigungen, Routinen und To-dos, an allem, was dafür oder dagegen zählt: gegen einen Tag zählen nur verpasste und ausgelassene Routinen. 100 %% heißt: nichts verpasst.</string>
     <string name="streak_rule_less">Weniger</string>
     <string name="streak_rule_more">Mehr</string>
+
+    <!-- Tracking (SPEC.md §17) -->
+    <string name="tracking_set_up_title">Tracking-Passwort festlegen</string>
+    <string name="tracking_password_new">Tracking-Passwort</string>
+    <string name="tracking_password_repeat">Tracking-Passwort wiederholen</string>
+    <string name="tracking_locked_title">Tracking ist gesperrt</string>
+    <string name="tracking_fingerprint_lost">Am Handy wurde ein neuer Fingerabdruck eingerichtet. Gib dein Tracking-Passwort ein; danach kannst du den Fingerabdruck wieder einschalten.</string>
+    <string name="tracking_fingerprint_unlock_title">Tracking entsperren</string>
+    <string name="tracking_fingerprint_enable_title">Fingerabdruck für Tracking</string>
+    <string name="tracking_fingerprint_again_text">Mit dem neu eingerichteten Fingerabdruck lässt sich Tracking wieder ohne Passwort entsperren.</string>
+    <string name="tracking_menu">Menü von Tracking</string>
+    <string name="tracking_menu_change_password">Passwort ändern</string>
+    <string name="tracking_menu_delete_all">Alles löschen</string>
+    <string name="tracking_delete_all_title">Alles löschen?</string>
+    <string name="tracking_delete_all_text">Alles in Tracking wird endgültig gelöscht. Passwort und Fingerabdruck bleiben. Schon gespeicherte Backups enthalten die Daten weiter.</string>
+    <string name="tracking_delete_all_password">Tracking-Passwort</string>
+    <string name="tracking_delete_all">Endgültig löschen</string>
+    <string name="tracking_acute_title">Akute Beschwerden?</string>
+    <string name="tracking_acute_emergency">Sofort 112 anrufen bei:</string>
+    <string name="tracking_acute_soon">Zeitnah ärztlich abklären lassen bei:</string>
+    <string name="tracking_acute_sources">Quellen: %1$s</string>
+    <string name="tracking_call_emergency">112 anrufen</string>
+    <string name="tracking_medication_hint">Medikamente nur mit den Behandelnden ändern oder absetzen.</string>
 </resources>

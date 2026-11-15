@@ -39,6 +39,7 @@ import de.emilyshub.backup.Backup
 import de.emilyshub.backup.BackupException
 import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.DataRescue
+import de.emilyshub.backup.isWrongIslandPassword
 import de.emilyshub.data.HubData
 import de.emilyshub.data.Unopenable
 import de.emilyshub.ui.SectionTitle
@@ -59,7 +60,7 @@ fun RescueScreen(reason: Unopenable, data: HubData, rescue: DataRescue, onOpened
     var picked by rememberSaveable { mutableStateOf<Uri?>(null) }
     var openProblem by remember { mutableStateOf<Int?>(null) }
     var opened by remember { mutableStateOf<Backup?>(null) }
-    var wrongDokuPassword by remember { mutableStateOf(false) }
+    var wrongIslandPassword by remember { mutableStateOf<BackupProblem?>(null) }
     var confirmingStartOver by remember { mutableStateOf(false) }
 
     fun work(block: suspend () -> Unit) {
@@ -152,21 +153,21 @@ fun RescueScreen(reason: Unopenable, data: HubData, rescue: DataRescue, onOpened
             // The data begun anew have none.
             takesPassword = true,
             busy = busy,
-            wrongDokuPassword = wrongDokuPassword,
-            onEditDokuPassword = { wrongDokuPassword = false },
-            onReplace = { dokuPassword ->
+            wrongPassword = wrongIslandPassword,
+            onEditPassword = { wrongIslandPassword = null },
+            onReplace = { dokuPassword, trackingPassword ->
                 work {
                     var restored = false
                     var askAgain = false
                     outcome = failingWith(R.string.rescue_failed) {
                         try {
-                            rescue.restore(backup, dokuPassword)
+                            rescue.restore(backup, dokuPassword, trackingPassword)
                             restored = true
                             null
                         } catch (e: BackupException) {
-                            if (e.problem != BackupProblem.WrongDokuPassword) throw e
-                            // Nothing has changed: the Doku password is asked for again.
-                            wrongDokuPassword = true
+                            if (!e.problem.isWrongIslandPassword) throw e
+                            // Nothing has changed: the password is asked for again.
+                            wrongIslandPassword = e.problem
                             askAgain = true
                             null
                         }
@@ -177,7 +178,7 @@ fun RescueScreen(reason: Unopenable, data: HubData, rescue: DataRescue, onOpened
             },
             onDismiss = {
                 opened = null
-                wrongDokuPassword = false
+                wrongIslandPassword = null
                 work { rescue.cancel() }
             },
         )

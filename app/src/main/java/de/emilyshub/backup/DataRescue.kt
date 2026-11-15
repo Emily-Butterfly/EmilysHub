@@ -27,14 +27,15 @@ class DataRescue(
     }
 
     /**
-     * Restores [backup], opened with [open], as the backup screen does, with its Doku only with the [dokuPassword], and
-     * keeps it; all as it was if that fails. A wrong Doku password changes nothing, and may be tried again.
+     * Restores [backup], opened with [open], as the backup screen does, with its Doku only with the [dokuPassword] and its
+     * Tracking only with the [trackingPassword], and keeps it; all as it was if that fails. A wrong Doku or Tracking
+     * password changes nothing, and may be tried again.
      */
-    suspend fun restore(backup: Backup, dokuPassword: String? = null) {
+    suspend fun restore(backup: Backup, dokuPassword: String? = null, trackingPassword: String? = null) {
         try {
-            backups.restore(backup, dokuPassword)
+            backups.restore(backup, dokuPassword, trackingPassword)
         } catch (e: BackupException) {
-            if (e.problem != BackupProblem.WrongDokuPassword) data.undo()
+            if (!e.problem.isWrongIslandPassword) data.undo()
             throw e
         } catch (e: Exception) {
             data.undo()

@@ -3,11 +3,11 @@ package de.emilyshub.island
 import android.app.Activity
 import android.os.SystemClock
 import android.util.Log
-import androidx.room.RoomDatabase
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.room.RoomDatabase
 import de.emilyshub.backup.BackupException
 import de.emilyshub.backup.BackupFile
 import de.emilyshub.backup.BackupKey
@@ -109,6 +109,9 @@ class Island<D : RoomDatabase> internal constructor(
     private var keys: IslandKeys? = null
     private val savers = mutableSetOf<IslandSaver<D>>()
     private var lastTouch = 0L
+
+    /** How many measurements run ([measuring]), while which the [IDLE_MILLIS] rest. */
+    private var measurements = 0
 
     /** How often the island was told to lock: an unlock still under way when it is told so again does not open it. */
     private var locks = 0
@@ -256,13 +259,46 @@ class Island<D : RoomDatabase> internal constructor(
         }
     }
 
+    /**
+     * Deletes all that is in the island ("Alles löschen", SPEC.md §17), once [password] is its password; false, deleting
+     * nothing, if it is not. Every table is emptied, what was in them overwritten on disk ([SECURE_DELETE]) and the file
+     * shrunk; the password and the fingerprint stay, and the island stays open, empty. Only while open.
+     */
+    suspend fun deleteAll(password: String): Boolean {
+        requireOpen()
+        val key = withContext(io) { checkNotNull(keys).openWithPassword(password) } ?: return false
+        key.fill(0)
+        return changing { database ->
+            database.clearAllTables()
+            database.checkpoint()
+        } != null
+    }
+
     /** A touch or a key in the island: the [IDLE_MILLIS] start anew. */
     fun touched() {
         lastTouch = now()
     }
 
-    /** How long until the island has been idle for [IDLE_MILLIS]. */
-    internal fun millisUntilIdle(): Long = (lastTouch + IDLE_MILLIS - now()).coerceAtLeast(0)
+    /** How long until the island has been idle for [IDLE_MILLIS]; never, while a measurement runs. */
+    internal fun millisUntilIdle(): Long =
+        if (measurements > 0) IDLE_MILLIS else (lastTouch + IDLE_MILLIS - now()).coerceAtLeast(0)
+
+    /**
+     * The exception for the measuring assistant (SPEC.md §17): until the returned handle is closed, as the measurement
+     * ends, the [IDLE_MILLIS] rest, and start anew once it is. Leaving the island, the app going to the background and
+     * the screen going off lock it all the same ([lock]).
+     */
+    fun measuring(): AutoCloseable {
+        measurements++
+        var ended = false
+        return AutoCloseable {
+            if (!ended) {
+                ended = true
+                measurements--
+                touched()
+            }
+        }
+    }
 
     /**
      * Locks the island once it has been idle for [IDLE_MILLIS], waiting while it is open, and returns once it is locked,

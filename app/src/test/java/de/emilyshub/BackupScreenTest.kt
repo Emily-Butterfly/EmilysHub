@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -22,6 +23,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.PatientOrder
+import de.emilyshub.tracking.TrackingDatabase
+import de.emilyshub.tracking.TrackingSetting
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -358,6 +361,52 @@ class BackupScreenTest {
     }
 
     @Test
+    fun `a backup with Tracking asks for the Tracking password it was made with, and brings Tracking back`() {
+        aBackupWithTrackingThenChanged()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+
+            compose.onNodeWithText("Auch Tracking wird durch das aus dem Backup ersetzt.").assertIsDisplayed()
+            compose.onNodeWithText("Ersetzen").assertIsNotEnabled()
+            enterTrackingPassword("Falsch und falsch")
+            compose.onNodeWithText("Ersetzen").performClick()
+            compose.onNodeWithText("Falsches Tracking-Passwort").assertIsDisplayed()
+            assertEquals(listOf("Yoga"), routineNames())
+
+            enterTrackingPassword(TRACKING_PASSWORD)
+            compose.onNodeWithText("Ersetzen").performClick()
+
+            compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+            assertEquals(listOf("Vitamine"), routineNames())
+        }
+        assertEquals("Wert A", trackingProbe())
+    }
+
+    @Test
+    fun `a backup with the Doku and Tracking asks for both passwords, or loads without both`() {
+        runBlocking {
+            app.tracking.load()
+            app.tracking.setUp(TRACKING_PASSWORD)
+        }
+        aBackupWithFrauMThenHerrK()
+        app.tracking.lock()
+
+        launchApp().use { scenario ->
+            loadBackup(scenario)
+            enterDokuPassword(DOKU_PASSWORD)
+            compose.onNodeWithText("Ersetzen").assertIsNotEnabled()
+            enterTrackingPassword(TRACKING_PASSWORD)
+            compose.onNodeWithText("Ersetzen").assertIsEnabled()
+
+            compose.onNodeWithText("Ohne Dokumentation und Tracking einspielen").performClick()
+
+            compose.onNodeWithText("Backup geladen.").performScrollTo().assertIsDisplayed()
+        }
+        assertEquals(listOf("Frau M.", "Herr K."), patientNames())
+    }
+
+    @Test
     fun `the backups are to be copied off the phone`() {
         launchApp().use {
             openBackups()
@@ -400,6 +449,27 @@ class BackupScreenTest {
         enterBackupPassword(PASSWORD)
     }
 
+    /** [aBackupOfVitaminsThenYoga], with Tracking holding "Wert A" in it; since then, it holds "Wert B" and is locked. */
+    private fun aBackupWithTrackingThenChanged() {
+        runBlocking {
+            app.tracking.load()
+            app.tracking.setUp(TRACKING_PASSWORD)
+            app.tracking.withDatabase { it.settings().put(TrackingSetting("probe", "Wert A")) }
+        }
+        aBackupOfVitaminsThenYoga()
+        runBlocking { app.tracking.withDatabase { it.settings().put(TrackingSetting("probe", "Wert B")) } }
+        app.tracking.lock()
+    }
+
+    private fun trackingProbe(): String? = runBlocking {
+        assertTrue(app.tracking.unlockWithPassword(TRACKING_PASSWORD))
+        app.tracking.withDatabase { it.settings().get("probe") }
+    }
+
+    private fun enterTrackingPassword(password: String) {
+        compose.onNode(hasSetTextAction() and hasText("Tracking-Passwort") and hasAnyAncestor(isDialog())).performTextReplacement(password)
+    }
+
     private fun enterDokuPassword(password: String) {
         compose.onNode(hasSetTextAction() and hasText("Doku-Passwort") and hasAnyAncestor(isDialog())).performTextReplacement(password)
     }
@@ -413,6 +483,8 @@ class BackupScreenTest {
     fun closeDoku() {
         app.doku.lock()
         app.deleteDatabase(DokuDatabase.NAME)
+        app.tracking.lock()
+        app.deleteDatabase(TrackingDatabase.NAME)
     }
 
     @Test
@@ -494,6 +566,7 @@ class BackupScreenTest {
         const val PASSWORD = "Flieder und Lila"
         const val NEW_PASSWORD = "Lavendel im Juni"
         const val DOKU_PASSWORD = "Doku-Geheimnis"
+        const val TRACKING_PASSWORD = "Tracking-Geheimnis"
         val FILE: Uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ABackup.emhb")
         val FOLDER: Uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABackups")
     }

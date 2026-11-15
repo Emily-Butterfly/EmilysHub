@@ -16,10 +16,12 @@ data class BackupAttachment(val file: String, val bytes: Long)
 
 /**
  * All data of the app as a backup holds it (SPEC.md §10): the rows of each of the [tables], from a database of the
- * [schema] version given, as they were when [created]; and the [doku] in its own encryption, if it has a password. As
+ * [schema] version given, as they were when [created]; the [doku] and [tracking] each in its own encryption, if it
+ * has a password. As
  * JSON: {"schema": 16, "created": "2026-10-23T05:00:00Z", "tables": {"routines": {"columns": ["id", ...], "rows":
  * [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": "<Base64>", "wal": "<Base64>"}}, the
- * Doku's write-ahead log only if it has one, the Doku only if there is one; and, if there are any, the [attachments]
+ * Doku's write-ahead log only if it has one, the Doku only if there is one, and "tracking" as "doku"; and, if there
+ * are any, the [attachments]
  * that follow the content in the file, in their order: "attachments": [["<file>", 1234], ...].
  */
 class BackupContent(
@@ -27,6 +29,7 @@ class BackupContent(
     val created: Instant,
     val tables: Map<String, TableRows>,
     val doku: IslandSnapshot? = null,
+    val tracking: IslandSnapshot? = null,
     val attachments: List<BackupAttachment> = emptyList(),
 ) {
 
@@ -38,20 +41,21 @@ class BackupContent(
             json.put(name, JSONObject().put(COLUMNS, JSONArray(table.columns)).put(ROWS, rows))
         }
         val root = JSONObject().put(SCHEMA, schema).put(CREATED, created.toString()).put(TABLES, json)
-        doku?.let { root.put(DOKU, dokuJson(it)) }
+        doku?.let { root.put(DOKU, islandJson(it)) }
+        tracking?.let { root.put(TRACKING, islandJson(it)) }
         if (attachments.isNotEmpty()) {
             root.put(ATTACHMENTS, JSONArray(attachments.map { JSONArray(listOf(it.file, it.bytes)) }))
         }
         return root.toString().toByteArray()
     }
 
-    private fun dokuJson(doku: IslandSnapshot): JSONObject {
+    private fun islandJson(island: IslandSnapshot): JSONObject {
         val base64 = Base64.getEncoder()
         return JSONObject()
-            .put(SCHEMA, doku.schema)
-            .put(KEYS, base64.encodeToString(doku.sealedKeys))
-            .put(DATABASE, base64.encodeToString(doku.database))
-            .apply { doku.wal?.let { put(WAL, base64.encodeToString(it)) } }
+            .put(SCHEMA, island.schema)
+            .put(KEYS, base64.encodeToString(island.sealedKeys))
+            .put(DATABASE, base64.encodeToString(island.database))
+            .apply { island.wal?.let { put(WAL, base64.encodeToString(it)) } }
     }
 
     companion object {
@@ -61,6 +65,7 @@ class BackupContent(
         private const val COLUMNS = "columns"
         private const val ROWS = "rows"
         private const val DOKU = "doku"
+        private const val TRACKING = "tracking"
         private const val KEYS = "keys"
         private const val DATABASE = "database"
         private const val WAL = "wal"
@@ -73,14 +78,15 @@ class BackupContent(
         fun fromJson(json: ByteArray): BackupContent = try {
             if (depthOf(json) > MAX_DEPTH) damaged()
             val root = JSONObject(String(json, Charsets.UTF_8))
-            // Older backups, and those made without a Doku or attachments, have none.
-            if (root.keySet() - DOKU - ATTACHMENTS != setOf(SCHEMA, CREATED, TABLES)) damaged()
+            // Older backups, and those made without a Doku, Tracking or attachments, have none.
+            if (root.keySet() - DOKU - TRACKING - ATTACHMENTS != setOf(SCHEMA, CREATED, TABLES)) damaged()
             val tables = root.getJSONObject(TABLES)
             BackupContent(
                 schema = root.get(SCHEMA) as? Int ?: damaged(),
                 created = Instant.parse(root.get(CREATED) as? String ?: damaged()),
                 tables = tables.keySet().associateWith { tableRows(tables.getJSONObject(it)) },
-                doku = if (root.has(DOKU)) doku(root.getJSONObject(DOKU)) else null,
+                doku = if (root.has(DOKU)) island(root.getJSONObject(DOKU)) else null,
+                tracking = if (root.has(TRACKING)) island(root.getJSONObject(TRACKING)) else null,
                 attachments = if (root.has(ATTACHMENTS)) attachments(root.getJSONArray(ATTACHMENTS)) else emptyList(),
             )
         } catch (e: JSONException) {
@@ -92,16 +98,19 @@ class BackupContent(
             throw BackupException(BackupProblem.Damaged, e)
         }
 
-        /** Its keys must be sealed under the Doku password alone; the database is checked only once it is opened. */
-        private fun doku(doku: JSONObject): IslandSnapshot {
-            if (doku.keySet() - WAL != setOf(SCHEMA, KEYS, DATABASE)) damaged()
+        /**
+         * The Doku or Tracking: its keys must be sealed under its password alone; the database is checked only once it
+         * is opened.
+         */
+        private fun island(island: JSONObject): IslandSnapshot {
+            if (island.keySet() - WAL != setOf(SCHEMA, KEYS, DATABASE)) damaged()
             val base64 = Base64.getDecoder()
-            fun bytes(key: String) = base64.decode(doku.get(key) as? String ?: damaged())
+            fun bytes(key: String) = base64.decode(island.get(key) as? String ?: damaged())
             return IslandSnapshot.of(
-                schema = doku.get(SCHEMA) as? Int ?: damaged(),
+                schema = island.get(SCHEMA) as? Int ?: damaged(),
                 sealedKeys = bytes(KEYS),
                 database = bytes(DATABASE),
-                wal = if (doku.has(WAL)) bytes(WAL) else null,
+                wal = if (island.has(WAL)) bytes(WAL) else null,
             ) ?: damaged()
         }
 

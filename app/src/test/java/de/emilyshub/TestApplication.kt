@@ -11,15 +11,17 @@ import de.emilyshub.data.Unopenable
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.doku.FakeFingerprint
-import de.emilyshub.island.RawKey
 import de.emilyshub.doku.testDokuDatabase
+import de.emilyshub.island.RawKey
+import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
-import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.security.FakeAuthenticator
+import de.emilyshub.tracking.TrackingDatabase
+import de.emilyshub.tracking.testTrackingDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -53,9 +55,11 @@ class TestApplication : EmilysHubApplication() {
 
     override val authenticator = FakeAuthenticator()
     override val fingerprint = FakeFingerprint()
+    override val trackingFingerprint = FakeFingerprint()
 
     /** In a file, so that it outlives locking, but with Android's own SQLite, which takes no key. */
     override val openDokuDatabase: (RawKey) -> DokuDatabase = { testDokuDatabase(this) }
+    override val openTrackingDatabase: (RawKey) -> TrackingDatabase = { testTrackingDatabase(this) }
     override val ringer = FakeRinger()
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)

@@ -61,6 +61,7 @@ import de.emilyshub.backup.BackupProblem
 import de.emilyshub.backup.Backups
 import de.emilyshub.backup.NightlyBackups
 import de.emilyshub.backup.NightlyState
+import de.emilyshub.backup.isWrongIslandPassword
 import de.emilyshub.data.HubData
 import de.emilyshub.data.SetAside
 import de.emilyshub.logged
@@ -70,9 +71,9 @@ import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.enumeration
 import de.emilyshub.ui.numericDate
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
-import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -107,8 +108,8 @@ fun BackupScreen(
     var picked by rememberSaveable { mutableStateOf<Uri?>(null) }
     var openProblem by remember { mutableStateOf<Int?>(null) }
     var opened by remember { mutableStateOf<Backup?>(null) }
-    // Whether the Doku password given for the backup's Doku was not the one that held when it was made.
-    var wrongDokuPassword by remember { mutableStateOf(false) }
+    // Which password given for the backup's Doku or Tracking was not the one that held when it was made, if any.
+    var wrongIslandPassword by remember { mutableStateOf<BackupProblem?>(null) }
     var setAside by remember { mutableStateOf<List<SetAside>>(emptyList()) }
     LaunchedEffect(data) { setAside = data.setAside() }
     var deleting by remember { mutableStateOf<SetAside?>(null) }
@@ -363,19 +364,19 @@ fun BackupScreen(
             backup = backup,
             takesPassword = hasPassword == false,
             busy = busy,
-            wrongDokuPassword = wrongDokuPassword,
-            onEditDokuPassword = { wrongDokuPassword = false },
-            onReplace = { dokuPassword ->
+            wrongPassword = wrongIslandPassword,
+            onEditPassword = { wrongIslandPassword = null },
+            onReplace = { dokuPassword, trackingPassword ->
                 work {
                     var askAgain = false
                     outcome = failingWith(R.string.backup_restore_failed) {
                         try {
-                            backups.restore(backup, dokuPassword)
+                            backups.restore(backup, dokuPassword, trackingPassword)
                             R.string.backup_restored
                         } catch (e: BackupException) {
-                            if (e.problem != BackupProblem.WrongDokuPassword) throw e
-                            // Nothing has changed: the Doku password is asked for again.
-                            wrongDokuPassword = true
+                            if (!e.problem.isWrongIslandPassword) throw e
+                            // Nothing has changed: the password is asked for again.
+                            wrongIslandPassword = e.problem
                             askAgain = true
                             null
                         }
@@ -387,7 +388,7 @@ fun BackupScreen(
             },
             onDismiss = {
                 opened = null
-                wrongDokuPassword = false
+                wrongIslandPassword = null
             },
         )
     }
@@ -505,24 +506,26 @@ internal fun PasswordOfBackup(
 
 /**
  * Asks whether the [backup] is to replace all data, saying when it was made and what it holds, and whether its password
- * [takesPassword] over as the backup password here, there being none yet. With a Doku in it, the Doku password that
- * held when it was made is asked for too, shown [wrongDokuPassword] if it was not; or it is restored without the Doku
- * ([onReplace] with null), which then stays as it is.
+ * [takesPassword] over as the backup password here, there being none yet. With a Doku or Tracking in it, the password
+ * of each that held when it was made is asked for too, the one given shown [wrongPassword] if it was not; or it is
+ * restored without them ([onReplace] with nulls), which then stay as they are.
  */
 @Composable
 internal fun ConfirmReplacing(
     backup: Backup,
     takesPassword: Boolean,
     busy: Boolean,
-    wrongDokuPassword: Boolean,
-    onEditDokuPassword: () -> Unit,
-    onReplace: (dokuPassword: String?) -> Unit,
+    wrongPassword: BackupProblem?,
+    onEditPassword: () -> Unit,
+    onReplace: (dokuPassword: String?, trackingPassword: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val created = backup.created
     val summary = backup.summary
     // Not saveable: a password has no place in the saved state.
     var dokuPassword by remember { mutableStateOf("") }
+    var trackingPassword by remember { mutableStateOf("") }
+    val passwordsGiven = (!backup.hasDoku || dokuPassword.isNotEmpty()) && (!backup.hasTracking || trackingPassword.isNotEmpty())
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.backup_replace_title)) },
@@ -547,11 +550,26 @@ internal fun ConfirmReplacing(
                         value = dokuPassword,
                         onChange = {
                             dokuPassword = it
-                            onEditDokuPassword()
+                            onEditPassword()
                         },
                         label = stringResource(R.string.backup_doku_password),
-                        problem = stringResource(R.string.backup_wrong_doku_password).takeIf { wrongDokuPassword },
+                        problem = stringResource(R.string.backup_wrong_doku_password)
+                            .takeIf { wrongPassword == BackupProblem.WrongDokuPassword },
                         hint = stringResource(R.string.backup_doku_password_hint),
+                    )
+                }
+                if (backup.hasTracking) {
+                    Text(stringResource(R.string.backup_replace_tracking))
+                    PasswordField(
+                        value = trackingPassword,
+                        onChange = {
+                            trackingPassword = it
+                            onEditPassword()
+                        },
+                        label = stringResource(R.string.backup_tracking_password),
+                        problem = stringResource(R.string.backup_wrong_tracking_password)
+                            .takeIf { wrongPassword == BackupProblem.WrongTrackingPassword },
+                        hint = stringResource(R.string.backup_tracking_password_hint),
                     )
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -560,14 +578,20 @@ internal fun ConfirmReplacing(
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {
                 TextButton(
-                    onClick = { onReplace(dokuPassword.takeIf { backup.hasDoku }) },
-                    enabled = !busy && (!backup.hasDoku || dokuPassword.isNotEmpty()),
+                    onClick = { onReplace(dokuPassword.takeIf { backup.hasDoku }, trackingPassword.takeIf { backup.hasTracking }) },
+                    enabled = !busy && passwordsGiven,
                 ) {
                     Text(stringResource(R.string.backup_replace))
                 }
-                if (backup.hasDoku) {
-                    TextButton(onClick = { onReplace(null) }, enabled = !busy) {
-                        Text(stringResource(R.string.backup_replace_without_doku))
+                val without = when {
+                    backup.hasDoku && backup.hasTracking -> R.string.backup_replace_without_doku_and_tracking
+                    backup.hasDoku -> R.string.backup_replace_without_doku
+                    backup.hasTracking -> R.string.backup_replace_without_tracking
+                    else -> null
+                }
+                if (without != null) {
+                    TextButton(onClick = { onReplace(null, null) }, enabled = !busy) {
+                        Text(stringResource(without))
                     }
                 }
             }
@@ -613,6 +637,7 @@ internal val BackupProblem.message: Int
         BackupProblem.NewerVersion -> R.string.backup_newer_version
         BackupProblem.OlderVersion -> R.string.backup_older_version
         BackupProblem.WrongDokuPassword -> R.string.backup_wrong_doku_password
+        BackupProblem.WrongTrackingPassword -> R.string.backup_wrong_tracking_password
     }
 
 /** Android knows no type for a backup of EmilysHub. */

@@ -144,13 +144,14 @@ class BackupsOnDeviceTest {
         wrappingKey = { wrappingKey },
         clock = Clock.systemUTC(),
         migration = BackupMigration(context) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
-        doku = NoDoku,
+        doku = NoIsland,
+        tracking = NoIsland,
         attachments = NoAttachments,
         iterations = iterations,
     )
 
-    /** No Doku is set up: the backups here are of the rest of the app. */
-    private object NoDoku : IslandVault {
+    /** Neither the Doku nor Tracking is set up: the backups here are of the rest of the app. */
+    private object NoIsland : IslandVault {
         override suspend fun snapshot(): IslandSnapshot? = null
 
         override suspend fun <T> replacedBy(snapshot: IslandSnapshot, during: suspend () -> T): T = during()

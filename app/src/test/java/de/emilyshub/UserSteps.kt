@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -234,3 +237,15 @@ fun TestApplication.history(routineId: Long, vararg days: Pair<String, Occurrenc
 
 /** A thought in the inbox (SPEC.md §16), captured now. */
 fun TestApplication.inbox(text: String) = runBlocking { check(inbox.capture(text)) }
+
+/** What the focused text field tells the keyboard, as Android asks for it. */
+fun ActivityScenario<MainActivity>.editorInfo(compose: ComposeTestRule): EditorInfo {
+    compose.waitForIdle()
+    val info = EditorInfo()
+    onActivity { activity ->
+        val content = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as AbstractComposeView
+        val owner = content.getChildAt(0)
+        checkNotNull(owner.onCreateInputConnection(info)) { "No text field has the focus" }
+    }
+    return info
+}

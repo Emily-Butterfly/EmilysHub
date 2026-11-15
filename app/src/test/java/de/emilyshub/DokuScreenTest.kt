@@ -2,6 +2,7 @@ package de.emilyshub
 
 import android.content.ClipboardManager
 import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -10,34 +11,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.performTextInputSelection
-import androidx.compose.ui.text.TextRange
-import de.emilyshub.ui.island.IslandInsel
-import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import androidx.compose.ui.platform.AbstractComposeView
-import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
-import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.test.performTextReplacement
-import androidx.test.core.app.ActivityScenario
+import androidx.compose.ui.text.TextRange
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import de.emilyshub.island.IslandState
 import de.emilyshub.island.FingerprintPurpose
+import de.emilyshub.island.IslandState
+import de.emilyshub.ui.island.IslandInsel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -280,7 +273,7 @@ class DokuScreenTest {
             compose.openDoku()
             compose.field("Doku-Passwort").performClick()
 
-            val editorInfo = scenario.editorInfo()
+            val editorInfo = scenario.editorInfo(compose)
 
             assertTrue(editorInfo.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0)
             assertTrue(editorInfo.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0)
@@ -293,7 +286,7 @@ class DokuScreenTest {
             compose.onNodeWithContentDescription("Suchen").performClick()
             compose.onNode(hasSetTextAction()).performClick()
 
-            val editorInfo = scenario.editorInfo()
+            val editorInfo = scenario.editorInfo(compose)
 
             assertEquals(0, editorInfo.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)
         }
@@ -376,18 +369,6 @@ class DokuScreenTest {
 
             assertFalse(clipboard.hasPrimaryClip())
         }
-    }
-
-    /** What the focused text field tells the keyboard, as Android asks for it. */
-    private fun ActivityScenario<MainActivity>.editorInfo(): EditorInfo {
-        compose.waitForIdle()
-        val info = EditorInfo()
-        onActivity { activity ->
-            val content = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as AbstractComposeView
-            val owner = content.getChildAt(0)
-            checkNotNull(owner.onCreateInputConnection(info)) { "No text field has the focus" }
-        }
-        return info
     }
 
     private companion object {
