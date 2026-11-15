@@ -3,12 +3,10 @@
 # as the groups below apply to version updates only.
 version: 2
 updates:
-  # The version catalog gradle/libs.versions.toml, read by the app and the build logic, and the Gradle wrapper.
+  # The version catalog gradle/libs.versions.toml, read by the app and the build logic alike, and the Gradle wrapper.
   # targetSdk (SPEC.md §12) is set in app/build.gradle.kts, not in the catalog, and is never proposed.
   - package-ecosystem: gradle
-    directories:
-      - "/"
-      - "/build-logic"
+    directory: "/"
     schedule:
       interval: monthly
     groups:

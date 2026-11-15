@@ -4,6 +4,17 @@ Dependabot proposes new versions once a month (`.github/dependabot.yml`): one pu
 and the Gradle wrapper, one for the GitHub Actions; a security fix comes at once in a pull request of its own.
 **Claude checks and mends, Emily merges** (decided 14.11.2026, #115).
 
+## What it takes on GitHub
+
+The file alone brings the monthly version updates. A security fix at once needs two things more:
+
+- In the repository's settings, under **Code security**: "Dependency graph", "Dependabot alerts" and "Dependabot
+  security updates" switched on. Only Emily can do that.
+- The job `dependencies` in the Build workflow, which tells GitHub the libraries of the Gradle build on each push to
+  the default branch; GitHub cannot read them from the build by itself, and without them it warns of nothing.
+
+Whether Dependabot takes the file shows under Insights → Dependency graph → Dependabot once it has run.
+
 ## Taking one over
 
 1. **CI.** The Build workflow runs on Dependabot's branch as on any push, without the signing secrets: the release

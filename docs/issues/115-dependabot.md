@@ -13,8 +13,9 @@ Dependabot meldet neue Versionen der Bibliotheken und der GitHub Actions als Pul
 
 ## Akzeptanzkriterien
 
-- [x] `.github/dependabot.yml` für Gradle (`gradle/libs.versions.toml`, auch die Build-Logik) und für die GitHub Actions
-- [x] Monatlich, je Ökosystem ein gebündelter Pull Request; Sicherheitsupdates kommen sofort und einzeln
+- [x] `.github/dependabot.yml` für Gradle (`gradle/libs.versions.toml`, auch die Build-Logik, die denselben Katalog liest) und für die GitHub Actions
+- [x] Monatlich, je Ökosystem ein gebündelter Pull Request
+- [ ] Sicherheitsupdates kommen sofort und einzeln: dafür meldet der Job `dependencies` im Build die Gradle-Abhängigkeiten an GitHub; 🙋 in den Einstellungen des Repos unter „Code security“ müssen „Dependency graph“, „Dependabot alerts“ und „Dependabot security updates“ an sein
 - [x] Die Actions bleiben auf Commit-SHAs festgelegt; Dependabot pflegt SHA und Versionskommentar
 - [ ] Der Build läuft für Dependabots Pull Requests durch, ohne die Signatur-Secrets: Das Signieren wird übersprungen, wie schon ohne Secrets
 - [x] `targetSdk` und die Versionen, die die Spezifikation festlegt, schlägt Dependabot nicht vor, oder sie sind ausgenommen

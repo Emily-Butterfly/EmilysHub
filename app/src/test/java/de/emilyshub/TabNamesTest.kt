@@ -7,7 +7,9 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.ui.TopLevelDestination
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -40,12 +42,15 @@ class TabNamesTest {
     fun `at 200 percent each tab name stands on one line, whole`() = assertTabNamesOnOneLine()
 
     private fun assertTabNamesOnOneLine() {
+        val app = ApplicationProvider.getApplicationContext<TestApplication>()
+        val names = TopLevelDestination.entries.map { app.getString(it.label) }
         launchApp().use {
-            NAMES.forEach { name ->
+            names.forEach { name ->
                 val layout = layoutOf(name)
                 assertEquals("$name on one line", 1, layout.lineCount)
                 assertFalse("$name cut short", layout.isLineEllipsized(0))
-                assertEquals("$name whole on its line", name.length, layout.getLineEnd(0))
+                // To a screen reader, the tab says its full name.
+                compose.onNode(isSelectable() and hasText(name)).assertExists()
             }
         }
     }
@@ -55,9 +60,5 @@ class TabNamesTest {
         compose.onNode(hasText(name) and hasAnyAncestor(isSelectable()), useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         return layouts.single()
-    }
-
-    private companion object {
-        val NAMES = listOf("Heute", "Routinen", "To-dos", "Notizen", "Sonstiges")
     }
 }
