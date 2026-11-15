@@ -87,17 +87,18 @@ class LedgerScreenTest {
                 compose.onNode(hasContentDescription(name) and hasClickAction()).assertDoesNotExist()
             }
 
-            compose.onNodeWithContentDescription("Mehr").performClick()
+            compose.onNodeWithContentDescription("Mehr zu „Haushaltsbuch“").performClick()
             val items = compose.onAllNodes(hasClickAction() and hasAnyAncestor(isPopup()))
-                .fetchSemanticsNodes().map { it.config[SemanticsProperties.Text].joinToString() }
+                .fetchSemanticsNodes().map { node -> node.config[SemanticsProperties.Text].joinToString { it.text } }
             assertEquals(listOf("Fixbuchungen", "Abos", "Kategorien", "Archiv"), items)
             compose.onNode(hasText("Abos") and hasAnyAncestor(isPopup())).performClick()
             compose.onNode(isHeading() and hasText("Abos")).assertIsDisplayed()
             compose.onNodeWithContentDescription("Zurück").performClick()
 
-            mapOf("Fixbuchungen" to "Fixbuchungen", "Kategorien" to "Kategorien", "Archiv" to "Archiv").forEach { (item, title) ->
+            // Each opens the screen it names.
+            listOf("Fixbuchungen", "Kategorien", "Archiv").forEach { item ->
                 compose.openFromLedgerMenu(item)
-                compose.onNode(isHeading() and hasText(title)).assertIsDisplayed()
+                compose.onNode(isHeading() and hasText(item)).assertIsDisplayed()
                 compose.onNodeWithContentDescription("Zurück").performClick()
             }
         }

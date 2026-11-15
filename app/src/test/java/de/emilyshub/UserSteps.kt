@@ -181,7 +181,7 @@ fun ComposeTestRule.openGoals() {
  * "Archiv".
  */
 fun ComposeTestRule.openFromLedgerMenu(item: String) {
-    onNodeWithContentDescription("Mehr").performClick()
+    onNodeWithContentDescription("Mehr zu „Haushaltsbuch“").performClick()
     onNode(hasText(item) and hasClickAction() and hasAnyAncestor(isPopup())).performClick()
 }
 

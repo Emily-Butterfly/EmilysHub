@@ -21,11 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -68,6 +65,8 @@ import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.MonthClosing
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.Hint
+import de.emilyshub.ui.MoreMenu
+import de.emilyshub.ui.MoreMenuItem
 import de.emilyshub.ui.SectionTitle
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.monthAndYear
@@ -539,8 +538,8 @@ private val PIE_SIZE = 120.dp
 private val NEAR_BUDGET = Color(0xFFF57C00)
 
 /**
- * The ledger's menu in its top bar (SPEC.md §13; #113), "Mehr" to a screen reader: its parts by name, from the most used
- * to the archive, in place of symbols to guess.
+ * The ledger's menu in its top bar (SPEC.md §13; #113), "Mehr zu „Haushaltsbuch“" to a screen reader, as the notes have
+ * theirs: its parts by name, from the most used to the archive, in place of symbols to guess.
  */
 @Composable
 private fun LedgerMenu(
@@ -550,25 +549,10 @@ private fun LedgerMenu(
     onOpenArchive: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.ledger_menu))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            listOf(
-                R.string.recurring_title to onOpenRecurring,
-                R.string.subscriptions_title to onOpenSubscriptions,
-                R.string.ledger_categories to onOpenCategories,
-                R.string.ledger_archive to onOpenArchive,
-            ).forEach { (label, open) ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(label)) },
-                    onClick = {
-                        expanded = false
-                        open()
-                    },
-                )
-            }
-        }
+    MoreMenu(stringResource(R.string.ledger_title), expanded, onExpandedChange = { expanded = it }) { close ->
+        MoreMenuItem(stringResource(R.string.recurring_title), close, onOpenRecurring)
+        MoreMenuItem(stringResource(R.string.subscriptions_title), close, onOpenSubscriptions)
+        MoreMenuItem(stringResource(R.string.ledger_categories), close, onOpenCategories)
+        MoreMenuItem(stringResource(R.string.ledger_archive), close, onOpenArchive)
     }
 }

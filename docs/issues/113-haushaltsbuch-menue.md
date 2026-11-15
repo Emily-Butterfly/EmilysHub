@@ -13,7 +13,7 @@ Die obere Leiste des Haushaltsbuchs zeigt statt vier Symbolen ohne Text ein Men�
 
 ## Akzeptanzkriterien
 
-- [x] In der Leiste steht nur noch ein Menü-Knopf (⋮), für Screenreader „Mehr“
+- [x] In der Leiste steht nur noch ein Menü-Knopf (⋮), für Screenreader „Mehr zu ‚Haushaltsbuch‘“, wie das Menü der Notizen
 - [x] Das Menü nennt in dieser Reihenfolge: Fixbuchungen, Abos, Kategorien, Archiv; jeder Eintrag öffnet, was bisher sein Symbol geöffnet hat
 - [x] Sonst ändert sich am Haushaltsbuch nichts
 - [x] SPEC §13 nennt, wo die vier Bereiche zu finden sind, falls es sie dort nach Symbolen nennt
@@ -23,3 +23,7 @@ Die obere Leiste des Haushaltsbuchs zeigt statt vier Symbolen ohne Text ein Men�
 
 - **Entschieden am 14.11.2026:** Ein Menü mit Text, und alle vier stehen darin; in der Leiste bleibt kein eigenes Symbol.
 - Nicht einzeln bestätigt: die Reihenfolge im Menü, vom Häufigsten zum Archiv.
+
+Bei der Umsetzung festgelegt (15.11.2026):
+
+- Das Menü ist dasselbe wie das der Notizen oben rechts; für Screenreader heißt es darum „Mehr zu ‚Haushaltsbuch‘“ statt nur „Mehr“.
