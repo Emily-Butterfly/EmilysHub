@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13** und #110 **Etappe 14**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14** und #122 **Etappe 15**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -195,6 +195,24 @@ Die fünf kleinen Themen aus dem Gutachten vom 12.11.2026, die in Etappe 13 kein
 | 113 | [Haushaltsbuch: ein Menü mit Text statt vier Symbolen](113-haushaltsbuch-menue.md) | 🤖 | – |
 | 114 | [Untere Leiste: Tab-Namen bei großer Schrift ohne Umbruch](114-tab-namen-grosse-schrift.md) | 🤖 | – |
 | 115 | [Abhängigkeiten: Dependabot schlägt neue Versionen vor](115-dependabot.md) | 🤖 | – |
+
+## Etappe 15 – Tracking
+
+Abgestimmt im Interview vom 15.11.2026; Sammel-Issue #122. Spezifikation §17. Gebaut wird in der Reihenfolge der Tabelle. Im öffentlichen Repo nur die allgemeine Funktion, nie persönliche Werte, Medikamente oder Beschwerden.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 123 | [eigener Bereich mit Passwort, Backup & „Akute Beschwerden?“](123-tracking-bereich.md) | 🤖 | – |
+| 124 | [Morgen- und Abendeintrag, eigene Symptome & Nachtragen](124-tracking-tageseintraege.md) | 🤖 | 123 |
+| 125 | [Grunddaten & Medikamente mit Zeitleiste](125-tracking-medikamente.md) | 🤖 | 124 |
+| 126 | [Garmin-Werte über Health Connect & Stufen](126-tracking-garmin-health-connect.md) | 🤖 | 124 |
+| 127 | [Stehtest-Assistent mit Auswertung](127-tracking-stehtest.md) | 🤖 | 125, 126 |
+| 128 | [Ereignisse mit Puls-Timer & Hautangaben](128-tracking-ereignisse.md) | 🤖 | 127 |
+| 129 | [Anstrengungen, Vorschläge, PEM- & Crash-Episoden](129-tracking-anstrengungen-episoden.md) | 🤖 | 125, 126 |
+| 130 | [Wochenauswertung & Verlauf](130-tracking-wochenauswertung.md) | 🤖 | 127, 128, 129 |
+| 131 | [Hinweise mit Quellen](131-tracking-hinweise.md) | 🤖 | 130 |
+| 132 | [Arzt-Zusammenfassung als PDF](132-tracking-arzt-pdf.md) | 🤖 | 131 |
+| 133 | [Fotos an Ereignissen](133-tracking-fotos.md) | 🤖 | 128 |
 
 ## Ohne Ticket
 

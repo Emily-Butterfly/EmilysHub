@@ -6,11 +6,9 @@ Themen aus dem Gutachten vom 12.11.2026, die noch kein Ticket haben. Jedes steht
 
 Das Gutachten: https://claude.ai/artifact/49Q6Zngame3CUwHUE5S2nF. Die Tickets der Etappe 13 hängen an #86; die übrigen kleinen Themen aus dem Gutachten sind seit dem 14.11.2026 die Etappe 14 (#110).
 
-## 1. Tages-Check-in mit Symptomen und HRV
+## 1. Tracking, zweite Stufe: HRV, Stability & Monatsfragebogen
 
-- **Stand:** Vorbereitet in `docs/research/pacing.md` und `docs/research/visible-apk-hrv-symptomtracking.md`, mit einem Vorschlag für das Datenmodell. Im Gutachten bewusst nicht als Vorschlag gezählt, weil es schon geplant war.
-- **Zu entscheiden:** Umfang der ersten Stufe und der Ort in der App. Dafür braucht es ein Interview wie bei den früheren Etappen.
-- **Entschieden am 14.11.2026:** Er wird eine eigene Etappe, nach diesem Interview; vorzuschlagen, sobald Etappe 14 (#110) fertig ist.
-- **Entwurf seit 15.11.2026:** [SPEC.md](../../SPEC.md) §17 „Gesundheitstagebuch“ beschreibt Tageseinträge, Stehtest, Ereignisse, Belastungen, Wochenauswertung, Hinweise und eine Arzt-Zusammenfassung. Entschieden am 15.11.2026: eigene Sperre wie die Dokumentation; Export der Arzt-Zusammenfassung als PDF.
-- **Fürs Interview:** Ist das Tagebuch die erste Stufe des Check-ins, und kommen HRV und Stability später dazu? Was gehört in die erste Etappe? Nachtragen bis 7 Tage, die Startliste der Symptome, Fotos, die Mindestdaten und die eigenen Arbeitswerte (alles in §17 unter „Entscheidungen“). Danach werden aus §17 Slices wie bei den anderen Etappen.
+- **Stand:** Die erste Stufe ist seit dem Interview vom 15.11.2026 die Etappe 15 **Tracking** ([SPEC.md](../../SPEC.md) §17, Sammel-Issue in [README.md](README.md)). Offen bleibt die zweite Stufe: HRV-Messung oder -Import, Stability-Wert, Monatsfragebogen (PROMIS), vorbereitet in `docs/research/pacing.md`, `docs/research/visible-apk-hrv-symptomtracking.md` und `docs/research/garmin-health-connect.md` (FIT-Dateien, Validierung).
+- **Entschieden am 15.11.2026:** Sie kommt in denselben Bereich Tracking. HRV, Stress, Body Battery und SpO₂ von Garmin kommen dann über den Import der FIT-Dateien (Export-ZIP aus Garmin Connect oder per USB von der Uhr), weil Garmin sie nicht nach Health Connect schreibt.
+- **Zu entscheiden:** Messquelle der HRV (FIT-Import, eigene Messung), ob ein eigener Stability-Wert gebaut wird (die Gewichte von Visible sind nicht belegt) und die Lizenz deutscher PROMIS-Fassungen. Dafür braucht es ein Interview, sobald Etappe 15 fertig ist.
 - **Öffentliches Repo:** In Spezifikation, Tickets, Code und Tests nur die allgemeine Funktion, nie persönliche Werte, Medikamente oder Beschwerden (§17, Grundsatz).
