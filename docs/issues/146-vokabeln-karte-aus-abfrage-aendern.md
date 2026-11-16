@@ -13,15 +13,15 @@ Einen Tippfehler auf einer Karte bemerkt man meist beim Üben. Bisher muss man s
 
 ## Akzeptanzkriterien
 
-- [ ] Oben in der Leiste der Abfrage ein Stift „Karte ändern“, der den Karten-Editor der gezeigten Karte öffnet
-- [ ] Zurück steht die Abfrage an derselben Stelle der Runde, die Karte wie vorher (aufgedeckt oder nicht), mit den geänderten Texten; ihre Planung bleibt
-- [ ] Im Editor gelöscht: die Runde geht mit der nächsten Karte weiter
-- [ ] Wird „In beide Richtungen abfragen“ ausgeschaltet, während die Rückrichtung gezeigt wird, geht die Runde mit der nächsten Karte weiter
-- [ ] Auch beim Thema üben
+- [x] Oben in der Leiste der Abfrage ein Stift „Karte ändern“, der den Karten-Editor der gezeigten Karte öffnet
+- [x] Zurück steht die Abfrage an derselben Stelle der Runde, die Karte wie vorher (aufgedeckt oder nicht), mit den geänderten Texten; ihre Planung bleibt
+- [x] Im Editor gelöscht: die Runde geht mit der nächsten Karte weiter
+- [x] Wird „In beide Richtungen abfragen“ ausgeschaltet, während die Rückrichtung gezeigt wird, geht die Runde mit der nächsten Karte weiter
+- [x] Auch beim Thema üben
 
 ## Tests
 
-- [ ] UI: aus der Abfrage ändern, zurück an derselben Stelle mit neuem Text; löschen geht zur nächsten Karte
+- [x] UI: aus der Abfrage ändern, zurück an derselben Stelle mit neuem Text; löschen geht zur nächsten Karte
 
 ## Entscheidungen
 

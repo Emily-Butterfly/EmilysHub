@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
@@ -299,6 +300,75 @@ class VocabularyScreenTest {
             heading("Arabisch").assertIsDisplayed()
             tab("Karten").assertIsSelected()
             compose.onNodeWithText("kitab").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a card is changed from the practice, which goes on where it was, and deleted it goes on with the next`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        card(arabic, "qalam", "Stift")
+        card(arabic, "bab", "Tür")
+
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Leicht").performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+
+            compose.onNodeWithContentDescription("Karte ändern").performClick()
+            heading("Karte ändern").assertIsDisplayed()
+            field("Rückseite").performTextReplacement("Füller")
+            compose.onNodeWithText("Speichern").performClick()
+
+            // Where it was, uncovered as it was, with the text changed.
+            compose.onNodeWithText("2 von 3").assertIsDisplayed()
+            compose.onNodeWithText("qalam").assertIsDisplayed()
+            compose.onNodeWithText("Füller").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").assertDoesNotExist()
+
+            compose.onNodeWithContentDescription("Karte ändern").performClick()
+            compose.onNodeWithContentDescription("Karte löschen").performClick()
+            compose.onNode(hasText("Löschen") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("2 von 2").assertIsDisplayed()
+            compose.onNodeWithText("bab").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").assertIsDisplayed()
+        }
+        val book = runBlocking { app.flashcards.tab(arabic).first() }!!.cards.single { it.card.front == "kitab" }.card
+        assertEquals("its planning kept", false, book.new)
+    }
+
+    @Test
+    fun `a topic practised asking a card from its back goes on with the next once that way is ticked off`() {
+        val arabic = language("Arabisch")
+        val colours = runBlocking { (app.languages.createTopic(arabic, "Farben") as Saving.Saved).id }
+        runBlocking {
+            val red = (app.flashcards.create(arabic, CardDraft("ahmar", "rot", topicId = colours, bothWays = true)) as Saving.Saved).id
+            app.flashcards.answer(red, Rating.Easy)
+            app.flashcards.create(arabic, CardDraft("azraq", "blau", topicId = colours))
+        }
+        // The next day, its front is not due, its back new.
+        app.clock.now = app.clock.now.plus(1, ChronoUnit.DAYS)
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Themen").performClick()
+            compose.onNodeWithContentDescription("Menü für Farben").performClick()
+            compose.onNodeWithText("Thema üben").performClick()
+            compose.onNodeWithText("Rückrichtung").assertIsDisplayed()
+            compose.onNodeWithText("rot").assertIsDisplayed()
+
+            compose.onNodeWithContentDescription("Karte ändern").performClick()
+            // Never asked from its back yet, it is ticked off without asking.
+            compose.onNodeWithText("In beide Richtungen abfragen").performScrollTo().performClick()
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            compose.onNodeWithText("azraq").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").assertIsDisplayed()
+            compose.onNodeWithText("Rückrichtung").assertDoesNotExist()
         }
     }
 

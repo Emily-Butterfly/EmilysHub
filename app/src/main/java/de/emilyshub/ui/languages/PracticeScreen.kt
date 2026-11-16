@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.materialIcon
 import androidx.compose.material.icons.materialPath
 import androidx.compose.material3.Button
@@ -75,10 +76,20 @@ import kotlin.math.roundToInt
  * Left any time, "Üben" goes on where it was. At the end, "Für heute geschafft". Archived or gone meanwhile, it closes.
  * The last answer can be taken back while it is open, the card then shown again covered, the round as it was (#145).
  * With a [topicId], it asks all the cards of that topic instead, each once, those due first (#107).
+ * The card shown is opened in its editor by [onEditCard] (#146): back, the practice is where it was, the card covered
+ * or not as it was, with its texts changed; deleted, or no more asked the way it was shown, the round goes on with the
+ * next, as the workload no longer has it.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
-fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: () -> Unit, topicId: Long? = null) {
+fun PracticeScreen(
+    flashcards: Flashcards,
+    day: Day,
+    languageId: Long,
+    onBack: () -> Unit,
+    onEditCard: (cardId: Long) -> Unit,
+    topicId: Long? = null,
+) {
     val state by remember(flashcards, day, languageId, topicId) {
         day.dates().flatMapLatest { today ->
             if (topicId == null) {
@@ -107,6 +118,22 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
         return
     }
     val name by remember(flashcards, languageId) { flashcards.languageName(languageId) }.collectAsState(initial = "")
+    val workload = when (shown) {
+        is Practising -> shown.workload
+        // Each card of the topic once, and again after "Nochmal".
+        is PractisingTopic -> Workload.ofTopic(shown.cards, round, day.today())
+        else -> null
+    }
+    val current = workload?.let(round::current)
+    // Taken back, the card is shown once the workload has it again, or no more once it is gone.
+    val back = answering?.key
+    if (workload != null && takenBack && (current?.key == back || (workload.remaining + workload.doneToday).none { it.key == back })) {
+        SideEffect {
+            takenBack = false
+            answering = null
+        }
+    }
+    val card = answering ?: current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -117,6 +144,9 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                     }
                 },
                 actions = {
+                    IconButton(onClick = { card?.let { onEditCard(it.id) } }, enabled = card != null && answering == null) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.card_edit))
+                    }
                     val taking = last
                     IconButton(
                         onClick = {
@@ -139,22 +169,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
             )
         },
     ) { contentPadding ->
-        val workload = when (shown) {
-            is Practising -> shown.workload
-            // Each card of the topic once, and again after "Nochmal".
-            is PractisingTopic -> Workload.ofTopic(shown.cards, round, day.today())
-            else -> return@Scaffold
-        }
-        val current = round.current(workload)
-        // Taken back, the card is shown once the workload has it again, or no more once it is gone.
-        val back = answering?.key
-        if (takenBack && (current?.key == back || (workload.remaining + workload.doneToday).none { it.key == back })) {
-            SideEffect {
-                takenBack = false
-                answering = null
-            }
-        }
-        val card = answering ?: current
+        if (workload == null) return@Scaffold
         if (card == null) {
             Column(
                 modifier = Modifier
@@ -190,7 +205,9 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            key(step) {
+            // Also by the card: back from its editor (#146) with another one shown, that one starts covered, as the state
+            // kept then is that of the card left, which would be restored whatever the card.
+            key(step, card.key) {
                 CardFace(
                     prompt = card,
                     intervals = flashcards.intervals(card),
