@@ -202,6 +202,9 @@ class Languages(
         }
     }
 
+    /** The voice that reads the cards of the language [id] aloud, or none (#157). */
+    suspend fun setVoice(id: Long, voice: String?) = write { dao.setVoice(id, voice) }
+
     /** Archives the language [id], or takes it back. */
     suspend fun setLanguageArchived(id: Long, archived: Boolean) = write {
         database().withTransaction {

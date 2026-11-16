@@ -58,6 +58,7 @@ import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.CardProblem
 import de.emilyshub.languages.Flashcards
+import de.emilyshub.speech.Speech
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.differsAsSaved
@@ -86,11 +87,12 @@ sealed interface CardEditorTarget : Serializable {
  * gibt es schon"), told already while it is typed. Each field is laid out right to left while what is typed starts so,
  * as in the notes. A new one can be saved with "Speichern und neue", which leaves the editor open for the next card,
  * with the topic and both ways as they were, so that a list is typed in one go. A saved one is deleted here, after
- * asking, with all it learnt. One that hakt says so atop, with what helps (#149).
+ * asking, with all it learnt. One that hakt says so atop, with what helps (#149). With a voice chosen for its language,
+ * a loudspeaker at the front reads it aloud to listen to (#157).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: () -> Unit) {
+fun CardEditorScreen(flashcards: Flashcards, speech: Speech, target: CardEditorTarget, onClose: () -> Unit) {
     val cardId = (target as? CardEditorTarget.Edit)?.cardId
     var languageId by rememberSaveable { mutableStateOf((target as? CardEditorTarget.New)?.languageId) }
     var original by rememberSaveable { mutableStateOf<CardDraft?>(null) }
@@ -129,6 +131,8 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
         }
         return
     }
+    val voice by remember(flashcards, language) { flashcards.voice(language) }.collectAsState(initial = null)
+    val readAloud = rememberReadAloud(speech, voice)
     val topics by remember(flashcards, language) { flashcards.tab(language).map { it?.topics.orEmpty() } }.collectAsState(initial = emptyList())
     val problems = draft.problems + refused
     val closeWith = rememberClosing(onClose)
@@ -258,6 +262,7 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(firstField.requester),
+                    trailingIcon = readAloud?.takeIf { clean.front.isNotEmpty() }?.let { read -> { ReadAloudButton(read, clean.front) } },
                 )
             }
             val backMissing = showProblems && CardProblem.BackMissing in problems

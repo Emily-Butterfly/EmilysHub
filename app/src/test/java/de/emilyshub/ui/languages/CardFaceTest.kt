@@ -28,6 +28,7 @@ import de.emilyshub.languages.Language
 import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Rating
 import de.emilyshub.languages.Topic
+import de.emilyshub.speech.FakeSpeech
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -95,7 +96,7 @@ class CardFaceTest {
             val (flashcards, languageId) = flashcards(database)
             runBlocking { flashcards.create(languageId, CardDraft("kitab", "Buch")) }
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, CardEditorTarget.New(languageId), onClose = {})
+                CardEditorScreen(flashcards, FakeSpeech(), CardEditorTarget.New(languageId), onClose = {})
             }
             compose.onNodeWithText("Vorderseite").performTextInput("Kitab")
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
@@ -115,7 +116,7 @@ class CardFaceTest {
             val colours = runBlocking { database.languages().insertTopic(Topic(languageId = languageId, name = "Farben")) }
             var closed = false
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, CardEditorTarget.New(languageId), onClose = { closed = true })
+                CardEditorScreen(flashcards, FakeSpeech(), CardEditorTarget.New(languageId), onClose = { closed = true })
             }
             compose.onNodeWithText("Vorderseite").performTextInput("ahmar")
             compose.onNodeWithText("Rückseite").performTextInput("rot")
@@ -190,7 +191,7 @@ class CardFaceTest {
             val flashcards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined)
             var closed = false
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, CardEditorTarget.New(languageId), onClose = { closed = true })
+                CardEditorScreen(flashcards, FakeSpeech(), CardEditorTarget.New(languageId), onClose = { closed = true })
             }
             compose.onNodeWithText("Vorderseite").performTextInput("kitab")
             compose.onNodeWithText("Rückseite").performTextInput("Buch")

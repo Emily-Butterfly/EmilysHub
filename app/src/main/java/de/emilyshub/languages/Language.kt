@@ -21,6 +21,11 @@ data class Language(
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
     /** How many new cards of the Vokabeltrainer a day's workload takes at most (SPEC.md §15), of [NEW_CARDS]. */
     @ColumnInfo(name = "new_cards_per_day", defaultValue = "10") val newCardsPerDay: Int = NEW_CARDS_DEFAULT,
+    /**
+     * The name of the voice of the phone's speech output that reads its cards aloud (SPEC.md §15; #157), one that needs
+     * no network; none until one is chosen, and then nothing is read.
+     */
+    val voice: String? = null,
 ) {
     companion object {
         /** The longest a language's name may be, in characters. */

@@ -40,6 +40,8 @@ import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.PhoneLessonDocuments
+import de.emilyshub.speech.AndroidSpeech
+import de.emilyshub.speech.Speech
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -178,6 +180,9 @@ open class EmilysHubApplication : Application(), Hub {
 
     /** Files read from Android's file dialog for the lessons, and written to it; PDFs as Android opens them. */
     open val lessonDocuments: LessonDocuments by lazy { PhoneLessonDocuments(this) }
+
+    /** The phone's speech output (#157), bound only once a card is to be read or a voice chosen. */
+    override val speech: Speech by lazy { AndroidSpeech(this) }
 
     /**
      * The key the lessons' attachments are encrypted with: random, kept in a file only sealed with the Keystore key of

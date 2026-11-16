@@ -45,6 +45,14 @@
 
     <!-- No backups of any kind (SPEC.md §9): allowBackup and fullBackupContent cover Android 11,
          dataExtractionRules covers cloud backup and device transfer from Android 12 on. -->
+    <!-- Reading cards aloud with the phone's speech output (SPEC.md §9, §15; #157): from Android 11 on the app sees the
+         speech engine only when it says it looks for one. No permission; only voices without network are used. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".EmilysHubApplication"
         android:allowBackup="false"

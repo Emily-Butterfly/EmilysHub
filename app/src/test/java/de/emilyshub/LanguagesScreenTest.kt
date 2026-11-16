@@ -3,6 +3,7 @@ package de.emilyshub
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -27,6 +28,7 @@ import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
+import de.emilyshub.speech.OfflineVoice
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -35,6 +37,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
+import java.util.Locale
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 
@@ -334,6 +337,40 @@ class LanguagesScreenTest {
             heading("Arabisch").assertIsDisplayed()
             compose.onNode(hasText("Themen") and isSelectable()).assertIsSelected()
             compose.onNode(isHeading() and hasText("A2", substring = true)).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a language's voice is chosen from the phone's voices without network, its own first, none at first`() {
+        runBlocking { app.languages.createLanguage("Arabisch") }
+        app.speech.voices += listOf(OfflineVoice("it-local", Locale.ITALY), OfflineVoice("ar-local", Locale("ar", "EG")))
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithContentDescription("Menü der Sprachen").performClick()
+            compose.onNodeWithText("Sprachen verwalten").performClick()
+            compose.onNodeWithContentDescription("Menü für Arabisch").performClick()
+            compose.onNodeWithText("Stimme").performClick()
+
+            compose.onNode(hasText("Keine") and hasAnyAncestor(isDialog())).assertIsSelected()
+            compose.onNodeWithText("Einstellungen von Android", substring = true).assertIsDisplayed()
+            val offered = compose.onAllNodes(hasText(" · ", substring = true) and hasAnyAncestor(isDialog())).fetchSemanticsNodes()
+                .map { it.config[SemanticsProperties.Text].joinToString() }
+            assertEquals(listOf("Arabisch (Ägypten) · ar-local", "Italienisch (Italien) · it-local"), offered)
+            compose.onNodeWithText("Arabisch (Ägypten) · ar-local").performClick()
+
+            compose.onNodeWithText("Stimme: Arabisch (Ägypten) · ar-local").assertIsDisplayed()
+        }
+        assertEquals("ar-local", runBlocking { app.testDatabase.languages().language(arabicId()) }?.voice)
+    }
+
+    @Test
+    fun `a voice no longer on the phone is told so`() {
+        runBlocking { app.languages.setVoice((app.languages.createLanguage("Arabisch") as Saving.Saved).id, "ar-local") }
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithContentDescription("Menü der Sprachen").performClick()
+            compose.onNodeWithText("Sprachen verwalten").performClick()
+            compose.onNodeWithText("Stimme nicht mehr auf dem Handy", substring = true).assertIsDisplayed()
         }
     }
 

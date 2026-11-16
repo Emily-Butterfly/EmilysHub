@@ -853,3 +853,10 @@ val MIGRATION_54_55 = object : Migration(54, 55) {
         db.execSQL("ALTER TABLE `card_reviews` ADD COLUMN `reverse` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/** 55 → 56: a language may have a voice of the phone that reads its cards aloud (#157); none chosen, none reads. */
+val MIGRATION_55_56 = object : Migration(55, 56) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `voice` TEXT")
+    }
+}

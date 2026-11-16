@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,13 +42,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -61,6 +67,8 @@ import de.emilyshub.languages.Teacher
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.languages.TeacherProblem
+import de.emilyshub.speech.OfflineVoice
+import de.emilyshub.speech.Speech
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.differsAsSaved
@@ -77,12 +85,15 @@ import java.io.Serializable
 /**
  * The languages (SPEC.md §15), from the menu of Sprachen: "+" adds one, tapping one renames it, its menu opens its
  * lessons ([onOpen]), also of one archived, archives it or takes it back, and deletes one nothing hangs on, after asking;
- * those archived after the others.
+ * those archived after the others. Its menu also chooses the voice of the phone that reads its cards aloud, of those
+ * that need no network, "Keine" at first; one no longer on the phone is told so (#157).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LanguageListScreen(languages: Languages, onOpen: (Long) -> Unit, onBack: () -> Unit) {
+fun LanguageListScreen(languages: Languages, speech: Speech, onOpen: (Long) -> Unit, onBack: () -> Unit) {
     val all by remember(languages) { languages.languages() }.collectAsState(initial = null)
+    val voices by produceState<List<OfflineVoice>?>(null, speech) { value = speech.voices() }
+    var choosingVoice by rememberSaveable { mutableStateOf<Long?>(null) }
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -96,16 +107,26 @@ fun LanguageListScreen(languages: Languages, onOpen: (Long) -> Unit, onBack: () 
             else -> LazyColumn(contentPadding = padding.plusFabSpace()) {
                 items(list, key = { it.language.id }) { item ->
                     val language = item.language
+                    val voice = language.voice?.let { name ->
+                        val found = voices?.find { it.name == name }
+                        when {
+                            found != null -> stringResource(R.string.language_voice_shown, found.label)
+                            voices != null -> stringResource(R.string.language_voice_gone, name)
+                            else -> null
+                        }
+                    }
                     ManagedRow(
                         name = language.name,
                         details = listOfNotNull(
                             stringResource(R.string.languages_archived).takeIf { language.archived },
                             stringResource(R.string.language_kept).takeIf { !item.deletable },
+                            voice,
                         ).joinToString(" · ").ifEmpty { null },
                         archived = language.archived,
                         deletable = item.deletable,
                         onClick = { renaming = language.id },
                         onOpen = { onOpen(language.id) },
+                        onVoice = { choosingVoice = language.id },
                         onArchive = { archived -> scope.launchNow { languages.setLanguageArchived(language.id, archived) } },
                         onDelete = { deleting = language.id },
                     )
@@ -143,6 +164,17 @@ fun LanguageListScreen(languages: Languages, onOpen: (Long) -> Unit, onBack: () 
                 scope.launchNow { languages.renameLanguage(item.language.id, name) }
             },
             onDismiss = { renaming = null },
+        )
+    }
+    list.find { it.language.id == choosingVoice }?.let { item ->
+        VoiceDialog(
+            chosen = item.language.voice,
+            voices = OfflineVoice.offeredTo(item.language.name, voices.orEmpty()),
+            onChoose = { voice ->
+                choosingVoice = null
+                scope.launchNow { languages.setVoice(item.language.id, voice) }
+            },
+            onDismiss = { choosingVoice = null },
         )
     }
     list.find { it.language.id == deleting }?.let { item ->
@@ -388,6 +420,7 @@ private fun ManagedRow(
     deletable: Boolean,
     onClick: () -> Unit,
     onOpen: (() -> Unit)? = null,
+    onVoice: (() -> Unit)? = null,
     onArchive: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -407,6 +440,15 @@ private fun ManagedRow(
                             onClick = {
                                 expanded = false
                                 open()
+                            },
+                        )
+                    }
+                    onVoice?.let { choose ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.language_voice)) },
+                            onClick = {
+                                expanded = false
+                                choose()
                             },
                         )
                     }
@@ -432,6 +474,48 @@ private fun ManagedRow(
         modifier = Modifier.clickable(onClick = onClick),
     )
     HorizontalDivider()
+}
+
+/**
+ * Chooses the voice that reads a language's cards aloud (#157): "Keine", or one of [voices], those of the phone that
+ * need no network, the one [chosen] marked; with how to get more in Android's settings. Chosen on the tap.
+ */
+@Composable
+private fun VoiceDialog(chosen: String?, voices: List<OfflineVoice>, onChoose: (String?) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.language_voice)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.language_voice_text), style = MaterialTheme.typography.bodyMedium)
+                if (voices.isEmpty()) {
+                    Text(
+                        stringResource(R.string.language_voice_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                VoiceOption(stringResource(R.string.language_voice_none), selected = chosen == null || voices.none { it.name == chosen }) { onChoose(null) }
+                voices.forEach { voice -> VoiceOption(voice.label, selected = voice.name == chosen) { onChoose(voice.name) } }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** One choice of [VoiceDialog], [label] with its radio button, the whole line to tap. */
+@Composable
+private fun VoiceOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, modifier = Modifier.padding(start = 12.dp))
+    }
 }
 
 /** Asks before deleting: [title] and [text], and "Löschen". */

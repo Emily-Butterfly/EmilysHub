@@ -14,6 +14,7 @@ import de.emilyshub.doku.FakeFingerprint
 import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.island.RawKey
 import de.emilyshub.languages.FakeLessonDocuments
+import de.emilyshub.speech.FakeSpeech
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
@@ -66,6 +67,9 @@ class TestApplication : EmilysHubApplication() {
     override val tones = FakeTones()
     override val toneFiles = FakeToneFiles(tones)
     override val lessonDocuments = FakeLessonDocuments()
+
+    /** A speech output with the voices a test gives it, which keeps what it reads aloud. */
+    override val speech = FakeSpeech()
 
     /** Stands in for the key sealed with the Android Keystore key, which only exists on a device. */
     private val attachmentKeyForTests = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()

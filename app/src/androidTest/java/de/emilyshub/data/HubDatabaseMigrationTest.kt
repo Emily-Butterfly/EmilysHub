@@ -1207,6 +1207,20 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 55 moves to version 56 with no voice for the languages there, and then one chosen is kept`() {
+        createAtVersion(55) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+        }
+
+        withMigratedDatabase { database ->
+            val languages = database.languages()
+            assertEquals(null, languages.language(1)?.voice)
+            languages.setVoice(1, "ar-xa-x-arc-local")
+            assertEquals("ar-xa-x-arc-local", languages.language(1)?.voice)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

@@ -65,6 +65,7 @@ import de.emilyshub.languages.Rating
 import de.emilyshub.languages.Round
 import de.emilyshub.languages.RoundBalance
 import de.emilyshub.languages.Workload
+import de.emilyshub.speech.Speech
 import de.emilyshub.ui.launchNow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
@@ -86,11 +87,13 @@ import kotlin.math.roundToInt
  * At the end, how it came out: each way asked today by its first answer of the day, from the log ("19 gewusst ·
  * 4 Nochmal"); after the day's workload, the other language with the most still open is offered, "Weiter mit
  * Italienisch (12)", which [onPractiseNext] practises in its place (#147).
+ * With a voice of the phone chosen for the language, a loudspeaker reads its side aloud when pressed (#157).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
 fun PracticeScreen(
     flashcards: Flashcards,
+    speech: Speech,
     day: Day,
     languageId: Long,
     onBack: () -> Unit,
@@ -126,6 +129,8 @@ fun PracticeScreen(
         return
     }
     val name by remember(flashcards, languageId) { flashcards.languageName(languageId) }.collectAsState(initial = "")
+    val voice by remember(flashcards, languageId) { flashcards.voice(languageId) }.collectAsState(initial = null)
+    val readAloud = rememberReadAloud(speech, voice)
     val workload = when (shown) {
         is Practising -> shown.workload
         // Each card of the topic once, and again after "Nochmal".
@@ -244,6 +249,7 @@ fun PracticeScreen(
                     intervals = flashcards.intervals(card),
                     hint = workload.firstTime,
                     enabled = answering == null,
+                    readAloud = readAloud,
                     onAnswer = { rating ->
                         answering = card
                         scope.launchNow {
@@ -295,7 +301,9 @@ private val UndoIcon: ImageVector
  * The card shown, the way [prompt] asks it: what is asked large, its back, or reversed its front, with "Rückrichtung"
  * above it (#141); once revealed, the other side, the transcription and the note. Below, always at the same place for
  * the thumb, "Aufdecken", which a tap on the card does too, then the four answers, each with its interval of
- * [intervals] under it, as TalkBack also says it, and the [hint] under them on the first practice.
+ * [intervals] under it, as TalkBack also says it, and the [hint] under them on the first practice. With [readAloud], a
+ * loudspeaker reads its front, the side in the language, when pressed: asked from it, under it; reversed, only once
+ * uncovered, so as not to give the answer away (#157).
  */
 @Composable
 internal fun CardFace(
@@ -305,6 +313,7 @@ internal fun CardFace(
     enabled: Boolean,
     onAnswer: (Rating) -> Unit,
     modifier: Modifier = Modifier,
+    readAloud: ((String) -> Unit)? = null,
 ) {
     val card = prompt.card
     // Each card starts covered, each way.
@@ -325,9 +334,11 @@ internal fun CardFace(
                 Text(stringResource(R.string.practice_reverse), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             Text(prompt.question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            if (!prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
             if (revealed) {
                 HorizontalDivider()
                 Text(prompt.answer, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                if (prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
                 if (card.transcription.isNotEmpty()) {
                     Text(card.transcription, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }

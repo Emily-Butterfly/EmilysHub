@@ -32,6 +32,7 @@ import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.RoutineStatus
 import de.emilyshub.wishes.WishDraft
+import de.emilyshub.speech.OfflineVoice
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -42,6 +43,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /** The Vokabeltrainer (SPEC.md §15; #104): a card made on the tab Karten, the count on the start page, and practising. */
 @RunWith(AndroidJUnit4::class)
@@ -476,6 +478,65 @@ class VocabularyScreenTest {
 
             tab("Auswertung").performClick()
             compose.onNodeWithText("Karten: 2 · sicher 0 · heute fällig 1 · hakt 1").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `a card is read aloud with its language's voice only when asked, from its back only once uncovered`() {
+        val arabic = language("Arabisch")
+        app.speech.voices += OfflineVoice("ar-local", Locale("ar"))
+        runBlocking {
+            app.languages.setVoice(arabic, "ar-local")
+            val door = (app.flashcards.create(arabic, CardDraft("bab", "Tür", bothWays = true)) as Saving.Saved).id
+            app.flashcards.answer(door, Rating.Easy)
+        }
+        card(arabic, "kitab", "Buch")
+        // The next day: its back new, and the other card.
+        app.clock.now = app.clock.now.plus(1, ChronoUnit.DAYS)
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Rückrichtung").assertIsDisplayed()
+            // It would give away the answer.
+            compose.onNodeWithContentDescription("Vorlesen").assertDoesNotExist()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithContentDescription("Vorlesen").performClick()
+            assertEquals(listOf("ar-local" to "bab"), app.speech.spoken)
+
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("kitab").assertIsDisplayed()
+            assertEquals("nothing without being asked", 1, app.speech.spoken.size)
+            compose.onNodeWithContentDescription("Vorlesen").performClick()
+            assertEquals("ar-local" to "kitab", app.speech.spoken.last())
+
+            compose.onNodeWithContentDescription("Karte ändern").performClick()
+            compose.onNodeWithContentDescription("Vorlesen").performClick()
+            assertEquals(3, app.speech.spoken.size)
+        }
+    }
+
+    @Test
+    fun `without a voice chosen, or one no longer on the phone, nothing is offered to read aloud`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        app.speech.voices += OfflineVoice("ar-other", Locale("ar"))
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("kitab").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Vorlesen").assertDoesNotExist()
+        }
+        runBlocking { app.languages.setVoice(arabic, "ar-gone") }
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("kitab").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Vorlesen").assertDoesNotExist()
         }
     }
 

@@ -371,15 +371,15 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     hub.languages, hub.lessonFiles, hub.flashcards, top.target, onClose = back,
                     onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
                 )
-                is Destination.CardEditor -> CardEditorScreen(hub.flashcards, top.target, onClose = back)
+                is Destination.CardEditor -> CardEditorScreen(hub.flashcards, hub.speech, top.target, onClose = back)
                 is Destination.Practice -> PracticeScreen(
-                    hub.flashcards, hub.day, top.languageId, onBack = back, topicId = top.topicId,
+                    hub.flashcards, hub.speech, hub.day, top.languageId, onBack = back, topicId = top.topicId,
                     onEditCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
                     onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
                 )
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
                 Destination.LanguageList ->
-                    LanguageListScreen(hub.languages, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
+                    LanguageListScreen(hub.languages, hub.speech, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
                 Destination.TeacherList ->
                     TeacherListScreen(hub.languages, onOpen = { open(Destination.TeacherEditor(it)) }, onBack = back)
                 is Destination.TeacherEditor -> TeacherEditorScreen(hub.languages, top.target, onClose = back)

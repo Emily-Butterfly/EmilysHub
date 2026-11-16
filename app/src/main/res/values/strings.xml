@@ -1538,6 +1538,13 @@
         <item quantity="other">Für heute geschafft: %d Karten</item>
     </plurals>
     <string name="practice_back">Zurück</string>
+    <string name="read_aloud">Vorlesen</string>
+    <string name="language_voice">Stimme</string>
+    <string name="language_voice_none">Keine</string>
+    <string name="language_voice_shown">Stimme: %1$s</string>
+    <string name="language_voice_gone">Stimme nicht mehr auf dem Handy: %1$s</string>
+    <string name="language_voice_text">Liest die Karten auf Knopfdruck vor. Angeboten werden nur Stimmen, die ohne Internet sprechen; so verlässt nichts das Handy. Weitere Stimmen lädt man in den Einstellungen von Android unter „Sprachausgabe“ (Text-in-Sprache) bei der Engine herunter.</string>
+    <string name="language_voice_empty">Auf diesem Handy gibt es noch keine Stimme ohne Internet.</string>
     <string name="practice_take_back">Letzte Antwort zurücknehmen</string>
     <string name="practice_balance">%1$d gewusst · %2$d Nochmal</string>
     <string name="practice_next">Weiter mit %1$s (%2$d)</string>

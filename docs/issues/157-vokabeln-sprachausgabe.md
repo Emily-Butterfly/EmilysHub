@@ -20,19 +20,19 @@ Ein Lautsprecher-Knopf liest die Seite in der Sprache mit der Sprachausgabe von 
 
 ## Akzeptanzkriterien
 
-- [ ] Ein Lautsprecher-Knopf an der Seite in der Sprache: in der Hinrichtung an der Frage, in der Rückrichtung (#141) erst nach dem Aufdecken, damit er die Antwort nicht verrät; vorgelesen wird nur, wenn er gedrückt wird
-- [ ] Angeboten werden nur Stimmen ohne Netz; eine Stimme, die Netz braucht, wird nie benutzt, auch nicht als Ersatz
-- [ ] Im Karten-Editor ein Lautsprecher am Feld Vorderseite zum Probehören
-- [ ] Verwaltung der Sprachen: Feld „Stimme“ je Sprache, Auswahl aus den Offline-Stimmen des Handys, zuerst die, deren Sprache auf Deutsch so heißt wie die Sprache der App (etwa „Arabisch“); „Keine“ als Standard
-- [ ] Ohne gewählte oder ohne noch vorhandene Offline-Stimme kein Knopf; die Verwaltung der Sprachen sagt, wie man in den Einstellungen von Android eine Stimme lädt
-- [ ] Manifest: die nötige `<queries>`-Angabe für die Sprachausgabe (Sichtbarkeit von Paketen ab Android 11), keine neue Berechtigung
-- [ ] Das Feld je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
-- [ ] SPEC.md §15 und §9 sagen, was gilt
+- [x] Ein Lautsprecher-Knopf an der Seite in der Sprache: in der Hinrichtung an der Frage, in der Rückrichtung (#141) erst nach dem Aufdecken, damit er die Antwort nicht verrät; vorgelesen wird nur, wenn er gedrückt wird
+- [x] Angeboten werden nur Stimmen ohne Netz; eine Stimme, die Netz braucht, wird nie benutzt, auch nicht als Ersatz
+- [x] Im Karten-Editor ein Lautsprecher am Feld Vorderseite zum Probehören
+- [x] Verwaltung der Sprachen: Feld „Stimme“ je Sprache, Auswahl aus den Offline-Stimmen des Handys, zuerst die, deren Sprache auf Deutsch so heißt wie die Sprache der App (etwa „Arabisch“); „Keine“ als Standard
+- [x] Ohne gewählte oder ohne noch vorhandene Offline-Stimme kein Knopf; die Verwaltung der Sprachen sagt, wie man in den Einstellungen von Android eine Stimme lädt
+- [x] Manifest: die nötige `<queries>`-Angabe für die Sprachausgabe (Sichtbarkeit von Paketen ab Android 11), keine neue Berechtigung
+- [x] Das Feld je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
+- [x] SPEC.md §15 und §9 sagen, was gilt
 
 ## Tests
 
-- [ ] Unit/Robolectric: Knopf nur mit Offline-Stimme; eine Stimme mit Netz wird nicht angeboten; nichts wird ohne Knopfdruck vorgelesen; Rückrichtung erst nach dem Aufdecken; Wahl der Stimme
-- [ ] UI: Lautsprecher in Abfrage und Editor
+- [x] Unit/Robolectric: Knopf nur mit Offline-Stimme; eine Stimme mit Netz wird nicht angeboten; nichts wird ohne Knopfdruck vorgelesen; Rückrichtung erst nach dem Aufdecken; Wahl der Stimme
+- [x] UI: Lautsprecher in Abfrage und Editor
 
 ## Entscheidungen
 

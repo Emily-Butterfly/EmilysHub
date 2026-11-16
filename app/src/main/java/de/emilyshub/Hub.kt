@@ -32,6 +32,7 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.speech.Speech
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.wishes.Wishes
@@ -74,6 +75,9 @@ interface Hub {
 
     /** The Vokabeltrainer of Sprachen: cards planned by FSRS-6 (SPEC.md §15). */
     val flashcards: Flashcards
+
+    /** The phone's speech output, its voices without network only, which reads cards aloud (SPEC.md §15; #157). */
+    val speech: Speech
 
     /** What is imported into the lessons: text into their notes, photos and PDFs as attachments (SPEC.md §15). */
     val lessonFiles: LessonFiles
