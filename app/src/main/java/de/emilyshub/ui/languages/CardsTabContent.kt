@@ -67,9 +67,10 @@ import kotlin.math.roundToInt
 /**
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
  * "sicher", shown for one topic only if one is chosen ([topicFilter], [onTopicFilterChange]), and only those a search
- * typed finds (#107), with how many it shows of how many (#144); tapped, a card opens in its editor ([onOpenCard]). Atop, how many are due today with "Üben"
- * ([onPractice]), or that today's are done, as on the start page, while the language is not archived. Its menu sets how
- * many new cards a day takes, and imports cards from a text file picked in Android's file dialog, after a preview.
+ * typed finds (#107), with how many it shows of how many (#144); tapped, a card opens in its editor ([onOpenCard]).
+ * Atop, how many are due today with "Üben" ([onPractice]), or that today's are done, as on the start page, while the
+ * language is not archived. Its menu sets how many new cards a day takes, and imports cards from a text file picked in
+ * Android's file dialog, after a preview.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
