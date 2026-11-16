@@ -2,7 +2,7 @@
 
 **Etappe:** 17 – Vokabeltrainer: Bedienung & Erweiterungen  
 **Typ:** Feature  
-**Art:** 🙋 HITL – braucht Emily (eine Entscheidung unten), danach AFK  
+**Art:** 🤖 AFK – kann ohne Rückfragen umgesetzt werden  
 **Spezifikation:** [SPEC.md](../../SPEC.md) §15 (Vokabeltrainer); §9 (Sicherheit: Datenabfluss)  
 **GitHub-Issue:** #157  
 **Blockiert durch:** –
@@ -15,20 +15,16 @@ Ein Lautsprecher-Knopf liest die Seite in der Sprache mit der Sprachausgabe von 
 
 - **Nur Stimmen ohne Netz.** Die Sprachausgabe ist eine andere App (etwa von Google oder Samsung), und der Text geht an sie (§9). Erlaubt sind nur Stimmen, die ohne Netz auskommen (`Voice.isNetworkConnectionRequired == false`). Ohne eine solche Stimme gibt es keinen Knopf.
 - **Nur auf Knopfdruck.** Nichts wird von selbst vorgelesen, auch nicht beim Aufdecken.
+- **Stimme je Sprache.** In der Verwaltung der Sprachen bekommt jede Sprache ein Feld „Stimme“, mit den Offline-Stimmen des Handys zur Wahl; ohne gewählte Stimme gibt es keinen Knopf.
 - Damit ist eine synthetische Stimme erlaubt: §15 „Keine Tonaufnahmen“ meint Aufnahmen, und hier wird nichts aufgenommen oder gespeichert.
 
-## Zu entscheiden
-
-1. **Sprache:** Welcher Sprachcode gehört zu einer Sprache der App? Vorschlag: ein Feld „Stimme“ in der Verwaltung der Sprachen, mit den Offline-Stimmen des Handys zur Wahl.
-
 ## Akzeptanzkriterien
-
-Vorbehaltlich der offenen Frage:
 
 - [ ] Ein Lautsprecher-Knopf an der Seite in der Sprache: in der Hinrichtung an der Frage, in der Rückrichtung (#141) erst nach dem Aufdecken, damit er die Antwort nicht verrät; vorgelesen wird nur, wenn er gedrückt wird
 - [ ] Angeboten werden nur Stimmen ohne Netz; eine Stimme, die Netz braucht, wird nie benutzt, auch nicht als Ersatz
 - [ ] Im Karten-Editor ein Lautsprecher am Feld Vorderseite zum Probehören
-- [ ] Ohne passende Offline-Stimme kein Knopf; die Verwaltung der Sprachen sagt, wie man in den Einstellungen von Android eine Stimme lädt
+- [ ] Verwaltung der Sprachen: Feld „Stimme“ je Sprache, Auswahl aus den Offline-Stimmen des Handys, zuerst die, deren Sprache auf Deutsch so heißt wie die Sprache der App (etwa „Arabisch“); „Keine“ als Standard
+- [ ] Ohne gewählte oder ohne noch vorhandene Offline-Stimme kein Knopf; die Verwaltung der Sprachen sagt, wie man in den Einstellungen von Android eine Stimme lädt
 - [ ] Manifest: die nötige `<queries>`-Angabe für die Sprachausgabe (Sichtbarkeit von Paketen ab Android 11), keine neue Berechtigung
 - [ ] Das Feld je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
 - [ ] SPEC.md §15 und §9 sagen, was gilt
@@ -40,4 +36,4 @@ Vorbehaltlich der offenen Frage:
 
 ## Entscheidungen
 
-Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); die Einzelheiten sind nicht in einem Interview abgestimmt. Offline-Stimmen und Knopfdruck sind am 16.11.2026 entschieden (oben); die offene Frage braucht es vor dem Bau.
+Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); die Einzelheiten sind nicht in einem Interview abgestimmt. Offline-Stimmen, Knopfdruck und die Stimme je Sprache sind am 16.11.2026 entschieden (oben).

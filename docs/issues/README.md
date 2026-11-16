@@ -228,7 +228,7 @@ Abgestimmt im Interview vom 16.11.2026; Sammel-Issue #135. Spezifikation §17 (G
 
 ## Etappe 17 – Vokabeltrainer: Bedienung & Erweiterungen
 
-Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht in einem Interview abgestimmt. Sammel-Issue #142. Erst die Verbesserungen (#143–#147), dann die Features; gebaut wird in der Reihenfolge der Tabelle. #156 und #157 brauchen vorher Entscheidungen; Slices mit Schemaänderung (#153–#157) nacheinander. Hausaufgaben aus der Session-Notiz bekommen bewusst kein Ticket.
+Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht in einem Interview abgestimmt. Sammel-Issue #142. Erst die Verbesserungen (#143–#147), dann die Features; gebaut wird in der Reihenfolge der Tabelle. #156 braucht vorher Entscheidungen; Slices mit Schemaänderung (#153–#157) nacheinander. Hausaufgaben aus der Session-Notiz bekommen bewusst kein Ticket.
 
 | # | Slice | Art | Blockiert durch |
 |---|---|---|---|
@@ -246,7 +246,7 @@ Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht
 | 154 | [Vokabeltrainer: Vokalzeichen in der Abfrage ausblenden](154-vokabeln-vokalzeichen-ausblenden.md) | 🤖 | – |
 | 155 | [Vokabeltrainer: Beispielsatz mit Lücke](155-vokabeln-beispielsatz.md) | 🤖 | – |
 | 156 | [Vokabeltrainer: Rückstand nach einer Pause verteilen](156-vokabeln-rueckstand-verteilen.md) | 🙋 | 143 |
-| 157 | [Vokabeltrainer: Vorlesen mit der Sprachausgabe des Handys](157-vokabeln-sprachausgabe.md) | 🙋 | – |
+| 157 | [Vokabeltrainer: Vorlesen mit der Sprachausgabe des Handys](157-vokabeln-sprachausgabe.md) | 🤖 | – |
 
 ## Einzeltickets
 
