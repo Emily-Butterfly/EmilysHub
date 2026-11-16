@@ -2,12 +2,14 @@ package de.emilyshub.ui.languages
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.languages.Card
@@ -145,7 +148,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
  * its interval of [intervals] under it, and the [hint] under them on the first practice.
  */
 @Composable
-private fun CardFace(card: Card, intervals: Map<Rating, Int>, hint: Boolean, enabled: Boolean, onAnswer: (Rating) -> Unit) {
+internal fun CardFace(card: Card, intervals: Map<Rating, Int>, hint: Boolean, enabled: Boolean, onAnswer: (Rating) -> Unit) {
     // Each card starts covered.
     var revealed by rememberSaveable(card.id, card.lastReview) { mutableStateOf(false) }
     Text(card.front, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -164,8 +167,14 @@ private fun CardFace(card: Card, intervals: Map<Rating, Int>, hint: Boolean, ena
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ANSWERS.forEach { (rating, label) ->
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                FilledTonalButton(onClick = { onAnswer(rating) }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(label), maxLines = 1)
+                // Four in a row leave little room on a narrow phone: less padding, and the label shrinks rather than being cut off.
+                FilledTonalButton(
+                    onClick = { onAnswer(rating) },
+                    enabled = enabled,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(label), maxLines = 1, softWrap = false, autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = MaterialTheme.typography.labelLarge.fontSize))
                 }
                 Text(stringResource(R.string.practice_days, intervals.getValue(rating)), style = MaterialTheme.typography.labelMedium)
             }
