@@ -1,8 +1,5 @@
 package de.emilyshub.ui.tracking
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,14 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -35,21 +26,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import de.emilyshub.Hub
 import de.emilyshub.R
-import de.emilyshub.tracking.ACUTE_WARNING_SIGNS
 import de.emilyshub.tracking.HistoryRange
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
-import de.emilyshub.tracking.Urgency
-import de.emilyshub.tracking.WarningSigns
 import de.emilyshub.tracking.Week
 import de.emilyshub.ui.fields.DateDialog
 import de.emilyshub.ui.island.IslandGate
@@ -131,7 +117,7 @@ internal val TRACKING_TEXTS = IslandTexts(
 )
 
 /**
- * Tracking's start page: first of all "Akute Beschwerden?", then the entries of the day a new one is for, open or done,
+ * Tracking's start page: the entries of the day a new one is for, open or done,
  * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis", "+ Anstrengung" and "+ Episode" with the lists of them,
  * the running episodes to end and the suggestions to decide; the hints, and the week evaluation and the history to open.
  */
@@ -151,7 +137,6 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
             .padding(contentPadding)
             .verticalScroll(rememberScrollState()),
     ) {
-        AcuteComplaints()
         if (status != null) {
             Text(
                 stringResource(R.string.tracking_entries_of, status.day.numericDate()),
@@ -262,78 +247,3 @@ private fun EntryLine(@StringRes label: Int, done: Boolean, onClick: () -> Unit)
         )
     }
 }
-
-/**
- * "Akute Beschwerden?" (SPEC.md §17): first a button that opens the phone app with 112, then the warning signs that
- * call for 112 at once and those that call for a doctor soon, each with their sources; then that medication is changed
- * only with those treating. The same for everyone, whatever is recorded.
- */
-@Composable
-private fun AcuteComplaints() {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                stringResource(R.string.tracking_acute_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
-            )
-            // First, so that it is at hand without reading on.
-            CallEmergency()
-            ACUTE_WARNING_SIGNS.forEach { WarningSignList(it) }
-            Text(stringResource(R.string.tracking_medication_hint), style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-/** The [signs] under what they call for, and their sources. */
-@Composable
-private fun WarningSignList(signs: WarningSigns) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        val heading = when (signs.urgency) {
-            Urgency.Emergency -> R.string.tracking_acute_emergency
-            Urgency.Soon -> R.string.tracking_acute_soon
-        }
-        Text(stringResource(heading), style = MaterialTheme.typography.titleSmall)
-        signs.signs.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
-        Text(
-            stringResource(R.string.tracking_acute_sources, signs.sources.joinToString { it.code }),
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-/** "112 anrufen": the phone app opens with the number, to call from there; no permission is needed for that. */
-@Composable
-private fun CallEmergency() {
-    val context = LocalContext.current
-    Button(
-        onClick = {
-            try {
-                context.startActivity(Intent(Intent.ACTION_DIAL, "tel:$EMERGENCY_NUMBER".toUri()))
-            } catch (e: ActivityNotFoundException) {
-                // A phone without a phone app, a tablet say: the number stands on the button.
-                Log.w(TAG, "No app to dial with: ${e.javaClass.simpleName}")
-            }
-        },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.error,
-            contentColor = MaterialTheme.colorScheme.onError,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(Icons.Filled.Call, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-        Text(stringResource(R.string.tracking_call_emergency))
-    }
-}
-
-/** The emergency number across the EU. */
-private const val EMERGENCY_NUMBER = "112"
-private const val TAG = "EmilysHub"

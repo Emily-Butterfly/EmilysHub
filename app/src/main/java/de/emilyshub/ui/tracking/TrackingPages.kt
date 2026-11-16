@@ -7,7 +7,7 @@ import java.time.LocalDate
 
 /** A page of Tracking, opened within its tab (SPEC.md §17). Only days and ids: nothing of Tracking goes into the saved state. */
 sealed interface TrackingPage : Serializable {
-    /** The start page: "Akute Beschwerden?" and the day's entries. */
+    /** The start page: the day's entries. */
     data object Home : TrackingPage
 
     /** The morning entry of [day]. */

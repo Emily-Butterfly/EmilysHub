@@ -189,7 +189,7 @@ class TrackingMedicationsScreenTest {
             compose.waitForIdle()
 
             assertEquals("Erfundene Angabe", checkNotNull(runBlocking { modules.baseData.all() })[BaseField.Family])
-            assertEquals(1, compose.onAllNodesWithText("Akute Beschwerden?").fetchSemanticsNodes().size)
+            assertEquals(1, compose.onAllNodesWithText("+ Stehtest").fetchSemanticsNodes().size)
         }
     }
 }

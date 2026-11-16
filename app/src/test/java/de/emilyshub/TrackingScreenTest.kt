@@ -1,7 +1,5 @@
 package de.emilyshub
 
-import android.content.Intent
-import android.net.Uri
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
@@ -42,13 +40,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowSystemClock
 import java.time.Duration
 
 /**
  * Tracking under Sonstiges (SPEC.md §17): a password of its own set on first opening, the fingerprint as a shortcut, its
- * lock as the Doku's, and on its start page first of all "Akute Beschwerden?".
+ * lock as the Doku's, and its start page.
  */
 @RunWith(AndroidJUnit4::class)
 class TrackingScreenTest {
@@ -91,13 +88,13 @@ class TrackingScreenTest {
             compose.onNodeWithText("Verstanden").performScrollTo().performClick()
             compose.onNodeWithText("Passwort festlegen").performScrollTo().performClick()
             compose.onNodeWithText("Mindestens 8 Zeichen").assertIsDisplayed()
-            compose.onNodeWithText("Akute Beschwerden?").assertDoesNotExist()
+            compose.onNodeWithText("+ Stehtest").assertDoesNotExist()
 
             compose.field("Tracking-Passwort").performTextInput("8")
             compose.field("Tracking-Passwort wiederholen").performTextInput("8")
             compose.onNodeWithText("Passwort festlegen").performScrollTo().performClick()
 
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
         }
     }
 
@@ -118,13 +115,13 @@ class TrackingScreenTest {
             compose.openTracking()
 
             compose.onNodeWithText("Tracking ist gesperrt").assertIsDisplayed()
-            compose.onNodeWithText("Akute Beschwerden?").assertDoesNotExist()
+            compose.onNodeWithText("+ Stehtest").assertDoesNotExist()
             compose.unlockTracking(DOKU_PASSWORD)
             compose.onNodeWithText("Falsches Passwort").assertIsDisplayed()
-            compose.onNodeWithText("Akute Beschwerden?").assertDoesNotExist()
+            compose.onNodeWithText("+ Stehtest").assertDoesNotExist()
 
             compose.unlockTracking()
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
         }
     }
 
@@ -151,7 +148,7 @@ class TrackingScreenTest {
             scenario.leaveAndReturn { ShadowSystemClock.advanceBy(Duration.ofSeconds(1)) }
 
             compose.onNodeWithText("Tracking ist gesperrt").assertIsDisplayed()
-            compose.onNodeWithText("Akute Beschwerden?").assertDoesNotExist()
+            compose.onNodeWithText("+ Stehtest").assertDoesNotExist()
         }
     }
 
@@ -163,7 +160,7 @@ class TrackingScreenTest {
 
             scenario.recreate()
 
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
         }
     }
 
@@ -174,7 +171,7 @@ class TrackingScreenTest {
             compose.setUpTracking()
 
             ShadowSystemClock.advanceBy(Duration.ofMinutes(4))
-            compose.onNodeWithText("Akute Beschwerden?").performClick()
+            compose.onNodeWithText("Einträge für", substring = true).performClick()
 
             assertTrue(app.tracking.millisUntilIdle() > Duration.ofMinutes(4).toMillis())
         }
@@ -200,10 +197,10 @@ class TrackingScreenTest {
             compose.openTracking()
             compose.waitForIdle()
             assertTrue(fingerprint.isPromptOpen)
-            compose.onNodeWithText("Akute Beschwerden?").assertDoesNotExist()
+            compose.onNodeWithText("+ Stehtest").assertDoesNotExist()
             fingerprint.succeed()
             compose.waitForIdle()
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
 
             compose.onNodeWithContentDescription("Menü von Tracking").performClick()
             compose.onNodeWithText("Fingerabdruck").performClick()
@@ -228,7 +225,7 @@ class TrackingScreenTest {
             compose.onNode(isSelectable() and hasText("Heute")).performClick()
             compose.openTracking()
             compose.unlockTracking("ganz neues Passwort")
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
         }
     }
 
@@ -253,38 +250,7 @@ class TrackingScreenTest {
 
             compose.onNodeWithText("Alles löschen?").assertDoesNotExist()
             assertNull(probe())
-            compose.onNodeWithText("Akute Beschwerden?").assertIsDisplayed()
-        }
-    }
-
-    @Test
-    fun `Akute Beschwerden lists the warning signs with their sources and the medication hint`() {
-        launchApp().use {
-            compose.openTracking()
-            compose.setUpTracking()
-
-            compose.onNodeWithText("Sofort 112 anrufen bei:").assertIsDisplayed()
-            compose.onNodeWithText("Brustschmerz", substring = true).assertIsDisplayed()
-            compose.onNodeWithText("Quellen: ESC-LE-2019, ESC-SYNK-2018").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Zeitnah ärztlich abklären lassen bei:").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Ruhepuls dauerhaft über 100/min", substring = true).performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Quellen: HRS-2015").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Medikamente nur mit den Behandelnden ändern oder absetzen.").performScrollTo().assertIsDisplayed()
-        }
-    }
-
-    @Test
-    fun `112 anrufen opens the phone app with the number, without calling`() {
-        launchApp().use { scenario ->
-            compose.openTracking()
-            compose.setUpTracking()
-
-            compose.onNodeWithText("112 anrufen").performClick()
-
-            var started: Intent? = null
-            scenario.onActivity { started = shadowOf(it).nextStartedActivity }
-            assertEquals(Intent.ACTION_DIAL, started?.action)
-            assertEquals(Uri.parse("tel:112"), started?.data)
+            compose.onNodeWithText("+ Stehtest").assertIsDisplayed()
         }
     }
 

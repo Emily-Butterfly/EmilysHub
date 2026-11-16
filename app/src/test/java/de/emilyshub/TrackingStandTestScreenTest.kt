@@ -65,7 +65,7 @@ class TrackingStandTestScreenTest {
         listOf(
             "Eine zweite Person ist dabei",
             "Ich bin neben Bett oder Sofa",
-            "Heute keine Warnzeichen (siehe „Akute Beschwerden?“)",
+            "Heute keine akuten Beschwerden",
             "Nicht direkt nach heißem Duschen, Alkohol oder großer Mahlzeit",
             "Medikamente wie gewohnt genommen",
         ).forEach { compose.onNodeWithText(it).tap() }

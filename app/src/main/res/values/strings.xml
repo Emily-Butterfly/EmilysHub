@@ -1610,11 +1610,6 @@
     <string name="tracking_delete_all_text">Alles in Tracking wird endgültig gelöscht. Passwort und Fingerabdruck bleiben. Schon gespeicherte Backups enthalten die Daten weiter.</string>
     <string name="tracking_delete_all_password">Tracking-Passwort</string>
     <string name="tracking_delete_all">Endgültig löschen</string>
-    <string name="tracking_acute_title">Akute Beschwerden?</string>
-    <string name="tracking_acute_emergency">Sofort 112 anrufen bei:</string>
-    <string name="tracking_acute_soon">Zeitnah ärztlich abklären lassen bei:</string>
-    <string name="tracking_acute_sources">Quellen: %1$s</string>
-    <string name="tracking_call_emergency">112 anrufen</string>
     <string name="tracking_medication_hint">Medikamente nur mit den Behandelnden ändern oder absetzen.</string>
     <string name="tracking_menu_symptoms">Symptome</string>
     <string name="tracking_menu_medications">Medikamente</string>
@@ -1768,7 +1763,7 @@
     <string name="tracking_stand_checklist">Vorher abhaken</string>
     <string name="tracking_stand_check_second_person">Eine zweite Person ist dabei</string>
     <string name="tracking_stand_check_beside_bed">Ich bin neben Bett oder Sofa</string>
-    <string name="tracking_stand_check_no_warning_signs">Heute keine Warnzeichen (siehe „Akute Beschwerden?“)</string>
+    <string name="tracking_stand_check_no_warning_signs">Heute keine akuten Beschwerden</string>
     <string name="tracking_stand_check_not_after_heat">Nicht direkt nach heißem Duschen, Alkohol oder großer Mahlzeit</string>
     <string name="tracking_stand_check_medications">Medikamente wie gewohnt genommen</string>
     <string name="tracking_stand_checklist_missing">Ohne alle Haken kein Start.</string>

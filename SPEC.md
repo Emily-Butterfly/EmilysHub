@@ -564,8 +564,7 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 
 ### Startseite
 
-- Ganz oben **„Akute Beschwerden?“**: die Warnzeichen (unten); „112 anrufen“ öffnet die Telefon-App mit der Nummer, ohne Berechtigung.
-- Darunter der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Anstrengung“, „+ Episode“ und offene Vorschläge (Anstrengung, laufende Episode).
+- Der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Anstrengung“, „+ Episode“ und offene Vorschläge (Anstrengung, laufende Episode).
 - **Hinweise**, **Wochenauswertung**, **Verlauf**.
 - Menü: Symptome · Medikamente · Grunddaten · Pacing-Schwelle · Garmin · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
 
@@ -605,7 +604,7 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 ### Stehtest
 
 - **Varianten:** „Stehen“ mit Messungen nach 1, 3, 5, 8 und 10 Minuten oder „Anlehnen“ (NASA-Lean-Test: Schulterblätter an der Wand, Fersen etwa 15–20 cm davor) mit einer Messung je Minute. [CMAJ-POTS-2022] [LEE-2020] [DGN-SYNK-2020]
-- **Vorher** eine Prüfliste zum Abhaken: zweite Person dabei, neben Bett oder Sofa, heute keine Warnzeichen, nicht direkt nach heißem Duschen, Alkohol oder großer Mahlzeit, Medikamente wie gewohnt genommen.
+- **Vorher** eine Prüfliste zum Abhaken: zweite Person dabei, neben Bett oder Sofa, heute keine akuten Beschwerden, nicht direkt nach heißem Duschen, Alkohol oder großer Mahlzeit, Medikamente wie gewohnt genommen.
 - 5–10 Minuten liegen mit Timer, dann Puls und Blutdruck im Liegen; dann aufstehen. Zu jedem Zeitpunkt Ton und Vibration in der App, Eingabe von Puls, Blutdruck (optional), Schwindel, Herzrasen, Atemnot 0–3 und Verfärbung der Beine ja/nein.
 - Ein großer Knopf **„Abbrechen – hinlegen“** jederzeit; gespeichert wird bis dahin, mit Minute und Grund.
 - Gespeichert werden außerdem Uhrzeit, Stunden seit den heute eingetragenen Einnahmen und Koffein, Mahlzeit und Trinkmenge davor.
@@ -658,8 +657,6 @@ Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für da
 - **Stimmung:** gedrückt oder Angst ≥ 2 an der Mehrzahl der Tage → ansprechen, parallel zur körperlichen Abklärung, nicht danach. [DEGAM-MUEDIGKEIT]
 - **Trinkmenge** an der Mehrzahl der Tage unter 1,5 l → ansprechen (eigener Arbeitswert).
 
-**Warnzeichen** (Liste unter „Akute Beschwerden?“): sofort 112 bei plötzlicher oder rasch zunehmender Atemnot, Brustschmerz, Ohnmacht oder Beinahe-Ohnmacht, Bluthusten, Ohnmacht bei Belastung oder im Liegen, Herzrasen vor einer Ohnmacht, plötzlichem Sehverlust, Lähmung, Sprach- oder Gefühlsstörung, Krampfanfall. [ESC-LE-2019] [ESC-SYNK-2018] Zeitnah ärztlich bei einseitiger Beinschwellung oder -schmerz, fortschreitender Atemnot, neuen anhaltenden Kopfschmerzen oder Sehstörungen, Gelbfärbung von Haut oder Augen, Farbveränderungen oder Wunden an Fingern oder Zehen, Hautzeichnung, die bleibt, Ruhepuls dauerhaft über 100/min. [HRS-2015]
-
 ### Arzt-Zusammenfassung
 
 - Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
@@ -706,3 +703,4 @@ Abgestimmt im Interview vom 15.11.2026.
 - Garmin über Health Connect jetzt, FIT-Import mit HRV, Stress, Body Battery und SpO₂ in der HRV-Etappe; Gewichtung über drei Stufen statt Zahlen; Brustgurt nach Gerätetyp; Garmin-Ruhepuls neben, nicht statt des Morgenwerts.
 - Pacing-Schwelle: eigener Wert, sonst Ruhepuls + 15 als schwach belegte Faustregel; daraus nur Vorschläge.
 - Fotos kommen zuletzt.
+- Keine Box „Akute Beschwerden?“ mit Warnzeichen und „112 anrufen“ auf der Startseite (entfernt am 16.11.2026, auf eigenen Wunsch).
