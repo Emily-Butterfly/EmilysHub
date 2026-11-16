@@ -30,8 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,9 +91,15 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
     var round by rememberSaveable { mutableStateOf(Round()) }
     // The last answer and the round before it, to take back while the practice is open, also turned or locked (#145).
     var last by rememberSaveable { mutableStateOf<LastAnswer?>(null) }
+    // Whether an answer of this practice did the day's workload: given again after it was taken back, it tells no more.
+    var workloadTold by rememberSaveable { mutableStateOf(false) }
+    // Each answer and each taken back a step, the card covered anew at each: also one shown again at once.
+    var step by rememberSaveable { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    // The card being answered, shown until the round has taken the answer in: the workload may come first.
+    // The card being answered, shown until the round has taken the answer in: the workload may come first. Taken back,
+    // shown until the workload has it again ([takenBack]).
     var answering by remember { mutableStateOf<Prompt?>(null) }
+    var takenBack by remember { mutableStateOf(false) }
 
     val shown = state
     if (shown == Gone) {
@@ -112,12 +121,14 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                     IconButton(
                         onClick = {
                             if (taking == null) return@IconButton
+                            // The round as it was at once, so that it stays so if the screen is turned meanwhile.
                             last = null
+                            round = taking.round
                             answering = taking.answered.before
+                            step++
                             scope.launchNow {
                                 flashcards.takeBack(taking.answered)
-                                round = taking.round
-                                answering = null
+                                takenBack = true
                             }
                         },
                         enabled = taking != null && answering == null,
@@ -134,7 +145,16 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
             is PractisingTopic -> Workload.ofTopic(shown.cards, round, day.today())
             else -> return@Scaffold
         }
-        val card = answering ?: round.current(workload)
+        val current = round.current(workload)
+        // Taken back, the card is shown once the workload has it again, or no more once it is gone.
+        val back = answering?.key
+        if (takenBack && (current?.key == back || (workload.remaining + workload.doneToday).none { it.key == back })) {
+            SideEffect {
+                takenBack = false
+                answering = null
+            }
+        }
+        val card = answering ?: current
         if (card == null) {
             Column(
                 modifier = Modifier
@@ -170,24 +190,34 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            CardFace(
-                prompt = card,
-                intervals = flashcards.intervals(card),
-                hint = workload.firstTime,
-                enabled = answering == null,
-                onAnswer = { rating ->
-                    answering = card
-                    scope.launchNow {
-                        val before = round
-                        // Practising a topic, its new cards do not count against those of the day (#107).
-                        val answered = flashcards.answer(card.id, rating, countsAsNew = topicId == null, reverse = card.reverse)
-                        round = round.answered(card, rating)
-                        last = answered?.let { LastAnswer(it, before) }
-                        answering = null
-                    }
-                },
-                modifier = Modifier.weight(1f),
-            )
+            key(step) {
+                CardFace(
+                    prompt = card,
+                    intervals = flashcards.intervals(card),
+                    hint = workload.firstTime,
+                    enabled = answering == null,
+                    onAnswer = { rating ->
+                        answering = card
+                        scope.launchNow {
+                            val before = round
+                            // Practising a topic, its new cards do not count against those of the day (#107).
+                            val answered = flashcards.answer(
+                                card.id,
+                                rating,
+                                countsAsNew = topicId == null,
+                                reverse = card.reverse,
+                                tellsWorkloadDone = !workloadTold,
+                            )
+                            round = round.answered(card, rating)
+                            step++
+                            last = answered?.let { LastAnswer(it, before) }
+                            if (answered?.didWorkload == true) workloadTold = true
+                            answering = null
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

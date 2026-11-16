@@ -124,9 +124,27 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Buch").assertDoesNotExist()
             compose.onNodeWithText("Aufdecken").assertIsDisplayed()
             takeBack.assertIsNotEnabled()
+
+            // Nochmal twice: taken back, the card is in the round again as before, covered.
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Nochmal").performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Nochmal").performClick()
+            compose.onNodeWithText("Aufdecken").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            takeBack.performClick()
+            compose.onNodeWithText("2 von 2").assertIsDisplayed()
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Buch").assertDoesNotExist()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("Für heute geschafft: 2 Karten").assertIsDisplayed()
         }
         val book = runBlocking { app.flashcards.tab(arabic).first() }!!.cards.single { it.card.front == "كتاب" }.card
-        assertEquals("new again", true, book.new)
+        assertEquals("Nochmal, then Gut", 2, runBlocking { app.testDatabase.cards().reviewsOf(book.id) }.size)
     }
 
     @Test

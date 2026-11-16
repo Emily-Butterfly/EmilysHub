@@ -157,9 +157,24 @@ data class Prompt(val card: Card, val reverse: Boolean = false) : Serializable {
 
     /**
      * [card] with what was planned for it this way as this prompt has it, the other way and all else as they are on
-     * [card]: an answer taken back (#145).
+     * [card]: an answer taken back (SPEC.md §15; #145).
      */
-    fun restoredOnto(card: Card): Card =
+    fun restoredOnto(card: Card): Card = withWay(card, stability, difficulty, firstReview, lastReview, due, interval)
+
+    /** Its card with what was planned for it this way set: [memory], asked first and last, due and [interval]. */
+    fun planned(memory: Memory, firstReview: LocalDate?, lastReview: LocalDate, due: LocalDate, interval: Int): Card =
+        withWay(card, memory.stability, memory.difficulty, firstReview, lastReview, due, interval)
+
+    /** [card] with the plan of this way set as given. */
+    private fun withWay(
+        card: Card,
+        stability: Double?,
+        difficulty: Double?,
+        firstReview: LocalDate?,
+        lastReview: LocalDate?,
+        due: LocalDate?,
+        interval: Int?,
+    ): Card =
         if (reverse) {
             card.copy(
                 reverseStability = stability,
@@ -171,21 +186,6 @@ data class Prompt(val card: Card, val reverse: Boolean = false) : Serializable {
             )
         } else {
             card.copy(stability = stability, difficulty = difficulty, firstReview = firstReview, lastReview = lastReview, due = due, interval = interval)
-        }
-
-    /** Its card with what was planned for it this way set: [memory], asked first and last, due and [interval]. */
-    fun planned(memory: Memory, firstReview: LocalDate?, lastReview: LocalDate, due: LocalDate, interval: Int): Card =
-        if (reverse) {
-            card.copy(
-                reverseStability = memory.stability,
-                reverseDifficulty = memory.difficulty,
-                reverseFirstReview = firstReview,
-                reverseLastReview = lastReview,
-                reverseDue = due,
-                reverseInterval = interval,
-            )
-        } else {
-            card.copy(stability = memory.stability, difficulty = memory.difficulty, firstReview = firstReview, lastReview = lastReview, due = due, interval = interval)
         }
 }
 

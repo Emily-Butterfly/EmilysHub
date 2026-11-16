@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.Instant
@@ -229,6 +230,20 @@ class VocabularyCountsTest {
         cards.takeBack(answered)
 
         assertEquals(listOf(OccurrenceStatus.Done), statuses("Vokabeln"))
+    }
+
+    @Test
+    fun `given again after it was taken back, the answer that did the workload does not do the routine's next time`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = card(arabic, "kitab")
+        routine("Vokabeln", "12:00", "18:00", vocabulary = arabic)
+        val answered = checkNotNull(cards.answer(book, Rating.Good))
+        assertTrue(answered.didWorkload)
+        cards.takeBack(answered)
+
+        cards.answer(book, Rating.Good, tellsWorkloadDone = !answered.didWorkload)
+
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), statuses("Vokabeln"))
     }
 
     @Test

@@ -1498,7 +1498,6 @@
     <string name="cards_new_per_day">Neue Karten am Tag</string>
     <string name="cards_new_per_day_value">Neue Karten am Tag: %1$d</string>
     <string name="cards_new_per_day_text">Wie viele neue Karten das Tagespensum höchstens nimmt, von 0 bis 50.</string>
-    <string name="practice_take_back">Letzte Antwort zurücknehmen</string>
     <string name="cards_today_due_new">Heute: %1$d fällig · %2$d neu</string>
     <string name="cards_today_due">Heute: %1$d fällig</string>
     <string name="cards_today_new">Heute: %1$d neu</string>
@@ -1536,6 +1535,7 @@
         <item quantity="other">Für heute geschafft: %d Karten</item>
     </plurals>
     <string name="practice_back">Zurück</string>
+    <string name="practice_take_back">Letzte Antwort zurücknehmen</string>
 
     <!-- Karten anlegen aus Notiz und Datei (SPEC.md §15, #105) -->
     <string name="cards_from_note">Karten aus der Notiz</string>
