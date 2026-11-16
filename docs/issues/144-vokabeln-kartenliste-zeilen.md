@@ -13,15 +13,15 @@ Im Reiter Karten stehen Fälligkeit, „sicher“ und Thema rechts neben dem Tex
 
 ## Akzeptanzkriterien
 
-- [ ] Jede Zeile: Vorderseite (bis zwei Zeilen), darunter die Rückseite (eine Zeile), darunter Fälligkeit · sicher · Thema klein; rechts daneben steht nichts mehr
-- [ ] „fällig heute“ steht in der Primärfarbe; „neu“ und „sicher“ wie bisher als Text
-- [ ] Text in Schriften von rechts nach links steht weiter rechts (`DirectedBy`), die Angaben-Zeile in der Richtung der App
-- [ ] Über der Liste steht „312 Karten“; mit Themenfilter oder Suche „12 von 312 Karten“
-- [ ] Antippen öffnet die Karte wie bisher
+- [x] Jede Zeile: Vorderseite (bis zwei Zeilen), darunter die Rückseite (eine Zeile), darunter Fälligkeit · sicher · Thema klein; rechts daneben steht nichts mehr
+- [x] „fällig heute“ steht in der Primärfarbe; „neu“ und „sicher“ wie bisher als Text
+- [x] Text in Schriften von rechts nach links steht weiter rechts (`DirectedBy`), die Angaben-Zeile in der Richtung der App
+- [x] Über der Liste steht „312 Karten“; mit Themenfilter oder Suche „12 von 312 Karten“
+- [x] Antippen öffnet die Karte wie bisher
 
 ## Tests
 
-- [ ] UI (w320dp): eine lange Vorderseite nutzt die volle Breite; Angaben unter dem Text; Anzahl mit und ohne Filter
+- [x] UI (w320dp): eine lange Vorderseite nutzt die volle Breite; Angaben unter dem Text; Anzahl mit und ohne Filter
 
 ## Entscheidungen
 

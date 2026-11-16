@@ -1546,6 +1546,14 @@
     <string name="cards_import_too_many_lines">Die Datei hat mehr als 2 000 Zeilen und wird nicht gelesen.</string>
     <string name="cards_import_not_text">Die Datei ist kein Text in UTF-8 und wird nicht gelesen.</string>
     <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon.</string>
+    <plurals name="cards_count">
+        <item quantity="one">%1$d Karte</item>
+        <item quantity="other">%1$d Karten</item>
+    </plurals>
+    <plurals name="cards_count_of">
+        <item quantity="one">%1$d von %2$d Karte</item>
+        <item quantity="other">%1$d von %2$d Karten</item>
+    </plurals>
     <plurals name="cards_import_unreadable">
         <item quantity="one">%1$d Zeile nicht lesbar (Zeile %2$s)</item>
         <item quantity="other">%1$d Zeilen nicht lesbar (Zeile %2$s)</item>

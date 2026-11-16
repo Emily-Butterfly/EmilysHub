@@ -39,8 +39,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
@@ -63,7 +67,7 @@ import kotlin.math.roundToInt
 /**
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
  * "sicher", shown for one topic only if one is chosen ([topicFilter], [onTopicFilterChange]), and only those a search
- * typed finds (#107); tapped, a card opens in its editor ([onOpenCard]). Atop, how many are due today with "Üben"
+ * typed finds (#107), with how many it shows of how many (#144); tapped, a card opens in its editor ([onOpenCard]). Atop, how many are due today with "Üben"
  * ([onPractice]), or that today's are done, as on the start page, while the language is not archived. Its menu sets how
  * many new cards a day takes, and imports cards from a text file picked in Android's file dialog, after a preview.
  */
@@ -142,6 +146,21 @@ internal fun CardsTabContent(
                 )
             }
         }
+        if (cards.isNotEmpty()) {
+            item(key = "count") {
+                val total = shown.cards.size
+                Text(
+                    if (cards.size == total) {
+                        pluralStringResource(R.plurals.cards_count, total, total)
+                    } else {
+                        pluralStringResource(R.plurals.cards_count_of, total, cards.size, total)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+        }
         when {
             shown.cards.isEmpty() -> item(key = "empty") { PlaceholderScreen(stringResource(R.string.cards_empty), PaddingValues()) }
             cards.isEmpty() && query.isNotBlank() -> item(key = "none") {
@@ -181,24 +200,37 @@ internal fun CardsTabContent(
     }
 }
 
-/** A card: its front, its back, and when it is due next, "neu" while never asked one of its ways, and "sicher" if it is. */
+/**
+ * A card on three lines, each the whole width (#144): its front, its back, and beneath them small when it is due next
+ * ("fällig heute" in the primary colour), "neu" while never asked one of its ways, "sicher" if it is, and its topic.
+ */
 @Composable
 private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
     val card = row.card
     // Asked both ways, the sooner of its two (#141).
     val next = card.nextDue
+    val dueToday = next != null && !next.isAfter(today)
     val due = when {
-        next != null && !next.isAfter(today) -> stringResource(R.string.card_due_today)
+        dueToday -> stringResource(R.string.card_due_today)
         // New one way, it may come before the other is due.
         card.newAnyWay || next == null -> stringResource(R.string.card_new_mark)
         else -> stringResource(R.string.card_due_on, next.numericDate())
     }
-    val details = listOfNotNull(due, stringResource(R.string.card_sure).takeIf { card.sure }, row.topic?.name).joinToString(" · ")
+    val rest = listOfNotNull(stringResource(R.string.card_sure).takeIf { card.sure }, row.topic?.name)
+    val primary = MaterialTheme.colorScheme.primary
+    val details = buildAnnotatedString {
+        if (dueToday) withStyle(SpanStyle(color = primary)) { append(due) } else append(due)
+        rest.forEach { append(" · $it") }
+    }
     ListItem(
-        // Each side at the right if it is written right to left, as in the notes.
+        // Each side at the right if it is written right to left, as in the notes; the details as the app runs.
         headlineContent = { DirectedLine(card.front, maxLines = 2) },
-        supportingContent = { DirectedLine(card.back, maxLines = 1) },
-        trailingContent = { Text(details, style = MaterialTheme.typography.labelMedium) },
+        supportingContent = {
+            Column {
+                DirectedLine(card.back, maxLines = 1)
+                Text(details, style = MaterialTheme.typography.labelMedium)
+            }
+        },
         modifier = Modifier.clickable(onClick = onClick),
     )
     HorizontalDivider()
