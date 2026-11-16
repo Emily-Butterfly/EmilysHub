@@ -30,4 +30,7 @@ interface Speech {
 
     /** Reads [text] aloud with the voice named [voice], if it is one of [voices]; never with another, not even instead. */
     suspend fun speak(voice: String, text: String)
+
+    /** Stops what is being read, as the screen it was read from is left. */
+    fun stop()
 }

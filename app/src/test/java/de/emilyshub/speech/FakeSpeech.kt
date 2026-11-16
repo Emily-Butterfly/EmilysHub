@@ -10,4 +10,11 @@ class FakeSpeech : Speech {
     override suspend fun speak(voice: String, text: String) {
         if (voices.any { it.name == voice }) spoken += voice to text
     }
+
+    /** How often what was read was stopped. */
+    var stopped = 0
+
+    override fun stop() {
+        stopped++
+    }
 }

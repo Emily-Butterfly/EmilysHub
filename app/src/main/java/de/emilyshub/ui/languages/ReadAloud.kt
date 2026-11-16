@@ -5,27 +5,48 @@ import androidx.compose.material.icons.materialPath
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.emilyshub.R
+import de.emilyshub.speech.OfflineVoice
 import de.emilyshub.speech.Speech
 import kotlinx.coroutines.launch
 
 /**
  * How to read a text of a language aloud with its [voice] (SPEC.md §15; #157), only when asked; none without a voice
- * chosen, or with one no longer among the phone's voices without network.
+ * chosen, or with one no longer among the phone's voices without network. What is read stops as the screen is left.
  */
 @Composable
 internal fun rememberReadAloud(speech: Speech, voice: String?): ((String) -> Unit)? {
-    val available by produceState(false, speech, voice) { value = voice != null && speech.voices().any { it.name == voice } }
+    val available = voice != null && rememberOfflineVoices(speech).orEmpty().any { it.name == voice }
+    // Left, the screen reads no more.
+    DisposableEffect(speech) { onDispose { speech.stop() } }
     val scope = rememberCoroutineScope()
     val read = remember(speech, voice, scope) { { text: String -> voice?.let { scope.launch { speech.speak(it, text) } }; Unit } }
     return read.takeIf { available }
+}
+
+/**
+ * The phone's voices without network (#157), asked again on every return to the app, so that one loaded meanwhile in
+ * Android's settings is there; none until they are known.
+ */
+@Composable
+internal fun rememberOfflineVoices(speech: Speech): List<OfflineVoice>? {
+    var voices by remember(speech) { mutableStateOf<List<OfflineVoice>?>(null) }
+    val scope = rememberCoroutineScope()
+    LifecycleResumeEffect(speech) {
+        val asking = scope.launch { voices = speech.voices() }
+        onPauseOrDispose { asking.cancel() }
+    }
+    return voices
 }
 
 /** The loudspeaker that reads [text] aloud by [read] when pressed (#157). */

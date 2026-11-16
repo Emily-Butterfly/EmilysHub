@@ -1208,7 +1208,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 55 moves to version 56 with no voice for the languages there, and then one chosen is kept`() {
+    fun `version 55 moves to version 56 with no voice for the languages there and then one chosen is kept`() {
         createAtVersion(55) {
             it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
         }

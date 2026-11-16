@@ -31,11 +31,12 @@ import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.RoutineStatus
-import de.emilyshub.wishes.WishDraft
 import de.emilyshub.speech.OfflineVoice
+import de.emilyshub.wishes.WishDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -512,6 +513,8 @@ class VocabularyScreenTest {
             assertEquals("ar-local" to "kitab", app.speech.spoken.last())
 
             compose.onNodeWithContentDescription("Karte ändern").performClick()
+            compose.waitForIdle()
+            assertTrue("left, the practice reads no more", app.speech.stopped > 0)
             compose.onNodeWithContentDescription("Vorlesen").performClick()
             assertEquals(3, app.speech.spoken.size)
         }

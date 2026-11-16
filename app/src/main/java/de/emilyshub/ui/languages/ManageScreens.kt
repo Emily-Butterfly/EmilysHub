@@ -42,7 +42,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -92,7 +91,8 @@ import java.io.Serializable
 @Composable
 fun LanguageListScreen(languages: Languages, speech: Speech, onOpen: (Long) -> Unit, onBack: () -> Unit) {
     val all by remember(languages) { languages.languages() }.collectAsState(initial = null)
-    val voices by produceState<List<OfflineVoice>?>(null, speech) { value = speech.voices() }
+    // Asked again on return, as one may be loaded in Android's settings meanwhile.
+    val voices = rememberOfflineVoices(speech)
     var choosingVoice by rememberSaveable { mutableStateOf<Long?>(null) }
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }

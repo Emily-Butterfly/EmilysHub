@@ -14,13 +14,13 @@ import de.emilyshub.doku.FakeFingerprint
 import de.emilyshub.doku.testDokuDatabase
 import de.emilyshub.island.RawKey
 import de.emilyshub.languages.FakeLessonDocuments
-import de.emilyshub.speech.FakeSpeech
 import de.emilyshub.places.FakeLocation
 import de.emilyshub.places.FakeWifi
 import de.emilyshub.reminders.FakeRinger
 import de.emilyshub.reminders.FakeToneFiles
 import de.emilyshub.reminders.FakeTones
 import de.emilyshub.security.FakeAuthenticator
+import de.emilyshub.speech.FakeSpeech
 import de.emilyshub.tracking.FakeHealthSource
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.testTrackingDatabase

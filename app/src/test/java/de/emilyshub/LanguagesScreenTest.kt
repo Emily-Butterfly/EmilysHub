@@ -37,9 +37,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
-import java.util.Locale
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
+import java.util.Locale
 
 /**
  * Sprachen (SPEC.md §15): opened in Sonstiges and kept open there; a lesson entered with a teacher made on the spot; and

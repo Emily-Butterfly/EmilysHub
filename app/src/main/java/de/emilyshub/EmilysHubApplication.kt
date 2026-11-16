@@ -40,8 +40,6 @@ import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.PhoneLessonDocuments
-import de.emilyshub.speech.AndroidSpeech
-import de.emilyshub.speech.Speech
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -78,6 +76,8 @@ import de.emilyshub.security.DeviceAuthenticator
 import de.emilyshub.security.KeystoreKeys
 import de.emilyshub.security.SecureWindows
 import de.emilyshub.security.SystemAuthenticator
+import de.emilyshub.speech.AndroidSpeech
+import de.emilyshub.speech.Speech
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
@@ -88,15 +88,15 @@ import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingBaseData
 import de.emilyshub.tracking.TrackingDatabase
 import de.emilyshub.tracking.TrackingEntries
-import de.emilyshub.tracking.TrackingGarmin
-import de.emilyshub.tracking.TrackingEvaluation
 import de.emilyshub.tracking.TrackingEpisodes
+import de.emilyshub.tracking.TrackingEvaluation
 import de.emilyshub.tracking.TrackingEvents
 import de.emilyshub.tracking.TrackingExertions
-import de.emilyshub.tracking.TrackingStandTests
+import de.emilyshub.tracking.TrackingGarmin
 import de.emilyshub.tracking.TrackingMedications
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingQuestionnaire
+import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingSymptoms
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler

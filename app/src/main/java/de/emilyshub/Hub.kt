@@ -29,10 +29,10 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.search.Search
 import de.emilyshub.security.AppLock
 import de.emilyshub.security.DeviceAuthenticator
+import de.emilyshub.speech.Speech
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
-import de.emilyshub.speech.Speech
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.wishes.Wishes

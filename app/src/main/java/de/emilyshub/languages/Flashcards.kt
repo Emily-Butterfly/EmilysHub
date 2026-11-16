@@ -196,7 +196,7 @@ class Flashcards(
         emitAll(languages.observeLanguages().map { all -> all.find { it.id == languageId }?.name.orEmpty() })
     }.flowOn(io)
 
-    /** The voice that reads the cards of the language [languageId] aloud (#157), as it changes; none if none is chosen. */
+    /** The voice that reads the cards of the language [languageId] aloud (SPEC.md §15; #157), as it changes; none if none is chosen. */
     fun voice(languageId: Long): Flow<String?> = flow {
         emitAll(languages.observeLanguages().map { all -> all.find { it.id == languageId }?.voice })
     }.flowOn(io)

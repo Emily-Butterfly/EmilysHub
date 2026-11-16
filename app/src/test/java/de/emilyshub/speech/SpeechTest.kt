@@ -13,11 +13,12 @@ import java.util.Locale
 class SpeechTest {
 
     @Test
-    fun `a voice that needs the network, or is not installed, is never offered`() {
+    fun `a voice that needs the network, synthesises over it, or is not installed is never offered`() {
         val voices = listOf(
             voice("ar-local", Locale("ar"), network = false),
             voice("ar-network", Locale("ar"), network = true),
             voice("ar-missing", Locale("ar"), network = false, features = setOf(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)),
+            voice("ar-online", Locale("ar"), network = false, features = setOf(TextToSpeech.Engine.KEY_FEATURE_NETWORK_SYNTHESIS)),
         )
 
         assertEquals(listOf(OfflineVoice("ar-local", Locale("ar"))), AndroidSpeech.offlineOf(voices))
