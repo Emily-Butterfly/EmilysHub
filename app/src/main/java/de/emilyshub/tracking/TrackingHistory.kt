@@ -24,6 +24,12 @@ sealed interface SeriesKind {
 
     /** The deep sleep of the night by Garmin's reckoning, tier C: "Garmin-Schätzung". */
     data object GarminDeepSleep : SeriesKind
+
+    /** The total of the monthly questionnaire, 0–6, a point on the day of each. */
+    data object FuncapTotal : SeriesKind
+
+    /** The score of the monthly questionnaire's domain [code], 0–6, a point on the day of each. */
+    data class FuncapDomain(val code: Char) : SeriesKind
 }
 
 /**
@@ -62,7 +68,8 @@ object TrackingHistory {
 
     /**
      * The history of [records] over [range] up to [today]: a line for each symptom shown or with values in the range,
-     * for the morning's resting pulse, and for each of Garmin's values that has any in the range; the starts, dose
+     * for the morning's resting pulse, for each of Garmin's values that has any in the range, and for the monthly
+     * questionnaire's total and domains with any, a point on each one's day; the starts, dose
      * changes and ends of the medications as marks; the episodes as bands.
      */
     fun of(records: TrackingRecords, range: HistoryRange, today: LocalDate): History {
@@ -84,6 +91,14 @@ object TrackingHistory {
             line(SeriesKind.MinutesAbove, GarminTiers.HEART_RATE_IN_MOTION.tier, records.garmin.minutesAbove),
             line(SeriesKind.GarminDeepSleep, GarminTiers.ruleOf(SampleKind.SleepStage).tier, records.garmin.deepSleepMinutes),
         ).filter { it.hasValues }
+        // The oldest first, so that of two on one day the latest counts.
+        val questionnaires = records.funcap.asReversed()
+        val funcap = (
+            listOf(line(SeriesKind.FuncapTotal, null, questionnaires.mapNotNull { r -> r.score.total?.let { r.day to it } }.toMap(), Funcap.SCALE)) +
+                Funcap.DOMAINS.map { domain ->
+                    line(SeriesKind.FuncapDomain(domain.code), null, questionnaires.mapNotNull { r -> r.score.domains[domain.code]?.let { r.day to it } }.toMap(), Funcap.SCALE)
+                }
+            ).filter { it.hasValues }
 
         val names = records.medications.associate { it.id to it.name }
         val markers = (
@@ -103,6 +118,6 @@ object TrackingHistory {
             Band(maxOf(episode.startDate, from), minOf(end, today), episode.kind, episode.running)
         }.sortedBy { it.from }
 
-        return History(from, today, symptoms + pulse + garmin, markers, bands)
+        return History(from, today, symptoms + pulse + garmin + funcap, markers, bands)
     }
 }

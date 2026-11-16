@@ -5,6 +5,11 @@ package de.emilyshub.tracking
  * screen cite it with. Each slice adds those its rules rest on.
  */
 enum class Source(val code: String, val citation: String) {
+    Funcap(
+        "FUNCAP",
+        "Entwicklung und Prüfung von FUNCAP, J Clin Med 2024; 13: 3486. doi:10.3390/jcm13123486; " +
+            "deutsche Fassung und Lizenz (CC BY 4.0): funcap.no",
+    ),
     CmajPots2022(
         "CMAJ-POTS-2022",
         "Raj SR, Fedorowski A, Sheldon RS: Diagnosis and management of postural orthostatic tachycardia syndrome. " +

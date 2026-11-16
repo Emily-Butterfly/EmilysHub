@@ -101,6 +101,8 @@ private fun OpenPage(tracking: Tracking, modules: TrackingModules, pages: Tracki
         is TrackingPage.History -> HistoryChartsPage(tracking, modules.evaluation, page, contentPadding, onRange = { onPagesChange(pages.replaceTop(TrackingPage.History(it))) })
         is TrackingPage.Hint -> HintPage(tracking, modules.evaluation, page, contentPadding, onDone = back)
         TrackingPage.Summary -> SummaryPage(tracking, modules, contentPadding)
+        TrackingPage.Questionnaire -> QuestionnairePage(tracking, modules.questionnaire, contentPadding, onOpen = { open(TrackingPage.QuestionnaireResult(it)) }, onBack = back)
+        is TrackingPage.QuestionnaireResult -> QuestionnaireResultPage(tracking, modules.questionnaire, page.id, contentPadding, onDone = back)
     }
 }
 
@@ -119,7 +121,8 @@ internal val TRACKING_TEXTS = IslandTexts(
 /**
  * Tracking's start page: the entries of the day a new one is for, open or done,
  * each to open, and "Nachtragen" for one of the seven days before; "+ Stehtest", "+ Ereignis", "+ Anstrengung" and "+ Episode" with the lists of them,
- * the running episodes to end and the suggestions to decide; the hints, and the week evaluation and the history to open.
+ * the running episodes to end and the suggestions to decide; the hints; "Monatsfragebogen fällig" or a draft to go on
+ * with; and the week evaluation and the history to open.
  */
 @Composable
 private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPadding: PaddingValues, onOpen: (TrackingPage) -> Unit) {
@@ -170,6 +173,7 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
             RunningEpisodes(tracking, modules, onOpen = { onOpen(TrackingPage.Episode(it)) })
             Column(Modifier.padding(16.dp)) { Suggestions(tracking, modules.exertions) }
             HomeHints(tracking, modules.evaluation, onOpen = { onOpen(TrackingPage.Hint(it)) })
+            QuestionnaireLine(tracking, modules, onOpen = { onOpen(TrackingPage.Questionnaire) })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
                 OutlinedButton(onClick = { onOpen(TrackingPage.Week(Week.of(entries.suggestedDay()).monday)) }) { Text(stringResource(R.string.tracking_week)) }
                 OutlinedButton(onClick = { onOpen(TrackingPage.History(HistoryRange.Four)) }) { Text(stringResource(R.string.tracking_history)) }
@@ -228,6 +232,26 @@ private fun TrackingHome(tracking: Tracking, modules: TrackingModules, contentPa
             modifier = Modifier.touchesIsland(tracking),
         )
     }
+}
+
+/** "Monatsfragebogen fortsetzen" while a draft can be gone on with, else "fällig" once one is due; nothing otherwise. Tapped, it opens. */
+@Composable
+private fun QuestionnaireLine(tracking: Tracking, modules: TrackingModules, onOpen: () -> Unit) {
+    val overview = rememberIslandLoad(tracking) { modules.questionnaire.overview() } ?: return
+    val label = when {
+        overview.draft?.stale == false -> R.string.tracking_funcap_go_on
+        overview.due -> R.string.tracking_funcap_home_due
+        else -> return
+    }
+    Text(
+        stringResource(label),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onOpen)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    )
 }
 
 /** An entry of the day, [label]led, said [done] or open; tapped, it opens. */

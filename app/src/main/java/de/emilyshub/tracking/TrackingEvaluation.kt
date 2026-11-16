@@ -31,7 +31,7 @@ class TrackingEvaluation(
     /** The history over [range] up to today; none once locked. */
     suspend fun history(range: HistoryRange): History? = tracking.withDatabase { database ->
         val today = today()
-        TrackingHistory.of(records(database, TrackingHistory.firstDay(range, today), today), range, today)
+        TrackingHistory.of(records(database, TrackingHistory.firstDay(range, today), today, withFuncap = true), range, today)
     }
 
     /** The hints of today, those marked done left out while their evidence stays as it was; none once locked. */
@@ -65,9 +65,14 @@ class TrackingEvaluation(
      */
     suspend fun summary(weeks: Int, withPhotos: Boolean): DoctorSummary? = tracking.withFiles { database, files ->
         val (from, to) = SummaryWeeks.days(weeks, today())
-        val records = records(database, from, to)
+        val records = records(database, from, to, withFuncap = true)
         val hints = hintsOf(database, doneOf(database)).shown
-        val summary = DoctorSummary.of(records, from, to, hints)
+        // The month of the latest questionnaire may begin before the summary's weeks.
+        val funcap = FuncapSummary.latest(records.funcap, to)?.let { latest ->
+            val values = database.entries().valuesBetween(FuncapSummary.monthFrom(latest), latest.day)
+            FuncapSummary.of(records.funcap, to, records.symptoms, values)
+        }
+        val summary = DoctorSummary.of(records, from, to, hints, funcap = funcap)
         if (!withPhotos) return@withFiles summary
         val photos = database.photos().ofEvents(summary.events.map { it.id }).mapNotNull { photo ->
             database.photos().file(photo.id)?.let { EventPhotos.read(database, files, it) }?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
@@ -112,9 +117,10 @@ class TrackingEvaluation(
     /**
      * All that was recorded from [from] to [to] in [database]: the Stehtests and events by the day they began on, the
      * episodes overlapping the days, with all medications and their dose changes, and the exertions from
-     * [ExertionRules.TRIGGER_DAYS] before, so that an episode has its triggers.
+     * [ExertionRules.TRIGGER_DAYS] before, so that an episode has its triggers; the monthly questionnaires only
+     * [withFuncap], for the history and the doctor's summary, the only ones to show them.
      */
-    internal suspend fun records(database: TrackingDatabase, from: LocalDate, to: LocalDate): TrackingRecords {
+    internal suspend fun records(database: TrackingDatabase, from: LocalDate, to: LocalDate, withFuncap: Boolean = false): TrackingRecords {
         val zone = clock.zone
         val start = from.atStartOfDay(zone).toInstant()
         val end = to.plusDays(1).atStartOfDay(zone).toInstant()
@@ -149,6 +155,7 @@ class TrackingEvaluation(
             episodes = episodes,
             triggers = database.episodes().allTriggers().filter { trigger -> episodes.any { it.id == trigger.episodeId } },
             garmin = GarminDays.of(samples, zone, thresholds),
+            funcap = if (withFuncap) TrackingQuestionnaire.resultsOf(database) else emptyList(),
         )
     }
 

@@ -8,6 +8,8 @@ import de.emilyshub.tracking.Certainty
 import de.emilyshub.tracking.DoctorSummary
 import de.emilyshub.tracking.Exertion
 import de.emilyshub.tracking.Figure
+import de.emilyshub.tracking.Funcap
+import de.emilyshub.tracking.FuncapSummary
 import de.emilyshub.tracking.GarminValue
 import de.emilyshub.tracking.StandRecord
 import de.emilyshub.tracking.StandVariant
@@ -41,7 +43,8 @@ sealed interface SummaryBlock {
 /**
  * The doctor's summary (SPEC.md §17, "Arzt-Zusammenfassung") as blocks of text in [resources]' words, the moments in
  * [zone]: its weeks, the strongest symptoms, the figures of the week evaluation, the Stehtests as a table, the events,
- * exertions and episodes, the medications with their timeline, Garmin's values with their tier, the current hints with
+ * exertions and episodes, the medications with their timeline, Garmin's values with their tier, the latest monthly
+ * questionnaire with the one before and the evenings' monthly means beside it, the current hints with
  * their questions, one's own [questions] in Markdown and the photos, if they go along. Made on [today]. Black on white
  * only, so that it reads as well printed in black and white.
  */
@@ -194,6 +197,44 @@ fun summaryBlocks(resources: Resources, summary: DoctorSummary, questions: Strin
         },
         listOf(2.2f, 1.2f, 0.8f, 2f),
     )
+
+    heading(R.string.tracking_summary_funcap)
+    val funcap = summary.funcap
+    if (funcap == null) {
+        blocks += SummaryBlock.Text(string(R.string.tracking_summary_funcap_none))
+    } else {
+        val latest = funcap.latest
+        val previous = funcap.previous
+        blocks += SummaryBlock.Text(
+            if (previous == null) {
+                string(R.string.tracking_summary_funcap_of, latest.day.numericDate())
+            } else {
+                string(R.string.tracking_summary_funcap_of_before, latest.day.numericDate(), previous.day.numericDate())
+            },
+        )
+        val totalRow = listOf(string(R.string.tracking_summary_funcap_total), number(latest.score.total), number(previous?.score?.total))
+        val domainRows = Funcap.DOMAINS.map { domain ->
+            listOf("${domain.code} ${domain.name}", number(latest.score.domains[domain.code]), number(previous?.score?.domains?.get(domain.code)))
+        }
+        table(
+            listOf(string(R.string.tracking_summary_funcap_domain), latest.day.numericDate(), previous?.day?.numericDate() ?: none),
+            listOf(totalRow) + domainRows,
+            listOf(3f, 1f, 1f),
+        )
+        blocks += SummaryBlock.Text(string(R.string.tracking_summary_funcap_scale), small = true)
+        if (funcap.monthMeans.isNotEmpty()) {
+            blocks += SummaryBlock.Text(
+                string(R.string.tracking_summary_funcap_month, FuncapSummary.monthFrom(latest).numericDate(), latest.day.numericDate()),
+                strong = true,
+            )
+            table(
+                listOf(string(R.string.tracking_summary_symptom), string(R.string.tracking_summary_mean), string(R.string.tracking_summary_evenings)),
+                funcap.monthMeans.map { listOf(it.symptom.name, number(it.mean.value), it.mean.basis.toString()) },
+                listOf(3f, 1f, 1f),
+            )
+        }
+        blocks += SummaryBlock.Text(Funcap.SOURCE, small = true)
+    }
 
     heading(R.string.tracking_summary_hints)
     if (summary.hints.isEmpty()) blocks += SummaryBlock.Text(string(R.string.tracking_summary_hints_none))

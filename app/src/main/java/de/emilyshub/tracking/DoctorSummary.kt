@@ -66,7 +66,8 @@ class SummaryPhoto(val eventId: Long, val takenAt: Instant, val jpeg: ByteArray)
  * The doctor's summary (SPEC.md §17, "Arzt-Zusammenfassung") of the days [from] to [to], filled in from what was
  * recorded: the [strongest] symptoms by their mean, the [figures] of the week evaluation over all those days, the
  * [standTests], [events], [exertions] and [episodes] with their triggers, the [medications] taken then with their
- * timeline, Garmin's values with their tier, the current [hints] with their questions, and the [photos] of the events if
+ * timeline, Garmin's values with their tier, the current [hints] with their questions, the latest monthly
+ * questionnaire with the one before and the monthly means beside it ([funcap]), and the [photos] of the events if
  * they are to go along. The questions of one's own are kept apart, as typed.
  */
 data class DoctorSummary(
@@ -82,13 +83,14 @@ data class DoctorSummary(
     val garmin: List<GarminFigure>,
     val hints: List<Hint>,
     val photos: List<SummaryPhoto>,
+    val funcap: FuncapSummary? = null,
 ) {
     companion object {
         /** How many of the strongest symptoms the summary names. */
         const val STRONGEST = 5
 
         /** The summary of [from] to [to] from [records], with the current [hints] and the [photos] chosen to go along. */
-        fun of(records: TrackingRecords, from: LocalDate, to: LocalDate, hints: List<Hint>, photos: List<SummaryPhoto> = emptyList()): DoctorSummary {
+        fun of(records: TrackingRecords, from: LocalDate, to: LocalDate, hints: List<Hint>, photos: List<SummaryPhoto> = emptyList(), funcap: FuncapSummary? = null): DoctorSummary {
             val span = from..to
             val figures = WeekEvaluation.of(records, from, to)
             val exertions = records.exertions.associateBy { it.id }
@@ -130,6 +132,7 @@ data class DoctorSummary(
                 garmin = garmin,
                 hints = hints,
                 photos = photos,
+                funcap = funcap,
             )
         }
     }

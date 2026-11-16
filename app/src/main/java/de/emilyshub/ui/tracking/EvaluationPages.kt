@@ -52,6 +52,7 @@ import de.emilyshub.tracking.Figure
 import de.emilyshub.tracking.HintRule
 import de.emilyshub.tracking.HistoryRange
 import de.emilyshub.tracking.MarkerKind
+import de.emilyshub.tracking.Funcap
 import de.emilyshub.tracking.Series
 import de.emilyshub.tracking.SeriesKind
 import de.emilyshub.tracking.Source
@@ -362,6 +363,8 @@ private fun seriesLabel(series: Series): String = when (val kind = series.kind) 
     SeriesKind.GarminSleep -> stringResource(R.string.tracking_history_garmin_sleep)
     SeriesKind.MinutesAbove -> stringResource(R.string.tracking_history_minutes_above)
     SeriesKind.GarminDeepSleep -> stringResource(R.string.tracking_history_garmin_deep_sleep)
+    SeriesKind.FuncapTotal -> stringResource(R.string.tracking_history_funcap_total)
+    is SeriesKind.FuncapDomain -> stringResource(R.string.tracking_history_funcap_domain, kind.code, Funcap.DOMAINS.first { it.code == kind.code }.name)
 }
 
 /**

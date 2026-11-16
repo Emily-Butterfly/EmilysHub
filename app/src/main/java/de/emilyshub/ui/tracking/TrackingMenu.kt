@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Tracking's menu in the top bar, only while it is open (SPEC.md §17): the symptoms, the medications, the base data, the
- * pacing threshold, Garmin and the doctor's summary, which it opens ([onOpen]); "Passwort ändern", the fingerprint on or
+ * pacing threshold, Garmin, the monthly questionnaire and the doctor's summary, which it opens ([onOpen]); "Passwort ändern", the fingerprint on or
  * off, and "Alles löschen".
  */
 @Composable
@@ -97,5 +97,6 @@ private val MENU_PAGES = listOf(
     R.string.tracking_menu_base_data to TrackingPage.BaseData,
     R.string.tracking_menu_pacing to TrackingPage.Pacing,
     R.string.tracking_menu_garmin to TrackingPage.Garmin,
+    R.string.tracking_menu_funcap to TrackingPage.Questionnaire,
     R.string.tracking_menu_summary to TrackingPage.Summary,
 )

@@ -15,6 +15,10 @@ import de.emilyshub.tracking.TrackingEvent
 import de.emilyshub.tracking.TrackingRecords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import de.emilyshub.tracking.Funcap
+import de.emilyshub.tracking.FuncapForm
+import de.emilyshub.tracking.FuncapResult
+import de.emilyshub.tracking.FuncapSummary
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
@@ -99,5 +103,30 @@ class SummaryPdfTest {
         val out = ByteArrayOutputStream()
         Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GRAY) }.compress(Bitmap.CompressFormat.JPEG, 80, out)
         return out.toByteArray()
+    }
+
+    @Test
+    fun `the monthly questionnaire with the one before and the evenings' means beside it`() {
+        val form = { id: Long, day: LocalDate, value: Int ->
+            FuncapResult(FuncapForm(id = id, startedOn = day, completedOn = day), Funcap.score(Funcap.DOMAINS.associate { it.items.first().number to value }))
+        }
+        val fatigue = Symptom(id = 1, name = "Erschöpfung", position = 0)
+        val funcap = FuncapSummary.of(
+            listOf(form(2, today, 4), form(1, today.minusDays(30), 2)),
+            today,
+            listOf(fatigue),
+            listOf(SymptomValue(today, 1, 2)),
+        )
+        val summary = DoctorSummary.of(TrackingRecords(berlin), today.minusDays(27), today, hints = emptyList(), funcap = funcap)
+        val blocks = summaryBlocks(app.resources, summary, "", berlin, today)
+
+        assertTrue(blocks.contains(SummaryBlock.Heading("Monatsfragebogen (FUNCAP55)")))
+        val table = blocks.filterIsInstance<SummaryBlock.Table>().first { it.headers.first() == "Bereich" }
+        assertEquals(listOf("Gesamtwert", "4", "2"), table.rows.first())
+        assertEquals(9, table.rows.size)
+        val means = blocks.filterIsInstance<SummaryBlock.Table>().last { it.rows.any { row -> row.first() == "Erschöpfung" } }
+        assertEquals(listOf("Erschöpfung", "2", "1"), means.rows.single())
+        assertTrue(blocks.any { it is SummaryBlock.Text && it.text == Funcap.SOURCE })
+        pages(blocks)
     }
 }

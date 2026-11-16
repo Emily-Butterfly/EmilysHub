@@ -94,6 +94,7 @@ import de.emilyshub.tracking.TrackingExertions
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingMedications
 import de.emilyshub.tracking.TrackingModules
+import de.emilyshub.tracking.TrackingQuestionnaire
 import de.emilyshub.tracking.TrackingSymptoms
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -385,6 +386,7 @@ open class EmilysHubApplication : Application(), Hub {
             exertions = exertions,
             episodes = TrackingEpisodes(tracking, clock),
             evaluation = TrackingEvaluation(tracking, symptoms, standTests, exertions, clock),
+            questionnaire = TrackingQuestionnaire(tracking, clock),
             writes = IslandWrites(tracking, background),
         )
     }

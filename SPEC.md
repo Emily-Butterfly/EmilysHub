@@ -694,7 +694,7 @@ Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für da
 
 ### Arzt-Zusammenfassung
 
-- Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe (aus dem Export je Woche das Mittel, bei Intensitätsminuten die Summe); der letzte Monatsfragebogen mit Vorwert je Bereich und daneben die Monatsmittel der täglichen Werte für Erschöpfung, Muskel- und Gelenkschmerzen; die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
+- Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe (aus dem Export je Woche das Mittel, bei Intensitätsminuten die Summe); der letzte Monatsfragebogen mit Vorwert je Bereich und daneben die Mittel der Abendwerte für Erschöpfung, Muskel- und Gelenkschmerzen über die 28 Tage bis zu ihm; die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
 - Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek, A4, schwarz auf weiß. Fotos optional (Standard: ohne). Die eigenen Fragen bleiben für den nächsten Termin gespeichert.
 - Vor dem Speichern der Hinweis: Die PDF ist **nicht verschlüsselt**; nach dem Termin löschen.
 

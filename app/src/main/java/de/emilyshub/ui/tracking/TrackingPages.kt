@@ -72,6 +72,12 @@ sealed interface TrackingPage : Serializable {
 
     /** The doctor's summary, with its preview and the PDF. */
     data object Summary : TrackingPage
+
+    /** The monthly questionnaire: the draft or "Beginnen", and those completed. */
+    data object Questionnaire : TrackingPage
+
+    /** Completed questionnaire [id] with its scores and answers. */
+    data class QuestionnaireResult(val id: Long) : TrackingPage
 }
 
 /**

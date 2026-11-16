@@ -257,4 +257,26 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 10 gets the monthly questionnaires, the rest kept`() {
+        createTrackingAsExported(context, version = 10) {
+            it.execSQL("INSERT INTO tracking_setting (`key`, value) VALUES ('probe', 'kept')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals("kept", database.settings().get("probe"))
+                assertEquals(null, database.funcap().draft())
+                val id = database.funcap().insert(FuncapForm(startedOn = LocalDate.parse("2026-11-16")))
+                database.funcap().put(FuncapAnswer(id, 1, 6))
+                assertEquals(listOf(FuncapAnswer(id, 1, 6)), database.funcap().answers(id))
+                database.funcap().delete(id)
+                assertEquals(emptyList<FuncapAnswer>(), database.funcap().answers(id))
+            }
+        } finally {
+            database.close()
+        }
+    }
 }

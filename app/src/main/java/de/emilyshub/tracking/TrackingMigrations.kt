@@ -204,3 +204,18 @@ val TRACKING_MIGRATION_9_10 = object : Migration(9, 10) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_photo_event_id` ON `event_photo` (`event_id`)")
     }
 }
+
+/** 10 → 11: the monthly questionnaires FUNCAP55 with their answers (#140). */
+val TRACKING_MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `funcap_form` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`started_on` TEXT NOT NULL, `completed_on` TEXT)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `funcap_answer` (`form_id` INTEGER NOT NULL, `item` INTEGER NOT NULL, " +
+                "`value` INTEGER NOT NULL, PRIMARY KEY(`form_id`, `item`), " +
+                "FOREIGN KEY(`form_id`) REFERENCES `funcap_form`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}

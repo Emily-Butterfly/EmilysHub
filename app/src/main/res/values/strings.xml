@@ -2131,4 +2131,47 @@
     <string name="tracking_summary_sources">Quellen: %1$s</string>
     <string name="tracking_summary_photos">Fotos</string>
     <string name="tracking_summary_photo">%1$s, %2$s</string>
+    <string name="tracking_menu_funcap">Monatsfragebogen</string>
+    <string name="tracking_funcap_title">Monatsfragebogen (FUNCAP55)</string>
+    <string name="tracking_funcap_due">Der nächste Fragebogen ist fällig.</string>
+    <string name="tracking_funcap_not_due">Fällig ist der nächste 28 Tage nach dem letzten; ausfüllen lässt er sich jederzeit.</string>
+    <string name="tracking_funcap_begin">Beginnen</string>
+    <string name="tracking_funcap_results">Ausgefüllt</string>
+    <string name="tracking_funcap_total_short">gesamt %1$s</string>
+    <string name="tracking_funcap_begun">Begonnen am %1$s; der Entwurf bleibt gespeichert.</string>
+    <string name="tracking_funcap_answer">%1$d: %2$s</string>
+    <plurals name="tracking_funcap_answered">
+        <item quantity="one">%1$d von %2$d Fragen beantwortet</item>
+        <item quantity="other">%1$d von %2$d Fragen beantwortet</item>
+    </plurals>
+    <string name="tracking_funcap_complete">Abschließen</string>
+    <string name="tracking_funcap_complete_title">Fragebogen abschließen?</string>
+    <plurals name="tracking_funcap_complete_missing">
+        <item quantity="one">Noch %1$d Frage ist offen. Ein Bereich ohne Antwort bleibt leer, einen Gesamtwert gibt es nur mit allen acht Bereichen.</item>
+        <item quantity="other">Noch %1$d Fragen sind offen. Ein Bereich ohne Antwort bleibt leer, einen Gesamtwert gibt es nur mit allen acht Bereichen.</item>
+    </plurals>
+    <string name="tracking_funcap_discard">Verwerfen</string>
+    <string name="tracking_funcap_discard_title">Entwurf verwerfen?</string>
+    <string name="tracking_funcap_stale_title">Entwurf verwerfen</string>
+    <string name="tracking_funcap_stale_text">Der Entwurf vom %1$s ist älter als %2$d Tage. Weil der Fragebogen nach dem letzten Monat fragt, wird er verworfen; danach lässt sich ein neuer beginnen.</string>
+    <string name="tracking_funcap_stale_discard">Verwerfen</string>
+    <string name="tracking_funcap_stale_back">Zurück</string>
+    <string name="tracking_funcap_result_title">Fragebogen vom %1$s</string>
+    <string name="tracking_funcap_total">Gesamtwert: %1$s</string>
+    <string name="tracking_funcap_domain_score">%1$c %2$s: %3$s</string>
+    <string name="tracking_funcap_scores_note">Werte 0–6, höher ist besser. Bereichswert: Mittel der beantworteten Fragen; Gesamtwert: Mittel der acht Bereiche, nur wenn alle einen Wert haben (eigene Festlegung). FUNCAP setzt keine Grenzwerte.</string>
+    <string name="tracking_funcap_delete">Löschen</string>
+    <string name="tracking_funcap_delete_title">Fragebogen löschen?</string>
+    <string name="tracking_funcap_home_due">Monatsfragebogen fällig</string>
+    <string name="tracking_funcap_go_on">Monatsfragebogen fortsetzen</string>
+    <string name="tracking_history_funcap_total">Monatsfragebogen gesamt (0–6)</string>
+    <string name="tracking_history_funcap_domain">Monatsfragebogen %1$c %2$s (0–6)</string>
+    <string name="tracking_summary_funcap">Monatsfragebogen (FUNCAP55)</string>
+    <string name="tracking_summary_funcap_none">Noch kein Fragebogen ausgefüllt.</string>
+    <string name="tracking_summary_funcap_of">Ausgefüllt am %1$s.</string>
+    <string name="tracking_summary_funcap_of_before">Ausgefüllt am %1$s, Vorwert vom %2$s.</string>
+    <string name="tracking_summary_funcap_total">Gesamtwert</string>
+    <string name="tracking_summary_funcap_domain">Bereich</string>
+    <string name="tracking_summary_funcap_scale">Werte 0–6, höher ist besser; Bezug: ein durchschnittlicher Tag im letzten Monat. FUNCAP setzt keine Grenzwerte.</string>
+    <string name="tracking_summary_funcap_month">Abendeinträge im Monat davor (%1$s–%2$s)</string>
 </resources>

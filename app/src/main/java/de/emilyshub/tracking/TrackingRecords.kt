@@ -70,7 +70,7 @@ data class GarminDays(
  * All of Tracking that the week evaluation, the history and the hints rest on (SPEC.md §17), read at once while it is
  * open and then evaluated as pure logic: the entries of the mornings and evenings with their symptoms, intakes otherwise
  * than planned and answers about exertions before; the medications with their dose changes; the Stehtests, events,
- * exertions and episodes with their triggers; Garmin's values by day. The moments of Stehtests and events count by the
+ * exertions and episodes with their triggers; Garmin's values by day; the monthly questionnaires completed, the latest first. The moments of Stehtests and events count by the
  * wall clock of [zone].
  */
 data class TrackingRecords(
@@ -89,6 +89,7 @@ data class TrackingRecords(
     val episodes: List<Episode> = emptyList(),
     val triggers: List<EpisodeTrigger> = emptyList(),
     val garmin: GarminDays = GarminDays(),
+    val funcap: List<FuncapResult> = emptyList(),
 ) {
     /** The day [at] falls on, by the wall clock. */
     fun dayOf(at: Instant): LocalDate = at.atZone(zone).toLocalDate()

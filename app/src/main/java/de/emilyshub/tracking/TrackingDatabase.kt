@@ -39,7 +39,7 @@ interface TrackingSettingsDao {
  * encrypted with SQLCipher under a key of its own, which only the Tracking password or its fingerprint set free
  * ([Tracking]): the day's entries and their symptoms (#124), the medications (#125), the values read from Health
  * Connect (#126), the Stehtests (#127), the events (#128), the exertions and episodes (#129), the photos of the events
- * (#133); the base data in its settings.
+ * (#133), the monthly questionnaires (#140); the base data in its settings.
  *
  * As the app's, every schema change bumps [VERSION] and adds a hand-written migration to [MIGRATIONS]; there is
  * deliberately no destructive fallback.
@@ -67,6 +67,8 @@ interface TrackingSettingsDao {
         EpisodeTrigger::class,
         EventPhoto::class,
         OwnThreshold::class,
+        FuncapForm::class,
+        FuncapAnswer::class,
     ],
     version = TrackingDatabase.VERSION,
 )
@@ -92,11 +94,13 @@ abstract class TrackingDatabase : RoomDatabase() {
 
     abstract fun photos(): EventPhotoDao
 
+    abstract fun funcap(): FuncapDao
+
     companion object {
-        const val VERSION = 10
+        const val VERSION = 11
         const val NAME = "tracking.db"
 
-        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5, TRACKING_MIGRATION_5_6, TRACKING_MIGRATION_6_7, TRACKING_MIGRATION_7_8, TRACKING_MIGRATION_8_9, TRACKING_MIGRATION_9_10)
+        val MIGRATIONS: List<Migration> = listOf(TRACKING_MIGRATION_1_2, TRACKING_MIGRATION_2_3, TRACKING_MIGRATION_3_4, TRACKING_MIGRATION_4_5, TRACKING_MIGRATION_5_6, TRACKING_MIGRATION_6_7, TRACKING_MIGRATION_7_8, TRACKING_MIGRATION_8_9, TRACKING_MIGRATION_9_10, TRACKING_MIGRATION_10_11)
 
         /** Opens `tracking.db`, or a database [name]d otherwise, with its [rawKey]; a wrong key fails on first access. */
         fun open(context: Context, rawKey: RawKey, name: String = NAME): TrackingDatabase {
