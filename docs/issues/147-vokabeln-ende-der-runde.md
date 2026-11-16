@@ -15,7 +15,7 @@ Am Ende steht nur „Für heute geschafft: 23 Karten“ und „Zurück“. Wer m
 
 - [x] Unter „Für heute geschafft: 23 Karten“ steht „19 gewusst · 4 Nochmal“: je abgefragter Richtung des Tages ihre erste Antwort an diesem Tag, aus dem Protokoll, also auch nach Verlassen und Fortsetzen richtig
 - [x] Hat eine andere nicht archivierte Sprache heute noch Offenes, steht über „Zurück“ der Knopf „Weiter mit Italienisch (12)“; er öffnet deren Abfrage an Stelle dieser; bei mehreren die mit dem meisten Offenen
-- [x] Beim Thema üben (und Prüfung üben) nur die Bilanz, keine nächste Sprache (Prüfung üben gibt es noch nicht)
+- [x] Beim Thema üben (und Prüfung üben) nur die Bilanz, keine nächste Sprache
 
 ## Tests
 
