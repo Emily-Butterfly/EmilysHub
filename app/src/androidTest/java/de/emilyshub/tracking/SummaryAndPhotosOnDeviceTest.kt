@@ -66,6 +66,7 @@ class SummaryAndPhotosOnDeviceTest {
     fun deleteDatabase() {
         tracking.lock()
         context.deleteDatabase(name)
+        File("${file.path}-files").deleteRecursively()
         keyFile.delete()
         CameraShot.clear(context)
     }
@@ -96,7 +97,7 @@ class SummaryAndPhotosOnDeviceTest {
     }
 
     @Test
-    fun `a photo the camera app writes is kept encrypted in Tracking, and neither a file nor the gallery has it`() {
+    fun `a photo the camera app writes is kept encrypted in Tracking and neither a file nor the gallery has it`() {
         val inGallery = galleryCount()
         runBlocking {
             tracking.load()
@@ -119,7 +120,10 @@ class SummaryAndPhotosOnDeviceTest {
         assertFalse(File(File(context.cacheDir, "camera"), "photo.jpg").exists())
         assertEquals(inGallery, galleryCount())
         tracking.lock()
-        assertFalse("the database holds it encrypted", file.readBytes().contains("JFIF".toByteArray()))
+        assertFalse("the database holds none of it", file.readBytes().contains("JFIF".toByteArray()))
+        val photos = File("${file.path}-files").listFiles().orEmpty()
+        assertEquals(1, photos.size)
+        assertFalse("its file holds it encrypted", photos.single().readBytes().contains("JFIF".toByteArray()))
         runBlocking { assertTrue(tracking.unlockWithPassword("tracking-geheim")) }
         assertNotEquals(null, runBlocking { events.photo((added as PhotoAdd.Added).id) })
     }
