@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -201,22 +202,55 @@ class TrackingBackupTest {
     fun `the photos of the events go along and come back`() {
         setUpTracking()
         val photo = byteArrayOf(-1, -40, 1, 2, 3)
-        runBlocking {
-            tracking.changing { database ->
-                val event = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-10-23T04:00:00Z")))
-                database.photos().insert(EventPhoto(eventId = event, takenAt = Instant.parse("2026-10-23T04:05:00Z"), jpeg = photo))
-            }
-        }
+        addPhotos(listOf(photo))
         tracking.lock()
         val file = exported()
+        assertFalse("the photo's file lies encrypted", file.containsBytes(photo))
         unlock()
         runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
 
         restore(file, trackingPassword = TRACKING_PASSWORD)
 
         unlock()
-        val kept = runBlocking { tracking.withDatabase { database -> database.events().all().flatMap { database.photos().of(it.id) }.map { database.photos().jpeg(it.id) } } }
-        assertEquals(listOf(photo.toList()), kept?.map { it?.toList() })
+        assertEquals(listOf(photo.toList()), photos())
+    }
+
+    @Test
+    fun `a photo deleted while a backup is written stays for it, and goes once it is written`() {
+        setUpTracking()
+        addPhotos(listOf(byteArrayOf(1, 2, 3)))
+        val id = runBlocking { checkNotNull(tracking.withDatabase { database -> database.events().all().flatMap { database.photos().of(it.id) }.single().id }) }
+        val events = app.trackingModules.events
+
+        val listed = runBlocking {
+            tracking.reading { snapshot ->
+                val listed = checkNotNull(snapshot).files.single()
+                events.deletePhoto(id)
+                assertArrayEquals(listed.read(), listed.read())
+                listed
+            }
+        }
+
+        assertNull(runBlocking { events.photo(id) })
+        assertFalse(listed.at.exists())
+    }
+
+    @Test
+    fun `the photos of a backup opened before another are gone, and it is to be opened again`() {
+        setUpTracking()
+        addPhotos(listOf(byteArrayOf(1, 2, 3)))
+        val first = open(exported())
+        runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
+        // Another backup, without the photo, laid aside in its place.
+        open(exported())
+        unlock()
+        addPhotos(listOf(byteArrayOf(4, 5)))
+        tracking.lock()
+
+        assertProblem(BackupProblem.Damaged) { runBlocking { backups.restore(first, trackingPassword = TRACKING_PASSWORD) } }
+
+        unlock()
+        assertEquals("Tracking as it was", listOf(listOf<Byte>(4, 5)), photos())
     }
 
     @Test
@@ -224,26 +258,20 @@ class TrackingBackupTest {
         setUpTracking()
         // Each a megabyte of bytes that do not shrink, more than the content of a backup holds in all.
         val photos = List(BackupFile.MAX_BYTES / MEGABYTE + 2) { index -> Random(index).nextBytes(MEGABYTE) }
-        runBlocking {
-            tracking.changing { database ->
-                val event = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-10-23T04:00:00Z")))
-                photos.forEach { database.photos().insert(EventPhoto(eventId = event, takenAt = Instant.parse("2026-10-23T04:05:00Z"), jpeg = it)) }
-            }
-        }
+        addPhotos(photos)
         tracking.lock()
         val file = exported()
         assertTrue(file.size > BackupFile.MAX_BYTES)
-        assertTrue(BackupFile.open(file, PASSWORD).plaintext.size < MEGABYTE)
+        val opened = BackupFile.open(file, PASSWORD)
+        assertTrue(opened.plaintext.size < MEGABYTE)
+        assertTrue("each photo a record of its own", opened.attachments.size > photos.size)
         unlock()
         runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
 
         restore(file, trackingPassword = TRACKING_PASSWORD)
 
         unlock()
-        val kept = runBlocking {
-            tracking.withDatabase { database -> database.events().all().flatMap { database.photos().of(it.id) }.map { checkNotNull(database.photos().jpeg(it.id)).toList() } }
-        }
-        assertEquals(photos.map { it.toList() }, kept)
+        assertEquals(photos.map { it.toList() }, photos())
     }
 
     @Test
@@ -298,6 +326,31 @@ class TrackingBackupTest {
     }
 
     private fun setUpTracking() = runBlocking { tracking.setUp(TRACKING_PASSWORD) }
+
+    /** [jpegs] as the photos of a new event, as Tracking keeps them, each in a file of its own. */
+    private fun addPhotos(jpegs: List<ByteArray>) {
+        checkNotNull(
+            runBlocking {
+                tracking.changingWithFiles { database, files ->
+                    val event = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-10-23T04:00:00Z")))
+                    jpegs.forEach { jpeg ->
+                        val name = files.newName()
+                        files.write(name, jpeg)
+                        database.photos().insert(EventPhoto(eventId = event, takenAt = Instant.parse("2026-10-23T04:05:00Z"), file = name))
+                    }
+                }
+            },
+        )
+    }
+
+    /** The photos of all events, as kept. */
+    private fun photos(): List<List<Byte>>? = runBlocking {
+        tracking.withFiles { database, files ->
+            database.events().all().flatMap { database.photos().of(it.id) }.map { checkNotNull(database.photos().file(it.id)?.let(files::read)).toList() }
+        }
+    }
+
+    private fun ByteArray.containsBytes(part: ByteArray) = (0..size - part.size).any { start -> part.indices.all { this[start + it] == part[it] } }
 
     private fun unlock() = runBlocking { assertTrue(tracking.unlockWithPassword(TRACKING_PASSWORD)) }
 

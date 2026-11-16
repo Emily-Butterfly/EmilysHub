@@ -90,47 +90,51 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
         true
     } ?: false
 
-    /** Deletes event [id]. */
+    /** Deletes event [id], and the files of its photos. */
     suspend fun delete(id: Long) {
-        tracking.changing { it.events().delete(id) }
+        tracking.changingWithFiles { database, files ->
+            val photos = database.photos().filesOf(id)
+            database.events().delete(id)
+            photos.forEach(files::delete)
+        }
     }
 
     /**
-     * Keeps [taken], a photo for event [id], shrunk and encoded anew ([EventPhotos]), with the moment it is now; it is
-     * encrypted with Tracking's database as soon as it is written.
+     * Keeps [taken], a photo for event [id], shrunk and encoded anew ([EventPhotos]), with the moment it is now, in a file
+     * of Tracking's own, encrypted as it is written; the file first, so that no photo is ever without one.
      */
     suspend fun addPhoto(id: Long, taken: ByteArray): PhotoAdd {
         if (taken.size > EventPhotos.MAX_TAKEN_BYTES) return PhotoAdd.Unreadable
         // Before the database is held, so that nothing waits for a large photo to be encoded anew.
         val jpeg = withContext(Dispatchers.Default) { Photos.shrink(taken, EventPhotos.MAX_EDGE) } ?: return PhotoAdd.Unreadable
-        return tracking.changing { database ->
-            if (database.events().get(id) == null) return@changing PhotoAdd.NoEvent
+        return tracking.changingWithFiles { database, files ->
+            if (database.events().get(id) == null) return@changingWithFiles PhotoAdd.NoEvent
             val photos = database.photos()
-            if (photos.count(id) >= EventPhotos.MAX_PER_EVENT) return@changing PhotoAdd.TooMany
-            if (usedBytes(database) + jpeg.size > EventPhotos.MAX_DATABASE_BYTES) return@changing PhotoAdd.Full
-            PhotoAdd.Added(photos.insert(EventPhoto(eventId = id, takenAt = clock.instant().truncatedTo(ChronoUnit.SECONDS), jpeg = jpeg)))
+            if (photos.count(id) >= EventPhotos.MAX_PER_EVENT) return@changingWithFiles PhotoAdd.TooMany
+            val file = files.newName()
+            files.write(file, jpeg)
+            try {
+                PhotoAdd.Added(photos.insert(EventPhoto(eventId = id, takenAt = clock.instant().truncatedTo(ChronoUnit.SECONDS), file = file)))
+            } catch (e: Exception) {
+                files.delete(file)
+                throw e
+            }
         } ?: PhotoAdd.Locked
-    }
-
-    /**
-     * How much of Tracking's database is in use: its pages but the free ones, which deleted rows leave and new ones
-     * take first, so that the file grows only past them.
-     */
-    private fun usedBytes(database: TrackingDatabase): Long {
-        val db = database.openHelper.writableDatabase
-        fun pragma(name: String) = db.query("PRAGMA $name").use { it.moveToFirst(); it.getLong(0) }
-        return (pragma("page_count") - pragma("freelist_count")) * db.pageSize
     }
 
     /** The photos of event [id], the first taken first; none once locked. */
     suspend fun photos(id: Long): List<PhotoInfo>? = tracking.withDatabase { it.photos().of(id) }
 
     /** The JPEG of photo [id]; none if gone, or once locked. */
-    suspend fun photo(id: Long): ByteArray? = tracking.withDatabase { it.photos().jpeg(id) }
+    suspend fun photo(id: Long): ByteArray? = tracking.withFiles { database, files -> database.photos().file(id)?.let(files::read) }
 
-    /** Deletes photo [id]; overwritten on disk, as all deleted in Tracking. */
+    /** Deletes photo [id], its file too. */
     suspend fun deletePhoto(id: Long) {
-        tracking.changing { it.photos().delete(id) }
+        tracking.changingWithFiles { database, files ->
+            val file = database.photos().file(id)
+            database.photos().delete(id)
+            file?.let(files::delete)
+        }
     }
 
     /** Event [id] for its page; none if gone, or once locked. */

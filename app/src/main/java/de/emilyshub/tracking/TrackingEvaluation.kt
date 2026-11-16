@@ -63,14 +63,14 @@ class TrackingEvaluation(
      * The doctor's summary of the [weeks] ending today, with today's hints as the start page shows them and, if
      * [withPhotos], the photos of its events; none once locked.
      */
-    suspend fun summary(weeks: Int, withPhotos: Boolean): DoctorSummary? = tracking.withDatabase { database ->
+    suspend fun summary(weeks: Int, withPhotos: Boolean): DoctorSummary? = tracking.withFiles { database, files ->
         val (from, to) = SummaryWeeks.days(weeks, today())
         val records = records(database, from, to)
         val hints = hintsOf(database, doneOf(database)).shown
         val summary = DoctorSummary.of(records, from, to, hints)
-        if (!withPhotos) return@withDatabase summary
+        if (!withPhotos) return@withFiles summary
         val photos = database.photos().ofEvents(summary.events.map { it.id }).mapNotNull { photo ->
-            database.photos().jpeg(photo.id)?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
+            database.photos().file(photo.id)?.let(files::read)?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
         }
         summary.copy(photos = photos)
     }

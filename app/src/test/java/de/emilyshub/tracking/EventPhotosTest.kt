@@ -14,8 +14,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.time.Instant
-import kotlin.random.Random
 
 /**
  * The photos of an event (SPEC.md §17, "Ereignisse"): kept in Tracking's own database, so encrypted with its key, in its
@@ -60,27 +60,38 @@ class EventPhotosTest {
     }
 
     @Test
-    fun `none is kept once Tracking would be more than its backup carries, until photos are deleted`() = runBlocking {
+    fun `a photo lies in a file of its own, encrypted, and goes with its photo, its event and deleting all`() = runBlocking {
         val id = create()
-        val filler = checkNotNull(events.create(EventKind.Bath))
-        // Bytes that do not shrink, up to just under the most Tracking takes a photo into.
-        val fillers = checkNotNull(
-            fixture.tracking.changing { database ->
-                List(EventPhotos.MAX_DATABASE_BYTES / MEGABYTE - 1) { index ->
-                    database.photos().insert(EventPhoto(eventId = filler, takenAt = Instant.EPOCH, jpeg = Random(index).nextBytes(MEGABYTE)))
-                }
-            },
-        )
-        val small = jpeg(40, 30)
-        assertTrue(events.addPhoto(id, small) is PhotoAdd.Added)
-        fixture.tracking.changing { database ->
-            database.photos().insert(EventPhoto(eventId = filler, takenAt = Instant.EPOCH, jpeg = Random(-1).nextBytes(MEGABYTE)))
-        }
+        val jpeg = jpeg(40, 30)
+        val first = (events.addPhoto(id, jpeg) as PhotoAdd.Added).id
+        events.addPhoto(id, jpeg)
+        val dir = File("${ApplicationProvider.getApplicationContext<android.content.Context>().getDatabasePath(TrackingDatabase.NAME).path}-files")
+        assertEquals(2, dir.listFiles()!!.size)
+        assertTrue("not in the database", fixture.tracking.withDatabase { db -> db.openHelper.writableDatabase.query("SELECT * FROM event_photo").use { it.columnNames.toList() } }!!.none { it == "jpeg" })
+        assertTrue("encrypted", dir.listFiles()!!.none { it.readBytes().contentEquals(checkNotNull(events.photo(first))) })
 
-        assertEquals(PhotoAdd.Full, events.addPhoto(id, small))
+        events.deletePhoto(first)
+        assertEquals(1, dir.listFiles()!!.size)
+        events.delete(id)
+        assertEquals(0, dir.listFiles()!!.size)
 
-        events.deletePhoto(fillers.first())
-        assertTrue(events.addPhoto(id, small) is PhotoAdd.Added)
+        events.addPhoto(create(), jpeg)
+        assertTrue(fixture.tracking.deleteAll("tracking-geheim"))
+        assertEquals(0, dir.listFiles().orEmpty().size)
+    }
+
+    @Test
+    fun `a file changed or put in the place of another does not open`() = runBlocking {
+        val id = create()
+        val first = (events.addPhoto(id, jpeg(40, 30)) as PhotoAdd.Added).id
+        val second = (events.addPhoto(id, jpeg(50, 30)) as PhotoAdd.Added).id
+        val (one, two) = fixture.tracking.withDatabase { db -> listOf(db.photos().file(first)!!, db.photos().file(second)!!) }!!
+        val dir = File("${ApplicationProvider.getApplicationContext<android.content.Context>().getDatabasePath(TrackingDatabase.NAME).path}-files")
+
+        File(dir, one).writeBytes(File(dir, two).readBytes())
+
+        assertNull(events.photo(first))
+        assertTrue(events.photo(second) != null)
     }
 
     @Test
@@ -113,10 +124,6 @@ class EventPhotosTest {
         fixture.tracking.lock()
 
         assertEquals(PhotoAdd.Locked, events.addPhoto(id, jpeg(40, 30)))
-    }
-
-    private companion object {
-        const val MEGABYTE = 1024 * 1024
     }
 
     private fun jpeg(width: Int, height: Int): ByteArray {

@@ -23,7 +23,7 @@ Nothing else: no list of tables or columns to keep by hand in the backups or the
 version, a migration in `doku/DokuMigrations.kt` with a test in `DokuMigrationTest`, and the exported schema. Its
 `VERSION` also goes into each backup, and a backup with a higher one is refused as of a newer version of the app.
 
-**`TrackingDatabase`** likewise: its encrypted file goes into the backups, a change takes the entity, its version, a
+**`TrackingDatabase`** likewise: its encrypted file goes into the backups, with its own files beside it (the photos, ADR 0003), a change takes the entity, its version, a
 migration in `tracking/TrackingMigrations.kt` with a test in `TrackingMigrationTest`, and the exported schema, and a backup with a higher `VERSION`
 is refused.
 

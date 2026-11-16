@@ -620,7 +620,7 @@ Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, lange
 - Puls vorher, direkt danach und nach 5 und 10 Minuten mit Timer; Sauerstoffsättigung optional; Atemnot und Schwindel 0–3; hinsetzen nötig (nach wie vielen Minuten).
 - **Haut:** wo (Beine, Arme, Rumpf, Finger oder Zehen), Muster (gleichmäßig-geschlossen oder unterbrochen-netzartig), schmerzt ja/nein, verschwindet im Liegen ja/nein, Minuten bis zur Rückbildung; Minuten bis wieder belastbar.
 - Herzfrequenz von Garmin von 15 Minuten davor bis 30 Minuten danach als Zusatzkurve, mit ihrer Stufe.
-- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt in der Datenbank von Tracking abgelegt, nie in der Galerie; im Backup. Höchstens 1600 px an der langen Kante und 6 je Ereignis (eigene Festlegung), damit sie ins Backup passen. Das Backup nimmt Tracking bis 64 MB mit, unabhängig von der übrigen Größe des Backups; ein Foto, das Tracking über 56 MB brächte, wird nicht gespeichert, mit dem Hinweis, nicht mehr gebrauchte Fotos zu löschen ([ADR 0003](docs/adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)).
+- **Fotos:** aufgenommen mit der Kamera-App (ohne Kameraberechtigung), sofort verschlüsselt (Schlüssel aus dem von Tracking) als eigene Datei von Tracking abgelegt, nie in der Galerie; im Backup, jedes Foto als eigener Teil derselben Backup-Datei, ohne Grenze für ihre Zahl außer dem Speicher des Handys. Höchstens 1600 px an der langen Kante und 6 je Ereignis (eigene Festlegung) ([ADR 0004](docs/adr/0004-tracking-photos-in-files-of-their-own.md)).
 
 ### Anstrengungen, PEM & Crash
 

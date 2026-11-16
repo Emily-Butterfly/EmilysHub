@@ -3,6 +3,7 @@ package de.emilyshub.backup
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
+import de.emilyshub.island.IslandSnapshot
 import de.emilyshub.island.IslandVault
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
@@ -116,33 +117,44 @@ class Backups(
     /**
      * Writes a backup of all data to the stream [output] opens; only once the backup password is set. The stream is
      * opened only once the content is sealed and every attachment found readable, so that nothing is written if that
-     * fails; the attachments are then read again one by one as they are written, none taken in or deleted meanwhile.
+     * fails; the attachments are then read again one by one as they are written, none taken in or deleted meanwhile. The
+     * islands' own files likewise, each read as it is written, none deleted meanwhile ([IslandVault.reading]).
      */
     suspend fun export(output: () -> OutputStream) = withContext(io + NonCancellable) {
         val key = checkNotNull(storedKey()) { "The backup password is not set" }
         val database = database()
         val now = clock.instant()
-        val snapshot = doku.snapshot()
-        val trackingSnapshot = tracking.snapshot()
         attachments.steady {
-            val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
-            // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
-            val carried = attachmentFilesOf(read).mapNotNull { file ->
-                attachments.read(file)?.let { BackupAttachment(file, it.size.toLong()) }
-            }
-            // One that cannot be read is left out with its row, rather than keeping every backup from being made.
-            val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
-            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried)
-            val json = content.toJson()
-            output().use { out ->
-                val writer = BackupFile.writer(out, key, json)
-                content.records().forEach(writer::attachment)
-                carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
-                writer.finish()
-            }
+            doku.reading { snapshot -> tracking.reading { trackingSnapshot -> write(output, key, database, now, snapshot, trackingSnapshot) } }
         }
         settings().put(Setting(LAST_MADE, now.toString()))
         if (firstMadeStored() == null) settings().put(Setting(FIRST_MADE, now.toString()))
+    }
+
+    /** Writes the backup to the stream [output] opens, as [export] says, with the islands as [snapshot] and [trackingSnapshot]. */
+    private fun write(
+        output: () -> OutputStream,
+        key: BackupKey,
+        database: HubDatabase,
+        now: Instant,
+        snapshot: IslandSnapshot?,
+        trackingSnapshot: IslandSnapshot?,
+    ) {
+        val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
+        // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
+        val carried = attachmentFilesOf(read).mapNotNull { file ->
+            attachments.read(file)?.let { BackupAttachment(file, it.size.toLong()) }
+        }
+        // One that cannot be read is left out with its row, rather than keeping every backup from being made.
+        val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
+        val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried)
+        val json = content.toJson()
+        output().use { out ->
+            val writer = BackupFile.writer(out, key, json)
+            content.records().forEach(writer::attachment)
+            carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
+            writer.finish()
+        }
     }
 
     /** When the last backup was made here, by hand or by night. */
@@ -172,12 +184,14 @@ class Backups(
     }
 
     private suspend fun openSteady(input: () -> InputStream, password: String): Backup {
-        attachments.clearAside()
+        clearAside()
         try {
             val (found, key) = input().use { stream ->
                 val reader = BackupFile.reader(stream, password)
                 // One of a newer version is told as such before its records are read, whatever else may be amiss.
-                val found = BackupContent.fromJson(reader.content(), reader::next)
+                val found = BackupContent.fromJson(reader.content(), reader::next) { island, name, bytes ->
+                    (if (island == "doku") doku else tracking).putAside(name, bytes)
+                }
                 if (found.attachments.map { it.file }.toSet().size != found.attachments.size) damaged()
                 found.attachments.forEach { carried ->
                     val bytes = reader.next() ?: damaged()
@@ -191,9 +205,16 @@ class Backups(
             replaceAllWith(content, keep = false)
             return Backup(content, key, clock.zone)
         } catch (e: Exception) {
-            attachments.clearAside()
+            clearAside()
             throw e
         }
+    }
+
+    /** Lets go of all a backup opened before laid aside: the lessons' attachments and the islands' own files. */
+    private fun clearAside() {
+        attachments.clearAside()
+        doku.clearAside()
+        tracking.clearAside()
     }
 
     /**
@@ -229,6 +250,11 @@ class Backups(
         // The islands' state changes where the caller is, as when they are unlocked.
         val withTracking = suspend { if (trackingToRestore == null) replace() else tracking.replacedBy(trackingToRestore, replace) }
         if (dokuToRestore == null) withTracking() else doku.replacedBy(dokuToRestore, withTracking)
+        // The islands' own files of the backup are in place now, or were not to be restored.
+        withContext(io) {
+            doku.clearAside()
+            tracking.clearAside()
+        }
         withContext(io) { onRestore() }
     }
 

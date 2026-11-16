@@ -79,6 +79,7 @@ import de.emilyshub.security.SystemAuthenticator
 import de.emilyshub.tags.Tags
 import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
+import de.emilyshub.tracking.EventPhotos
 import de.emilyshub.tracking.HealthConnectSource
 import de.emilyshub.tracking.HealthSource
 import de.emilyshub.tracking.Tracking
@@ -364,6 +365,7 @@ open class EmilysHubApplication : Application(), Hub {
             io = io,
             background = background,
             iterations = backupIterations,
+            afterOpening = EventPhotos::moveOutOfDatabase,
         )
     }
 

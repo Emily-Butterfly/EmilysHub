@@ -33,8 +33,10 @@ Abgestimmt beim Bauen (15.11.2026): Für die Kamera-App bleibt Tracking offen, n
 
 Beim Bauen festgelegt (15.11.2026), nicht einzeln bestätigt:
 
-- Die Fotos liegen als JPEG in der SQLCipher-Datenbank von Tracking (Tabelle `event_photo`, tracking.db v8), nicht als eigene Dateien: so sind sie mit dem Schlüssel von Tracking verschlüsselt, im Backup und mit „Alles löschen“ überschrieben, ohne eigenen Weg dafür ([ADR 0003](../adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)).
+- Die Fotos liegen als JPEG in der SQLCipher-Datenbank von Tracking (Tabelle `event_photo`, tracking.db v8), nicht als eigene Dateien: so sind sie mit dem Schlüssel von Tracking verschlüsselt, im Backup und mit „Alles löschen“ überschrieben, ohne eigenen Weg dafür ([ADR 0003](../adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)). *Abgelöst am 16.11.2026, siehe unten.*
 - Neu kodiert, höchstens 1600 px an der langen Kante, ohne Metadaten; höchstens 6 Fotos je Ereignis (eigene Festlegungen), damit viele ins Backup passen.
 - Dieselbe Datei für die Kamera-App wie bei den Lektionen (`CameraShot`): gelesen, sofort in die Datenbank, dann gelöscht.
 
 Nachtrag nach dem Review vom 16.11.2026: Im Inhalt des Backups hätte die Datenbank mit Doku und allen übrigen Daten 20 MB geteilt; schon ein paar Dutzend Fotos hätten jedes Backup scheitern lassen. Jetzt folgen die Datenbanken der Inseln dem Inhalt als eigene Datensätze (Backup-Format 3, ältere Backups öffnen weiter), bis 64 MB je Insel; ein Foto, das Tracking über 56 MB brächte, wird mit Hinweis abgelehnt ([ADR 0003](../adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)).
+
+Abgestimmt am 16.11.2026: Damit die Zahl der Fotos nicht durch das Backup begrenzt ist, liegt jedes Foto als eigene Datei von Tracking (`tracking.db-files`), verschlüsselt mit einem Schlüssel aus dem von Tracking; in `event_photo` steht nur ihr Name (tracking.db v10). Im Backup folgt jedes Foto der Datenbank als eigener Teil derselben Datei und wird einzeln gelesen und geschrieben. Die Fotos aus der Datenbank wandern beim ersten Öffnen nach dem Update in ihre Dateien. Die Grenze von 56 MB mit dem Hinweis „Tracking ist voll“ fällt damit wieder weg ([ADR 0004](../adr/0004-tracking-photos-in-files-of-their-own.md)).

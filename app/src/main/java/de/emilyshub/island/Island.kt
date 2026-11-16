@@ -70,6 +70,9 @@ fun interface IslandSaver<D> {
  * It locks when the screen showing it says so ([lock]), and after [IDLE_MILLIS] without a touch or a key ([touched]),
  * by [now], a monotonic clock. It lives as long as the process: a new process starts locked.
  *
+ * Its own files beside the database ([IslandFileStore]) are encrypted under a key derived from the database key. Once
+ * it is open, [afterOpening] runs, before anything else reads or writes.
+ *
  * The backups take its [files] along as they lie, encrypted, and put them back ([IslandVault]), without unlocking it.
  */
 class Island<D : RoomDatabase> internal constructor(
@@ -83,6 +86,7 @@ class Island<D : RoomDatabase> internal constructor(
     private val background: CoroutineScope,
     private val iterations: Int,
     private val now: () -> Long,
+    private val afterOpening: suspend (D, IslandFileStore) -> Unit,
 ) : IslandVault, IslandStore<D> {
     constructor(
         keyFile: File,
@@ -96,7 +100,11 @@ class Island<D : RoomDatabase> internal constructor(
         background: CoroutineScope,
         iterations: Int = BackupKey.ITERATIONS,
         now: () -> Long = SystemClock::elapsedRealtime,
-    ) : this(IslandKeyFile(keyFile), IslandFiles(keyFile, databaseFile, schema), fingerprint, openDatabase, clipboard, io, background, iterations, now)
+        afterOpening: suspend (D, IslandFileStore) -> Unit = { _, _ -> },
+    ) : this(
+        IslandKeyFile(keyFile), IslandFiles(keyFile, databaseFile, schema), fingerprint, openDatabase, clipboard, io, background,
+        iterations, now, afterOpening,
+    )
 
     /** Compose state; null until [load] has read the key file. Nothing of the island shows unless it is [IslandState.Open]. */
     var state by mutableStateOf<IslandState?>(null)
@@ -135,6 +143,14 @@ class Island<D : RoomDatabase> internal constructor(
         val database = opened?.database ?: return@withLock null
         withContext(io) { block(database) }
     }
+
+    override suspend fun <T> withFiles(block: suspend (D, IslandFileStore) -> T): T? = openingAndClosing.withLock {
+        val open = opened ?: return@withLock null
+        withContext(io) { block(open.database, files.own.store(open.key)) }
+    }
+
+    override suspend fun <T> changingWithFiles(block: suspend (D, IslandFileStore) -> T): T? =
+        withFiles(block).also { if (it != null) changes++ }
 
     /** How many changes were made through [changing]: Compose state, read by the screens to read anew. */
     var changes by mutableIntStateOf(0)
@@ -264,7 +280,8 @@ class Island<D : RoomDatabase> internal constructor(
     /**
      * Deletes all that is in the island ("Alles löschen", SPEC.md §17), once [password] is its password; false, deleting
      * nothing, if it is not. Every table is emptied, what was in them overwritten on disk ([SECURE_DELETE]) and the file
-     * shrunk; the password and the fingerprint stay, and the island stays open, empty. Only while open.
+     * shrunk, and its own files deleted; the password and the fingerprint stay, and the island stays open, empty. Only
+     * while open.
      */
     suspend fun deleteAll(password: String): Boolean {
         requireOpen()
@@ -273,6 +290,7 @@ class Island<D : RoomDatabase> internal constructor(
         return changing { database ->
             database.clearAllTables()
             database.checkpoint()
+            files.own.deleteAll()
         } != null
     }
 
@@ -371,7 +389,7 @@ class Island<D : RoomDatabase> internal constructor(
      * Open or locked, it is not unlocked for this, and what is in it holds together, as nothing writes meanwhile. Fails
      * as [BackupProblem.TooLarge] if it is larger than a backup can be.
      */
-    override suspend fun snapshot(): IslandSnapshot? = openingAndClosing.withLock {
+    suspend fun snapshot(): IslandSnapshot? = openingAndClosing.withLock {
         withContext(io) {
             val stored = keyFile.read() ?: return@withContext null
             // What is in the write-ahead log into the database first, so that the backup carries no more than it needs.
@@ -379,6 +397,12 @@ class Island<D : RoomDatabase> internal constructor(
             files.snapshot(stored.passwordOnly(), IslandSnapshot.MAX_BYTES) ?: throw BackupException(BackupProblem.TooLarge)
         }
     }
+
+    override suspend fun <T> reading(block: suspend (IslandSnapshot?) -> T): T = files.own.reading { block(snapshot()) }
+
+    override fun clearAside() = files.clearAside()
+
+    override fun putAside(name: String, bytes: ByteArray): IslandFile? = files.putAside(name, bytes)
 
     /**
      * Puts [snapshot] in place of the island, locked first, then runs [during]; if that fails, the island is put back as it
@@ -439,6 +463,7 @@ class Island<D : RoomDatabase> internal constructor(
                 openDatabase(rawKey).also {
                     // Opened here, so that a damaged file fails now, not on the first screen.
                     it.openHelper.writableDatabase
+                    afterOpening(it, files.own.store(key))
                 }
             }
         }

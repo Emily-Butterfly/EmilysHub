@@ -6,6 +6,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.HubDatabase
+import de.emilyshub.island.IslandFile
 import de.emilyshub.island.IslandSnapshot
 import de.emilyshub.island.IslandVault
 import de.emilyshub.places.Coordinates
@@ -152,9 +153,13 @@ class BackupsOnDeviceTest {
 
     /** Neither the Doku nor Tracking is set up: the backups here are of the rest of the app. */
     private object NoIsland : IslandVault {
-        override suspend fun snapshot(): IslandSnapshot? = null
+        override suspend fun <T> reading(block: suspend (IslandSnapshot?) -> T): T = block(null)
 
         override suspend fun <T> replacedBy(snapshot: IslandSnapshot, during: suspend () -> T): T = during()
+
+        override fun clearAside() = Unit
+
+        override fun putAside(name: String, bytes: ByteArray): IslandFile? = null
     }
 
     /** No lesson has attachments here. */

@@ -36,6 +36,7 @@ class TrackingFixture(private val context: Context, now: String = "2026-11-15T10
         io = Dispatchers.Unconfined,
         background = CoroutineScope(Dispatchers.Unconfined),
         iterations = 1_000,
+        afterOpening = EventPhotos::moveOutOfDatabase,
     ).also {
         runBlocking {
             it.load()

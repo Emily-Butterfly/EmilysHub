@@ -181,3 +181,26 @@ val TRACKING_MIGRATION_8_9 = object : Migration(8, 9) {
         db.execSQL("DELETE FROM `tracking_setting` WHERE `key` = 'pacing.own_threshold'")
     }
 }
+
+/**
+ * 9 → 10: the photos of the events lie in files of their own (ADR 0004). Each row gets the name of its file by chance,
+ * and its JPEG waits in [EventPhotos.TO_MOVE] until Tracking is open and has the key for the files
+ * ([EventPhotos.moveOutOfDatabase]).
+ */
+val TRACKING_MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `event_photo_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`event_id` INTEGER NOT NULL, `taken_at` TEXT NOT NULL, `file` TEXT NOT NULL, " +
+                "FOREIGN KEY(`event_id`) REFERENCES `tracking_event`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("INSERT INTO `event_photo_new` (`id`, `event_id`, `taken_at`, `file`) SELECT `id`, `event_id`, `taken_at`, lower(hex(randomblob(16))) FROM `event_photo`")
+        db.execSQL(
+            "CREATE TABLE `${EventPhotos.TO_MOVE}` AS SELECT n.`file` AS `file`, o.`jpeg` AS `jpeg` " +
+                "FROM `event_photo_new` n JOIN `event_photo` o ON o.`id` = n.`id`",
+        )
+        db.execSQL("DROP TABLE `event_photo`")
+        db.execSQL("ALTER TABLE `event_photo_new` RENAME TO `event_photo`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_photo_event_id` ON `event_photo` (`event_id`)")
+    }
+}

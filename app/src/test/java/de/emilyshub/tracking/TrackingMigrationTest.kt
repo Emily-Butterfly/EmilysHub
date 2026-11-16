@@ -8,6 +8,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import de.emilyshub.island.IslandOwnFiles
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -159,8 +161,8 @@ class TrackingMigrationTest {
         try {
             runBlocking {
                 assertEquals(EventKind.Bath, database.events().get(1)?.kind)
-                val id = database.photos().insert(EventPhoto(eventId = 1, takenAt = Instant.parse("2026-11-15T10:05:00Z"), jpeg = byteArrayOf(1, 2, 3)))
-                assertEquals(listOf(1.toByte(), 2.toByte(), 3.toByte()), database.photos().jpeg(id)?.toList())
+                val id = database.photos().insert(EventPhoto(eventId = 1, takenAt = Instant.parse("2026-11-15T10:05:00Z"), file = "0".repeat(32)))
+                assertEquals("0".repeat(32), database.photos().file(id))
                 database.events().delete(1)
                 assertEquals(0, database.photos().count(1))
             }
@@ -196,6 +198,31 @@ class TrackingMigrationTest {
         val database = testTrackingDatabase(context)
         try {
             runBlocking { assertEquals(emptyList<OwnThreshold>(), database.exertions().ownThresholds()) }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `version 9 moves the photos out of the database into files, once Tracking is open`() {
+        createTrackingAsExported(context, version = 9) {
+            it.execSQL("INSERT INTO tracking_event (id, kind, at, skin_areas) VALUES (1, 'bath', '2026-11-15T10:00:00Z', 'legs')")
+            it.execSQL("INSERT INTO event_photo (id, event_id, taken_at, jpeg) VALUES (4, 1, '2026-11-15T10:05:00Z', x'010203'), (5, 1, '2026-11-15T10:06:00Z', x'0405')")
+        }
+        val files = IslandOwnFiles(File(context.cacheDir, "moved")).store(ByteArray(32) { 7 })
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                EventPhotos.moveOutOfDatabase(database, files)
+                val moved = database.photos().of(1).map { checkNotNull(files.read(checkNotNull(database.photos().file(it.id)))).toList() }
+                assertEquals(listOf(listOf<Byte>(1, 2, 3), listOf<Byte>(4, 5)), moved)
+                assertEquals(listOf(4L, 5L), database.photos().of(1).map { it.id })
+                val left = database.openHelper.writableDatabase.query("SELECT name FROM sqlite_master WHERE name = '${EventPhotos.TO_MOVE}'").use { it.count }
+                assertEquals("nothing left in the database", 0, left)
+                // Once more, nothing to do.
+                EventPhotos.moveOutOfDatabase(database, files)
+            }
         } finally {
             database.close()
         }
