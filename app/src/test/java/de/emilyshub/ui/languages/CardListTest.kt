@@ -14,6 +14,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
@@ -86,9 +87,10 @@ class CardListTest {
         val details = compose.onNodeWithText("fällig 18.11.2026 · sicher · Farben", useUnmergedTree = true).getBoundsInRoot()
         // The width the front may take: the screen less 16 dp to each side, nothing at the right.
         val layouts = mutableListOf<TextLayoutResult>()
-        front.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts)
-        val available = with(Density(ApplicationProvider.getApplicationContext())) { layouts.single().layoutInput.constraints.maxWidth.toDp() }
-        assertEquals(compose.onRoot().getBoundsInRoot().right - 32.dp, available)
+        front.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        val screen = compose.onRoot().fetchSemanticsNode().size.width
+        val sides = with(Density(ApplicationProvider.getApplicationContext())) { 32.dp.roundToPx() }
+        assertEquals(screen - sides, layouts.single().layoutInput.constraints.maxWidth)
         assertTrue("the back beneath the front", back.top >= front.getBoundsInRoot().bottom)
         assertTrue("the details beneath the back", details.top >= back.bottom)
     }

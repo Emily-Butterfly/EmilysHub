@@ -224,7 +224,7 @@ private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
         rest.forEach { append(" · $it") }
     }
     ListItem(
-        // Each side at the right if it is written right to left, as in the notes; the details as the app runs.
+        // Each side at the right if it is written right to left, as in the notes; the details in the app's direction.
         headlineContent = { DirectedLine(card.front, maxLines = 2) },
         supportingContent = {
             Column {
