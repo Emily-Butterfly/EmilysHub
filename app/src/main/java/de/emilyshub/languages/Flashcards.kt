@@ -25,8 +25,8 @@ import kotlin.coroutines.CoroutineContext
 /** What making many cards at once came to: how many were [created], and how many [skipped] as there already. */
 data class CardsMade(val created: Int, val skipped: Int)
 
-/** A card on the tab Karten, with its [topic], if it has one. */
-data class CardRow(val card: Card, val topic: Topic?) {
+/** A card on the tab Karten, with its [topic], if it has one, and whether it hakt ([stuck], #149). */
+data class CardRow(val card: Card, val topic: Topic?, val stuck: Boolean = false) {
     /**
      * Whether [query] finds it (SPEC.md §15; #107): every word typed in its front, back, transcription or note, in
      * whatever case, and Arabic with or without its vowel marks, as the search over all areas compares; anything for
@@ -51,10 +51,10 @@ data class TopicCards(val cards: Int, val sure: Int) {
 }
 
 /**
- * A language's cards as its evaluation tells them (SPEC.md §15; #107): all of them ([total]), those [sure], and those
- * [dueToday].
+ * A language's cards as its evaluation tells them (SPEC.md §15; #107): all of them ([total]), those [sure], those
+ * [dueToday], and those that hakt ([stuck], #149).
  */
-data class CardsSummary(val total: Int, val sure: Int, val dueToday: Int)
+data class CardsSummary(val total: Int, val sure: Int, val dueToday: Int, val stuck: Int)
 
 /**
  * The tab Karten of a language (SPEC.md §15): its [cards] by front, the [topics] of the language to filter them by, by
@@ -198,12 +198,15 @@ class Flashcards(
 
     /** The tab Karten of the language [languageId], as it changes; none once it is gone. */
     fun tab(languageId: Long): Flow<CardsTab?> = flow {
-        val tab = combine(languages.observeLanguages(), dao.observeOf(languageId), languages.observeTopics()) { all, cards, topics ->
+        val tab = combine(
+            languages.observeLanguages(), dao.observeOf(languageId), languages.observeTopics(), dao.observeReviewsOf(languageId),
+        ) { all, cards, topics, reviews ->
             val language = all.find { it.id == languageId } ?: return@combine null
             val own = topics.filter { it.languageId == languageId }
             val byId = own.associateBy { it.id }
+            val stuck = Stuck.cards(reviews)
             CardsTab(
-                cards = cards.sortedWith(compareBy(InputText.byName) { it.front }).map { CardRow(it, it.topicId?.let(byId::get)) },
+                cards = cards.sortedWith(compareBy(InputText.byName) { it.front }).map { CardRow(it, it.topicId?.let(byId::get), it.id in stuck) },
                 topics = own.sortedWith(compareBy(InputText.byName) { it.name }),
                 newPerDay = language.newCardsPerDay,
             )
@@ -257,9 +260,9 @@ class Flashcards(
      * change.
      */
     fun summary(languageId: Long, today: LocalDate): Flow<CardsSummary> = flow {
-        val summary = combine(languages.observeLanguages(), dao.observeOf(languageId)) { all, cards ->
+        val summary = combine(languages.observeLanguages(), dao.observeOf(languageId), dao.observeReviewsOf(languageId)) { all, cards, reviews ->
             val newPerDay = all.find { it.id == languageId }?.newCardsPerDay ?: Language.NEW_CARDS_DEFAULT
-            CardsSummary(cards.size, cards.count { it.sure }, Workload.of(cards, newPerDay, today).remaining.size)
+            CardsSummary(cards.size, cards.count { it.sure }, Workload.of(cards, newPerDay, today).remaining.size, Stuck.cards(reviews).size)
         }
         emitAll(summary)
     }.flowOn(io)
@@ -289,6 +292,9 @@ class Flashcards(
         }
         emitAll(next)
     }.flowOn(io)
+
+    /** Whether the card [cardId] hakt (SPEC.md §15; #149), for its editor to say so. */
+    suspend fun stuck(cardId: Long): Boolean = withContext(io) { Stuck.cards(dao.reviewsOf(cardId)).isNotEmpty() }
 
     /**
      * How the ways [asked] came out on [today], from the log (SPEC.md §15; #147): each by its first answer of the day,

@@ -452,6 +452,34 @@ class VocabularyScreenTest {
     }
 
     @Test
+    fun `a card that hakt is marked on the tab, found by its filter, told in its editor and counted in the evaluation`() {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab", "Buch")
+        val pen = (card(arabic, "qalam", "Stift") as Saving.Saved).id
+        // Known at first, then four times not.
+        runBlocking {
+            app.flashcards.answer(pen, Rating.Good)
+            repeat(4) { app.flashcards.answer(pen, Rating.Again) }
+        }
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNodeWithText("· hakt", substring = true).assertIsDisplayed()
+            compose.onNode(isSelectable() and hasText("Hakt")).performClick()
+            compose.onNodeWithText("qalam").assertIsDisplayed()
+            compose.onNodeWithText("kitab").assertDoesNotExist()
+
+            compose.onNodeWithText("qalam").performClick()
+            compose.onNodeWithText("Diese Karte hakt", substring = true).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            tab("Auswertung").performClick()
+            compose.onNodeWithText("Karten: 2 · sicher 0 · heute fällig 1 · hakt 1").assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun `the search over all areas finds a card, and its hit opens it`() {
         val arabic = language("Arabisch")
         card(arabic, "كِتَاب", "Buch")

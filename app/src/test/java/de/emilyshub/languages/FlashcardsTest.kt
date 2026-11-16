@@ -240,6 +240,27 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `a card that hakt is marked on the tab, counted in the evaluation, and told to its editor, its back ticked off no more`() = runBlocking {
+        val arabic = language("Arabisch")
+        val door = both(arabic, "Tür")
+        val book = card(arabic, "Buch")
+        // Its back: known at first, then four times not.
+        cards.answer(door, Rating.Good, reverse = true)
+        repeat(Stuck.AGAIN) { cards.answer(door, Rating.Again, reverse = true) }
+        repeat(Stuck.AGAIN) { cards.answer(book, Rating.Again) }
+
+        assertEquals(mapOf("Buch" to false, "Tür" to true), cards.tab(arabic).first()!!.cards.associate { it.card.front to it.stuck })
+        assertEquals(1, cards.summary(arabic, today).first().stuck)
+        assertTrue(cards.stuck(door))
+        assertFalse("its very first does not count", cards.stuck(book))
+
+        // Its back no longer asked, what it learnt that way is gone, and so is the mark.
+        cards.save(door, CardDraft("Tür", "Tür?", bothWays = false))
+        assertFalse(cards.stuck(door))
+        assertEquals(0, cards.summary(arabic, today).first().stuck)
+    }
+
+    @Test
     fun `the next language is the other one with the most still open today`() = runBlocking {
         val arabic = language("Arabisch")
         val italian = language("Italienisch")
@@ -510,7 +531,7 @@ class FlashcardsTest {
         makeSure("kitab")
         val now = clock.now.atZone(clock.zone).toLocalDate()
 
-        assertEquals("the two new ones due", CardsSummary(total = 3, sure = 1, dueToday = 2), cards.summary(arabic, now).first())
+        assertEquals("the two new ones due", CardsSummary(total = 3, sure = 1, dueToday = 2, stuck = 0), cards.summary(arabic, now).first())
     }
 
     @Test

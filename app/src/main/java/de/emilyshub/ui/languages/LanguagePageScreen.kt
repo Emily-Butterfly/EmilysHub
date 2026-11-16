@@ -224,7 +224,11 @@ private fun EvaluationTab(page: LanguagePage, cards: CardsSummary?) {
     val cardsLine: @Composable () -> Unit = {
         cards?.takeIf { it.total > 0 }?.let {
             Text(
-                stringResource(R.string.evaluation_cards, it.total, it.sure, it.dueToday),
+                if (it.stuck > 0) {
+                    stringResource(R.string.evaluation_cards_stuck, it.total, it.sure, it.dueToday, it.stuck)
+                } else {
+                    stringResource(R.string.evaluation_cards, it.total, it.sure, it.dueToday)
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )

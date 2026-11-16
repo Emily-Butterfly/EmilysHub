@@ -68,6 +68,8 @@ import kotlin.math.roundToInt
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
  * "sicher", shown for one topic only if one is chosen ([topicFilter], [onTopicFilterChange]), and only those a search
  * typed finds (#107), with how many it shows of how many (#144); tapped, a card opens in its editor ([onOpenCard]).
+ * One that hakt is marked so, in the error colour, and while there are such, "Hakt" beside the topics shows only them
+ * (#149).
  * Atop, how many are due today with "Üben" ([onPractice]), or that today's are done, as on the start page, while the
  * language is not archived. Its menu sets how many new cards a day takes, and imports cards from a text file picked in
  * Android's file dialog, after a preview.
@@ -88,6 +90,8 @@ internal fun CardsTabContent(
     val workload by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.workload(languageId, it) } }
         .collectAsState(initial = null)
     var query by rememberSaveable { mutableStateOf("") }
+    // Only the cards that hakt (#149), in the place of a topic.
+    var stuckOnly by rememberSaveable { mutableStateOf(false) }
     var settingNew by rememberSaveable { mutableStateOf(false) }
     // A file picked and read, to look at before its cards are made; not kept past the screen.
     var picked by remember { mutableStateOf<CardFile?>(null) }
@@ -97,9 +101,19 @@ internal fun CardsTabContent(
     }
     val shown = tab ?: return
 
-    // One deleted meanwhile filters no more.
-    val filter = shown.topics.find { it.id == topicFilter }
-    val cards = (if (filter == null) shown.cards else shown.cards.filter { it.card.topicId == filter.id }).filter { it.matches(query) }
+    // One deleted meanwhile filters no more; none hakt any more, neither does that filter.
+    val anyStuck = shown.cards.any { it.stuck }
+    val stuckFilter = stuckOnly && anyStuck
+    val filter = shown.topics.find { it.id == topicFilter }.takeUnless { stuckFilter }
+    val cards = when {
+        stuckFilter -> shown.cards.filter { it.stuck }
+        filter != null -> shown.cards.filter { it.card.topicId == filter.id }
+        else -> shown.cards
+    }.filter { it.matches(query) }
+    val chooseTopic = { topicId: Long? ->
+        stuckOnly = false
+        onTopicFilterChange(topicId)
+    }
     LazyColumn(contentPadding = PaddingValues().plusFabSpace()) {
         item(key = "bar") {
             Row(
@@ -113,9 +127,12 @@ internal fun CardsTabContent(
                         .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (shown.topics.isNotEmpty()) {
-                        ChoiceChip(stringResource(R.string.cards_all_topics), chosen = filter == null) { onTopicFilterChange(null) }
-                        shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { onTopicFilterChange(topic.id) } }
+                    if (shown.topics.isNotEmpty() || anyStuck) {
+                        ChoiceChip(stringResource(R.string.cards_all_topics), chosen = filter == null && !stuckFilter) { chooseTopic(null) }
+                        shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { chooseTopic(topic.id) } }
+                    }
+                    if (anyStuck) {
+                        ChoiceChip(stringResource(R.string.cards_stuck_filter), chosen = stuckFilter) { stuckOnly = true }
                     }
                 }
                 CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })
@@ -203,7 +220,8 @@ internal fun CardsTabContent(
 
 /**
  * A card on three lines, each the whole width (#144): its front, its back, and beneath them small when it is due next
- * ("fällig heute" in the primary colour), "neu" while never asked one of its ways, "sicher" if it is, and its topic.
+ * ("fällig heute" in the primary colour), "neu" while never asked one of its ways, "sicher" if it is, its topic, and
+ * "hakt" in the error colour if it does (#149).
  */
 @Composable
 private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
@@ -219,9 +237,15 @@ private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
     }
     val rest = listOfNotNull(stringResource(R.string.card_sure).takeIf { card.sure }, row.topic?.name)
     val primary = MaterialTheme.colorScheme.primary
+    val error = MaterialTheme.colorScheme.error
+    val stuck = stringResource(R.string.card_stuck_mark)
     val details = buildAnnotatedString {
         if (dueToday) withStyle(SpanStyle(color = primary)) { append(due) } else append(due)
         rest.forEach { append(" · $it") }
+        if (row.stuck) {
+            append(" · ")
+            withStyle(SpanStyle(color = error)) { append(stuck) }
+        }
     }
     ListItem(
         // Each side at the right if it is written right to left, as in the notes; the details in the app's direction.

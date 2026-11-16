@@ -86,7 +86,7 @@ sealed interface CardEditorTarget : Serializable {
  * gibt es schon"), told already while it is typed. Each field is laid out right to left while what is typed starts so,
  * as in the notes. A new one can be saved with "Speichern und neue", which leaves the editor open for the next card,
  * with the topic and both ways as they were, so that a list is typed in one go. A saved one is deleted here, after
- * asking, with all it learnt.
+ * asking, with all it learnt. One that hakt says so atop, with what helps (#149).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -104,6 +104,8 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
     // Whether the card was asked from its back already: ticking that off then forgets what was planned so, once asked (#141).
     var reverseAsked by rememberSaveable { mutableStateOf(false) }
     var untickingReverse by rememberSaveable { mutableStateOf(false) }
+    // Whether it hakt (#149), told atop.
+    var stuck by rememberSaveable { mutableStateOf(false) }
     // While a card is saved by "Speichern und neue", not twice.
     var savingNext by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
@@ -121,6 +123,7 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
                 draft = CardDraft.of(saved)
                 original = draft
                 reverseAsked = saved.reverseLastReview != null
+                stuck = flashcards.stuck(saved.id)
                 languageId = saved.languageId
             }
         }
@@ -230,6 +233,13 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (stuck) {
+                Text(
+                    stringResource(R.string.card_stuck_hint),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
             val clean = draft.cleaned()
             val frontProblem = when {
                 showProblems && CardProblem.FrontMissing in problems -> stringResource(R.string.card_front_missing)

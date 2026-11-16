@@ -13,16 +13,16 @@ Manche Karten bekommen immer wieder „Nochmal“ und kosten viel Zeit, ohne das
 
 ## Akzeptanzkriterien
 
-- [ ] Eine Richtung einer Karte **hakt**, wenn unter ihren letzten 8 Antworten (ohne ihre allererste) mindestens 4-mal „Nochmal“ steht; eine Karte hakt, wenn eine ihrer Richtungen hakt (#141). Gerechnet aus dem Protokoll, ohne neues Feld; wird die Karte danach gewusst, verschwindet die Marke von selbst
-- [ ] Reiter Karten: Marke „hakt“ in der Zeile in der Fehlerfarbe; ein Filter „Hakt“ neben den Themen, solange es solche Karten gibt
-- [ ] Karten-Editor: oben der Hinweis „Diese Karte hakt: In letzter Zeit oft „Nochmal“. Eine Eselsbrücke in der Notiz oder eine Aufteilung hilft oft.“
-- [ ] Auswertung: die Zeile der Karten nennt „· hakt 3“, wenn es welche gibt
-- [ ] Die Abfrage zeigt nichts davon, und hakende Karten werden weiter abgefragt
+- [x] Eine Richtung einer Karte **hakt**, wenn unter ihren letzten 8 Antworten (ohne ihre allererste) mindestens 4-mal „Nochmal“ steht; eine Karte hakt, wenn eine ihrer Richtungen hakt (#141). Gerechnet aus dem Protokoll, ohne neues Feld; wird die Karte danach gewusst, verschwindet die Marke von selbst
+- [x] Reiter Karten: Marke „hakt“ in der Zeile in der Fehlerfarbe; ein Filter „Hakt“ neben den Themen, solange es solche Karten gibt
+- [x] Karten-Editor: oben der Hinweis „Diese Karte hakt: In letzter Zeit oft „Nochmal“. Eine Eselsbrücke in der Notiz oder eine Aufteilung hilft oft.“
+- [x] Auswertung: die Zeile der Karten nennt „· hakt 3“, wenn es welche gibt
+- [x] Die Abfrage zeigt nichts davon, und hakende Karten werden weiter abgefragt
 
 ## Tests
 
-- [ ] Unit: Grenze 3 und 4 von 8; die erste Antwort zählt nicht; je Richtung; Marke verschwindet nach gewussten Antworten; gelöschte Rückrichtung (#141)
-- [ ] UI: Marke und Filter im Reiter Karten; Hinweis im Editor
+- [x] Unit: Grenze 3 und 4 von 8; die erste Antwort zählt nicht; je Richtung; Marke verschwindet nach gewussten Antworten; gelöschte Rückrichtung (#141)
+- [x] UI: Marke und Filter im Reiter Karten; Hinweis im Editor
 
 ## Entscheidungen
 

@@ -60,4 +60,8 @@ interface CardDao {
     @Query("SELECT * FROM card_reviews WHERE card_id = :cardId ORDER BY id")
     suspend fun reviewsOf(cardId: Long): List<CardReview>
 
+    /** The answers to the cards of the language [languageId], as they change: what tells which hakt (#149). */
+    @Query("SELECT r.* FROM card_reviews r JOIN cards c ON c.id = r.card_id WHERE c.language_id = :languageId")
+    fun observeReviewsOf(languageId: Long): Flow<List<CardReview>>
+
 }

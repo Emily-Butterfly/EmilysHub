@@ -1489,6 +1489,9 @@
     <string name="card_due_on">fällig %1$s</string>
     <string name="card_due_today">fällig heute</string>
     <string name="card_sure">sicher</string>
+    <string name="card_stuck_mark">hakt</string>
+    <string name="cards_stuck_filter">Hakt</string>
+    <string name="card_stuck_hint">Diese Karte hakt: In letzter Zeit oft „Nochmal“. Eine Eselsbrücke in der Notiz oder eine Aufteilung hilft oft.</string>
     <string name="card_save_next">Speichern und neue</string>
     <string name="card_made">„%1$s“ angelegt</string>
     <string name="card_delete">Karte löschen</string>
@@ -1612,6 +1615,7 @@
     <string name="cards_search">Karten durchsuchen</string>
     <string name="cards_search_none">Keine Karte passt zu „%1$s“.</string>
     <string name="evaluation_cards">Karten: %1$d · sicher %2$d · heute fällig %3$d</string>
+    <string name="evaluation_cards_stuck">Karten: %1$d · sicher %2$d · heute fällig %3$d · hakt %4$d</string>
 
     <!-- Gesamt-Streak (SPEC.md §8, #109) -->
     <string name="settings_statistics">Statistik</string>
