@@ -162,14 +162,17 @@ internal fun CardsTabContent(
     }
 }
 
-/** A card: its front, its back, and when it is due next, "neu" while never asked, and "sicher" if it is. */
+/** A card: its front, its back, and when it is due next, "neu" while never asked one of its ways, and "sicher" if it is. */
 @Composable
 private fun CardLine(row: CardRow, today: LocalDate, onClick: () -> Unit) {
     val card = row.card
+    // Asked both ways, the sooner of its two (#141).
+    val next = card.nextDue
     val due = when {
-        card.due == null -> stringResource(R.string.card_new_mark)
-        !card.due.isAfter(today) -> stringResource(R.string.card_due_today)
-        else -> stringResource(R.string.card_due_on, card.due.numericDate())
+        next != null && !next.isAfter(today) -> stringResource(R.string.card_due_today)
+        // New one way, it may come before the other is due.
+        card.newAnyWay || next == null -> stringResource(R.string.card_new_mark)
+        else -> stringResource(R.string.card_due_on, next.numericDate())
     }
     val details = listOfNotNull(due, stringResource(R.string.card_sure).takeIf { card.sure }, row.topic?.name).joinToString(" · ")
     ListItem(

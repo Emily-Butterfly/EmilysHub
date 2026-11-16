@@ -69,6 +69,7 @@ fun CardsFromNoteDialog(
     var ticked by remember(drafts, taken) { mutableStateOf(taken?.let { t -> drafts.indices.filter { !t[it] }.toSet() }.orEmpty()) }
     // Its only topic, if it has but one.
     var topicId by rememberSaveable(topics) { mutableStateOf(topics.singleOrNull()?.id?.takeIf { unsavedTopics == 0 }) }
+    var bothWays by rememberSaveable { mutableStateOf(false) }
     var making by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,6 +113,7 @@ fun CardsFromNoteDialog(
                     }
                 }
                 if (topics.size + unsavedTopics > 1 && topics.isNotEmpty()) TopicChoice(topics, topicId, onChoose = { topicId = it })
+                BothWaysField(bothWays) { bothWays = it }
                 if (unsavedTopics > 0) {
                     Text(stringResource(R.string.cards_topics_unsaved), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -124,7 +126,7 @@ fun CardsFromNoteDialog(
                     val chosen = drafts.filterIndexed { index, _ -> index in ticked }
                     making = true
                     scope.launchNow {
-                        tellMade(context, flashcards.createAll(languageId, chosen, topicId))
+                        tellMade(context, flashcards.createAll(languageId, chosen, topicId, bothWays))
                         onDismiss()
                     }
                 },
@@ -151,6 +153,7 @@ fun CardFilePreviewDialog(
     val drafts = remember(read) { read.cards.map { it.draft } }
     val taken by produceState<List<Boolean>?>(null, flashcards, languageId, drafts) { value = flashcards.taken(languageId, drafts) }
     var topicId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var bothWays by rememberSaveable { mutableStateOf(false) }
     var making by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -176,6 +179,7 @@ fun CardFilePreviewDialog(
                 }
                 if (drafts.size > PREVIEWED) Text("…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (topics.isNotEmpty()) TopicChoice(topics, topicId, onChoose = { topicId = it })
+                BothWaysField(bothWays) { bothWays = it }
             }
         },
         confirmButton = {
@@ -184,7 +188,7 @@ fun CardFilePreviewDialog(
                 onClick = {
                     making = true
                     scope.launchNow {
-                        tellMade(context, flashcards.createAll(languageId, drafts, topicId))
+                        tellMade(context, flashcards.createAll(languageId, drafts, topicId, bothWays))
                         onDismiss()
                     }
                 },

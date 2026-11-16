@@ -86,6 +86,9 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
     // Found only on saving: a front taken, a topic gone.
     var refused by rememberSaveable { mutableStateOf(emptySet<CardProblem>()) }
     var deleting by rememberSaveable { mutableStateOf(false) }
+    // Whether the card was asked from its back already: ticking that off then forgets what was planned so, once asked (#141).
+    var reverseAsked by rememberSaveable { mutableStateOf(false) }
+    var untickingReverse by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val language = languageId
@@ -97,6 +100,7 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
             } else {
                 draft = CardDraft.of(saved)
                 original = draft
+                reverseAsked = saved.reverseLastReview != null
                 languageId = saved.languageId
             }
         }
@@ -237,7 +241,25 @@ fun CardEditorScreen(flashcards: Flashcards, target: CardEditorTarget, onClose: 
                     if (CardProblem.TopicNotOffered in problems) Problem(stringResource(R.string.card_topic_gone))
                 }
             }
+            BothWaysField(draft.bothWays) { ticked ->
+                if (!ticked && reverseAsked && original?.bothWays == true) untickingReverse = true else change(draft.copy(bothWays = ticked))
+            }
         }
+    }
+
+    if (untickingReverse) {
+        AlertDialog(
+            onDismissRequest = { untickingReverse = false },
+            title = { Text(stringResource(R.string.card_both_ways_off_title)) },
+            text = { Text(stringResource(R.string.card_both_ways_off_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    untickingReverse = false
+                    change(draft.copy(bothWays = false))
+                }) { Text(stringResource(R.string.card_both_ways_off)) }
+            },
+            dismissButton = { TextButton(onClick = { untickingReverse = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 
     if (deleting && cardId != null) {

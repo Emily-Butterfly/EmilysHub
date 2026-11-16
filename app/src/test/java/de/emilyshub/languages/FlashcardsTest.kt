@@ -154,7 +154,7 @@ class FlashcardsTest {
         val book = card(arabic, "Buch")
         val new = checkNotNull(database.cards().card(book))
 
-        assertEquals(mapOf(Rating.Again to 1, Rating.Hard to 1, Rating.Good to 2, Rating.Easy to 8), cards.intervals(new))
+        assertEquals(mapOf(Rating.Again to 1, Rating.Hard to 1, Rating.Good to 2, Rating.Easy to 8), cards.intervals(Prompt(new)))
     }
 
     @Test
@@ -355,7 +355,7 @@ class FlashcardsTest {
             val card = round.current(workload) ?: break
             seen += card.front
             cards.answer(card.id, Rating.Good, countsAsNew = false)
-            round = round.answered(card.id, Rating.Good)
+            round = round.answered(card, Rating.Good)
         }
         assertEquals("each once, also those not due", listOf("grün", "gelb", "blau", "rot"), seen)
     }
@@ -449,6 +449,132 @@ class FlashcardsTest {
         assertEquals("the two new ones due", CardsSummary(total = 3, sure = 1, dueToday = 2), cards.summary(arabic, now).first())
     }
 
+    @Test
+    fun `a card asked both ways comes from its front first and from its back the next day, never both on one day`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = both(arabic, "Buch")
+
+        assertEquals(listOf(book to false), workload(arabic).remaining.map { it.id to it.reverse })
+        cards.answer(book, Rating.Good) // due in 2 days from its front
+        assertEquals("not from its back the same day", emptyList<Prompt>(), workload(arabic).remaining)
+
+        clock.now = berlin("2026-11-13T10:00")
+        val tomorrow = LocalDate.parse("2026-11-13")
+        assertEquals(listOf(book to true), workload(arabic, tomorrow).remaining.map { it.id to it.reverse })
+        cards.answer(book, Rating.Good, reverse = true) // due in 2 days from its back
+
+        val saved = checkNotNull(database.cards().card(book))
+        assertEquals(LocalDate.parse("2026-11-14"), saved.due)
+        assertEquals("planned on its own", LocalDate.parse("2026-11-15"), saved.reverseDue)
+        assertEquals(tomorrow, saved.reverseFirstReview)
+        assertEquals(listOf(false, true), database.cards().reviewsOf(book).map { it.reverse })
+        assertEquals(LocalDate.parse("2026-11-14"), cards.tab(arabic).first()!!.cards.single().card.nextDue)
+    }
+
+    @Test
+    fun `the back of a card counts as a new card of the day, and of two due on one day only one comes`() = runBlocking {
+        val arabic = language("Arabisch")
+        cards.setNewPerDay(arabic, 1)
+        val book = both(arabic, "Buch")
+        card(arabic, "Stift")
+        cards.answer(book, Rating.Hard) // due tomorrow from its front
+
+        clock.now = berlin("2026-11-13T10:00")
+        val tomorrow = LocalDate.parse("2026-11-13")
+        // Due from its front, so its back waits; the one new card of the day is Stift.
+        assertEquals(listOf("Buch" to false, "Stift" to false), workload(arabic, tomorrow).remaining.map { it.front to it.reverse })
+        cards.answer(book, Rating.Hard) // due the next day again
+
+        clock.now = berlin("2026-11-14T10:00")
+        val third = LocalDate.parse("2026-11-14")
+        // Not due from its front; its back new, taking the one new card of the day before Stift.
+        assertEquals(listOf("Buch" to true), workload(arabic, third).remaining.map { it.front to it.reverse })
+        cards.answer(book, Rating.Hard, reverse = true)
+
+        // Due both ways on one day: from its front only, its back the next day.
+        val saved = checkNotNull(database.cards().card(book))
+        database.cards().update(saved.copy(due = LocalDate.parse("2026-11-20"), reverseDue = LocalDate.parse("2026-11-20")))
+        clock.now = berlin("2026-11-20T10:00")
+        val later = LocalDate.parse("2026-11-20")
+        assertEquals(listOf("Buch" to false, "Stift" to false), workload(arabic, later).remaining.map { it.front to it.reverse })
+    }
+
+    @Test
+    fun `a topic practised asks a card one way a day`() = runBlocking {
+        val arabic = language("Arabisch")
+        val colours = topic(arabic, "Farben")
+        cards.create(arabic, CardDraft("rot", "ahmar", topicId = colours, bothWays = true))
+
+        var round = Round()
+        val seen = mutableListOf<Pair<String, Boolean>>()
+        while (true) {
+            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round, today)
+            val prompt = round.current(workload) ?: break
+            seen += prompt.question to prompt.reverse
+            cards.answer(prompt.id, Rating.Good, countsAsNew = false, reverse = prompt.reverse)
+            round = round.answered(prompt, Rating.Good)
+        }
+        assertEquals(listOf("rot" to false), seen)
+
+        clock.now = berlin("2026-11-13T10:00")
+        val tomorrow = LocalDate.parse("2026-11-13")
+        val next = Round().current(Workload.ofTopic(cards.topicPractice(colours, tomorrow).first().orEmpty(), Round(), tomorrow))
+        assertEquals("ahmar" to true, next?.question to next?.reverse)
+        assertEquals("rot", next?.answer)
+    }
+
+    @Test
+    fun `a card asked both ways is sure only both ways, and ticked off its back is forgotten`() = runBlocking {
+        val sure = Card(languageId = 1, front = "a", back = "b", interval = 30, bothWays = true, reverseInterval = 30)
+        assertTrue(sure.sure)
+        assertFalse(sure.copy(reverseInterval = 20).sure)
+        assertFalse(sure.copy(reverseInterval = null).sure)
+        assertTrue(sure.copy(bothWays = false, reverseInterval = null).sure)
+
+        val arabic = language("Arabisch")
+        val book = both(arabic, "Buch")
+        database.cards().update(checkNotNull(database.cards().card(book)).copy(interval = 30, reverseInterval = 10, reverseDue = today))
+        assertEquals(0, database.cards().sureCount(arabic))
+        assertEquals(Saving.Saved(book), cards.save(book, CardDraft("Buch", "Buch?", bothWays = false)))
+        val saved = checkNotNull(database.cards().card(book))
+        assertFalse(saved.bothWays)
+        assertNull(saved.reverseDue)
+        assertNull(saved.reverseInterval)
+        assertEquals(30, saved.interval)
+        assertEquals(1, database.cards().sureCount(arabic))
+    }
+
+    @Test
+    fun `ticking off a card's back forgets its answers that way and may do the day's workload`() = runBlocking {
+        val done = mutableListOf<Long>()
+        val told = Flashcards({ database }, clock, documents, Dispatchers.Unconfined, onWorkloadDone = { done += it })
+        val arabic = language("Arabisch")
+        val book = both(arabic, "Buch")
+        told.answer(book, Rating.Good)
+        clock.now = berlin("2026-11-13T10:00")
+        told.answer(book, Rating.Good, reverse = true)
+        assertEquals(listOf(false, true), database.cards().reviewsOf(book).map { it.reverse })
+
+        // The next day its back is due, and nothing else.
+        val saved = checkNotNull(database.cards().card(book))
+        database.cards().update(saved.copy(due = LocalDate.parse("2026-11-20"), reverseDue = LocalDate.parse("2026-11-14")))
+        clock.now = berlin("2026-11-14T10:00")
+        assertEquals(listOf(true), workload(arabic, LocalDate.parse("2026-11-14")).remaining.map { it.reverse })
+
+        // Each answer before did its day's workload.
+        done.clear()
+        told.save(book, CardDraft("Buch", "Buch?", bothWays = false))
+        assertEquals(listOf(false), database.cards().reviewsOf(book).map { it.reverse })
+        assertEquals("the workload is done with it", listOf(arabic), done)
+    }
+
+    @Test
+    fun `cards made many at once are asked both ways if ticked`() = runBlocking {
+        val arabic = language("Arabisch")
+        cards.createAll(arabic, listOf(CardDraft("rot", "ahmar"), CardDraft("blau", "azraq")), topicId = null, bothWays = true)
+        assertEquals(listOf(true, true), database.cards().of(arabic).map { it.bothWays })
+    }
+
     /** Asks the card [front] until it is sure, the days going by as it is due. */
     private suspend fun makeSure(front: String) {
         repeat(5) {
@@ -468,8 +594,8 @@ class FlashcardsTest {
     private suspend fun answerInRound(round: Round, rating: Rating): Round {
         val language = database.languages().languages().first { !it.archived }.id
         val card = checkNotNull(round.current(workload(language)))
-        cards.answer(card.id, rating)
-        return round.answered(card.id, rating)
+        cards.answer(card.id, rating, reverse = card.reverse)
+        return round.answered(card, rating)
     }
 
     private suspend fun workload(languageId: Long, on: LocalDate = today): Workload = checkNotNull(cards.workload(languageId, on).first())
@@ -479,6 +605,8 @@ class FlashcardsTest {
     private suspend fun topic(languageId: Long, name: String) = (languages.createTopic(languageId, name) as Saving.Saved).id
 
     private suspend fun card(languageId: Long, front: String) = (cards.create(languageId, CardDraft(front, "$front?")) as Saving.Saved).id
+
+    private suspend fun both(languageId: Long, front: String) = (cards.create(languageId, CardDraft(front, "$front?", bothWays = true)) as Saving.Saved).id
 
     private fun berlin(time: String): Instant = LocalDateTime.parse(time).atZone(clock.zone).toInstant()
 }

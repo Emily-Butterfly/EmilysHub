@@ -50,7 +50,7 @@ interface WishDao {
     /** The Karten-Ziele of the goals, each with its language and how many of its cards are sure now (SPEC.md §15). */
     @Query(
         "SELECT g.goal_id, g.language_id, l.name AS language, g.count, " +
-            "(SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND c.interval >= ${Card.SURE_DAYS}) AS sure " +
+            "(SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND ${Card.SURE_SQL}) AS sure " +
             "FROM card_goals g JOIN languages l ON l.id = g.language_id",
     )
     fun observeGoalCards(): Flow<List<GoalCards>>
@@ -64,7 +64,7 @@ interface WishDao {
         "SELECT status = :done FROM wishes WHERE parent_id = :goalId " +
             "UNION ALL SELECT done_at IS NOT NULL FROM todos WHERE goal_id = :goalId AND next_id IS NULL " +
             "UNION ALL SELECT taken FROM exams WHERE goal_id = :goalId " +
-            "UNION ALL SELECT (SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND c.interval >= ${Card.SURE_DAYS}) " +
+            "UNION ALL SELECT (SELECT COUNT(*) FROM cards c WHERE c.language_id = g.language_id AND ${Card.SURE_SQL}) " +
             ">= g.count FROM card_goals g WHERE g.goal_id = :goalId",
     )
     suspend fun partsBesideRoutinesDone(goalId: Long, done: WishStatus = WishStatus.Done): List<Boolean>

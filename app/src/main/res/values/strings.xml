@@ -1500,7 +1500,12 @@
     <string name="cards_done_today">Für heute geschafft</string>
     <string name="cards_practice">Üben</string>
     <string name="practice_position">%1$d von %2$d</string>
+    <string name="card_both_ways">In beide Richtungen abfragen</string>
+    <string name="card_both_ways_off_title">Rückrichtung nicht mehr abfragen?</string>
+    <string name="card_both_ways_off_text">Was für die Rückrichtung geplant wurde, geht beim Speichern verloren. Die Hinrichtung bleibt, wie sie ist.</string>
+    <string name="card_both_ways_off">Nicht mehr abfragen</string>
     <string name="practice_reveal">Aufdecken</string>
+    <string name="practice_reverse">Rückrichtung</string>
     <string name="practice_again">Nochmal</string>
     <string name="practice_hard">Schwer</string>
     <string name="practice_good">Gut</string>

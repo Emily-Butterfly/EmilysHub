@@ -226,6 +226,12 @@ Abgestimmt im Interview vom 16.11.2026; Sammel-Issue #135. Spezifikation §17 (G
 | 139 | [Garmin-Export: Wochenauswertung, Verlauf, Tagesansicht & PDF](139-garmin-export-anzeige.md) | 🤖 | 137, 138 |
 | 140 | [Monatsfragebogen FUNCAP55](140-monatsfragebogen-funcap.md) | 🤖 | – |
 
+## Einzeltickets
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 141 | [Vokabeltrainer: Karten in beide Richtungen abfragen](141-vokabeln-beide-richtungen.md) | 🤖 | – |
+
 ## Ohne Ticket
 
 Was aus dem Gutachten noch kein Ticket hat, steht in [ohne-ticket.md](ohne-ticket.md), mit Befund, Fundstelle und Vorschlag, damit es sich in einem neuen Chat aufgreifen lässt.

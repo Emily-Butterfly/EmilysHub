@@ -836,3 +836,20 @@ val MIGRATION_53_54 = object : Migration(53, 54) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_todos_done_at` ON `todos` (`done_at`)")
     }
 }
+
+/**
+ * 54 → 55: a card may be asked both ways, each planned on its own, and an answer tells which way it was asked (#141).
+ * The cards there are asked from their front only, as before.
+ */
+val MIGRATION_54_55 = object : Migration(54, 55) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `both_ways` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_stability` REAL")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_difficulty` REAL")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_first_review` TEXT")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_last_review` TEXT")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_due` TEXT")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `reverse_interval` INTEGER")
+        db.execSQL("ALTER TABLE `card_reviews` ADD COLUMN `reverse` INTEGER NOT NULL DEFAULT 0")
+    }
+}

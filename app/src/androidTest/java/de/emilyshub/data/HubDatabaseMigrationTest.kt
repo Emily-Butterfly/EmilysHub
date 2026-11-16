@@ -1180,6 +1180,33 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 54 moves to version 55 with the cards asked from their front only, then a card asked both ways is kept`() {
+        createAtVersion(54) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+            it.execSQL(
+                "INSERT INTO cards (id, language_id, front, back, transcription, note, stability, difficulty, first_review, last_review, due, interval) " +
+                    "VALUES (1, 1, 'kitab', 'Buch', '', '', 30.0, 5.0, '2026-10-01', '2026-11-01', '2026-12-01', 30)",
+            )
+            it.execSQL("INSERT INTO card_reviews (id, card_id, at, grade) VALUES (1, 1, '2026-11-01T07:00:00Z', 3)")
+        }
+
+        withMigratedDatabase { database ->
+            val cards = database.cards()
+            val book = checkNotNull(cards.card(1))
+            assertEquals(false, book.bothWays)
+            assertEquals(null, book.reverseDue)
+            assertEquals(listOf(false), cards.reviewsOf(1).map { it.reverse })
+            assertEquals("sure from its front", 1, cards.sureCount(1))
+
+            cards.update(book.copy(bothWays = true, reverseInterval = 2, reverseDue = LocalDate.parse("2026-11-20")))
+            cards.insert(CardReview(cardId = 1, at = Instant.parse("2026-11-18T07:00:00Z"), grade = 3, reverse = true))
+            assertEquals(LocalDate.parse("2026-11-20"), cards.card(1)?.reverseDue)
+            assertEquals(listOf(false, true), cards.reviewsOf(1).map { it.reverse })
+            assertEquals("sure only both ways", 0, cards.sureCount(1))
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

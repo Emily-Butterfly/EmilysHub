@@ -200,6 +200,20 @@ class VocabularyCountsTest {
     }
 
     @Test
+    fun `ticking a sure card both ways takes it from a Karten-Ziel reached, and ticking it off gives it back`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = card(arabic, "kitab")
+        val goal = wishes.create(WishDraft("Wortschatz", cardLanguageId = arabic, cardCount = "1"))
+        makeSure(arabic, "kitab")
+        assertEquals(WishStatus.Done, wishes.get(goal)?.status)
+
+        cards.save(book, CardDraft("kitab", "kitab?", bothWays = true))
+        assertEquals("its back is new", WishStatus.InProgress, wishes.get(goal)?.status)
+        cards.save(book, CardDraft("kitab", "kitab?", bothWays = false))
+        assertEquals(WishStatus.Done, wishes.get(goal)?.status)
+    }
+
+    @Test
     fun `a Karten-Ziel's number is 1 to 100 000, one a goal, kept in its editor, and gone with its goal, the cards staying`() = runBlocking {
         val arabic = language("Arabisch")
         card(arabic, "kitab")

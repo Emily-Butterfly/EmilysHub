@@ -46,9 +46,13 @@ interface CardDao {
     @Query("DELETE FROM card_goals WHERE goal_id = :goalId")
     suspend fun deleteGoal(goalId: Long)
 
-    /** How many cards of the language are "sicher" (SPEC.md §15). */
-    @Query("SELECT COUNT(*) FROM cards WHERE language_id = :languageId AND interval >= ${Card.SURE_DAYS}")
+    /** How many cards of the language are "sicher" (SPEC.md §15), both ways if asked so (#141). */
+    @Query("SELECT COUNT(*) FROM cards c WHERE c.language_id = :languageId AND ${Card.SURE_SQL}")
     suspend fun sureCount(languageId: Long): Int
+
+    /** Deletes the answers to the card [cardId] asked from its back (#141). */
+    @Query("DELETE FROM card_reviews WHERE card_id = :cardId AND reverse = 1")
+    suspend fun deleteReverseReviews(cardId: Long)
 
     @Query("SELECT * FROM card_reviews WHERE card_id = :cardId ORDER BY id")
     suspend fun reviewsOf(cardId: Long): List<CardReview>

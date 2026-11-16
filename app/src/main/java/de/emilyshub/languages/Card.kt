@@ -17,7 +17,8 @@ import java.time.LocalDate
  * of the language's topics, none once that topic is deleted. What FSRS-6 planned for it ([Fsrs]): its [stability] and
  * [difficulty], the day it was first asked ([firstReview]), for the limit of new cards a day, the day it was asked last
  * ([lastReview]), the day it is due ([due]) and the interval planned last, in days ([interval]); a new card has none of
- * them. Its language cannot be deleted while it is there.
+ * them. Asked [bothWays] (#141), it is also asked from its back to its front, planned on its own as the [reverse]
+ * fields say, as a second card would be. Its language cannot be deleted while it is there.
  */
 @Entity(
     tableName = "cards",
@@ -41,18 +42,48 @@ data class Card(
     @ColumnInfo(name = "last_review") val lastReview: LocalDate? = null,
     val due: LocalDate? = null,
     val interval: Int? = null,
+    @ColumnInfo(name = "both_ways", defaultValue = "0") val bothWays: Boolean = false,
+    @ColumnInfo(name = "reverse_stability") val reverseStability: Double? = null,
+    @ColumnInfo(name = "reverse_difficulty") val reverseDifficulty: Double? = null,
+    @ColumnInfo(name = "reverse_first_review") val reverseFirstReview: LocalDate? = null,
+    @ColumnInfo(name = "reverse_last_review") val reverseLastReview: LocalDate? = null,
+    @ColumnInfo(name = "reverse_due") val reverseDue: LocalDate? = null,
+    @ColumnInfo(name = "reverse_interval") val reverseInterval: Int? = null,
 ) {
-    /** What FSRS knows of it; none while it is new. */
-    val memory: Memory? get() = if (stability != null && difficulty != null) Memory(stability, difficulty) else null
+    /** It asked from its front, and, [bothWays], from its back too: what a day's workload and a topic take. */
+    val prompts: List<Prompt> get() = listOfNotNull(Prompt(this), Prompt(this, reverse = true).takeIf { bothWays })
+
+    /** The day the next of its directions is due, none while all are new: what the tab Karten shows. */
+    val nextDue: LocalDate? get() = listOfNotNull(due, reverseDue.takeIf { bothWays }).minOrNull()
+
+    /** Whether it was never asked one of the ways it is asked: its back may come as a new card although its front is due later. */
+    val newAnyWay: Boolean get() = new || (bothWays && reverseStability == null)
+
+    /** With what was planned from its back forgotten, as when asking it both ways is ticked off. */
+    fun withoutReverse() = copy(
+        bothWays = false,
+        reverseStability = null,
+        reverseDifficulty = null,
+        reverseFirstReview = null,
+        reverseLastReview = null,
+        reverseDue = null,
+        reverseInterval = null,
+    )
+
+    /** What FSRS knows of it from its front; none while it is new. */
+    val memory: Memory? get() = Prompt(this).memory
 
     /** Whether it was never asked. */
     val new: Boolean get() = memory == null
 
-    /** Whether it is "sicher" (SPEC.md §15): the interval planned last is [SURE_DAYS] or longer. */
-    val sure: Boolean get() = (interval ?: 0) >= SURE_DAYS
+    /**
+     * Whether it is "sicher" (SPEC.md §15): the interval planned last is [SURE_DAYS] or longer, [bothWays] in both
+     * directions (#141).
+     */
+    val sure: Boolean get() = (interval ?: 0) >= SURE_DAYS && (!bothWays || (reverseInterval ?: 0) >= SURE_DAYS)
 
-    /** Whether it is due on [today]: asked before and due then or earlier. */
-    fun dueOn(today: LocalDate): Boolean = due?.let { !it.isAfter(today) } == true
+    /** Whether it is due on [today] from its front: asked before and due then or earlier. */
+    fun dueOn(today: LocalDate): Boolean = Prompt(this).dueOn(today)
 
     companion object {
         /** The longest a card's front may be, in characters. */
@@ -69,7 +100,75 @@ data class Card(
 
         /** From how long an interval on a card is "sicher", in days, as Anki calls a card "mature". */
         const val SURE_DAYS = 21
+
+        /** Whether the card `c` is "sicher" ([sure]), as SQL tells it: the queries using it name the cards `c`. */
+        const val SURE_SQL = "(c.interval >= $SURE_DAYS AND (c.both_ways = 0 OR c.reverse_interval >= $SURE_DAYS))"
     }
+}
+
+/** Which way a card is asked, by its id ([cardId]): from its front, or from its back ([reverse]). Saved by the practice. */
+data class PromptKey(val cardId: Long, val reverse: Boolean) : Serializable
+
+/**
+ * The [card] asked one way (SPEC.md §15; #141): from its front to its back, or [reverse], from its back to its front,
+ * each with what was planned for it alone, as two cards would have.
+ */
+data class Prompt(val card: Card, val reverse: Boolean = false) {
+    val key: PromptKey get() = PromptKey(card.id, reverse)
+
+    /** Its card's id. */
+    val id: Long get() = card.id
+
+    /** Its card's front, whichever way it is asked. */
+    val front: String get() = card.front
+
+    /** What is asked: the front, or reversed the back. */
+    val question: String get() = if (reverse) card.back else card.front
+
+    /** What it answers: the back, or reversed the front. */
+    val answer: String get() = if (reverse) card.front else card.back
+
+    val stability: Double? get() = if (reverse) card.reverseStability else card.stability
+    val difficulty: Double? get() = if (reverse) card.reverseDifficulty else card.difficulty
+    val firstReview: LocalDate? get() = if (reverse) card.reverseFirstReview else card.firstReview
+    val lastReview: LocalDate? get() = if (reverse) card.reverseLastReview else card.lastReview
+    val due: LocalDate? get() = if (reverse) card.reverseDue else card.due
+    val interval: Int? get() = if (reverse) card.reverseInterval else card.interval
+
+    /** What FSRS knows of it; none while it is new. */
+    val memory: Memory? get() = stability?.let { s -> difficulty?.let { d -> Memory(s, d) } }
+
+    /** Whether it was never asked this way. */
+    val new: Boolean get() = memory == null
+
+    /** Whether it is "sicher" this way. */
+    val sure: Boolean get() = (interval ?: 0) >= Card.SURE_DAYS
+
+    /** Whether it is due on [today]: asked before and due then or earlier. */
+    fun dueOn(today: LocalDate): Boolean = due?.let { !it.isAfter(today) } == true
+
+    companion object {
+        /** The due ones in the order asked: the longest due first, then in the order made, a card's front before its back. */
+        val BY_DUE: Comparator<Prompt> = compareBy<Prompt>({ it.due }, { it.id }, { it.reverse })
+
+        /** The new ones in the order asked: in the order made, a card's front before its back. */
+        val BY_MADE: Comparator<Prompt> = compareBy<Prompt>({ it.id }, { it.reverse })
+    }
+
+    /** Its card with what was planned for it this way set: [memory], asked first and last, due and [interval]. */
+    fun planned(memory: Memory, firstReview: LocalDate?, lastReview: LocalDate, due: LocalDate, interval: Int): Card =
+        if (reverse) {
+            card.copy(
+                reverseStability = memory.stability,
+                reverseDifficulty = memory.difficulty,
+                reverseFirstReview = firstReview,
+                reverseLastReview = lastReview,
+                reverseDue = due,
+                reverseInterval = interval,
+            )
+        } else {
+            card.copy(stability = memory.stability, difficulty = memory.difficulty, firstReview = firstReview, lastReview = lastReview, due = due, interval = interval)
+        }
 }
 
 /**
@@ -88,6 +187,8 @@ data class CardReview(
     @ColumnInfo(name = "card_id") val cardId: Long,
     val at: Instant,
     val grade: Int,
+    /** Whether it was asked from its back (#141). */
+    @ColumnInfo(defaultValue = "0") val reverse: Boolean = false,
 )
 
 /** What keeps a [CardDraft] from being saved, each shown at its field in the editor. */
@@ -106,13 +207,17 @@ enum class CardProblem {
     TopicNotOffered,
 }
 
-/** A card as typed into its editor: [front], [back], [transcription], [note] and [topicId]. Serializable, so the editor keeps it. */
+/**
+ * A card as typed into its editor: [front], [back], [transcription], [note], [topicId] and whether it is asked
+ * [bothWays] (#141). Serializable, so the editor keeps it.
+ */
 data class CardDraft(
     val front: String = "",
     val back: String = "",
     val transcription: String = "",
     val note: String = "",
     val topicId: Long? = null,
+    val bothWays: Boolean = false,
 ) : Serializable {
     /** As it is saved: the front and transcription on a single line, the back and note cleaned. */
     fun cleaned() = copy(
@@ -122,8 +227,14 @@ data class CardDraft(
         note = InputText.multiLine(note).trim(),
     )
 
-    /** [card] with what is typed here: its sides, transcription, note and topic; what was planned for it stays. */
-    fun applyTo(card: Card) = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId)
+    /**
+     * [card] with what is typed here: its sides, transcription, note, topic and whether asked both ways; what was planned
+     * for it stays, but for its back once it is no longer asked so.
+     */
+    fun applyTo(card: Card): Card {
+        val typed = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId, bothWays = bothWays)
+        return if (bothWays) typed else typed.withoutReverse()
+    }
 
     /** With front and back swapped, for a list written the other way round. */
     fun swapped() = copy(front = back, back = front)
@@ -147,7 +258,7 @@ data class CardDraft(
 
     companion object {
         /** [card] as its editor opens it. */
-        fun of(card: Card) = CardDraft(card.front, card.back, card.transcription, card.note, card.topicId)
+        fun of(card: Card) = CardDraft(card.front, card.back, card.transcription, card.note, card.topicId, card.bothWays)
     }
 }
 

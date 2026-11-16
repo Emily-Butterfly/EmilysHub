@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
-import de.emilyshub.languages.Card
+import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Rating
 import de.emilyshub.languages.Round
@@ -75,7 +75,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
     var round by rememberSaveable { mutableStateOf(Round()) }
     val scope = rememberCoroutineScope()
     // The card being answered, shown until the round has taken the answer in: the workload may come first.
-    var answering by remember { mutableStateOf<Card?>(null) }
+    var answering by remember { mutableStateOf<Prompt?>(null) }
 
     val shown = state
     if (shown == Gone) {
@@ -125,7 +125,7 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
             val (position, total) = round.position(workload)
             Text(stringResource(R.string.practice_position, position, total), color = MaterialTheme.colorScheme.onSurfaceVariant)
             CardFace(
-                card = card,
+                prompt = card,
                 intervals = flashcards.intervals(card),
                 hint = workload.firstTime,
                 enabled = answering == null,
@@ -133,8 +133,8 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                     answering = card
                     scope.launchNow {
                         // Practising a topic, its new cards do not count against those of the day (#107).
-                        flashcards.answer(card.id, rating, countsAsNew = topicId == null)
-                        round = round.answered(card.id, rating)
+                        flashcards.answer(card.id, rating, countsAsNew = topicId == null, reverse = card.reverse)
+                        round = round.answered(card, rating)
                         answering = null
                     }
                 },
@@ -144,20 +144,25 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
 }
 
 /**
- * The [card] shown: its front large; once revealed, its back, transcription and note, and the four answers, each with
- * its interval of [intervals] under it, and the [hint] under them on the first practice.
+ * The card shown, the way [prompt] asks it: what is asked large, its back, or reversed its front, with "Rückrichtung"
+ * above it (#141); once revealed, the other side, the transcription and the note, and the four answers, each with its
+ * interval of [intervals] under it, and the [hint] under them on the first practice.
  */
 @Composable
-internal fun CardFace(card: Card, intervals: Map<Rating, Int>, hint: Boolean, enabled: Boolean, onAnswer: (Rating) -> Unit) {
-    // Each card starts covered.
-    var revealed by rememberSaveable(card.id, card.lastReview) { mutableStateOf(false) }
-    Text(card.front, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+internal fun CardFace(prompt: Prompt, intervals: Map<Rating, Int>, hint: Boolean, enabled: Boolean, onAnswer: (Rating) -> Unit) {
+    val card = prompt.card
+    // Each card starts covered, each way.
+    var revealed by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf(false) }
+    if (prompt.reverse) {
+        Text(stringResource(R.string.practice_reverse), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+    Text(prompt.question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     if (!revealed) {
         Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.practice_reveal)) }
         return
     }
     HorizontalDivider()
-    Text(card.back, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    Text(prompt.answer, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     if (card.transcription.isNotEmpty()) {
         Text(card.transcription, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
@@ -202,5 +207,5 @@ private data object Gone : PracticeState
 
 private data class Practising(val workload: Workload) : PracticeState
 
-/** A topic practised (#107): all its [cards], in their order. */
-private data class PractisingTopic(val cards: List<Card>) : PracticeState
+/** A topic practised (#107): all its [cards], the ways they are asked, in their order. */
+private data class PractisingTopic(val cards: List<Prompt>) : PracticeState
