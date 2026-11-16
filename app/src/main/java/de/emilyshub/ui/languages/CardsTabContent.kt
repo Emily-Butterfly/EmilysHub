@@ -132,7 +132,11 @@ internal fun CardsTabContent(
                         shown.topics.forEach { topic -> ChoiceChip(topic.name, chosen = filter?.id == topic.id) { chooseTopic(topic.id) } }
                     }
                     if (anyStuck) {
-                        ChoiceChip(stringResource(R.string.cards_stuck_filter), chosen = stuckFilter) { stuckOnly = true }
+                        ChoiceChip(stringResource(R.string.cards_stuck_filter), chosen = stuckFilter) {
+                            // In the place of the topic, which does not come back once none hakt any more.
+                            onTopicFilterChange(null)
+                            stuckOnly = true
+                        }
                     }
                 }
                 CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })

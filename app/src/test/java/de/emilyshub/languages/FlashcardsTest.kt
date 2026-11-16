@@ -246,8 +246,8 @@ class FlashcardsTest {
         val book = card(arabic, "Buch")
         // Its back: known at first, then four times not.
         cards.answer(door, Rating.Good, reverse = true)
-        repeat(Stuck.AGAIN) { cards.answer(door, Rating.Again, reverse = true) }
-        repeat(Stuck.AGAIN) { cards.answer(book, Rating.Again) }
+        repeat(Stuck.AGAIN_LIMIT) { cards.answer(door, Rating.Again, reverse = true) }
+        repeat(Stuck.AGAIN_LIMIT) { cards.answer(book, Rating.Again) }
 
         assertEquals(mapOf("Buch" to false, "Tür" to true), cards.tab(arabic).first()!!.cards.associate { it.card.front to it.stuck })
         assertEquals(1, cards.summary(arabic, today).first().stuck)
