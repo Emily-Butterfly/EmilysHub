@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14**, #122 **Etappe 15** und #135 **Etappe 16**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14**, #122 **Etappe 15**, #135 **Etappe 16** und #142 **Etappe 17**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -225,6 +225,28 @@ Abgestimmt im Interview vom 16.11.2026; Sammel-Issue #135. Spezifikation §17 (G
 | 138 | [Garmin-Export: FIT-Decoder & feine Werte](138-garmin-export-fit.md) | 🤖 | 136, 137 |
 | 139 | [Garmin-Export: Wochenauswertung, Verlauf, Tagesansicht & PDF](139-garmin-export-anzeige.md) | 🤖 | 137, 138 |
 | 140 | [Monatsfragebogen FUNCAP55](140-monatsfragebogen-funcap.md) | 🤖 | – |
+
+## Etappe 17 – Vokabeltrainer: Bedienung & Erweiterungen
+
+Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht in einem Interview abgestimmt. Sammel-Issue #142. Erst die Verbesserungen (#143–#147), dann die Features; gebaut wird in der Reihenfolge der Tabelle. #156 und #157 brauchen vorher Entscheidungen; Slices mit Schemaänderung (#153–#157) nacheinander. Hausaufgaben aus der Session-Notiz bekommen bewusst kein Ticket.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 143 | [Vokabeltrainer: fällig und neu getrennt zählen](143-vokabeln-startseite-faellig-neu.md) | 🤖 | – |
+| 144 | [Vokabeltrainer: Kartenliste mit voller Breite für Vorder- und Rückseite](144-vokabeln-kartenliste-zeilen.md) | 🤖 | – |
+| 145 | [Vokabeltrainer: letzte Antwort zurücknehmen](145-vokabeln-antwort-zuruecknehmen.md) | 🤖 | – |
+| 146 | [Vokabeltrainer: Karte aus der Abfrage heraus ändern](146-vokabeln-karte-aus-abfrage-aendern.md) | 🤖 | – |
+| 147 | [Vokabeltrainer: Bilanz am Ende der Runde und weiter zur nächsten Sprache](147-vokabeln-ende-der-runde.md) | 🤖 | – |
+| 148 | [Vokabeltrainer: Prüfung üben](148-vokabeln-pruefung-ueben.md) | 🤖 | – |
+| 149 | [Vokabeltrainer: hakende Karten erkennen](149-vokabeln-hakende-karten.md) | 🤖 | – |
+| 150 | [Vokabeltrainer: Übe-Bilanz und Vorschau in der Auswertung](150-vokabeln-uebe-bilanz.md) | 🤖 | – |
+| 151 | [Sprachen: Tempo bis zur Prüfung](151-sprachen-pruefungsplan.md) | 🤖 | – |
+| 152 | [Eingang: als Karte einsortieren](152-eingang-als-karte.md) | 🤖 | – |
+| 153 | [Vokabeltrainer: Antwort eintippen](153-vokabeln-antwort-eintippen.md) | 🤖 | – |
+| 154 | [Vokabeltrainer: Vokalzeichen in der Abfrage ausblenden](154-vokabeln-vokalzeichen-ausblenden.md) | 🤖 | – |
+| 155 | [Vokabeltrainer: Beispielsatz mit Lücke](155-vokabeln-beispielsatz.md) | 🤖 | – |
+| 156 | [Vokabeltrainer: Rückstand nach einer Pause verteilen](156-vokabeln-rueckstand-verteilen.md) | 🙋 | 143 |
+| 157 | [Vokabeltrainer: Vorlesen mit der Sprachausgabe des Handys](157-vokabeln-sprachausgabe.md) | 🙋 | – |
 
 ## Einzeltickets
 
