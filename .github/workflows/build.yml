@@ -2,7 +2,10 @@
 name: Build
 
 on:
+  # Branches only: a tag publishes a run already built (release.yml) and builds nothing.
   push:
+    branches:
+      - '**'
   workflow_dispatch:
 
 permissions:

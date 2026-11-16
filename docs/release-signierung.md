@@ -71,6 +71,15 @@ Ist noch die Debug-APK (`emilyshub-debug`) installiert, deinstalliere sie vorher
 
 Installiere die APK aus einem späteren Lauf über die vorhandene App. Android bietet dann ein **Update** an, und die App behält ihre Daten. Erscheint stattdessen „App nicht installiert“, vergleiche die Fingerabdrücke der beiden Läufe.
 
+## Release auf GitHub
+
+Ein Tag `v0.1.<Nummer>` auf einem Commit macht die signierte Release-APK aus dem Build-Lauf mit dieser Nummer zu einem Release auf GitHub (`.github/workflows/release.yml`), als `emilyshub-0.1.<Nummer>.apk`. Gebaut wird dabei nichts; der Lauf muss für diesen Commit grün und signiert sein, sonst schlägt der Release-Workflow mit einem Hinweis fehl. Ein Tag startet keinen Build-Lauf.
+
+```
+git tag v0.1.364 <commit>
+git push origin v0.1.364
+```
+
 ## Versionsnummer
 
 Jeder Lauf des Workflows `build.yml` gibt der App seine laufende Nummer (`GITHUB_RUN_NUMBER`) als `versionCode` und `0.1.<Nummer>` als Version, dazu die ersten 7 Zeichen des Commits. Debug- und Release-APK eines Laufs tragen dieselbe Nummer. Die Einstellungen zeigen sie ganz unten, etwa „Version 0.1.412 · 2dc38f5“. Weil die Nummer steigt, lehnt Android einen älteren Build über einem neueren ab. Ein lokaler Build steht auf `versionCode` 1 und „0.1.0-lokal“.

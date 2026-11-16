@@ -1,0 +1,58 @@
+# A tag v0.1.<n> on a commit makes the signed release APK of Build run n of that commit a GitHub Release
+# (docs/release-signierung.md): the APK the run built and signed, not a build of its own, so its version is the run's.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # To read the Build runs and their artifacts, and to publish the release.
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      SHA: ${{ github.sha }}
+    steps:
+      - name: Build-Lauf des Commits finden
+        id: run
+        run: |
+          number="${TAG#v0.1.}"
+          if [[ ! "$number" =~ ^[0-9]+$ ]]; then
+            echo "::error::Der Tag muss v0.1.<Laufnummer> heißen, etwa v0.1.364; er heißt $TAG."
+            exit 1
+          fi
+          id=$(gh run list -R "$REPO" --workflow build.yml --commit "$SHA" --status success --limit 50 \
+            --json databaseId,number --jq ".[] | select(.number == $number) | .databaseId")
+          if [ -z "$id" ]; then
+            echo "::error::Kein erfolgreicher Build-Lauf Nr. $number für den Commit $SHA."
+            exit 1
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Signierte Release-APK des Laufs holen
+        env:
+          RUN_ID: ${{ steps.run.outputs.id }}
+          NUMBER: ${{ steps.run.outputs.number }}
+        run: |
+          gh run download "$RUN_ID" -R "$REPO" -n emilyshub-release -D apk
+          mv apk/app-release.apk "emilyshub-0.1.$NUMBER.apk"
+
+      - name: Release anlegen
+        env:
+          RUN_ID: ${{ steps.run.outputs.id }}
+          NUMBER: ${{ steps.run.outputs.number }}
+        run: |
+          gh release create "$TAG" "emilyshub-0.1.$NUMBER.apk" -R "$REPO" --verify-tag \
+            --title "EmilysHub 0.1.$NUMBER" \
+            --notes "Signierte Release-APK aus dem Build-Lauf Nr. $NUMBER ($SHA): https://github.com/$REPO/actions/runs/$RUN_ID"
