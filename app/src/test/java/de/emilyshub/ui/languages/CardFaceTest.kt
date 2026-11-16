@@ -6,6 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -204,6 +209,63 @@ class CardFaceTest {
 
             assertTrue(closed)
             assertEquals(listOf(true), runBlocking { database.cards().of(languageId).map { it.bothWays } })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `asked from its back, the Beispielsatz stands with a gap for the front, and uncovered with the front in it`() {
+        val card = Card(id = 1, languageId = 1, front = "Kitab", back = "Buch", bothWays = true, example = "Das kitab ist neu.")
+        Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
+            Column { CardFace(Prompt(card, reverse = true), Rating.entries.associateWith { 1 }, hint = false, enabled = true, onAnswer = {}) }
+        }
+        compose.onNodeWithText("Das … ist neu.").assertExists()
+        compose.onNodeWithText("Das kitab ist neu.").assertDoesNotExist()
+        compose.onNodeWithText("Aufdecken").performClick()
+        compose.onNodeWithText("Das kitab ist neu.").assertExists()
+        compose.onNodeWithText("Das … ist neu.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `asked from its front, the Beispielsatz stands only once uncovered, as one without the front does either way`() {
+        val card = Card(id = 1, languageId = 1, front = "kitab", back = "Buch", bothWays = true, example = "Das kitab ist neu.")
+        val inflected = card.copy(example = "Die kutub sind neu.")
+        var prompt by mutableStateOf(Prompt(card))
+        Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
+            Column { key(prompt) { CardFace(prompt, Rating.entries.associateWith { 1 }, hint = false, enabled = true, onAnswer = {}) } }
+        }
+        compose.onNodeWithText("Das kitab ist neu.").assertDoesNotExist()
+        compose.onNodeWithText("Aufdecken").performClick()
+        compose.onNodeWithText("Das kitab ist neu.").assertExists()
+
+        prompt = Prompt(inflected, reverse = true)
+        compose.waitForIdle()
+        compose.onNodeWithText("Die kutub sind neu.").assertDoesNotExist()
+        compose.onNodeWithText("Aufdecken").performClick()
+        compose.onNodeWithText("Die kutub sind neu.").assertExists()
+    }
+
+    @Test
+    fun `the editor tells when the front does not stand in the Beispielsatz, and keeps it`() {
+        val database = inMemoryDatabase()
+        try {
+            val (flashcards, languageId) = flashcards(database)
+            val speech = FakeSpeech()
+            Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
+                CardEditorScreen(flashcards, speech, CardEditorTarget.New(languageId), onClose = {})
+            }
+            compose.onNodeWithText("Vorderseite").performTextInput("gehen")
+            compose.onNodeWithText("Rückseite").performTextInput("to go")
+            compose.onNodeWithText("Beispielsatz").performScrollTo().performTextInput("Ich ging nach Hause.")
+            val told = "Die Vorderseite steht so nicht im Satz; er wird erst nach dem Aufdecken gezeigt."
+            compose.onNodeWithText(told, useUnmergedTree = true).assertExists()
+            compose.onNodeWithText("Ich ging nach Hause.").performTextReplacement("Wir gehen nach Hause.")
+            compose.onNodeWithText(told, useUnmergedTree = true).assertDoesNotExist()
+            compose.onNodeWithText("Speichern").performClick()
+            compose.waitForIdle()
+
+            assertEquals(listOf("Wir gehen nach Hause."), runBlocking { database.cards().of(languageId).map { it.example } })
         } finally {
             database.close()
         }

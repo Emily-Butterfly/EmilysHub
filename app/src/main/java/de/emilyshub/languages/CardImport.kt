@@ -21,7 +21,7 @@ sealed interface CardFile {
 /**
  * Cards from where the words stand already (SPEC.md §15, Anlegen; #105): the lines of a lesson's note with two sides
  * split by " – ", " - ", " = " or a tab, Markdown at their start and bold type aside; and a text file, a card on each
- * line, its front, back, transcription and note split by tab or semicolon, the last two optional, a field in quotes
+ * line, its front, back, transcription, note and Beispielsatz (#155) split by tab or semicolon, the last three optional, a field in quotes
  * allowed to hold the separator; a quote opens a field only at its start, elsewhere it is a letter like any other. Nothing read is cut short: a field too long leaves its line unread.
  */
 object CardImport {
@@ -77,8 +77,8 @@ object CardImport {
     private fun cardOf(line: String): CardDraft? {
         // A tab splits, if one stands outside quotes; else a semicolon. Both read quotes alike.
         val byTab = fields(line, '\t')
-        val fields = (if (byTab != null && byTab.size > 1) byTab else fields(line, ';'))?.takeIf { it.size in 2..4 } ?: return null
-        val draft = CardDraft(fields[0], fields[1], fields.getOrElse(2) { "" }, fields.getOrElse(3) { "" }).cleaned()
+        val fields = (if (byTab != null && byTab.size > 1) byTab else fields(line, ';'))?.takeIf { it.size in 2..5 } ?: return null
+        val draft = CardDraft(fields[0], fields[1], fields.getOrElse(2) { "" }, fields.getOrElse(3) { "" }, example = fields.getOrElse(4) { "" }).cleaned()
         return draft.takeIf { it.problems.isEmpty() }
     }
 

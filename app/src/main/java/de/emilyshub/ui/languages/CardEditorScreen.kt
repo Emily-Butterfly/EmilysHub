@@ -57,6 +57,7 @@ import de.emilyshub.data.Saving
 import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.CardProblem
+import de.emilyshub.languages.ExampleSentence
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.speech.Speech
 import de.emilyshub.ui.ChoiceChip
@@ -88,7 +89,8 @@ sealed interface CardEditorTarget : Serializable {
  * as in the notes. A new one can be saved with "Speichern und neue", which leaves the editor open for the next card,
  * with the topic and both ways as they were, so that a list is typed in one go. A saved one is deleted here, after
  * asking, with all it learnt. One that hakt says so atop, with what helps (#149). With a voice chosen for its language,
- * a loudspeaker at the front reads it aloud to listen to (#157).
+ * a loudspeaker at the front reads it aloud to listen to (#157). Its Beispielsatz (#155) tells when the front does not
+ * stand in it as the practice looks for it, which then shows it only once the card is uncovered.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -300,6 +302,27 @@ fun CardEditorScreen(flashcards: Flashcards, speech: Speech, target: CardEditorT
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     isError = CardProblem.NoteTooLong in problems,
                     supportingText = { LengthHint(InputText.lengthOf(clean.note), Card.NOTE_MAX) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // Told only once both are there: a sentence without its front is no gap to fill.
+            val exampleWithoutFront = InputText.isVisible(clean.example) && InputText.isVisible(clean.front) &&
+                ExampleSentence.wordIn(clean.example, clean.front) == null
+            DirectedBy(draft.example) {
+                OutlinedTextField(
+                    value = draft.example,
+                    onValueChange = { change(draft.copy(example = it)) },
+                    label = { Text(stringResource(R.string.card_example)) },
+                    minLines = 2,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    isError = CardProblem.ExampleTooLong in problems,
+                    supportingText = {
+                        if (exampleWithoutFront && CardProblem.ExampleTooLong !in problems) {
+                            Text(stringResource(R.string.card_example_not_found))
+                        } else {
+                            LengthHint(InputText.lengthOf(clean.example), Card.EXAMPLE_MAX)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

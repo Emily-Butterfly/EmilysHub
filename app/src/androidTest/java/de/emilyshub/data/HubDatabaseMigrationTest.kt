@@ -1221,6 +1221,22 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 56 moves to version 57 with no example on the cards there and then one written is kept`() {
+        createAtVersion(56) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+            it.execSQL("INSERT INTO cards (id, language_id, front, back, transcription, note) VALUES (1, 1, 'kitab', 'Buch', '', '')")
+        }
+
+        withMigratedDatabase { database ->
+            val cards = database.cards()
+            val book = checkNotNull(cards.card(1))
+            assertEquals("", book.example)
+            cards.update(book.copy(example = "Das ist ein kitab."))
+            assertEquals("Das ist ein kitab.", cards.card(1)?.example)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

@@ -860,3 +860,10 @@ val MIGRATION_55_56 = object : Migration(55, 56) {
         db.execSQL("ALTER TABLE `languages` ADD COLUMN `voice` TEXT")
     }
 }
+
+/** 56 → 57: a card may have a Beispielsatz (#155); the cards there have none. */
+val MIGRATION_56_57 = object : Migration(56, 57) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `example` TEXT NOT NULL DEFAULT ''")
+    }
+}

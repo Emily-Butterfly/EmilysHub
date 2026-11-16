@@ -52,9 +52,10 @@ class FlashcardsTest {
         assertEquals(Saving.Refused(setOf(CardProblem.FrontTaken)), cards.create(arabic, CardDraft(" buch ", "kitab")))
         assertEquals(Saving.Refused(setOf(CardProblem.FrontMissing, CardProblem.BackMissing)), cards.create(arabic, CardDraft(" ", "")))
         assertEquals(
-            setOf(CardProblem.FrontTooLong, CardProblem.BackTooLong, CardProblem.TranscriptionTooLong, CardProblem.NoteTooLong),
-            CardDraft("a".repeat(201), "b".repeat(501), "c".repeat(201), "d".repeat(501)).problems,
+            setOf(CardProblem.FrontTooLong, CardProblem.BackTooLong, CardProblem.TranscriptionTooLong, CardProblem.NoteTooLong, CardProblem.ExampleTooLong),
+            CardDraft("a".repeat(201), "b".repeat(501), "c".repeat(201), "d".repeat(501), example = "e".repeat(501)).problems,
         )
+        assertEquals(emptySet<CardProblem>(), CardDraft("a", "b", example = "e".repeat(500)).problems)
         assertTrue(cards.create(italian, CardDraft("Buch", "libro")) is Saving.Saved)
         val pen = card(arabic, "Stift")
         assertEquals(Saving.Refused(setOf(CardProblem.FrontTaken)), cards.save(pen, CardDraft("BUCH", "qalam")))
@@ -516,9 +517,9 @@ class FlashcardsTest {
 
     @Test
     fun `the cards of the tab are searched in all their fields, Arabic with or without vowel marks`() {
-        val row = CardRow(Card(languageId = 1, front = "كِتَاب", back = "Buch", transcription = "kitāb", note = "Plural kutub"), topic = null)
+        val row = CardRow(Card(languageId = 1, front = "كِتَاب", back = "Buch", transcription = "kitāb", note = "Plural kutub", example = "هذا كِتَابٌ جديد"), topic = null)
 
-        listOf("كتاب", "buch", "KITĀB", "kutub", "plural kut", "").forEach { assertTrue(it, row.matches(it)) }
+        listOf("كتاب", "buch", "KITĀB", "kutub", "plural kut", "جديد", "").forEach { assertTrue(it, row.matches(it)) }
         listOf("Stift", "buch stift").forEach { assertFalse(it, row.matches(it)) }
     }
 

@@ -65,12 +65,12 @@ interface SearchDao {
     suspend fun lessons(pattern: String): List<LessonCandidate>
 
     /**
-     * The cards of the Vokabeltrainer, by their front, back, transcription and note, titled by their sides and language
+     * The cards of the Vokabeltrainer, by their front, back, transcription, note and Beispielsatz (#155), titled by their sides and language
      * (SPEC.md §8, §15; #107).
      */
     @Query(
         "SELECT * FROM (SELECT c.id, c.front || ' – ' || c.back || ' · ' || l.name AS title, " +
-            "c.front || ' ' || c.back || ' ' || c.transcription || ' ' || c.note AS text " +
+            "c.front || ' ' || c.back || ' ' || c.transcription || ' ' || c.note || ' ' || c.example AS text " +
             "FROM cards c JOIN languages l ON l.id = c.language_id) WHERE text LIKE :pattern ESCAPE '\\'",
     )
     suspend fun cards(pattern: String): List<Candidate>

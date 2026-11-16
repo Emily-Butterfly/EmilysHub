@@ -185,19 +185,21 @@ class SearchTest {
     }
 
     @Test
-    fun `cards are found by front, back, transcription and note, with their language, Arabic with or without its vowel marks`() =
+    fun `cards are found by front, back, transcription, note and example, with their language, Arabic with or without its vowel marks`() =
         runBlocking {
             val languages = Languages(
                 { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
             )
             val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined)
             val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
-            val book = (cards.create(arabic, CardDraft("كِتَاب", "Buch", "kitāb", "Plural kutub")) as Saving.Saved).id
+            val book = (cards.create(arabic, CardDraft("كِتَاب", "Buch", "kitāb", "Plural kutub", example = "هذا كِتَابٌ جديد")) as Saving.Saved).id
 
             assertEquals(listOf(book), search.find("كتاب").cardIds())
             assertEquals(listOf(book), search.find("buch").cardIds())
             assertEquals(listOf(book), search.find("kitāb").cardIds())
             assertEquals(listOf(book), search.find("kutub").cardIds())
+            // Its Beispielsatz (#155).
+            assertEquals(listOf(book), search.find("جديد").cardIds())
             assertEquals(SearchHit(book, "كِتَاب – Buch · Arabisch"), search.find("buch").single { it.area == SearchArea.Cards }.hits.single())
         }
 

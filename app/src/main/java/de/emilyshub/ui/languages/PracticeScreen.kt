@@ -53,12 +53,17 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.languages.Answered
+import de.emilyshub.languages.ExampleSentence
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Rating
@@ -303,7 +308,9 @@ private val UndoIcon: ImageVector
  * the thumb, "Aufdecken", which a tap on the card does too, then the four answers, each with its interval of
  * [intervals] under it, as TalkBack also says it, and the [hint] under them on the first practice. With [readAloud], a
  * loudspeaker reads its front, the side in the language, when pressed: asked from it, under it; reversed, only once
- * uncovered, so as not to give the answer away (#157).
+ * uncovered, so as not to give the answer away (#157). Its Beispielsatz (#155), once uncovered, stands under the other
+ * side with its front marked there; asked from its back, it stands under the question already, with a gap where its
+ * front is ([ExampleSentence]), until the card is uncovered. One that does not have its front so shows only uncovered.
  */
 @Composable
 internal fun CardFace(
@@ -318,6 +325,10 @@ internal fun CardFace(
     val card = prompt.card
     // Each card starts covered, each way.
     var revealed by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf(false) }
+    val example = card.example.takeIf { it.isNotEmpty() }
+    val word = remember(card.example, card.front) { example?.let { ExampleSentence.wordIn(it, card.front) } }
+    // Asked from the back, the sentence with its gap is a help to the question.
+    val exampleAsHelp = prompt.reverse && word != null
     Column(modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -335,10 +346,12 @@ internal fun CardFace(
             }
             Text(prompt.question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             if (!prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
+            if (example != null && exampleAsHelp) ExampleLine(example, word, covered = !revealed)
             if (revealed) {
                 HorizontalDivider()
                 Text(prompt.answer, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 if (prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
+                if (example != null && !exampleAsHelp) ExampleLine(example, word, covered = false)
                 if (card.transcription.isNotEmpty()) {
                     Text(card.transcription, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
@@ -364,6 +377,25 @@ internal fun CardFace(
             }
         }
     }
+}
+
+/**
+ * A card's Beispielsatz [sentence] (#155): [covered], with [ExampleSentence.GAP] in place of its front at [word]; else
+ * with its front there marked, in bold and the primary colour. Without [word], the sentence as it is.
+ */
+@Composable
+private fun ExampleLine(sentence: String, word: IntRange?, covered: Boolean) {
+    val marked = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+    val text = buildAnnotatedString {
+        if (word == null) {
+            append(sentence)
+        } else {
+            append(sentence.substring(0, word.first))
+            withStyle(marked) { append(if (covered) ExampleSentence.GAP else sentence.substring(word)) }
+            append(sentence.substring(word.last + 1))
+        }
+    }
+    Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
 }
 
 /** The four answers in a row, each with its interval of [intervals] under it, "Nochmal" set apart in its colour. */

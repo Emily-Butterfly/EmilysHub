@@ -1479,6 +1479,8 @@
     <string name="card_back">Rückseite</string>
     <string name="card_transcription">Umschrift</string>
     <string name="card_note">Notiz</string>
+    <string name="card_example">Beispielsatz</string>
+    <string name="card_example_not_found">Die Vorderseite steht so nicht im Satz; er wird erst nach dem Aufdecken gezeigt.</string>
     <string name="card_topic">Thema</string>
     <string name="card_topic_none">Ohne Thema</string>
     <string name="card_front_missing">Die Vorderseite fehlt.</string>
@@ -1558,7 +1560,7 @@
     <string name="cards_import_too_large">Die Datei ist größer als 1 MB und wird nicht gelesen.</string>
     <string name="cards_import_too_many_lines">Die Datei hat mehr als 2 000 Zeilen und wird nicht gelesen.</string>
     <string name="cards_import_not_text">Die Datei ist kein Text in UTF-8 und wird nicht gelesen.</string>
-    <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, getrennt mit Tabulator oder Semikolon.</string>
+    <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, Beispielsatz, getrennt mit Tabulator oder Semikolon.</string>
     <plurals name="cards_count">
         <item quantity="one">%1$d Karte</item>
         <item quantity="other">%1$d Karten</item>

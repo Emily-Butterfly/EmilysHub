@@ -13,18 +13,18 @@ Ein Wort sitzt besser im Zusammenhang. Eine Karte bekommt optional einen Beispie
 
 ## Akzeptanzkriterien
 
-- [ ] Neues optionales Feld „Beispielsatz“ an der Karte, bis 500 Zeichen, in der Sprache der Vorderseite; Text von rechts nach links wie die anderen Felder
-- [ ] Hinrichtung: aufgedeckt steht der Satz unter der Rückseite, das Wort darin hervorgehoben
-- [ ] Rückrichtung (#141): unter der Frage steht der Satz mit „…“ an der Stelle der Vorderseite; aufgedeckt mit dem Wort hervorgehoben
-- [ ] Das Wort wird im Satz gesucht wie in der Suche (Groß- und Kleinschreibung und Vokalzeichen zählen nicht); kommt es nicht vor (gebeugt), steht der Satz in beiden Richtungen erst nach dem Aufdecken da, und der Editor sagt: „Die Vorderseite steht so nicht im Satz; er wird erst nach dem Aufdecken gezeigt.“
-- [ ] Import aus Datei: fünftes optionales Feld nach der Notiz (#105); Suche findet den Satz (#107)
-- [ ] Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
-- [ ] SPEC.md §15 nennt das Feld
+- [x] Neues optionales Feld „Beispielsatz“ an der Karte, bis 500 Zeichen, in der Sprache der Vorderseite; Text von rechts nach links wie die anderen Felder
+- [x] Hinrichtung: aufgedeckt steht der Satz unter der Rückseite, das Wort darin hervorgehoben
+- [x] Rückrichtung (#141): unter der Frage steht der Satz mit „…“ an der Stelle der Vorderseite; aufgedeckt mit dem Wort hervorgehoben
+- [x] Das Wort wird im Satz gesucht wie in der Suche (Groß- und Kleinschreibung und Vokalzeichen zählen nicht); kommt es nicht vor (gebeugt), steht der Satz in beiden Richtungen erst nach dem Aufdecken da, und der Editor sagt: „Die Vorderseite steht so nicht im Satz; er wird erst nach dem Aufdecken gezeigt.“
+- [x] Import aus Datei: fünftes optionales Feld nach der Notiz (#105); Suche findet den Satz (#107)
+- [x] Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
+- [x] SPEC.md §15 nennt das Feld
 
 ## Tests
 
-- [ ] Unit: Lücke mit Großschreibung und Vokalzeichen, Wort nicht im Satz, Import mit fünftem Feld, Länge
-- [ ] UI: Rückrichtung mit Lücke, Hinrichtung aufgedeckt
+- [x] Unit: Lücke mit Großschreibung und Vokalzeichen, Wort nicht im Satz, Import mit fünftem Feld, Länge
+- [x] UI: Rückrichtung mit Lücke, Hinrichtung aufgedeckt
 
 ## Entscheidungen
 

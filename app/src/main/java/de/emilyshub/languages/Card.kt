@@ -18,7 +18,8 @@ import java.time.LocalDate
  * [difficulty], the day it was first asked ([firstReview]), for the limit of new cards a day, the day it was asked last
  * ([lastReview]), the day it is due ([due]) and the interval planned last, in days ([interval]); a new card has none of
  * them. Asked [bothWays] (#141), it is also asked from its back to its front, planned on its own as the [reverse]
- * fields say, as a second card would be. Its language cannot be deleted while it is there.
+ * fields say, as a second card would be. Optionally an [example], a sentence in its language with its front in it, which
+ * the practice shows (#155; [ExampleSentence]). Its language cannot be deleted while it is there.
  */
 @Entity(
     tableName = "cards",
@@ -49,6 +50,7 @@ data class Card(
     @ColumnInfo(name = "reverse_last_review") val reverseLastReview: LocalDate? = null,
     @ColumnInfo(name = "reverse_due") val reverseDue: LocalDate? = null,
     @ColumnInfo(name = "reverse_interval") val reverseInterval: Int? = null,
+    @ColumnInfo(defaultValue = "") val example: String = "",
 ) : Serializable {
     /** It asked from its front, and, [bothWays], from its back too: what a day's workload and a topic take. */
     val prompts: List<Prompt> get() = listOfNotNull(Prompt(this), Prompt(this, reverse = true).takeIf { bothWays })
@@ -97,6 +99,9 @@ data class Card(
 
         /** The longest a card's note may be, in characters. */
         const val NOTE_MAX = 500
+
+        /** The longest a card's Beispielsatz may be, in characters (#155). */
+        const val EXAMPLE_MAX = 500
 
         /** From how long an interval on a card is "sicher", in days, as Anki calls a card "mature". */
         const val SURE_DAYS = 21
@@ -220,14 +225,15 @@ enum class CardProblem {
     BackTooLong,
     TranscriptionTooLong,
     NoteTooLong,
+    ExampleTooLong,
 
     /** Its topic is not of its language, or gone: only when saving. */
     TopicNotOffered,
 }
 
 /**
- * A card as typed into its editor: [front], [back], [transcription], [note], [topicId] and whether it is asked
- * [bothWays] (#141). Serializable, so the editor keeps it.
+ * A card as typed into its editor: [front], [back], [transcription], [note], [topicId], whether it is asked
+ * [bothWays] (#141) and its Beispielsatz, [example] (#155). Serializable, so the editor keeps it.
  */
 data class CardDraft(
     val front: String = "",
@@ -236,21 +242,23 @@ data class CardDraft(
     val note: String = "",
     val topicId: Long? = null,
     val bothWays: Boolean = false,
+    val example: String = "",
 ) : Serializable {
-    /** As it is saved: the front and transcription on a single line, the back and note cleaned. */
+    /** As it is saved: the front, transcription and example on a single line, the back and note cleaned. */
     fun cleaned() = copy(
         front = InputText.singleLine(front),
         back = InputText.multiLine(back).trim(),
         transcription = InputText.singleLine(transcription),
         note = InputText.multiLine(note).trim(),
+        example = InputText.singleLine(example),
     )
 
     /**
-     * [card] with what is typed here: its sides, transcription, note, topic and whether asked both ways; what was planned
+     * [card] with what is typed here: its sides, transcription, note, topic, whether asked both ways and its example; what was planned
      * for it stays, but for its back once it is no longer asked so.
      */
     fun applyTo(card: Card): Card {
-        val typed = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId, bothWays = bothWays)
+        val typed = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId, bothWays = bothWays, example = example)
         return if (bothWays) typed else typed.withoutReverse()
     }
 
@@ -271,12 +279,13 @@ data class CardDraft(
                 }
                 if (InputText.lengthOf(transcription) > Card.TRANSCRIPTION_MAX) add(CardProblem.TranscriptionTooLong)
                 if (InputText.lengthOf(note) > Card.NOTE_MAX) add(CardProblem.NoteTooLong)
+                if (InputText.lengthOf(example) > Card.EXAMPLE_MAX) add(CardProblem.ExampleTooLong)
             }
         }
 
     companion object {
         /** [card] as its editor opens it. */
-        fun of(card: Card) = CardDraft(card.front, card.back, card.transcription, card.note, card.topicId, card.bothWays)
+        fun of(card: Card) = CardDraft(card.front, card.back, card.transcription, card.note, card.topicId, card.bothWays, card.example)
     }
 }
 

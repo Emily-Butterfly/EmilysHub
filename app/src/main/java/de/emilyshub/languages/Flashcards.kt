@@ -28,13 +28,13 @@ data class CardsMade(val created: Int, val skipped: Int)
 /** A card on the tab Karten, with its [topic], if it has one, and whether it hakt ([stuck], #149). */
 data class CardRow(val card: Card, val topic: Topic?, val stuck: Boolean = false) {
     /**
-     * Whether [query] finds it (SPEC.md §15; #107): every word typed in its front, back, transcription or note, in
+     * Whether [query] finds it (SPEC.md §15; #107): every word typed in its front, back, transcription, note or example, in
      * whatever case, and Arabic with or without its vowel marks, as the search over all areas compares; anything for
      * nothing typed.
      */
     fun matches(query: String): Boolean {
         val words = InputText.searchable(InputText.singleLine(query)).split(' ').filter(String::isNotEmpty)
-        val text = InputText.searchable(listOf(card.front, card.back, card.transcription, card.note).joinToString(" "))
+        val text = InputText.searchable(listOf(card.front, card.back, card.transcription, card.note, card.example).joinToString(" "))
         return words.all { it in text }
     }
 }

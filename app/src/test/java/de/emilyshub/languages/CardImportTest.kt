@@ -66,6 +66,19 @@ class CardImportTest {
     }
 
     @Test
+    fun `a fifth field is the Beispielsatz, after the note, and one too long leaves its line unread`() {
+        val text = "kitab;Buch;;;Das ist ein kitab.\nqalam\tStift\tqalam\t\tMein qalam ist rot.\nbab;Tür;;;" + "a".repeat(501)
+
+        val read = CardImport.fromFile(text.toByteArray()) as CardFile.Read
+
+        assertEquals(
+            listOf(CardDraft("kitab", "Buch", example = "Das ist ein kitab."), CardDraft("qalam", "Stift", "qalam", example = "Mein qalam ist rot.")),
+            read.cards.map { it.draft },
+        )
+        assertEquals(listOf(3), read.unreadable)
+    }
+
+    @Test
     fun `a field in quotes may hold the separator and quotes of its own`() {
         val read = CardImport.fromFile("\"Guten Tag; Herr\";\"sabah \"\"al\"\" khair\"\n\"a\tb\"\tc".toByteArray()) as CardFile.Read
 
@@ -81,8 +94,8 @@ class CardImportTest {
     }
 
     @Test
-    fun `a line with one field, more than four, an empty side or a field too long is not readable, and nothing is cut`() {
-        val text = listOf("nur eins", "a;b;c;d;e", ";leer vorn", "a".repeat(201) + ";zu lang", "gut;ok", "kitab;\"offen").joinToString("\n")
+    fun `a line with one field, more than five, an empty side or a field too long is not readable, and nothing is cut`() {
+        val text = listOf("nur eins", "a;b;c;d;e;f", ";leer vorn", "a".repeat(201) + ";zu lang", "gut;ok", "kitab;\"offen").joinToString("\n")
 
         val read = CardImport.fromFile(text.toByteArray()) as CardFile.Read
 
