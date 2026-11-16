@@ -109,6 +109,12 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
 }
 
 /**
+ * An answer given (#145): to the card asked the way [before] has it, as it was planned before, and its entry in the log
+ * ([reviewId]); what taking it back needs, kept by the practice as long as it is open.
+ */
+data class Answered(val before: Prompt, val reviewId: Long) : Serializable
+
+/**
  * A round of practice (SPEC.md §15): the cards answered "Nochmal" in it, which come again at its end, in that order
  * ([again]), and all those it [asked], for a topic practised (SPEC.md §15; #107). Kept by the screen, not saved: left,
  * the round is over, and such a card is due the next day.
@@ -347,16 +353,17 @@ class Flashcards(
      * The card [cardId] answered [rating] now: planned anew by [Fsrs], from the days since it was last asked; "Nochmal"
      * makes it due the next day, as it comes again in the round only. Kept at once, and logged. A new one asked in a
      * topic practised (not [countsAsNew]) leaves the new cards of the day as they were. [reverse], the answer is to it
-     * asked from its back, planned on its own (#141); nothing if it is not asked so.
+     * asked from its back, planned on its own (#141); nothing if it is not asked so. What it was before, to take it back
+     * ([takeBack]); none if nothing was answered.
      */
-    suspend fun answer(cardId: Long, rating: Rating, countsAsNew: Boolean = true, reverse: Boolean = false) = write {
+    suspend fun answer(cardId: Long, rating: Rating, countsAsNew: Boolean = true, reverse: Boolean = false): Answered? = write {
         val today = today()
         val key = PromptKey(cardId, reverse)
-        val languageOf = dao.card(cardId)?.languageId ?: return@write
+        val languageOf = dao.card(cardId)?.languageId ?: return@write null
         // Only an answer to a card of the day's workload that does it tells: not those asked again after it, as
         // "Nochmal" brings them, nor one asked in a topic on a day with nothing due and nothing new (#106, #107).
         val ofWorkload = workloadOf(languageOf, today)?.remaining.orEmpty().any { it.key == key }
-        val languageId = database().withTransaction {
+        val answered = database().withTransaction {
             val prompt = dao.card(cardId)?.prompts?.find { it.reverse == reverse } ?: return@withTransaction null
             val card = prompt.card
             val planned = plan(prompt, rating, today)
@@ -375,10 +382,27 @@ class Flashcards(
                     ),
                 )
             }
-            dao.insert(CardReview(cardId = cardId, at = clock.instant(), grade = rating.grade, reverse = reverse))
-            card.languageId
-        } ?: return@write
+            Answered(prompt, dao.insert(CardReview(cardId = cardId, at = clock.instant(), grade = rating.grade, reverse = reverse)))
+        } ?: return@write null
+        val languageId = answered.before.card.languageId
         if (ofWorkload && workloadOf(languageId, today)?.done == true) onWorkloadDone(languageId)
+        answered
+    }
+
+    /**
+     * Takes back the [answer] given (#145): its card planned that way as it was before, the other way and all else as
+     * they are, and its entry in the log deleted; Karten-Ziele follow. A routine the answer did stays done. Nothing once
+     * the card is gone.
+     */
+    suspend fun takeBack(answer: Answered) = write {
+        database().withTransaction {
+            val card = dao.card(answer.before.id) ?: return@withTransaction
+            database().watchingGoals(today()) { watch ->
+                watchGoalsOf(card.languageId, watch)
+                dao.update(answer.before.restoredOnto(card))
+            }
+            dao.deleteReview(answer.reviewId)
+        }
     }
 
     /** Names the Karten-Ziele on the cards of the language [languageId] to [watch], as how sure they are may change. */

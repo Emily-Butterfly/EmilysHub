@@ -13,18 +13,18 @@ Jede Antwort ist sofort gespeichert. Ein Fehltipp („Leicht“ statt „Nochmal
 
 ## Akzeptanzkriterien
 
-- [ ] Oben in der Leiste der Abfrage ein Knopf „Letzte Antwort zurücknehmen“ (Symbol Rückgängig), aktiv ab der ersten Antwort der Runde
-- [ ] Er stellt die Richtung der Karte her, wie sie vor der Antwort war: Stabilität, Schwierigkeit, erste und letzte Abfrage, Fälligkeit, Abstand; der Eintrag im Protokoll wird gelöscht
-- [ ] Die Karte wird wieder gezeigt, verdeckt; „7 von 23“ und die Runde („Nochmal“ am Ende) stehen wie vor der Antwort
-- [ ] Nur die letzte Antwort, eine Stufe; nur solange die Abfrage offen ist (auch nach Drehen oder Sperren), nicht nach dem Verlassen
-- [ ] Karten-Ziele gleichen sich an (`GoalWatch`), wie bei jeder Antwort
-- [ ] Hat die Antwort das Pensum geschafft und dadurch eine Routine erledigt (#106), bleibt die Routine erledigt; in Heute lässt sie sich wie jede andere zurücknehmen
-- [ ] Beim Thema üben genauso
+- [x] Oben in der Leiste der Abfrage ein Knopf „Letzte Antwort zurücknehmen“ (Symbol Rückgängig), aktiv ab der ersten Antwort der Runde
+- [x] Er stellt die Richtung der Karte her, wie sie vor der Antwort war: Stabilität, Schwierigkeit, erste und letzte Abfrage, Fälligkeit, Abstand; der Eintrag im Protokoll wird gelöscht
+- [x] Die Karte wird wieder gezeigt, verdeckt; „7 von 23“ und die Runde („Nochmal“ am Ende) stehen wie vor der Antwort
+- [x] Nur die letzte Antwort, eine Stufe; nur solange die Abfrage offen ist (auch nach Drehen oder Sperren), nicht nach dem Verlassen
+- [x] Karten-Ziele gleichen sich an (`GoalWatch`), wie bei jeder Antwort
+- [x] Hat die Antwort das Pensum geschafft und dadurch eine Routine erledigt (#106), bleibt die Routine erledigt; in Heute lässt sie sich wie jede andere zurücknehmen
+- [x] Beim Thema üben genauso
 
 ## Tests
 
-- [ ] Unit: Zurücknehmen stellt die Planung her und löscht genau den Protokolleintrag; neue Karte wird wieder neu und zählt nicht mehr gegen die Grenze am Tag; Rückrichtung (#141); Karten-Ziel fällt wieder darunter
-- [ ] UI: antworten, zurücknehmen, dieselbe Karte verdeckt, Position wie vorher
+- [x] Unit: Zurücknehmen stellt die Planung her und löscht genau den Protokolleintrag; neue Karte wird wieder neu und zählt nicht mehr gegen die Grenze am Tag; Rückrichtung (#141); Karten-Ziel fällt wieder darunter
+- [x] UI: antworten, zurücknehmen, dieselbe Karte verdeckt, Position wie vorher
 
 ## Entscheidungen
 

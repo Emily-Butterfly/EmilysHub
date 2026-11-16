@@ -54,6 +54,9 @@ interface CardDao {
     @Query("DELETE FROM card_reviews WHERE card_id = :cardId AND reverse = 1")
     suspend fun deleteReverseReviews(cardId: Long)
 
+    @Query("DELETE FROM card_reviews WHERE id = :id")
+    suspend fun deleteReview(id: Long)
+
     @Query("SELECT * FROM card_reviews WHERE card_id = :cardId ORDER BY id")
     suspend fun reviewsOf(cardId: Long): List<CardReview>
 

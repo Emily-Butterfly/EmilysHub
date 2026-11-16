@@ -535,6 +535,55 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `an answer taken back plans the card as it was and deletes just its entry in the log`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = card(arabic, "Buch")
+        cards.answer(book, Rating.Hard) // due tomorrow
+        val before = checkNotNull(database.cards().card(book))
+
+        clock.now = berlin("2026-11-13T10:00")
+        val answered = checkNotNull(cards.answer(book, Rating.Easy))
+        cards.takeBack(answered)
+
+        assertEquals(before, database.cards().card(book))
+        assertEquals(1, database.cards().reviewsOf(book).size)
+        assertEquals("due again", listOf("Buch"), workload(arabic, LocalDate.parse("2026-11-13")).remaining.map { it.front })
+    }
+
+    @Test
+    fun `a new card's answer taken back makes it new again, not counting against the new cards of the day`() = runBlocking {
+        val arabic = language("Arabisch")
+        cards.setNewPerDay(arabic, 1)
+        val book = card(arabic, "Buch")
+        card(arabic, "Stift")
+        val answered = checkNotNull(cards.answer(book, Rating.Good))
+        assertEquals("the one new card of the day asked", emptyList<Prompt>(), workload(arabic).remaining)
+
+        cards.takeBack(answered)
+
+        val saved = checkNotNull(database.cards().card(book))
+        assertTrue(saved.new)
+        assertNull(saved.firstReview)
+        assertEquals(listOf("Buch"), workload(arabic).remaining.map { it.front })
+        assertEquals(emptyList<CardReview>(), database.cards().reviewsOf(book))
+    }
+
+    @Test
+    fun `an answer to a card's back taken back leaves its front as it was`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = both(arabic, "Buch")
+        cards.answer(book, Rating.Good) // its front, due in 2 days
+        val front = checkNotNull(database.cards().card(book))
+
+        clock.now = berlin("2026-11-13T10:00")
+        val answered = checkNotNull(cards.answer(book, Rating.Good, reverse = true))
+        cards.takeBack(answered)
+
+        assertEquals(front, database.cards().card(book))
+        assertEquals(listOf(false), database.cards().reviewsOf(book).map { it.reverse })
+    }
+
+    @Test
     fun `a topic practised asks a card one way a day`() = runBlocking {
         val arabic = language("Arabisch")
         val colours = topic(arabic, "Farben")

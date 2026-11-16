@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -99,6 +100,33 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Heute: 1 fällig").assertExists()
             compose.onNodeWithText("Heute: 1 neu").assertExists()
         }
+    }
+
+    @Test
+    fun `the last answer is taken back, the card shown again covered where it was in the round`() {
+        val arabic = language("Arabisch")
+        card(arabic, "كتاب", "Buch")
+        card(arabic, "قلم", "Stift")
+
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            val takeBack = compose.onNodeWithContentDescription("Letzte Antwort zurücknehmen")
+            takeBack.assertIsNotEnabled()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Leicht").performClick()
+            compose.onNodeWithText("2 von 2").assertIsDisplayed()
+
+            takeBack.performClick()
+
+            compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Buch").assertDoesNotExist()
+            compose.onNodeWithText("Aufdecken").assertIsDisplayed()
+            takeBack.assertIsNotEnabled()
+        }
+        val book = runBlocking { app.flashcards.tab(arabic).first() }!!.cards.single { it.card.front == "كتاب" }.card
+        assertEquals("new again", true, book.new)
     }
 
     @Test

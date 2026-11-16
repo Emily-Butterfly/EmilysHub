@@ -49,7 +49,7 @@ data class Card(
     @ColumnInfo(name = "reverse_last_review") val reverseLastReview: LocalDate? = null,
     @ColumnInfo(name = "reverse_due") val reverseDue: LocalDate? = null,
     @ColumnInfo(name = "reverse_interval") val reverseInterval: Int? = null,
-) {
+) : Serializable {
     /** It asked from its front, and, [bothWays], from its back too: what a day's workload and a topic take. */
     val prompts: List<Prompt> get() = listOfNotNull(Prompt(this), Prompt(this, reverse = true).takeIf { bothWays })
 
@@ -113,7 +113,7 @@ data class PromptKey(val cardId: Long, val reverse: Boolean) : Serializable
  * The [card] asked one way (SPEC.md §15; #141): from its front to its back, or [reverse], from its back to its front,
  * each with what was planned for it alone, as two cards would have.
  */
-data class Prompt(val card: Card, val reverse: Boolean = false) {
+data class Prompt(val card: Card, val reverse: Boolean = false) : Serializable {
     val key: PromptKey get() = PromptKey(card.id, reverse)
 
     /** Its card's id. */
@@ -154,6 +154,24 @@ data class Prompt(val card: Card, val reverse: Boolean = false) {
         /** The new ones in the order asked: in the order made, a card's front before its back. */
         val BY_MADE: Comparator<Prompt> = compareBy<Prompt>({ it.id }, { it.reverse })
     }
+
+    /**
+     * [card] with what was planned for it this way as this prompt has it, the other way and all else as they are on
+     * [card]: an answer taken back (#145).
+     */
+    fun restoredOnto(card: Card): Card =
+        if (reverse) {
+            card.copy(
+                reverseStability = stability,
+                reverseDifficulty = difficulty,
+                reverseFirstReview = firstReview,
+                reverseLastReview = lastReview,
+                reverseDue = due,
+                reverseInterval = interval,
+            )
+        } else {
+            card.copy(stability = stability, difficulty = difficulty, firstReview = firstReview, lastReview = lastReview, due = due, interval = interval)
+        }
 
     /** Its card with what was planned for it this way set: [memory], asked first and last, due and [interval]. */
     fun planned(memory: Memory, firstReview: LocalDate?, lastReview: LocalDate, due: LocalDate, interval: Int): Card =

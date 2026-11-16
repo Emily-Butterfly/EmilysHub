@@ -14,6 +14,8 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.materialIcon
+import androidx.compose.material.icons.materialPath
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -49,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.Answered
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Rating
@@ -58,6 +62,7 @@ import de.emilyshub.ui.launchNow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import java.io.Serializable
 import kotlin.math.roundToInt
 
 /**
@@ -65,6 +70,7 @@ import kotlin.math.roundToInt
  * above it, its front large; "Aufdecken" shows the back, the transcription and the note, then the four answers, each
  * with the interval it would give. Each answer is kept at once; "Nochmal" brings the card again at the end of the round.
  * Left any time, "Üben" goes on where it was. At the end, "Für heute geschafft". Archived or gone meanwhile, it closes.
+ * The last answer can be taken back while it is open, the card then shown again covered, the round as it was (#145).
  * With a [topicId], it asks all the cards of that topic instead, each once, those due first (#107).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
@@ -80,6 +86,8 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
         }.map<PracticeState?, PracticeState> { it ?: Gone }
     }.collectAsState(initial = Reading)
     var round by rememberSaveable { mutableStateOf(Round()) }
+    // The last answer and the round before it, to take back while the practice is open, also turned or locked (#145).
+    var last by rememberSaveable { mutableStateOf<LastAnswer?>(null) }
     val scope = rememberCoroutineScope()
     // The card being answered, shown until the round has taken the answer in: the workload may come first.
     var answering by remember { mutableStateOf<Prompt?>(null) }
@@ -97,6 +105,24 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
+                    }
+                },
+                actions = {
+                    val taking = last
+                    IconButton(
+                        onClick = {
+                            if (taking == null) return@IconButton
+                            last = null
+                            answering = taking.answered.before
+                            scope.launchNow {
+                                flashcards.takeBack(taking.answered)
+                                round = taking.round
+                                answering = null
+                            }
+                        },
+                        enabled = taking != null && answering == null,
+                    ) {
+                        Icon(UndoIcon, contentDescription = stringResource(R.string.practice_take_back))
                     }
                 },
             )
@@ -152,9 +178,11 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
                 onAnswer = { rating ->
                     answering = card
                     scope.launchNow {
+                        val before = round
                         // Practising a topic, its new cards do not count against those of the day (#107).
-                        flashcards.answer(card.id, rating, countsAsNew = topicId == null, reverse = card.reverse)
+                        val answered = flashcards.answer(card.id, rating, countsAsNew = topicId == null, reverse = card.reverse)
                         round = round.answered(card, rating)
+                        last = answered?.let { LastAnswer(it, before) }
                         answering = null
                     }
                 },
@@ -163,6 +191,27 @@ fun PracticeScreen(flashcards: Flashcards, day: Day, languageId: Long, onBack: (
         }
     }
 }
+
+/** The [answered] last in a practice, and the [round] as it stood before it, to take back (#145). */
+private data class LastAnswer(val answered: Answered, val round: Round) : Serializable
+
+/** Material's "Undo", mirrored right to left. */
+private val UndoIcon: ImageVector
+    get() = materialIcon(name = "AutoMirrored.Filled.Undo", autoMirror = true) {
+        materialPath {
+            moveTo(12.5f, 8f)
+            curveToRelative(-2.65f, 0f, -5.05f, 0.99f, -6.9f, 2.6f)
+            lineTo(2f, 7f)
+            verticalLineToRelative(9f)
+            horizontalLineToRelative(9f)
+            lineToRelative(-3.62f, -3.62f)
+            curveToRelative(1.39f, -1.16f, 3.16f, -1.88f, 5.12f, -1.88f)
+            curveToRelative(3.54f, 0f, 6.55f, 2.31f, 7.6f, 5.5f)
+            lineToRelative(2.37f, -0.78f)
+            curveTo(21.08f, 11.03f, 17.15f, 8f, 12.5f, 8f)
+            close()
+        }
+    }
 
 /**
  * The card shown, the way [prompt] asks it: what is asked large, its back, or reversed its front, with "Rückrichtung"

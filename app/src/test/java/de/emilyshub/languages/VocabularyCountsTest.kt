@@ -200,6 +200,38 @@ class VocabularyCountsTest {
     }
 
     @Test
+    fun `an answer taken back that made a card sure takes it from a Karten-Ziel reached`() = runBlocking {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab")
+        val goal = wishes.create(WishDraft("Wortschatz", cardLanguageId = arabic, cardCount = "1"))
+        repeat(4) {
+            val card = database.cards().of(arabic).single()
+            card.due?.let { due -> clock.now = due.atTime(LocalTime.of(10, 0)).atZone(clock.zone).toInstant() }
+            val answered = checkNotNull(cards.answer(card.id, Rating.Easy))
+            if (database.cards().of(arabic).single().sure) {
+                assertEquals(WishStatus.Done, wishes.get(goal)?.status)
+                cards.takeBack(answered)
+                assertEquals("sure no more", WishStatus.InProgress, wishes.get(goal)?.status)
+                return@runBlocking
+            }
+        }
+        error("never sure")
+    }
+
+    @Test
+    fun `an answer taken back that did the workload leaves the routine it did done`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = card(arabic, "kitab")
+        routine("Vokabeln", "18:00", vocabulary = arabic)
+        val answered = checkNotNull(cards.answer(book, Rating.Good))
+        assertEquals(listOf(OccurrenceStatus.Done), statuses("Vokabeln"))
+
+        cards.takeBack(answered)
+
+        assertEquals(listOf(OccurrenceStatus.Done), statuses("Vokabeln"))
+    }
+
+    @Test
     fun `ticking a sure card both ways takes it from a Karten-Ziel reached, and ticking it off gives it back`() = runBlocking {
         val arabic = language("Arabisch")
         val book = card(arabic, "kitab")
