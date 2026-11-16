@@ -1181,7 +1181,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 54 moves to version 55 with the cards asked from their front only, then a card asked both ways is kept`() {
+    fun `version 54 moves to version 55 with the cards asked from their front only and then a card asked both ways is kept`() {
         createAtVersion(54) {
             it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
             it.execSQL(

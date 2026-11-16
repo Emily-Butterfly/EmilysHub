@@ -87,6 +87,11 @@ android {
 
 val schemas = "$projectDir/schemas"
 
+// AndroidTestNamesTest reads the instrumented tests' sources: a change to them alone runs the unit tests again.
+tasks.withType<Test>().configureEach {
+    inputs.dir("src/androidTest").withPropertyName("androidTestSources").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 room {
     // Every schema version is checked in, so migrations can be written and tested against it.
     schemaDirectory(schemas)
