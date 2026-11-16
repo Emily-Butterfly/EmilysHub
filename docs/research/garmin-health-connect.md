@@ -8,7 +8,7 @@
 ## 1. Kernaussagen
 
 1. Garmin Connect schreibt seit 2025 nach Health Connect, ab Android 14. Sicher geteilt werden Herzfrequenz, Schlaf, Schritte und Aktivitäten; HRV-Status und Body Battery werden **nicht** geteilt. [HC-NEWS] [AP] [AC]
-2. Vollständig mit HRV, Stress, Body Battery und SpO₂ sind nur die **FIT-Dateien** der Uhr. Sie kommen per USB-OTG oder aus dem Datenexport von Garmin Connect. [FIT-PROFILE]
+2. HRV, Stress, Body Battery und SpO₂ gibt es nur im Datenexport von Garmin Connect (Tageswerte als JSON, feine Werte als FIT) oder per USB von der Uhr. [FIT-PROFILE] Etappe 16 nimmt den Export ([garmin-export.md](garmin-export.md)).
 3. Am besten überprüft sind **Schritte** und die **Herzfrequenz in Ruhe**. Nacht-HRV und Schlafdauer sind mittelmäßig überprüft. Schlafphasen, Intensitätsminuten, Stress und SpO₂ sind schwach überprüft. Ruhepuls, HRV-Status, Sleep Score und Body Battery sind gar nicht unabhängig überprüft. Daraus folgen die Stufen A/B/C in §17.
 4. Ein Brustgurt (z. B. HRM-Fit) misst elektrisch und auch bei Bewegung genau. Die Uhr nutzt seine Werte laut Handbuch aber nur **während aufgezeichneter Aktivitäten**. Ob Health Connect den Gerätetyp „Brustgurt“ mitliefert, zeigt erst ein echtes Gerät.
 5. Für Herzfrequenz-Pacing gibt es **keine gut belegte Schwelle**. Am individuellsten ist die anaerobe Schwelle aus einer Spiroergometrie. „Ruhepuls + 15“ ist eine Faustregel, „Minuten über der Schwelle“ hat keine belegte Definition.
@@ -39,7 +39,7 @@
 - **Lizenz** des FIT SDK: gebührenfrei, „for Licensee's internal business purposes“. [FIT-LICENSE]
 - **Per USB:** Android liest MTP-Geräte über `android.mtp.MtpDevice` (USB-OTG). [MTP]
 - **Ordner auf der Uhr** (Monitor, Sleep, HRVStatus) sind nur aus Forum und Drittanbietern belegt. Laut einem Nutzer löscht der Sync mit Garmin Connect diese Dateien von der Uhr. [GF-USB] **[OFFEN]**
-- **Datenexport:** Antrag im Web (garmin.com/account/datamanagement), ZIP per E-Mail-Link. Laut Forum enthält er `_HRV_STATUS.fit`-Dateien. [GF-EXPORT] **[OFFEN]**
+- **Datenexport:** Antrag im Web (garmin.com/account/datamanagement), ZIP per E-Mail-Link. **Korrektur vom 16.11.2026:** `_HRV_STATUS.fit` gehört zum Tagesexport, nicht zum Gesamt-ZIP; das Gesamt-ZIP enthält Tageswerte als JSON und die FIT-Dateien generisch benannt in verschachtelten ZIPs. Einzelheiten: [garmin-export.md](garmin-export.md).
 
 ### 2.3 Verworfen
 

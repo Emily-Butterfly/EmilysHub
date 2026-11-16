@@ -5,7 +5,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 ## Ticket mirror in docs/issues/
 
 The slices from SPEC.md are mirrored as markdown: `docs/issues/NN-*.md` matches GitHub issue #NN
-(tracking issues: #29 for v1, #49 for v1.1, #64 for Etappe 10, #77 for Etappe 11, #85 for Etappe 12, #86 for Etappe 13, #110 for Etappe 14 and #122 for Etappe 15, index in `docs/issues/README.md`). When a ticket's text changes, update both.
+(tracking issues: #29 for v1, #49 for v1.1, #64 for Etappe 10, #77 for Etappe 11, #85 for Etappe 12, #86 for Etappe 13, #110 for Etappe 14, #122 for Etappe 15 and #135 for Etappe 16, index in `docs/issues/README.md`). When a ticket's text changes, update both.
 
 **Closing a slice:** check whether it is a sub-issue of an open tracking issue. When it is the last open one, read the
 tracking issue's body and do what it says comes next before closing the tracking issue.

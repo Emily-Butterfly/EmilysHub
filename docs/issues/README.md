@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14** und #122 **Etappe 15**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14**, #122 **Etappe 15** und #135 **Etappe 16**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -213,6 +213,18 @@ Abgestimmt im Interview vom 15.11.2026; Sammel-Issue #122. Spezifikation §17. G
 | 131 | [Hinweise mit Quellen](131-tracking-hinweise.md) | 🤖 | 130 |
 | 132 | [Arzt-Zusammenfassung als PDF](132-tracking-arzt-pdf.md) | 🤖 | 131 |
 | 133 | [Fotos an Ereignissen](133-tracking-fotos.md) | 🤖 | 128 |
+
+## Etappe 16 – Tracking, zweite Stufe
+
+Abgestimmt im Interview vom 16.11.2026; Sammel-Issue #135. Spezifikation §17 (Garmin-Export, Monatsfragebogen). #140 kann sofort gebaut werden; der Garmin-Teil wartet auf den echten Export (#136). Kein Stability-Wert, er bleibt später möglich ([ohne-ticket.md](ohne-ticket.md) §1).
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 136 | [Garmin-Export: Struktur des echten Exports](136-garmin-export-struktur.md) | 🙋 | – |
+| 137 | [Garmin-Export: Import der Tageswerte](137-garmin-export-import.md) | 🤖 | 136 |
+| 138 | [Garmin-Export: FIT-Decoder & feine Werte](138-garmin-export-fit.md) | 🤖 | 136, 137 |
+| 139 | [Garmin-Export: Wochenauswertung, Verlauf, Tagesansicht & PDF](139-garmin-export-anzeige.md) | 🤖 | 137, 138 |
+| 140 | [Monatsfragebogen FUNCAP55](140-monatsfragebogen-funcap.md) | 🤖 | – |
 
 ## Ohne Ticket
 

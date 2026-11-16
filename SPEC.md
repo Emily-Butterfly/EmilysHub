@@ -547,7 +547,7 @@ Ein Gedanke soll in der App landen, bevor er weg ist; sortiert wird später.
 
 ## 17. Tracking
 
-Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sammelt und für Arzttermine aufbereitet. Es stellt **keine Diagnose**, sagt nie „Du hast …“ und gibt keine Anweisungen zu Medikamenten. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher eine Insel wie die Dokumentation (§14). Erreichbar über Sonstiges (§1). Tracking ist die erste Stufe des Tages-Check-ins; HRV, Stability und Monatsfragebogen folgen als eigene Etappe ([ohne-ticket.md](docs/issues/ohne-ticket.md) §1).
+Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sammelt und für Arzttermine aufbereitet. Es stellt **keine Diagnose**, sagt nie „Du hast …“ und gibt keine Anweisungen zu Medikamenten. Es sind Gesundheitsdaten (Art. 9 DSGVO), daher eine Insel wie die Dokumentation (§14). Erreichbar über Sonstiges (§1). Tracking ist die erste Stufe des Tages-Check-ins; der Garmin-Import mit HRV und der Monatsfragebogen sind die zweite (Etappe 16, unten). Ein Stability-Wert ist vorerst nicht vorgesehen, bleibt aber möglich ([ohne-ticket.md](docs/issues/ohne-ticket.md) §1).
 
 **Grundsatz für das öffentliche Repo:** Code, Spezifikation und Tickets beschreiben nur die allgemeine Funktion. Persönliche Werte, Medikamente oder Beschwerden stehen nie im Repo, auch nicht als Beispiel oder Testdaten; Tests benutzen erfundene Werte und Namen wie „Medikament A“.
 
@@ -566,7 +566,8 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 
 - Der heutige Morgen- und Abendeintrag (offen/erledigt), „+ Stehtest“, „+ Ereignis“, „+ Anstrengung“, „+ Episode“ und offene Vorschläge (Anstrengung, laufende Episode).
 - **Hinweise**, **Wochenauswertung**, **Verlauf**.
-- Menü: Symptome · Medikamente · Grunddaten · Pacing-Schwelle · Garmin · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
+- „Monatsfragebogen fällig“, wenn der letzte mindestens 28 Tage zurückliegt (unten).
+- Menü: Symptome · Medikamente · Grunddaten · Pacing-Schwelle · Garmin · Monatsfragebogen · Arzt-Zusammenfassung · Passwort ändern · Fingerabdruck · Alles löschen.
 
 ### Tageseinträge
 
@@ -598,8 +599,33 @@ Ein eigenes Tagebuch zu Befinden, Puls, Blutdruck und Anstrengung, das Muster sa
 
 - „In Ruhe“ heißt: keine Schritte in der Minute davor und danach, oder ein Stehtest. Die Zuordnung steht mit ihren Quellen an einer Stelle im Code. [GARMIN-HF] [GARMIN-HRV] [GARMIN-SCHLAF] [GARMIN-SCHRITTE] [GARMIN-SCORES]
 - Der Ruhepuls von Garmin ist eine eigene Kurve neben dem Morgenwert. Regeln mit Schwellen aus Leitlinien nutzen nur den Morgenwert.
-- HRV, Stress, Body Battery und SpO₂ liefert Garmin nicht über Health Connect; sie kommen mit dem Import der FIT-Dateien in der HRV-Etappe.
+- HRV, Stress, Body Battery, SpO₂ und Intensitätsminuten liefert Garmin nicht über Health Connect; sie kommen über den Garmin-Export (unten).
+- **Höchster Puls des Tages:** errechnet aus der Herzfrequenz von Health Connect, mit der Stufe des Messwerts (A vom Brustgurt, sonst B); keine zweite Quelle.
 - Datenwege, Validierung je Wert und Pacing-Schwellen mit Quellen: [garmin-health-connect.md](docs/research/garmin-health-connect.md).
+
+### Garmin-Export (HRV, Stress, Body Battery, SpO₂)
+
+- **Import** im Menü Garmin über „Export einlesen“: die Dateiauswahl (Storage Access Framework, keine Berechtigung) nimmt das **Gesamt-ZIP** aus dem Datenexport von Garmin Connect und den **Tagesexport** eines Tages an. Für die Dateiauswahl bleibt Tracking offen wie bei Kamera und Speicherdialog ([ADR 0003](docs/adr/0003-tracking-photos-in-its-database-trips-out-stay-open.md)). Darunter kurz, wie man beide Exporte anfordert.
+- Tracking **liest das ZIP nur**, kopiert nichts davon und zeigt danach: „Das ZIP liegt unverschlüsselt in Downloads – jetzt löschen.“
+- **Tageswerte** aus den JSON-Dateien (`org.json`, keine neue Bibliothek), **feine Werte** aus den FIT-Dateien (in verschachtelten ZIPs des Gesamt-Exports und im Tagesexport) mit einem eigenen Decoder nur für die nötigen Nachrichten. Erkannt wird nach Inhalt und FIT-Dateityp, nicht nach Pfad oder Dateiname. Was nicht erkannt wird, wird nicht übernommen; am Ende steht „x Tage übernommen, y Dateien nicht erkannt“.
+- Ein erneuter Import ergänzt nach Art und Zeitpunkt, ohne zu verdoppeln. Die Werte kommen ins Tracking-Backup und erscheinen in „Woher kommen meine Werte?“ mit Quelle „Garmin-Export“.
+
+| Wert | Herkunft | Stufe |
+|---|---|---|
+| Nacht-HRV (RMSSD in ms), Mittel der Nacht | JSON | B |
+| HRV alle 5 Minuten in der Nacht | FIT | C |
+| HRV-Status und Baseline, wenn im Export | FIT | C |
+| Stress: Tagesmittel / alle 3 Minuten | JSON / FIT | C |
+| Body Battery höchster und niedrigster Wert | JSON | C |
+| SpO₂ Tagesmittel; Mittel und niedrigster Wert der Nacht | JSON | C |
+| Intensitätsminuten | JSON | C |
+
+- Ruhepuls, Schlaf und Schritte aus dem Export werden **nicht** übernommen; sie kommen über Health Connect.
+- **Tag:** Nachtwerte (HRV, SpO₂ der Nacht, Body Battery) gehören zum Tag des Aufwachens, wie der Morgeneintrag; die übrigen zu ihrem Kalendertag.
+- Wochenauswertung, Verlauf und PDF nehmen immer **Garmins Tageswert**; die feinen Werte zeigt nur die Tagesansicht (unten). Tracking rechnet keine eigenen Tageswerte daraus.
+- Die HRV wird als RMSSD in ms gezeigt, ohne andere Skala. Gespeichert wird ungerundet; gerundet nur in der Anzeige.
+- Die neuen Werte lösen **keinen Hinweis** aus und stützen keinen.
+- Struktur des Exports und Quellen: [garmin-export.md](docs/research/garmin-export.md).
 
 ### Stehtest
 
@@ -634,10 +660,19 @@ Für Situationen, die Beschwerden auslösen (Duschen, Baden, Sauna, Hitze, lange
 - **Folgetage:** Nach einer Anstrengung der Stärke 2–3 fragen die Abendeinträge der folgenden drei Tage „Schlechter als vor der Anstrengung?“.
 - **Episode** („+ Episode“ oder „Crash oder PEM?“ im Abendeintrag): Art PEM (spürbare Verschlechterung) oder Crash (schwer, Tag weitgehend abgebrochen); Beginn mit Datum und ungefährer Uhrzeit; Ende (solange offen „läuft noch“); Schwere 1–3; **vermutete Auslöser:** Anstrengungen der letzten 3 Tage vor dem Beginn auswählen oder direkt neu anlegen; je Auslöser die Sicherheit sicher, wahrscheinlich oder unklar. Die App zeigt den Abstand „Beginn x Stunden nach der Anstrengung“.
 
+### Monatsfragebogen (FUNCAP55)
+
+- **FUNCAP55** in der offiziellen deutschen Fassung: 55 Fragen in 8 Bereichen (Körperpflege, Gehen, Aufrecht sein, Haushalt, Kommunikation, Aktivitäten außer Haus, Licht und Geräusche, Konzentration), je 0–6, höher ist besser; Zeitraum „ein durchschnittlicher Tag im letzten Monat“. [FUNCAP]
+- Lizenz CC BY 4.0: die Fragen stehen im Code; im Bogen und unter den Quellen stehen Namensnennung, Lizenz und „für die App-Darstellung umformatiert“. PROMIS ist ausgeschlossen (deutsche Fassung und App-Einbindung lizenzpflichtig), ebenso andere Bögen ohne freie Lizenz ([fragebogen-lizenzen.md](docs/research/fragebogen-lizenzen.md)).
+- **Fällig** nach 28 Tagen seit dem letzten (Startseite); ausfüllen jederzeit. Ein angefangener Bogen bleibt als Entwurf; ist er älter als 7 Tage, wird er beim nächsten Öffnen mit Rückfrage verworfen. Der Bogen zählt für den Tag, an dem er abgeschlossen wird; zurückdatieren geht nicht.
+- **Auswertung:** Bereichswert = Mittel der beantworteten Fragen des Bereichs; ein Bereich ohne Antwort bleibt leer; ein Gesamtwert (Mittel der 8 Bereiche) nur, wenn alle 8 Bereiche einen Wert haben (eigene Festlegung, FUNCAP regelt fehlende Antworten nicht). Keine Schweregrade (FUNCAP setzt keine Grenzwerte), kein Hinweis.
+- Erinnert wird wie sonst über eine normale Routine.
+
 ### Wochenauswertung & Verlauf
 
-- Je Woche (Mo–So): Ruhepuls am Morgen Mittel, Minimum, Maximum und Tage über 100/min; Stehtests mit größtem Anstieg, Anzahl mit Anstieg ≥ 30/min in mindestens zwei Messungen, Anzahl mit Abfall ≥ 20/10 mmHg innerhalb von 3 Minuten und später; Ereignisse mit Atemnot ≥ 2 und mit Hautveränderung, mittlere Rückbildungszeit; Anstrengungen und Episoden mit mittlerem Abstand zum Beginn; Mittel je Symptom; Tage mit weniger als 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie); Nächte mit Schlafqualität ≥ 2; Abweichungen bei Medikamenten; Schritte und Minuten über der Pacing-Schwelle; Anteil nachgetragener Einträge.
-- **Verlauf:** je Symptom, für den Ruhepuls am Morgen und die Garmin-Werte ein Liniendiagramm über 4 oder 12 Wochen, wie die Diagramme der Dokumentation (§14); Medikamentenänderungen als senkrechte Markierung, Episoden als Band; Werte der Stufe C sind als „Garmin-Schätzung“ beschriftet.
+- Je Woche (Mo–So): Ruhepuls am Morgen Mittel, Minimum, Maximum und Tage über 100/min; Stehtests mit größtem Anstieg, Anzahl mit Anstieg ≥ 30/min in mindestens zwei Messungen, Anzahl mit Abfall ≥ 20/10 mmHg innerhalb von 3 Minuten und später; Ereignisse mit Atemnot ≥ 2 und mit Hautveränderung, mittlere Rückbildungszeit; Anstrengungen und Episoden mit mittlerem Abstand zum Beginn; Mittel je Symptom; Tage mit weniger als 1,5 l Trinkmenge (eigener Arbeitswert, keine Leitlinie); Nächte mit Schlafqualität ≥ 2; Abweichungen bei Medikamenten; Schritte und Minuten über der Pacing-Schwelle; Mittel der Nacht-HRV (Stufe B) und höchster Puls der Woche; Anteil nachgetragener Einträge. Werte der Stufe C stehen nicht in der Wochenauswertung.
+- **Verlauf:** je Symptom, für den Ruhepuls am Morgen und die Garmin-Werte ein Liniendiagramm über 4 oder 12 Wochen, wie die Diagramme der Dokumentation (§14); Medikamentenänderungen als senkrechte Markierung, Episoden als Band; Werte der Stufe C sind als „Garmin-Schätzung“ beschriftet. Jeder Wert aus dem Garmin-Export hat eine eigene Tageslinie; der Monatsfragebogen erscheint als Monatspunkte (Gesamtwert und je Bereich).
+- **Tagesansicht:** Tippen auf einen Tag im Verlauf zeigt die feinen Werte dieses Tages aus dem Export: HRV alle 5 Minuten in der Nacht und Stress alle 3 Minuten, mit ihrer Stufe.
 
 ### Hinweise
 
@@ -659,7 +694,7 @@ Regeln, die aus den Einträgen Muster erkennen und den nächsten Schritt für da
 
 ### Arzt-Zusammenfassung
 
-- Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe, die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
+- Eine Seite, vorausgefüllt für einen Zeitraum in **Wochen**, frei wählbar von 1 bis zur Zahl der Wochen, die schon getrackt sind (Standard: 4 oder weniger): stärkste Symptome mit Mittelwert, Kennzahlen der Wochenauswertung, Stehtests als Tabelle, Ereignisse, Anstrengungen und Episoden, Medikamente mit Zeitleiste, Garmin-Werte mit ihrer Stufe (aus dem Export je Woche das Mittel, bei Intensitätsminuten die Summe); der letzte Monatsfragebogen mit Vorwert je Bereich und daneben die Monatsmittel der täglichen Werte für Erschöpfung, Muskel- und Gelenkschmerzen; die aktuellen Hinweise mit ihren Fragen; eigene Fragen frei (Markdown).
 - Vorschau, dann **„Als PDF speichern“** in einen gewählten Ordner (Storage Access Framework), mit Android-eigenen Mitteln ohne neue Bibliothek, A4, schwarz auf weiß. Fotos optional (Standard: ohne). Die eigenen Fragen bleiben für den nächsten Termin gespeichert.
 - Vor dem Speichern der Hinweis: Die PDF ist **nicht verschlüsselt**; nach dem Termin löschen.
 
@@ -687,13 +722,14 @@ Die Kürzel verweisen auf Primärquellen; im Code stehen sie mit Fundstelle nebe
 | GARMIN-SCHRITTE | Evenson KR, Spade CL: Review of validity and reliability of Garmin activity trackers. J Meas Phys Behav 2020. doi:10.1123/jmpb.2019-0035 |
 | GARMIN-SCORES | Siepe et al. 2025, doi:10.1037/abn0001013 (Stress, Body Battery); Rosenbach et al. 2025, doi:10.1002/smi.70125 (Stress); Schiefer et al. 2021, doi:10.3390/s21196363 (SpO₂); Garmin: Accuracy disclaimer, garmin.com/legal/atdisclaimer |
 | KELLER-2024 | Keller et al.: Zwei-Tages-Spiroergometrie bei ME/CFS. J Transl Med 2024. doi:10.1186/s12967-024-05410-5 |
+| FUNCAP | Entwicklung und Prüfung von FUNCAP, J Clin Med 2024; 13: 3486. doi:10.3390/jcm13123486; deutsche Fassung und Lizenz (CC BY 4.0): funcap.no |
 | WORKWELL-15 | Faustregel der Workwell Foundation (Ruhepuls + 15); nur eine Studie belegt, laut Erhebung in Work 2023, doi:10.3233/WOR-220512 – Primärdokument offen |
 
 ### Entscheidungen
 
 Abgestimmt im Interview vom 15.11.2026.
 
-- Tracking ist die erste Stufe des Tages-Check-ins; HRV, Stability und Monatsfragebogen kommen später in denselben Bereich.
+- Tracking ist die erste Stufe des Tages-Check-ins; Garmin-Export mit HRV und Monatsfragebogen kommen als zweite Stufe in denselben Bereich (Etappe 16).
 - Eigene Sperre wie die Dokumentation; der Name „Tracking“ verrät auf dem Bildschirm nichts.
 - Export nur der Arzt-Zusammenfassung als PDF, Zeitraum in Wochen bis zur getrackten Dauer.
 - Nachtragen bis 7 Tage; bis 04:00 der Vortag als Vorschlag.
@@ -704,3 +740,12 @@ Abgestimmt im Interview vom 15.11.2026.
 - Pacing-Schwelle: eigener Wert, sonst Ruhepuls + 15 als schwach belegte Faustregel; daraus nur Vorschläge.
 - Fotos kommen zuletzt.
 - Keine Box „Akute Beschwerden?“ mit Warnzeichen und „112 anrufen“ auf der Startseite (entfernt am 16.11.2026, auf eigenen Wunsch).
+
+Abgestimmt im Interview vom 16.11.2026 (Etappe 16):
+
+- HRV nur aus dem Garmin-Export, keine eigene Messung mit Kamera oder Brustgurt; RMSSD in ms, keine Visible-Skala.
+- Gesamt-ZIP und Tagesexport über die Dateiauswahl; Tageswerte aus JSON, feine Werte aus FIT mit eigenem Decoder; Erkennen nach Inhalt; das ZIP wird nur gelesen, danach der Hinweis zum Löschen.
+- Übernommen wird, was Health Connect fehlt, dazu Intensitätsminuten; der höchste Puls kommt aus Health Connect.
+- Garmins Tageswert gilt; feine Werte nur in der Tagesansicht; keine neue Hinweisregel.
+- Kein Stability-Wert, auch keine Faktorkarten; er bleibt als spätere, eigene Berechnung möglich.
+- Monatsfragebogen FUNCAP55 (CC BY) statt PROMIS (lizenzpflichtig); kein DSQ-PEM, weil PEM täglich erfasst wird; Fatigue und Schmerz über die Monatsmittel der täglichen Werte.
