@@ -279,6 +279,16 @@ class Flashcards(
      */
     suspend fun taken(languageId: Long, drafts: List<CardDraft>): List<Boolean> = withContext(io) { takenNow(languageId, drafts) }
 
+    /**
+     * Whether another card of the language [languageId] than [except] has a front reading as [front] does, as saving
+     * would refuse it ("Diese Karte gibt es schon"): what the editor tells while the front is typed. Nothing typed is
+     * taken by none.
+     */
+    suspend fun frontTaken(languageId: Long, front: String, except: Long?): Boolean = withContext(io) {
+        val clean = InputText.singleLine(front)
+        InputText.isVisible(clean) && dao.of(languageId).any { it.id != except && InputText.readTheSame(it.front, clean) }
+    }
+
     /** [taken], on the thread it is called on, as a transaction needs it. */
     private suspend fun takenNow(languageId: Long, drafts: List<CardDraft>): List<Boolean> {
         val fronts = dao.of(languageId).map { InputText.comparable(it.front) }.toMutableSet()

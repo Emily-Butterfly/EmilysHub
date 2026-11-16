@@ -2,7 +2,8 @@ package de.emilyshub
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
@@ -92,9 +93,10 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Buch").assertDoesNotExist()
             compose.onNodeWithText("Aufdecken").performClick()
             compose.onNodeWithText("Buch").assertIsDisplayed()
-            // Nochmal and Schwer a day, Gut two, Leicht eight.
-            compose.onAllNodesWithText("1 T").assertCountEquals(2)
-            listOf("2 T", "8 T").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            // Nochmal and Schwer a day, Gut two, Leicht eight, said with each answer.
+            mapOf("Nochmal" to "in einem Tag", "Schwer" to "in einem Tag", "Gut" to "in 2 Tagen", "Leicht" to "in 8 Tagen").forEach { (answer, interval) ->
+                compose.onNode(hasText(answer) and SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, interval)).assertIsDisplayed()
+            }
             compose.onNodeWithText("„Schwer“ heißt gewusst", substring = true).assertIsDisplayed()
             compose.onNodeWithText("Nochmal").performClick()
 

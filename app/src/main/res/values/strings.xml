@@ -1489,6 +1489,8 @@
     <string name="card_due_on">fällig %1$s</string>
     <string name="card_due_today">fällig heute</string>
     <string name="card_sure">sicher</string>
+    <string name="card_save_next">Speichern und neue</string>
+    <string name="card_made">„%1$s“ angelegt</string>
     <string name="card_delete">Karte löschen</string>
     <string name="card_delete_title">Karte löschen?</string>
     <string name="card_delete_text">„%1$s“ wird gelöscht, mit allem, was sie gelernt hat.</string>
@@ -1511,6 +1513,20 @@
     <string name="practice_good">Gut</string>
     <string name="practice_easy">Leicht</string>
     <string name="practice_days">%1$d T</string>
+    <string name="practice_months">%1$s Mon.</string>
+    <string name="practice_years">%1$s J.</string>
+    <plurals name="practice_in_days">
+        <item quantity="one">in einem Tag</item>
+        <item quantity="other">in %1$d Tagen</item>
+    </plurals>
+    <plurals name="practice_in_months">
+        <item quantity="one">in einem Monat</item>
+        <item quantity="other">in %1$s Monaten</item>
+    </plurals>
+    <plurals name="practice_in_years">
+        <item quantity="one">in einem Jahr</item>
+        <item quantity="other">in %1$s Jahren</item>
+    </plurals>
     <string name="practice_hint">„Schwer“ heißt gewusst, aber mit Mühe; nicht gewusst ist „Nochmal“.</string>
     <plurals name="practice_done">
         <item quantity="one">Für heute geschafft: %d Karte</item>

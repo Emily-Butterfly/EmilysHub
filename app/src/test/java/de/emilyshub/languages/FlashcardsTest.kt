@@ -63,6 +63,19 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `while a front is typed, the editor learns whether another card of the language has it`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val book = card(arabic, "Buch")
+
+        assertTrue(cards.frontTaken(arabic, "  BUCH ", except = null))
+        assertFalse("the card itself, being changed", cards.frontTaken(arabic, "Buch", except = book))
+        assertFalse("another language", cards.frontTaken(italian, "Buch", except = null))
+        assertFalse("nothing typed", cards.frontTaken(arabic, " ", except = null))
+        assertFalse(cards.frontTaken(arabic, "Bücher", except = null))
+    }
+
+    @Test
     fun `a card's topic is one of its language, and a topic deleted leaves its cards without one`() = runBlocking {
         val arabic = language("Arabisch")
         val italian = language("Italienisch")

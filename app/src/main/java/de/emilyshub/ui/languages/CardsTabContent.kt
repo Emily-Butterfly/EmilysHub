@@ -55,15 +55,19 @@ import de.emilyshub.ui.PlaceholderScreen
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
  * The tab Karten of a language (SPEC.md §15): all its cards by front, each with when it is due next and whether it is
  * "sicher", shown for one topic only if one is chosen ([topicFilter], [onTopicFilterChange]), and only those a search
- * typed finds (#107); tapped, a card opens in its editor ([onOpenCard]). Its menu sets how many new cards a day takes,
- * and imports cards from a text file picked in Android's file dialog, after a preview.
+ * typed finds (#107); tapped, a card opens in its editor ([onOpenCard]). Atop, how many are due today with "Üben"
+ * ([onPractice]), or that today's are done, as on the start page, while the language is not archived. Its menu sets how
+ * many new cards a day takes, and imports cards from a text file picked in Android's file dialog, after a preview.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 internal fun CardsTabContent(
     flashcards: Flashcards,
@@ -72,9 +76,12 @@ internal fun CardsTabContent(
     topicFilter: Long?,
     onTopicFilterChange: (Long?) -> Unit,
     onOpenCard: (Long) -> Unit,
+    onPractice: () -> Unit,
 ) {
     val tab by remember(flashcards, languageId) { flashcards.tab(languageId) }.collectAsState(initial = null)
     val today by remember(day) { day.dates() }.collectAsState(initial = day.today())
+    val workload by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.workload(languageId, it) } }
+        .collectAsState(initial = null)
     var query by rememberSaveable { mutableStateOf("") }
     var settingNew by rememberSaveable { mutableStateOf(false) }
     // A file picked and read, to look at before its cards are made; not kept past the screen.
@@ -107,6 +114,18 @@ internal fun CardsTabContent(
                     }
                 }
                 CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })
+            }
+        }
+        val practice = workload
+        if (shown.cards.isNotEmpty() && practice != null) {
+            item(key = "practice") {
+                WorkloadLine(
+                    practice,
+                    onPractice,
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
             }
         }
         if (shown.cards.isNotEmpty()) {

@@ -364,6 +364,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onOpenCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
                     onCreateCard = { open(Destination.CardEditor(CardEditorTarget.New(top.languageId))) },
                     onPractiseTopic = { open(Destination.Practice(top.languageId, topicId = it)) },
+                    onPractice = { open(Destination.Practice(top.languageId)) },
                     onBack = back,
                 )
                 is Destination.LessonEditor -> LessonEditorScreen(
