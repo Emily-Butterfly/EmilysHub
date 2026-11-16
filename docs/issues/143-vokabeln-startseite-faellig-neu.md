@@ -13,16 +13,16 @@ Die Startseite sagt bisher nur „Heute fällig: 23“. Ob darunter neue Karten 
 
 ## Akzeptanzkriterien
 
-- [ ] Die Zeile einer Sprache auf der Startseite heißt „Heute: 18 fällig · 5 neu“; ohne neue „Heute: 18 fällig“, nur mit neuen „Heute: 5 neu“; geschafft weiter „Für heute geschafft“
-- [ ] Dieselbe Zeile oben im Reiter Karten (`WorkloadLine`, seit 32ce029)
-- [ ] Gezählt wird, was das Tagespensum noch offen hat (`Workload.remaining`): neu ist eine Richtung, die noch nie abgefragt wurde (`Prompt.new`), alles andere ist fällig; jede Richtung einer Karte in beide Richtungen zählt für sich (#141)
-- [ ] Die Auswertung („Karten: 312 · sicher 120 · heute fällig 23“) bleibt, wie sie ist
-- [ ] SPEC.md §15 nennt die neue Zeile
+- [x] Die Zeile einer Sprache auf der Startseite heißt „Heute: 18 fällig · 5 neu“; ohne neue „Heute: 18 fällig“, nur mit neuen „Heute: 5 neu“; geschafft weiter „Für heute geschafft“
+- [x] Dieselbe Zeile oben im Reiter Karten (`WorkloadLine`, seit 32ce029)
+- [x] Gezählt wird, was das Tagespensum noch offen hat (`Workload.remaining`): neu ist eine Richtung, die noch nie abgefragt wurde (`Prompt.new`), alles andere ist fällig; jede Richtung einer Karte in beide Richtungen zählt für sich (#141)
+- [x] Die Auswertung („Karten: 312 · sicher 120 · heute fällig 23“) bleibt, wie sie ist
+- [x] SPEC.md §15 nennt die neue Zeile
 
 ## Tests
 
-- [ ] Unit: Zählung mit fälligen, neuen und beiden Richtungen
-- [ ] UI: Startseite mit beidem, nur fällig, nur neu
+- [x] Unit: Zählung mit fälligen, neuen und beiden Richtungen
+- [x] UI: Startseite mit beidem, nur fällig, nur neu
 
 ## Entscheidungen
 

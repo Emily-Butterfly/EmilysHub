@@ -513,6 +513,28 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `the workload counts what is due and what is new apart, each way of a card for itself`() = runBlocking {
+        val arabic = language("Arabisch")
+        val pen = both(arabic, "Stift")
+        val book = both(arabic, "Buch")
+        card(arabic, "Tür")
+        both(arabic, "Haus")
+        cards.answer(pen, Rating.Hard) // due tomorrow from its front
+        cards.answer(book, Rating.Good) // due in 2 days from its front
+
+        clock.now = berlin("2026-11-13T10:00")
+        val tomorrow = LocalDate.parse("2026-11-13")
+        // Stift due from its front, so its back waits; Buch new from its back, Tür and Haus from their front.
+        val workload = workload(arabic, tomorrow)
+        assertEquals(listOf("Stift" to false, "Buch" to true, "Tür" to false, "Haus" to false), workload.remaining.map { it.front to it.reverse })
+        assertEquals(1 to 3, workload.dueCount to workload.newCount)
+
+        cards.answer(pen, Rating.Good)
+        cards.answer(book, Rating.Good, reverse = true)
+        assertEquals("only what is still open", 0 to 2, workload(arabic, tomorrow).let { it.dueCount to it.newCount })
+    }
+
+    @Test
     fun `a topic practised asks a card one way a day`() = runBlocking {
         val arabic = language("Arabisch")
         val colours = topic(arabic, "Farben")

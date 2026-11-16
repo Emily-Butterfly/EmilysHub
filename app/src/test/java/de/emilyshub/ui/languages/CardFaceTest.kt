@@ -150,7 +150,7 @@ class CardFaceTest {
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
                 CardsTabContent(flashcards, Day(clock), languageId, null, {}, {}, onPractice = { practised = true })
             }
-            compose.onNodeWithText("Heute fällig: 1").assertExists()
+            compose.onNodeWithText("Heute: 1 neu").assertExists()
             compose.onNodeWithText("Üben").performClick()
 
             assertTrue(practised)

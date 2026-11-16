@@ -140,7 +140,10 @@ private fun PeriodsCard(
     }
 }
 
-/** How many cards are due today, with "Üben", or that today's are done: on the start page and atop the tab Karten. */
+/**
+ * How many cards are due today and how many new ones, apart, as new ones take longer (#143), with "Üben", or that
+ * today's are done: on the start page and atop the tab Karten.
+ */
 @Composable
 internal fun WorkloadLine(workload: Workload, onPractice: () -> Unit, modifier: Modifier = Modifier) {
     if (workload.done) {
@@ -149,7 +152,11 @@ internal fun WorkloadLine(workload: Workload, onPractice: () -> Unit, modifier: 
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            stringResource(R.string.cards_due_today, workload.remaining.size),
+            when {
+                workload.newCount == 0 -> stringResource(R.string.cards_today_due, workload.dueCount)
+                workload.dueCount == 0 -> stringResource(R.string.cards_today_new, workload.newCount)
+                else -> stringResource(R.string.cards_today_due_new, workload.dueCount, workload.newCount)
+            },
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )

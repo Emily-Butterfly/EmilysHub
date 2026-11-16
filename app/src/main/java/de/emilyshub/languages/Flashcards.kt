@@ -71,6 +71,12 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
     /** Whether nothing of it is open any more. */
     val done: Boolean get() = remaining.isEmpty()
 
+    /** How many of [remaining] are new, a way of a card never asked ([Prompt.new]); each way of a card counts for itself (#143). */
+    val newCount: Int get() = remaining.count { it.new }
+
+    /** How many of [remaining] are due, all that are not new (#143). */
+    val dueCount: Int get() = remaining.size - newCount
+
     companion object {
         /** Of [cards], all of one language that takes [newPerDay] new cards a day, the workload on [today]. */
         fun of(cards: List<Card>, newPerDay: Int, today: LocalDate): Workload {

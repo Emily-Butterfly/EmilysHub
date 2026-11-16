@@ -24,6 +24,7 @@ import de.emilyshub.data.Saving
 import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.Rating
 import de.emilyshub.languages.TeacherDraft
 import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.routines.OccurrenceStatus
@@ -38,6 +39,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /** The Vokabeltrainer (SPEC.md §15; #104): a card made on the tab Karten, the count on the start page, and practising. */
 @RunWith(AndroidJUnit4::class)
@@ -58,7 +60,8 @@ class VocabularyScreenTest {
             openLanguage("Arabisch")
             tab("Karten").performClick()
             compose.onNodeWithText("كتاب").assertIsDisplayed()
-            compose.onNodeWithText("neu", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("neu").assertIsDisplayed()
+            compose.onNodeWithText("Heute: 1 neu").assertIsDisplayed()
 
             compose.onNodeWithContentDescription("Karte anlegen").performClick()
             heading("Neue Karte").assertIsDisplayed()
@@ -78,6 +81,27 @@ class VocabularyScreenTest {
     }
 
     @Test
+    fun `the start page counts what is due and what is new apart, either alone without the other`() {
+        val arabic = language("Arabisch")
+        val persian = language("Persisch")
+        val turkish = language("Türkisch")
+        // Answered "Schwer" today, each is due tomorrow.
+        listOf(arabic to "kitab", persian to "ketab").forEach { (language, front) ->
+            runBlocking { app.flashcards.answer((card(language, front, "Buch") as Saving.Saved).id, Rating.Hard) }
+        }
+        card(arabic, "qalam", "Stift")
+        card(turkish, "kitap", "Buch")
+        app.clock.now = app.clock.now.plus(1, ChronoUnit.DAYS)
+
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithText("Heute: 1 fällig · 1 neu").assertExists()
+            compose.onNodeWithText("Heute: 1 fällig").assertExists()
+            compose.onNodeWithText("Heute: 1 neu").assertExists()
+        }
+    }
+
+    @Test
     fun `the start page counts the cards due today, and practising them through says it is done`() {
         val arabic = language("Arabisch")
         card(arabic, "كتاب", "Buch")
@@ -85,7 +109,7 @@ class VocabularyScreenTest {
 
         launchApp().use {
             openLanguages()
-            compose.onNodeWithText("Heute fällig: 2").assertIsDisplayed()
+            compose.onNodeWithText("Heute: 2 neu").assertIsDisplayed()
             compose.onNode(hasText("Üben") and hasClickAction()).performClick()
 
             compose.onNodeWithText("1 von 2").assertIsDisplayed()
