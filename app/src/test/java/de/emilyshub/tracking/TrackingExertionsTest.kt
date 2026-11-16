@@ -108,7 +108,10 @@ class TrackingExertionsTest {
     @Test
     fun `minutes of heart rate above the threshold of a day above 150 percent are suggested`() = runBlocking {
         fixture.health.grantedNow = HealthSource.PERMISSIONS
+        // Set before the days it is to hold for.
+        fixture.at("2026-10-15T10:00:00Z")
         exertions.setOwnThreshold(100)
+        fixture.at("2026-11-15T10:00:00Z")
         // Ten minutes above on each of eight days before, 30 today, each day with data.
         (1L..8L).forEach { heartRates(today.minusDays(it), above = 10) }
         heartRates(today, above = 30)
@@ -137,6 +140,30 @@ class TrackingExertionsTest {
 
         exertions.setOwnThreshold(null)
         assertFalse(checkNotNull(exertions.threshold()).threshold!!.own)
+    }
+
+    @Test
+    fun `each day keeps the threshold that held on it, so a change does not rewrite the days before`() = runBlocking {
+        // Further back than an entry can be made for now, as they were made then.
+        fixture.tracking.changing { database ->
+            listOf(10L to 60, 3L to 80).forEach { (back, pulse) ->
+                database.entries().insertMorning(MorningEntry(date = today.minusDays(back), restingPulse = pulse, recordedOn = today.minusDays(back)))
+            }
+        }
+        val before = today.minusDays(1)
+        fixture.at(before.atTime(12, 0).atZone(fixture.clock.zone).toInstant().toString())
+        exertions.setOwnThreshold(100)
+        fixture.at("2026-11-15T10:00:00Z")
+        exertions.setOwnThreshold(120)
+
+        val thresholds = fixture.tracking.withDatabase { exertions.thresholdsBetween(it, today.minusDays(12), today) }!!
+
+        assertEquals("the rule of thumb of its mornings", 75, thresholds[today.minusDays(10)])
+        assertEquals("the rule of thumb moves with the mornings, not with today's", 95, thresholds[today.minusDays(3)])
+        assertEquals("no morning in the 7 days up to it", null, thresholds[today.minusDays(12)])
+        assertEquals("one's own as set that day", 100, thresholds[before])
+        assertEquals(120, thresholds[today])
+        assertEquals(PacingThreshold(120, own = true), checkNotNull(exertions.threshold()).threshold)
     }
 
     @Test

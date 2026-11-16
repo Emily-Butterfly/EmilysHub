@@ -42,22 +42,19 @@ data class GarminDays(
         private const val MILLIS_PER_MINUTE = 60_000L
 
         /**
-         * The days of [samples] in [zone]: the steps by the day their span began on, the heart rates above
-         * [thresholdBpm] as whole minutes, a day with heart rates but none above having 0; the sleep by the day it ended.
+         * The days of [samples] in [zone]: the steps by the day their span began on, the heart rates above the pacing
+         * threshold of their day in [thresholds] as whole minutes, a day with heart rates but none above having 0 and one
+         * without a threshold none; the sleep by the day it ended.
          */
-        fun of(samples: List<GarminSample>, zone: ZoneId, thresholdBpm: Int?): GarminDays {
+        fun of(samples: List<GarminSample>, zone: ZoneId, thresholds: Map<LocalDate, Int>): GarminDays {
             val byKind = samples.groupBy { it.kind }
             fun day(at: Instant) = at.atZone(zone).toLocalDate()
             val heart = byKind[SampleKind.HeartRate].orEmpty()
             return GarminDays(
                 steps = byKind[SampleKind.Steps].orEmpty().groupBy { day(it.start) }.mapValues { (_, spans) -> spans.sumOf { it.value } },
-                minutesAbove = if (thresholdBpm == null) {
-                    emptyMap()
-                } else {
-                    heart.groupBy { day(it.start) }.mapValues { (_, beats) ->
-                        beats.filter { it.value > thresholdBpm }.map { it.startMillis / MILLIS_PER_MINUTE }.distinct().size.toLong()
-                    }
-                },
+                minutesAbove = heart.groupBy { day(it.start) }.mapNotNull { (date, beats) ->
+                    thresholds[date]?.let { bpm -> date to beats.filter { it.value > bpm }.map { it.startMillis / MILLIS_PER_MINUTE }.distinct().size.toLong() }
+                }.toMap(),
                 restingHeartRate = byKind[SampleKind.RestingHeartRate].orEmpty().groupBy { day(it.start) }.mapValues { (_, values) -> values.map { it.value }.average() },
                 sleepMinutes = byKind[SampleKind.Sleep].orEmpty().groupBy { day(it.end) }.mapValues { (_, nights) -> nights.sumOf { it.value } },
                 deepSleepMinutes = byKind[SampleKind.SleepStage].orEmpty()

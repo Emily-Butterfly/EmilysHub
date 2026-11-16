@@ -37,6 +37,16 @@ data class PacingThreshold(val bpm: Int, val own: Boolean) {
             else -> PacingThreshold(mornings.average().roundToInt() + RULE_OF_THUMB, own = false)
         }
 
+        /** One's own threshold that held on [day], as last set on or before it in [owns], the first first; none for the rule of thumb. */
+        fun ownOn(day: LocalDate, owns: List<OwnThreshold>): Int? = owns.lastOrNull { !it.from.isAfter(day) }?.bpm
+
+        /**
+         * The threshold that held on [day]: one's own as then ([ownOn]), else the rule of thumb over the resting
+         * [pulses] of the [MORNING_DAYS] mornings up to it; none without either.
+         */
+        fun on(day: LocalDate, owns: List<OwnThreshold>, pulses: Map<LocalDate, Int>): PacingThreshold? =
+            of(ownOn(day, owns), (0 until MORNING_DAYS).mapNotNull { pulses[day.minusDays(it)] })
+
         /** Whether the hint shows that medications lowering the pulse shift the threshold: so without one's [own] value. */
         fun warnsOfPulseLowering(own: Int?, anyLowersPulse: Boolean): Boolean = own == null && anyLowersPulse
     }

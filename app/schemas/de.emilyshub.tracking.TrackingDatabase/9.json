@@ -1,0 +1,1330 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 9,
+    "identityHash": "5fc665e7a813e75e4c26647da577b929",
+    "entities": [
+      {
+        "tableName": "tracking_setting",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "morning_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `resting_pulse` INTEGER, `systolic` INTEGER, `diastolic` INTEGER, `sleep_minutes` INTEGER, `sleep_quality` INTEGER, `rested` INTEGER, `measured_differently` INTEGER NOT NULL, `recorded_on` TEXT NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restingPulse",
+            "columnName": "resting_pulse",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "systolic",
+            "columnName": "systolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "diastolic",
+            "columnName": "diastolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sleepMinutes",
+            "columnName": "sleep_minutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sleepQuality",
+            "columnName": "sleep_quality",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rested",
+            "columnName": "rested",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "measuredDifferently",
+            "columnName": "measured_differently",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedOn",
+            "columnName": "recorded_on",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "evening_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `load_physical` INTEGER, `load_cognitive` INTEGER, `load_emotional` INTEGER, `load_social` INTEGER, `workday` INTEGER, `heat_or_standing` INTEGER, `fluid_decilitres` INTEGER, `meals` INTEGER, `caffeine` INTEGER, `alcohol` INTEGER, `note` TEXT NOT NULL, `recorded_on` TEXT NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "loadPhysical",
+            "columnName": "load_physical",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "loadCognitive",
+            "columnName": "load_cognitive",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "loadEmotional",
+            "columnName": "load_emotional",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "loadSocial",
+            "columnName": "load_social",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "workday",
+            "columnName": "workday",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "heatOrStanding",
+            "columnName": "heat_or_standing",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fluidDecilitres",
+            "columnName": "fluid_decilitres",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "meals",
+            "columnName": "meals",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "caffeine",
+            "columnName": "caffeine",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "alcohol",
+            "columnName": "alcohol",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedOn",
+            "columnName": "recorded_on",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "symptom",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `hidden` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hidden",
+            "columnName": "hidden",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "symptom_value",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `symptom_id` INTEGER NOT NULL, `level` INTEGER NOT NULL, PRIMARY KEY(`date`, `symptom_id`), FOREIGN KEY(`date`) REFERENCES `evening_entry`(`date`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`symptom_id`) REFERENCES `symptom`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "symptomId",
+            "columnName": "symptom_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "level",
+            "columnName": "level",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "symptom_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_symptom_value_symptom_id",
+            "unique": false,
+            "columnNames": [
+              "symptom_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_symptom_value_symptom_id` ON `${TABLE_NAME}` (`symptom_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "evening_entry",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "date"
+            ],
+            "referencedColumns": [
+              "date"
+            ]
+          },
+          {
+            "table": "symptom",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "symptom_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "medication",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `form` TEXT NOT NULL, `times` TEXT NOT NULL, `purpose` TEXT NOT NULL, `thrombosis_risk` INTEGER NOT NULL, `lowers_pulse` INTEGER NOT NULL, `side_effects` TEXT NOT NULL, `start` TEXT NOT NULL, `end` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "form",
+            "columnName": "form",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "times",
+            "columnName": "times",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purpose",
+            "columnName": "purpose",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thrombosisRisk",
+            "columnName": "thrombosis_risk",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowersPulse",
+            "columnName": "lowers_pulse",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sideEffects",
+            "columnName": "side_effects",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "start",
+            "columnName": "start",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "end",
+            "columnName": "end",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "dose_change",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `medication_id` INTEGER NOT NULL, `date` TEXT NOT NULL, `dose_before` TEXT NOT NULL, `dose_after` TEXT NOT NULL, FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medication_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "from",
+            "columnName": "dose_before",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "to",
+            "columnName": "dose_after",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_dose_change_medication_id",
+            "unique": false,
+            "columnNames": [
+              "medication_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_dose_change_medication_id` ON `${TABLE_NAME}` (`medication_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "medication",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medication_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "intake_deviation",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `medication_id` INTEGER NOT NULL, `deviation` TEXT NOT NULL, `time` TEXT, PRIMARY KEY(`date`, `medication_id`), FOREIGN KEY(`date`) REFERENCES `evening_entry`(`date`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medication_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviation",
+            "columnName": "deviation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "time",
+            "columnName": "time",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "medication_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_intake_deviation_medication_id",
+            "unique": false,
+            "columnNames": [
+              "medication_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_intake_deviation_medication_id` ON `${TABLE_NAME}` (`medication_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "evening_entry",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "date"
+            ],
+            "referencedColumns": [
+              "date"
+            ]
+          },
+          {
+            "table": "medication",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medication_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "garmin_sample",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `kind` TEXT NOT NULL, `start_ms` INTEGER NOT NULL, `end_ms` INTEGER NOT NULL, `value` INTEGER NOT NULL, `source_app` TEXT NOT NULL, `device` TEXT NOT NULL, `model` TEXT, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startMillis",
+            "columnName": "start_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endMillis",
+            "columnName": "end_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceApp",
+            "columnName": "source_app",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "device",
+            "columnName": "device",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_garmin_sample_kind_start_ms",
+            "unique": false,
+            "columnNames": [
+              "kind",
+              "start_ms"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_garmin_sample_kind_start_ms` ON `${TABLE_NAME}` (`kind`, `start_ms`)"
+          }
+        ]
+      },
+      {
+        "tableName": "stand_test",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `variant` TEXT NOT NULL, `started_at` TEXT NOT NULL, `standing_at` TEXT, `lying_pulse` INTEGER, `lying_systolic` INTEGER, `lying_diastolic` INTEGER, `caffeine` INTEGER, `meal_minutes_before` INTEGER, `fluid_decilitres` INTEGER, `abort_cause` TEXT, `aborted_minute` INTEGER, `abort_reason` TEXT NOT NULL, `finished` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "variant",
+            "columnName": "variant",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "started_at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "standingAt",
+            "columnName": "standing_at",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lyingPulse",
+            "columnName": "lying_pulse",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lyingSystolic",
+            "columnName": "lying_systolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lyingDiastolic",
+            "columnName": "lying_diastolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "caffeine",
+            "columnName": "caffeine",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mealMinutesBefore",
+            "columnName": "meal_minutes_before",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fluidDecilitres",
+            "columnName": "fluid_decilitres",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "abortCause",
+            "columnName": "abort_cause",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "abortedMinute",
+            "columnName": "aborted_minute",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "abortReason",
+            "columnName": "abort_reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finished",
+            "columnName": "finished",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "stand_point",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`test_id` INTEGER NOT NULL, `minute` INTEGER NOT NULL, `pulse` INTEGER, `systolic` INTEGER, `diastolic` INTEGER, `dizziness` INTEGER, `palpitations` INTEGER, `breathlessness` INTEGER, `legs_discoloured` INTEGER, PRIMARY KEY(`test_id`, `minute`), FOREIGN KEY(`test_id`) REFERENCES `stand_test`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "testId",
+            "columnName": "test_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minute",
+            "columnName": "minute",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pulse",
+            "columnName": "pulse",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "systolic",
+            "columnName": "systolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "diastolic",
+            "columnName": "diastolic",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dizziness",
+            "columnName": "dizziness",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "palpitations",
+            "columnName": "palpitations",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "breathlessness",
+            "columnName": "breathlessness",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "legsDiscoloured",
+            "columnName": "legs_discoloured",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "test_id",
+            "minute"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "stand_test",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "test_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stand_intake",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`test_id` INTEGER NOT NULL, `medication_id` INTEGER NOT NULL, `minutes_before` INTEGER NOT NULL, PRIMARY KEY(`test_id`, `medication_id`), FOREIGN KEY(`test_id`) REFERENCES `stand_test`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "testId",
+            "columnName": "test_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medication_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minutesBefore",
+            "columnName": "minutes_before",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "test_id",
+            "medication_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stand_intake_medication_id",
+            "unique": false,
+            "columnNames": [
+              "medication_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stand_intake_medication_id` ON `${TABLE_NAME}` (`medication_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stand_test",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "test_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "medication",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medication_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tracking_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, `at` TEXT NOT NULL, `water` TEXT, `duration_minutes` INTEGER, `posture` TEXT, `pulse_before` INTEGER, `ended_at` TEXT, `pulse_after` INTEGER, `pulse_five` INTEGER, `pulse_ten` INTEGER, `spo2` INTEGER, `breathlessness` INTEGER, `dizziness` INTEGER, `sat_down` INTEGER, `sat_down_after_minutes` INTEGER, `skin_areas` TEXT NOT NULL, `skin_pattern` TEXT, `skin_painful` INTEGER, `skin_fades_lying` INTEGER, `skin_fade_minutes` INTEGER, `recovered_minutes` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "at",
+            "columnName": "at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "water",
+            "columnName": "water",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "duration_minutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "posture",
+            "columnName": "posture",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pulseBefore",
+            "columnName": "pulse_before",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "ended_at",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pulseAfter",
+            "columnName": "pulse_after",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pulseFive",
+            "columnName": "pulse_five",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pulseTen",
+            "columnName": "pulse_ten",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "spo2",
+            "columnName": "spo2",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "breathlessness",
+            "columnName": "breathlessness",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dizziness",
+            "columnName": "dizziness",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "satDown",
+            "columnName": "sat_down",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "satDownAfterMinutes",
+            "columnName": "sat_down_after_minutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "skinAreas",
+            "columnName": "skin_areas",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skinPattern",
+            "columnName": "skin_pattern",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "skinPainful",
+            "columnName": "skin_painful",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "skinFadesLying",
+            "columnName": "skin_fades_lying",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "skinFadeMinutes",
+            "columnName": "skin_fade_minutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recoveredMinutes",
+            "columnName": "recovered_minutes",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "event_intake",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`event_id` INTEGER NOT NULL, `medication_id` INTEGER NOT NULL, `minutes_before` INTEGER NOT NULL, PRIMARY KEY(`event_id`, `medication_id`), FOREIGN KEY(`event_id`) REFERENCES `tracking_event`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`medication_id`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medication_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minutesBefore",
+            "columnName": "minutes_before",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "event_id",
+            "medication_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_event_intake_medication_id",
+            "unique": false,
+            "columnNames": [
+              "medication_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_event_intake_medication_id` ON `${TABLE_NAME}` (`medication_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tracking_event",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "event_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "medication",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medication_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "exertion",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `time` TEXT, `kind` TEXT NOT NULL, `duration_minutes` INTEGER, `strength` INTEGER NOT NULL, `origin` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "time",
+            "columnName": "time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "duration_minutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "strength",
+            "columnName": "strength",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exertion_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exertion_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "suggestion_decision",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `source` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, PRIMARY KEY(`date`, `source`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmed",
+            "columnName": "confirmed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "source"
+          ]
+        }
+      },
+      {
+        "tableName": "follow_up",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `exertion_id` INTEGER NOT NULL, `answer` TEXT NOT NULL, PRIMARY KEY(`date`, `exertion_id`), FOREIGN KEY(`date`) REFERENCES `evening_entry`(`date`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`exertion_id`) REFERENCES `exertion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exertionId",
+            "columnName": "exertion_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "answer",
+            "columnName": "answer",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "exertion_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_follow_up_exertion_id",
+            "unique": false,
+            "columnNames": [
+              "exertion_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_follow_up_exertion_id` ON `${TABLE_NAME}` (`exertion_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "evening_entry",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "date"
+            ],
+            "referencedColumns": [
+              "date"
+            ]
+          },
+          {
+            "table": "exertion",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exertion_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "episode",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, `start_date` TEXT NOT NULL, `start_time` TEXT, `end_date` TEXT, `severity` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "start_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "start_time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "endDate",
+            "columnName": "end_date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "severity",
+            "columnName": "severity",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "episode_trigger",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`episode_id` INTEGER NOT NULL, `exertion_id` INTEGER NOT NULL, `certainty` TEXT NOT NULL, PRIMARY KEY(`episode_id`, `exertion_id`), FOREIGN KEY(`episode_id`) REFERENCES `episode`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`exertion_id`) REFERENCES `exertion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "episodeId",
+            "columnName": "episode_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exertionId",
+            "columnName": "exertion_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "certainty",
+            "columnName": "certainty",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "episode_id",
+            "exertion_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_episode_trigger_exertion_id",
+            "unique": false,
+            "columnNames": [
+              "exertion_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_episode_trigger_exertion_id` ON `${TABLE_NAME}` (`exertion_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "episode",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "episode_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "exertion",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exertion_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "event_photo",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `event_id` INTEGER NOT NULL, `taken_at` TEXT NOT NULL, `jpeg` BLOB NOT NULL, FOREIGN KEY(`event_id`) REFERENCES `tracking_event`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "takenAt",
+            "columnName": "taken_at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "jpeg",
+            "columnName": "jpeg",
+            "affinity": "BLOB",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_event_photo_event_id",
+            "unique": false,
+            "columnNames": [
+              "event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_event_photo_event_id` ON `${TABLE_NAME}` (`event_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tracking_event",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "event_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "pacing_threshold",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`from_date` TEXT NOT NULL, `bpm` INTEGER, PRIMARY KEY(`from_date`))",
+        "fields": [
+          {
+            "fieldPath": "from",
+            "columnName": "from_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bpm",
+            "columnName": "bpm",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "from_date"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5fc665e7a813e75e4c26647da577b929')"
+    ]
+  }
+}

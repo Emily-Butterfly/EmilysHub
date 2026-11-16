@@ -166,3 +166,18 @@ val TRACKING_MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_photo_event_id` ON `event_photo` (`event_id`)")
     }
 }
+
+/**
+ * 8 → 9: one's own pacing threshold with the day it holds from, so that each day keeps the threshold of its time. One
+ * set before, in the settings, holds from the first day on, as it did.
+ */
+val TRACKING_MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `pacing_threshold` (`from_date` TEXT NOT NULL, `bpm` INTEGER, PRIMARY KEY(`from_date`))")
+        db.execSQL(
+            "INSERT INTO `pacing_threshold` (`from_date`, `bpm`) SELECT '1970-01-01', CAST(value AS INTEGER) " +
+                "FROM `tracking_setting` WHERE `key` = 'pacing.own_threshold' AND value != ''",
+        )
+        db.execSQL("DELETE FROM `tracking_setting` WHERE `key` = 'pacing.own_threshold'")
+    }
+}

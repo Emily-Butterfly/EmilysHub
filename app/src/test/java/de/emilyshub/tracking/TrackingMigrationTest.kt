@@ -168,4 +168,36 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `version 8 keeps one's own pacing threshold, as holding from the first day on`() {
+        createTrackingAsExported(context, version = 8) {
+            it.execSQL("INSERT INTO tracking_setting (`key`, value) VALUES ('pacing.own_threshold', '110'), ('probe', 'kept')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                assertEquals(listOf(OwnThreshold(LocalDate.parse("1970-01-01"), 110)), database.exertions().ownThresholds())
+                assertEquals(null, database.settings().get("pacing.own_threshold"))
+                assertEquals("kept", database.settings().get("probe"))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `version 8 without an own pacing threshold has none`() {
+        createTrackingAsExported(context, version = 8) {
+            it.execSQL("INSERT INTO tracking_setting (`key`, value) VALUES ('pacing.own_threshold', '')")
+        }
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking { assertEquals(emptyList<OwnThreshold>(), database.exertions().ownThresholds()) }
+        } finally {
+            database.close()
+        }
+    }
 }

@@ -107,10 +107,6 @@ interface EntryDao {
     @Query("SELECT date FROM morning_entry WHERE date BETWEEN :from AND :to")
     suspend fun morningDays(from: LocalDate, to: LocalDate): List<LocalDate>
 
-    /** The resting pulses of the morning entries from [from] to [to] that have one. */
-    @Query("SELECT resting_pulse FROM morning_entry WHERE date BETWEEN :from AND :to AND resting_pulse IS NOT NULL")
-    suspend fun restingPulses(from: LocalDate, to: LocalDate): List<Int>
-
     /** The morning entries from [from] to [to]. */
     @Query("SELECT * FROM morning_entry WHERE date BETWEEN :from AND :to ORDER BY date")
     suspend fun morningsBetween(from: LocalDate, to: LocalDate): List<MorningEntry>

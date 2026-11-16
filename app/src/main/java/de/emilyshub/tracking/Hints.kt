@@ -563,7 +563,8 @@ object Hints {
         return listOfNotNull(
             hint(
                 HintRule.SkinPersistent,
-                changed.filter { (it.skinFadeMinutes ?: 0) > HintRules.SKIN_MINUTES || it.skinPattern == SkinPattern.Reticular || it.skinPainful == true },
+                // Minutes not recorded count neither as long nor as short (SPEC.md §17, "Leer … zählt nie als 0").
+                changed.filter { (it.skinFadeMinutes?.let { m -> m > HintRules.SKIN_MINUTES } == true) || it.skinPattern == SkinPattern.Reticular || it.skinPainful == true },
                 "Haut: bleibt, netzartig oder schmerzhaft",
                 { n -> "Bei $n von ${events.size} Ereignissen blieb die Hautveränderung über ${HintRules.SKIN_MINUTES} Minuten, war unterbrochen-netzartig oder schmerzte – spricht dafür, die Haut ärztlich ansehen zu lassen." },
                 "Dermatologie oder Rheumatologie",
@@ -579,7 +580,7 @@ object Hints {
             ),
             hint(
                 HintRule.SkinPooling,
-                changed.filter { SkinArea.Legs in it.skinAreas && it.skinFadesLying == true && (it.skinFadeMinutes ?: 0) <= HintRules.SKIN_MINUTES },
+                changed.filter { SkinArea.Legs in it.skinAreas && it.skinFadesLying == true && it.skinFadeMinutes?.let { m -> m <= HintRules.SKIN_MINUTES } == true },
                 "Haut: Beine, im Liegen rasch weg",
                 { n -> "Bei $n von ${events.size} Ereignissen betraf die Hautveränderung die Beine und verschwand im Liegen rasch – passt zu Blutansammlung in den Beinen und stützt die Stehtests." },
                 "Kardiologie oder autonome Ambulanz",

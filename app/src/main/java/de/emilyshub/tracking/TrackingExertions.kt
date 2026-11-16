@@ -69,8 +69,7 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
         val decided = database.exertions().decisions(from, to).map { it.date to it.source }.toSet()
         val windowStart = from.minusDays(ExertionRules.MEAN_DAYS)
         val steps = stepsByDay(database, windowStart, to)
-        val threshold = thresholdOf(database).threshold
-        val minutes = threshold?.let { minutesAboveByDay(database, windowStart, to, it.bpm) } ?: emptyMap()
+        val minutes = minutesAboveByDay(database, windowStart, to, thresholdsBetween(database, windowStart, to))
         generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }.flatMap { day ->
             listOfNotNull(
                 ExertionRules.exceeds(steps, day)?.let { Suggestion(day, SuggestionSource.Steps, it) },
@@ -101,17 +100,37 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
 
     /** Writes one's own pacing threshold into [database], as [setOwnThreshold] does. */
     suspend fun writeOwnThreshold(database: TrackingDatabase, bpm: Int?) {
-        database.settings().put(TrackingSetting(OWN_THRESHOLD, bpm?.takeIf { it in EntryLimits.PULSE }?.toString().orEmpty()))
+        database.exertions().putOwnThreshold(OwnThreshold(entries.today(), bpm?.takeIf { it in EntryLimits.PULSE }))
     }
 
-    /** The pacing threshold as [threshold] gives it, from [database]: for the evaluation too. */
-    internal suspend fun thresholdOf(database: TrackingDatabase): ThresholdView {
-        val own = database.settings().get(OWN_THRESHOLD)?.toIntOrNull()
+    /** The pacing threshold as [threshold] gives it, from [database]. */
+    private suspend fun thresholdOf(database: TrackingDatabase): ThresholdView {
         val today = entries.today()
-        val mornings = database.entries().restingPulses(today.minusDays(PacingThreshold.MORNING_DAYS - 1), today)
+        val owns = database.exertions().ownThresholds()
+        val own = PacingThreshold.ownOn(today, owns)
         val lowersPulse = database.medications().all().any { it.lowersPulse && it.isActiveOn(today) }
-        return ThresholdView(own, PacingThreshold.of(own, mornings), PacingThreshold.warnsOfPulseLowering(own, lowersPulse))
+        val threshold = PacingThreshold.on(today, owns, restingPulses(database, today, today))
+        return ThresholdView(own, threshold, PacingThreshold.warnsOfPulseLowering(own, lowersPulse))
     }
+
+    /**
+     * The pacing threshold in beats per minute of each day from [from] to [to] that has one: the one that held on that
+     * day, by one's own as set then and the mornings up to it, so that a change does not rewrite the days before. For
+     * the evaluation too.
+     */
+    internal suspend fun thresholdsBetween(database: TrackingDatabase, from: LocalDate, to: LocalDate): Map<LocalDate, Int> {
+        val owns = database.exertions().ownThresholds()
+        val pulses = restingPulses(database, from, to)
+        return generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }
+            .mapNotNull { day -> PacingThreshold.on(day, owns, pulses)?.let { day to it.bpm } }
+            .toMap()
+    }
+
+    /** The morning resting pulses the thresholds from [from] to [to] are taken from, by day. */
+    private suspend fun restingPulses(database: TrackingDatabase, from: LocalDate, to: LocalDate): Map<LocalDate, Int> =
+        database.entries().morningsBetween(from.minusDays(PacingThreshold.MORNING_DAYS - 1), to)
+            .mapNotNull { morning -> morning.restingPulse?.let { morning.date to it } }
+            .toMap()
 
     /** The steps of each day from [from] to [to] that has any, each span by the day it began on. */
     private suspend fun stepsByDay(database: TrackingDatabase, from: LocalDate, to: LocalDate): Map<LocalDate, Long> =
@@ -120,21 +139,17 @@ class TrackingExertions(private val tracking: TrackingStore, private val entries
             .mapValues { (_, spans) -> spans.sumOf { it.value } }
 
     /**
-     * The minutes of each day from [from] to [to] with a heart rate, tier A or B as they all are, above [bpm]; a day with
-     * heart rates but none above has 0, one without none.
+     * The minutes of each day from [from] to [to] with a heart rate, tier A or B as they all are, above that day's
+     * [thresholds]; a day with heart rates but none above has 0, one without heart rates or a threshold none.
      */
-    private suspend fun minutesAboveByDay(database: TrackingDatabase, from: LocalDate, to: LocalDate, bpm: Int): Map<LocalDate, Long> =
-        database.garmin().overlapping(SampleKind.HeartRate, startOf(from) - 1, startOf(to.plusDays(1)))
-            .groupBy { dayOf(it.start) }
-            .mapValues { (_, beats) -> beats.filter { it.value > bpm }.map { it.startMillis / MILLIS_PER_MINUTE }.distinct().size.toLong() }
+    private suspend fun minutesAboveByDay(database: TrackingDatabase, from: LocalDate, to: LocalDate, thresholds: Map<LocalDate, Int>): Map<LocalDate, Long> =
+        GarminDays.of(database.garmin().overlapping(SampleKind.HeartRate, startOf(from) - 1, startOf(to.plusDays(1))), clock.zone, thresholds).minutesAbove
 
     private fun startOf(day: LocalDate): Long = day.atStartOfDay(clock.zone).toInstant().toEpochMilli()
 
     private fun dayOf(at: Instant): LocalDate = ZonedDateTime.ofInstant(at, clock.zone).toLocalDate()
 
     companion object {
-        private const val OWN_THRESHOLD = "pacing.own_threshold"
-        private const val MILLIS_PER_MINUTE = 60_000L
 
         /**
          * Makes the exertions of [entry]'s evening follow it (SPEC.md §17): each load of 2 or more is one of its kind

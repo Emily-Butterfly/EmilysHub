@@ -99,6 +99,13 @@ data class EpisodeTrigger(
     val certainty: Certainty,
 )
 
+/**
+ * One's own pacing threshold as set [from] a day on: [bpm], or none for the rule of thumb from then (SPEC.md §17). Each
+ * day's threshold is the one that held then, so that a change does not rewrite the weeks before.
+ */
+@Entity(tableName = "pacing_threshold")
+data class OwnThreshold(@PrimaryKey @ColumnInfo(name = "from_date") val from: LocalDate, val bpm: Int?)
+
 /** The exertions and the suggestions decided; the follow-up answers belong to the evening ([EntryDao]). */
 @Dao
 interface ExertionDao {
@@ -141,6 +148,14 @@ interface ExertionDao {
     /** Keeps [decision]. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun decide(decision: SuggestionDecision)
+
+    /** One's own pacing thresholds as they were set, the first first. */
+    @Query("SELECT * FROM pacing_threshold ORDER BY from_date")
+    suspend fun ownThresholds(): List<OwnThreshold>
+
+    /** Keeps [threshold], in place of one set on the same day. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putOwnThreshold(threshold: OwnThreshold)
 }
 
 /** The episodes and their triggers. */

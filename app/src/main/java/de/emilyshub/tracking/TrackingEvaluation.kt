@@ -127,7 +127,8 @@ class TrackingEvaluation(
                 StandRecord(test, points, StandTestEvaluation.evaluate(test, points, standTests.curveOf(database, test)))
             }
         val episodes = database.episodes().all().filter { !it.startDate.isAfter(to) && (it.endDate ?: to) >= from }
-        val threshold = exertions.thresholdOf(database).threshold?.bpm
+        // Each day's threshold is the one that held on it.
+        val thresholds = exertions.thresholdsBetween(database, from, to)
         // The night before the first day ends on it.
         val samples = SampleKind.entries.flatMap { kind ->
             database.garmin().overlapping(kind, start.minusSeconds(NIGHT_SECONDS).toEpochMilli(), end.toEpochMilli())
@@ -147,7 +148,7 @@ class TrackingEvaluation(
             followUps = entryDao.followUpsBetween(from, to.plusDays(ExertionRules.FOLLOW_UP_DAYS)),
             episodes = episodes,
             triggers = database.episodes().allTriggers().filter { trigger -> episodes.any { it.id == trigger.episodeId } },
-            garmin = GarminDays.of(samples, zone, threshold),
+            garmin = GarminDays.of(samples, zone, thresholds),
         )
     }
 

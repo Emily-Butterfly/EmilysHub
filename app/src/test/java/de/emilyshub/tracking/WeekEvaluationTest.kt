@@ -221,7 +221,7 @@ class WeekEvaluationTest {
                 sample("d1#1", SampleKind.SleepStage, "2026-10-25T02:00:00Z", "2026-10-25T03:00:00Z", 4),
             ),
             berlin,
-            thresholdBpm = 100,
+            thresholds = LocalDate.parse("2026-10-25").let { mapOf(it to 100, it.minusDays(1) to 100) },
         )
         val sunday = LocalDate.parse("2026-10-25")
         assertEquals(mapOf(sunday to 107L, sunday.plusDays(1) to 50L), days.steps)
@@ -229,6 +229,7 @@ class WeekEvaluationTest {
         assertEquals(mapOf(sunday to 61.5), days.restingHeartRate)
         assertEquals("by the day it ended", mapOf(sunday to 480L), days.sleepMinutes)
         assertEquals(mapOf(sunday to 60L), days.deepSleepMinutes)
-        assertNull(GarminDays.of(emptyList(), berlin, null).minutesAbove[sunday])
+        assertNull(GarminDays.of(emptyList(), berlin, emptyMap()).minutesAbove[sunday])
+        assertEquals("a day without a threshold has none", mapOf(sunday to 1L), GarminDays.of(listOf(sample("h1", SampleKind.HeartRate, "2026-10-25T10:00:10Z", "2026-10-25T10:00:10Z", 120), sample("h4", SampleKind.HeartRate, "2026-10-24T11:00:00Z", "2026-10-24T11:00:00Z", 80)), berlin, mapOf(sunday to 100)).minutesAbove)
     }
 }

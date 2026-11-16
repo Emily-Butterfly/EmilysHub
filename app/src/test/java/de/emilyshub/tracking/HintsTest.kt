@@ -355,6 +355,8 @@ class HintsTest {
         val legs = plainEvents + listOf(skinEvent(1, 1, areas = setOf(SkinArea.Legs), fades = true), skinEvent(2, 2, areas = setOf(SkinArea.Legs), fades = true))
         assertTrue(hint(records(events = legs), HintRule.SkinPooling)!!.pattern.contains("stützt die Stehtests"))
         assertNull(hint(records(events = legs.map { it.copy(skinFadesLying = false) }), HintRule.SkinPooling))
+        assertNull("minutes not recorded are not rapid", hint(records(events = legs.map { it.copy(skinFadeMinutes = null) }), HintRule.SkinPooling))
+        assertNull("nor are they lasting", hint(records(events = legs.map { it.copy(skinFadeMinutes = null) }), HintRule.SkinPersistent))
     }
 
     @Test
