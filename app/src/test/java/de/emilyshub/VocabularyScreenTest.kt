@@ -144,7 +144,7 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Gut").performClick()
             compose.onNodeWithText("Für heute geschafft: 2 Karten").assertIsDisplayed()
         }
-        val book = runBlocking { app.flashcards.tab(arabic).first() }!!.cards.single { it.card.front == "كتاب" }.card
+        val book = cardOf(arabic, "كتاب")
         assertEquals("Nochmal, then Gut", 2, runBlocking { app.testDatabase.cards().reviewsOf(book.id) }.size)
     }
 
@@ -316,6 +316,7 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Aufdecken").performClick()
             compose.onNodeWithText("Leicht").performClick()
             compose.onNodeWithText("Aufdecken").performClick()
+            val before = cardOf(arabic, "qalam")
 
             compose.onNodeWithContentDescription("Karte ändern").performClick()
             heading("Karte ändern").assertIsDisplayed()
@@ -327,6 +328,7 @@ class VocabularyScreenTest {
             compose.onNodeWithText("qalam").assertIsDisplayed()
             compose.onNodeWithText("Füller").assertIsDisplayed()
             compose.onNodeWithText("Aufdecken").assertDoesNotExist()
+            assertEquals("its planning kept", before.copy(back = "Füller"), cardOf(arabic, "qalam"))
 
             compose.onNodeWithContentDescription("Karte ändern").performClick()
             compose.onNodeWithContentDescription("Karte löschen").performClick()
@@ -336,8 +338,6 @@ class VocabularyScreenTest {
             compose.onNodeWithText("bab").assertIsDisplayed()
             compose.onNodeWithText("Aufdecken").assertIsDisplayed()
         }
-        val book = runBlocking { app.flashcards.tab(arabic).first() }!!.cards.single { it.card.front == "kitab" }.card
-        assertEquals("its planning kept", false, book.new)
     }
 
     @Test
@@ -444,6 +444,9 @@ class VocabularyScreenTest {
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 
     private fun card(languageId: Long, front: String, back: String) = runBlocking { app.flashcards.create(languageId, CardDraft(front, back)) }
+
+    private fun cardOf(languageId: Long, front: String) =
+        runBlocking { app.flashcards.tab(languageId).first() }!!.cards.single { it.card.front == front }.card
 
     private fun openLanguages() {
         tab("Sonstiges").performClick()

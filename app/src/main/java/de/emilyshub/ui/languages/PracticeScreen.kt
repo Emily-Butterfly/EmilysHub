@@ -126,14 +126,16 @@ fun PracticeScreen(
     }
     val current = workload?.let(round::current)
     // Taken back, the card is shown once the workload has it again, or no more once it is gone.
-    val back = answering?.key
-    if (workload != null && takenBack && (current?.key == back || (workload.remaining + workload.doneToday).none { it.key == back })) {
+    val takenBackKey = answering?.key
+    if (workload != null && takenBack && (current?.key == takenBackKey || (workload.remaining + workload.doneToday).none { it.key == takenBackKey })) {
         SideEffect {
             takenBack = false
             answering = null
         }
     }
     val card = answering ?: current
+    // Nothing is changed or taken back while an answer, or one taken back, is still on its way.
+    val idle = answering == null
     Scaffold(
         topBar = {
             TopAppBar(
@@ -144,7 +146,7 @@ fun PracticeScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { card?.let { onEditCard(it.id) } }, enabled = card != null && answering == null) {
+                    IconButton(onClick = { card?.let { onEditCard(it.id) } }, enabled = card != null && idle) {
                         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.card_edit))
                     }
                     val taking = last
@@ -161,7 +163,7 @@ fun PracticeScreen(
                                 takenBack = true
                             }
                         },
-                        enabled = taking != null && answering == null,
+                        enabled = taking != null && idle,
                     ) {
                         Icon(UndoIcon, contentDescription = stringResource(R.string.practice_take_back))
                     }
