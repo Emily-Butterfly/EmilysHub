@@ -198,7 +198,8 @@ fun PracticeScreen(
                     textAlign = TextAlign.Center,
                 )
                 val asked = workload.doneToday.map { it.key }
-                val balance by produceState<RoundBalance?>(null, flashcards, asked) { value = flashcards.balance(asked) }
+                val today = day.today()
+                val balance by produceState<RoundBalance?>(null, flashcards, asked, today) { value = flashcards.balance(asked, today) }
                 balance?.takeIf { it.known + it.again > 0 }?.let {
                     Text(
                         stringResource(R.string.practice_balance, it.known, it.again),
@@ -211,10 +212,13 @@ fun PracticeScreen(
                 val next by remember(flashcards, day, languageId, topicId) {
                     if (topicId != null) flowOf(null) else day.dates().flatMapLatest { flashcards.nextLanguage(languageId, it) }
                 }.collectAsState(initial = null)
-                next?.let {
-                    Button(onClick = { onPractiseNext(it.id) }) { Text(stringResource(R.string.practice_next, it.name, it.open)) }
-                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.practice_back)) }
-                } ?: Button(onClick = onBack) { Text(stringResource(R.string.practice_back)) }
+                val other = next
+                if (other != null) {
+                    Button(onClick = { onPractiseNext(other.id) }) { Text(stringResource(R.string.practice_next, other.name, other.open)) }
+                }
+                // Below the next language, back is the lesser way.
+                val back: @Composable () -> Unit = { Text(stringResource(R.string.practice_back)) }
+                if (other != null) OutlinedButton(onClick = onBack, content = { back() }) else Button(onClick = onBack, content = { back() })
             }
             return@Scaffold
         }

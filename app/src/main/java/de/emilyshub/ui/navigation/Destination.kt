@@ -142,8 +142,13 @@ sealed interface Destination : Serializable {
     /** A card's editor (SPEC.md §15, Vokabeltrainer). */
     data class CardEditor(override val target: CardEditorTarget) : Editor
 
-    /** Practising the cards of a language due today, or all of the topic [topicId] (SPEC.md §15, Vokabeltrainer). */
-    data class Practice(val languageId: Long, val topicId: Long? = null) : Destination
+    /**
+     * Practising the cards of a language due today, or all of the topic [topicId] (SPEC.md §15, Vokabeltrainer); one of
+     * another language or topic put in its place starts afresh, its round and its last answer its own (#147).
+     */
+    data class Practice(val languageId: Long, val topicId: Long? = null) : Destination {
+        override val stateKey get() = toString()
+    }
 
     /** A lesson's editor (SPEC.md §15). */
     data class LessonEditor(override val target: LessonEditorTarget) : Editor

@@ -210,6 +210,8 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Weiter mit Italienisch (2)").performClick()
             heading("Italienisch").assertIsDisplayed()
             compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            // Its own practice: the last answer in the other language is not to take back here.
+            compose.onNodeWithContentDescription("Letzte Antwort zurücknehmen").assertIsNotEnabled()
             repeat(2) {
                 compose.onNodeWithText("Aufdecken").performClick()
                 compose.onNodeWithText("Gut").performClick()

@@ -117,11 +117,11 @@ data class RoundBalance(val known: Int, val again: Int) {
     companion object {
         /** Of the ways [asked], by their first answer on [today] in the log ([reviews]), told in [zone]; one with none there is not counted. */
         fun of(asked: Collection<PromptKey>, reviews: List<CardReview>, today: LocalDate, zone: ZoneId): RoundBalance {
-            val first = reviews.filter { it.at.atZone(zone).toLocalDate() == today }
+            val firstGrades = reviews.filter { it.at.atZone(zone).toLocalDate() == today }
                 .sortedWith(compareBy(CardReview::at, CardReview::id))
                 .groupBy { PromptKey(it.cardId, it.reverse) }
                 .mapValues { (_, answers) -> answers.first().grade }
-            val grades = asked.toSet().mapNotNull(first::get)
+            val grades = asked.toSet().mapNotNull(firstGrades::get)
             val again = grades.count { it == Rating.Again.grade }
             return RoundBalance(known = grades.size - again, again = again)
         }
@@ -275,23 +275,28 @@ class Flashcards(
     }.flowOn(io)
 
     /**
-     * The language to practise after [languageId] on [today] (#147): of the others not archived, the one with the most
-     * still open, by name if alike; none while nothing is open elsewhere.
+     * The language to practise after [languageId] on [today] (SPEC.md §15; #147): of the others not archived, the one
+     * with the most still open, by name if alike; none while nothing is open elsewhere.
      */
     fun nextLanguage(languageId: Long, today: LocalDate): Flow<NextLanguage?> = flow {
-        val next = combine(languages.observeLanguages(), workloads(today)) { all, workloads ->
-            all.filter { it.id != languageId && (workloads[it.id]?.remaining?.size ?: 0) > 0 }
-                .sortedWith(compareByDescending<Language> { workloads.getValue(it.id).remaining.size }.then(compareBy(InputText.byName) { it.name }))
+        val next = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
+            val byLanguage = cards.groupBy { it.languageId }
+            all.filter { !it.archived && it.id != languageId }
+                .map { NextLanguage(it.id, it.name, Workload.of(byLanguage[it.id].orEmpty(), it.newCardsPerDay, today).remaining.size) }
+                .filter { it.open > 0 }
+                .sortedWith(compareByDescending(NextLanguage::open).then(compareBy(InputText.byName, NextLanguage::name)))
                 .firstOrNull()
-                ?.let { NextLanguage(it.id, it.name, workloads.getValue(it.id).remaining.size) }
         }
         emitAll(next)
     }.flowOn(io)
 
-    /** How the ways [asked] came out today, from the log (#147): each by its first answer of the day. */
-    suspend fun balance(asked: Collection<PromptKey>): RoundBalance = withContext(io) {
+    /**
+     * How the ways [asked] came out on [today], from the log (SPEC.md §15; #147): each by its first answer of the day,
+     * the day the practice shows.
+     */
+    suspend fun balance(asked: Collection<PromptKey>, today: LocalDate): RoundBalance = withContext(io) {
         val reviews = asked.map { it.cardId }.distinct().flatMap { dao.reviewsOf(it) }
-        RoundBalance.of(asked, reviews, today(), clock.zone)
+        RoundBalance.of(asked, reviews, today, clock.zone)
     }
 
     /** A new card of the language [languageId], as [draft] has it; refused, with nothing saved, for its problems. */

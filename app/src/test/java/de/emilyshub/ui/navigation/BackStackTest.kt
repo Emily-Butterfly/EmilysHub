@@ -111,6 +111,10 @@ class BackStackTest {
         assertEquals(months.topStateKey, months.replaceTop(Destination.Ledger(YearMonth.of(2026, 4))).topStateKey)
         val wish = BackStack().push(Destination.WishEditor(WishEditorTarget.Edit(4)))
         assertNotEquals("an editor of another wish starts afresh", wish.topStateKey, wish.replaceTop(Destination.WishEditor(WishEditorTarget.Edit(5))).topStateKey)
+        // Its round, its last answer and whether it did the workload are each language's own (#147).
+        val practice = BackStack().push(Destination.LanguagePage(1)).push(Destination.Practice(1))
+        assertNotEquals("the practice of another language starts afresh", practice.topStateKey, practice.replaceTop(Destination.Practice(2)).topStateKey)
+        assertNotEquals("a topic of it too", practice.topStateKey, practice.replaceTop(Destination.Practice(1, topicId = 3)).topStateKey)
     }
 
     @Test

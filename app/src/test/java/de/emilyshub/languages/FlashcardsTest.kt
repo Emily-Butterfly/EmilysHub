@@ -217,6 +217,7 @@ class FlashcardsTest {
         val pen = card(arabic, "Stift")
         val door = both(arabic, "Tür")
         val house = card(arabic, "Haus")
+        val window = card(arabic, "Fenster")
         // Yesterday's "Nochmal" is not today's.
         clock.now = berlin("2026-11-11T20:00")
         cards.answer(house, Rating.Again)
@@ -230,13 +231,12 @@ class FlashcardsTest {
         cards.answer(house, Rating.Easy)
         cards.answer(door, Rating.Hard, reverse = true)
         // Taken back, an answer counts no more.
-        cards.answer(door, Rating.Again)?.let { cards.takeBack(it) }
-        cards.answer(door, Rating.Good)
+        cards.answer(window, Rating.Again)?.let { cards.takeBack(it) }
+        cards.answer(window, Rating.Good)
 
-        val asked = listOf(book, pen, house).map { PromptKey(it, reverse = false) } +
-            PromptKey(door, reverse = true) + PromptKey(door, reverse = false)
-        assertEquals(RoundBalance(known = 4, again = 1), cards.balance(asked))
-        assertEquals("only the ways asked", RoundBalance(known = 1, again = 1), cards.balance(asked.take(2)))
+        val asked = listOf(book, pen, house, window).map { PromptKey(it, reverse = false) } + PromptKey(door, reverse = true)
+        assertEquals(RoundBalance(known = 4, again = 1), cards.balance(asked, today))
+        assertEquals("only the ways asked", RoundBalance(known = 1, again = 1), cards.balance(asked.take(2), today))
     }
 
     @Test
@@ -244,17 +244,20 @@ class FlashcardsTest {
         val arabic = language("Arabisch")
         val italian = language("Italienisch")
         val persian = language("Persisch")
+        val albanian = language("Albanisch")
         val archived = language("Türkisch")
         card(arabic, "Buch")
         repeat(2) { card(italian, "Wort $it") }
         repeat(3) { card(persian, "Wort $it") }
+        repeat(3) { card(albanian, "Wort $it") }
         repeat(5) { card(archived, "Wort $it") }
         languages.setLanguageArchived(archived, true)
 
-        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(arabic, today).first())
-        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(italian, today).first())
-        assertEquals(NextLanguage(italian, "Italienisch", 2), cards.nextLanguage(persian, today).first())
-        (workload(italian).remaining + workload(persian).remaining).forEach { cards.answer(it.id, Rating.Good) }
+        assertEquals("as much open, by name", NextLanguage(albanian, "Albanisch", 3), cards.nextLanguage(arabic, today).first())
+        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(albanian, today).first())
+        (workload(albanian).remaining + workload(persian).remaining).forEach { cards.answer(it.id, Rating.Good) }
+        assertEquals(NextLanguage(italian, "Italienisch", 2), cards.nextLanguage(arabic, today).first())
+        workload(italian).remaining.forEach { cards.answer(it.id, Rating.Good) }
         assertEquals("nothing open elsewhere", null, cards.nextLanguage(arabic, today).first())
     }
 
