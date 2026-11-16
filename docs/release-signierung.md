@@ -80,6 +80,8 @@ git tag v0.1.364 <commit>
 git push origin v0.1.364
 ```
 
+Ohne Tag geht es auch von Hand: unter **Actions** den Workflow **Release** mit **Run workflow** starten und die Nummer des grünen Build-Laufs eintragen, etwa `365`. Er setzt dann selbst den Tag `v0.1.365` auf den Commit dieses Laufs.
+
 ## Versionsnummer
 
 Jeder Lauf des Workflows `build.yml` gibt der App seine laufende Nummer (`GITHUB_RUN_NUMBER`) als `versionCode` und `0.1.<Nummer>` als Version, dazu die ersten 7 Zeichen des Commits. Debug- und Release-APK eines Laufs tragen dieselbe Nummer. Die Einstellungen zeigen sie ganz unten, etwa „Version 0.1.412 · 2dc38f5“. Weil die Nummer steigt, lehnt Android einen älteren Build über einem neueren ab. Ein lokaler Build steht auf `versionCode` 1 und „0.1.0-lokal“.

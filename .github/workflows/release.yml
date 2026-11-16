@@ -1,11 +1,17 @@
 # A tag v0.1.<n> on a commit makes the signed release APK of Build run n of that commit a GitHub Release
 # (docs/release-signierung.md): the APK the run built and signed, not a build of its own, so its version is the run's.
+# Started by hand with the run's number, it sets the tag v0.1.<n> on that run's commit itself.
 name: Release
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      run:
+        description: 'Nummer des grünen Build-Laufs, etwa 365'
+        required: true
 
 permissions: {}
 
@@ -20,25 +26,37 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      TAG: ${{ github.ref_name }}
-      SHA: ${{ github.sha }}
+      EVENT: ${{ github.event_name }}
+      RUN_INPUT: ${{ inputs.run }}
+      PUSHED_TAG: ${{ github.ref_name }}
+      PUSHED_SHA: ${{ github.sha }}
     steps:
       - name: Build-Lauf des Commits finden
         id: run
         run: |
-          number="${TAG#v0.1.}"
+          if [ "$EVENT" = workflow_dispatch ]; then
+            number="$RUN_INPUT"
+            filter=()
+          else
+            number="${PUSHED_TAG#v0.1.}"
+            filter=(--commit "$PUSHED_SHA")
+          fi
           if [[ ! "$number" =~ ^[0-9]+$ ]]; then
-            echo "::error::Der Tag muss v0.1.<Laufnummer> heißen, etwa v0.1.364; er heißt $TAG."
+            echo "::error::Gebraucht wird die Nummer eines Build-Laufs, als Tag v0.1.<Nummer>, etwa v0.1.364; gegeben: ${PUSHED_TAG:-$RUN_INPUT}."
             exit 1
           fi
-          id=$(gh run list -R "$REPO" --workflow build.yml --commit "$SHA" --status success --limit 50 \
-            --json databaseId,number --jq ".[] | select(.number == $number) | .databaseId")
-          if [ -z "$id" ]; then
-            echo "::error::Kein erfolgreicher Build-Lauf Nr. $number für den Commit $SHA."
+          run=$(gh run list -R "$REPO" --workflow build.yml "${filter[@]}" --status success --limit 200 \
+            --json databaseId,number,headSha --jq "[.[] | select(.number == $number)][0] // empty")
+          if [ -z "$run" ]; then
+            echo "::error::Kein erfolgreicher Build-Lauf Nr. $number${PUSHED_SHA:+ für den Commit $PUSHED_SHA}."
             exit 1
           fi
-          echo "number=$number" >> "$GITHUB_OUTPUT"
-          echo "id=$id" >> "$GITHUB_OUTPUT"
+          {
+            echo "number=$number"
+            echo "id=$(jq -r .databaseId <<<"$run")"
+            echo "sha=$(jq -r .headSha <<<"$run")"
+            echo "tag=v0.1.$number"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Signierte Release-APK des Laufs holen
         env:
@@ -48,11 +66,14 @@ jobs:
           gh run download "$RUN_ID" -R "$REPO" -n emilyshub-release -D apk
           mv apk/app-release.apk "emilyshub-0.1.$NUMBER.apk"
 
+      # A tag pushed stays where it is; started by hand, the tag is set on the run's commit.
       - name: Release anlegen
         env:
           RUN_ID: ${{ steps.run.outputs.id }}
           NUMBER: ${{ steps.run.outputs.number }}
+          SHA: ${{ steps.run.outputs.sha }}
+          TAG: ${{ steps.run.outputs.tag }}
         run: |
-          gh release create "$TAG" "emilyshub-0.1.$NUMBER.apk" -R "$REPO" --verify-tag \
+          gh release create "$TAG" "emilyshub-0.1.$NUMBER.apk" -R "$REPO" --target "$SHA" \
             --title "EmilysHub 0.1.$NUMBER" \
             --notes "Signierte Release-APK aus dem Build-Lauf Nr. $NUMBER ($SHA): https://github.com/$REPO/actions/runs/$RUN_ID"
