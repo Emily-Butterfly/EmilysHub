@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import java.io.Serializable
 import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.coroutines.CoroutineContext
 
@@ -107,6 +108,28 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
         }
     }
 }
+
+/**
+ * How a round came out (SPEC.md §15; #147): of the ways asked that day, how many were [known] at their first answer of
+ * that day, and how many not ([again], "Nochmal"); one known only when asked again in the round counts as "Nochmal".
+ */
+data class RoundBalance(val known: Int, val again: Int) {
+    companion object {
+        /** Of the ways [asked], by their first answer on [today] in the log ([reviews]), told in [zone]; one with none there is not counted. */
+        fun of(asked: Collection<PromptKey>, reviews: List<CardReview>, today: LocalDate, zone: ZoneId): RoundBalance {
+            val first = reviews.filter { it.at.atZone(zone).toLocalDate() == today }
+                .sortedWith(compareBy(CardReview::at, CardReview::id))
+                .groupBy { PromptKey(it.cardId, it.reverse) }
+                .mapValues { (_, answers) -> answers.first().grade }
+            val grades = asked.toSet().mapNotNull(first::get)
+            val again = grades.count { it == Rating.Again.grade }
+            return RoundBalance(known = grades.size - again, again = again)
+        }
+    }
+}
+
+/** The language practised next once one is done (SPEC.md §15; #147): its [id], its [name], and how much is still [open] today. */
+data class NextLanguage(val id: Long, val name: String, val open: Int)
 
 /**
  * An answer given (SPEC.md §15; #145): to the card asked the way [before] has it, as it was planned before, its entry in
@@ -250,6 +273,26 @@ class Flashcards(
         }
         emitAll(workloads)
     }.flowOn(io)
+
+    /**
+     * The language to practise after [languageId] on [today] (#147): of the others not archived, the one with the most
+     * still open, by name if alike; none while nothing is open elsewhere.
+     */
+    fun nextLanguage(languageId: Long, today: LocalDate): Flow<NextLanguage?> = flow {
+        val next = combine(languages.observeLanguages(), workloads(today)) { all, workloads ->
+            all.filter { it.id != languageId && (workloads[it.id]?.remaining?.size ?: 0) > 0 }
+                .sortedWith(compareByDescending<Language> { workloads.getValue(it.id).remaining.size }.then(compareBy(InputText.byName) { it.name }))
+                .firstOrNull()
+                ?.let { NextLanguage(it.id, it.name, workloads.getValue(it.id).remaining.size) }
+        }
+        emitAll(next)
+    }.flowOn(io)
+
+    /** How the ways [asked] came out today, from the log (#147): each by its first answer of the day. */
+    suspend fun balance(asked: Collection<PromptKey>): RoundBalance = withContext(io) {
+        val reviews = asked.map { it.cardId }.distinct().flatMap { dao.reviewsOf(it) }
+        RoundBalance.of(asked, reviews, today(), clock.zone)
+    }
 
     /** A new card of the language [languageId], as [draft] has it; refused, with nothing saved, for its problems. */
     suspend fun create(languageId: Long, draft: CardDraft): Saving<CardProblem> = write {

@@ -211,6 +211,54 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `a round's balance counts each way asked today by its first answer that day, from the log`() = runBlocking {
+        val arabic = language("Arabisch")
+        val book = card(arabic, "Buch")
+        val pen = card(arabic, "Stift")
+        val door = both(arabic, "Tür")
+        val house = card(arabic, "Haus")
+        // Yesterday's "Nochmal" is not today's.
+        clock.now = berlin("2026-11-11T20:00")
+        cards.answer(house, Rating.Again)
+        clock.now = berlin("2026-11-12T10:00")
+
+        cards.answer(book, Rating.Again)
+        cards.answer(pen, Rating.Good)
+        // Again in the round, known at last: still "Nochmal", as it was not known at first.
+        cards.answer(book, Rating.Good)
+        // "Nochmal" yesterday, known today.
+        cards.answer(house, Rating.Easy)
+        cards.answer(door, Rating.Hard, reverse = true)
+        // Taken back, an answer counts no more.
+        cards.answer(door, Rating.Again)?.let { cards.takeBack(it) }
+        cards.answer(door, Rating.Good)
+
+        val asked = listOf(book, pen, house).map { PromptKey(it, reverse = false) } +
+            PromptKey(door, reverse = true) + PromptKey(door, reverse = false)
+        assertEquals(RoundBalance(known = 4, again = 1), cards.balance(asked))
+        assertEquals("only the ways asked", RoundBalance(known = 1, again = 1), cards.balance(asked.take(2)))
+    }
+
+    @Test
+    fun `the next language is the other one with the most still open today`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val persian = language("Persisch")
+        val archived = language("Türkisch")
+        card(arabic, "Buch")
+        repeat(2) { card(italian, "Wort $it") }
+        repeat(3) { card(persian, "Wort $it") }
+        repeat(5) { card(archived, "Wort $it") }
+        languages.setLanguageArchived(archived, true)
+
+        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(arabic, today).first())
+        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(italian, today).first())
+        assertEquals(NextLanguage(italian, "Italienisch", 2), cards.nextLanguage(persian, today).first())
+        (workload(italian).remaining + workload(persian).remaining).forEach { cards.answer(it.id, Rating.Good) }
+        assertEquals("nothing open elsewhere", null, cards.nextLanguage(arabic, today).first())
+    }
+
+    @Test
     fun `left after Nochmal, the card is due the next day, and Ueben goes on where it was`() = runBlocking {
         val arabic = language("Arabisch")
         card(arabic, "Buch")

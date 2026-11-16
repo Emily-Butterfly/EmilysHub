@@ -375,6 +375,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 is Destination.Practice -> PracticeScreen(
                     hub.flashcards, hub.day, top.languageId, onBack = back, topicId = top.topicId,
                     onEditCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
+                    onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
                 )
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
                 Destination.LanguageList ->

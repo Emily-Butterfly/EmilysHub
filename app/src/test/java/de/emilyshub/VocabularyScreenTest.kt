@@ -181,8 +181,48 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Gut").performClick()
 
             compose.onNodeWithText("Für heute geschafft: 2 Karten").assertIsDisplayed()
+            // The first answer of each counts: one not known at first, though known when it came again.
+            compose.onNodeWithText("1 gewusst · 1 Nochmal").assertIsDisplayed()
+            compose.onNodeWithText("Weiter mit", substring = true).assertDoesNotExist()
             compose.onNodeWithText("Zurück").performClick()
             compose.onNodeWithText("Für heute geschafft").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the day's workload done, the other language with the most open is practised next in its place`() {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val persian = language("Persisch")
+        card(arabic, "kitab", "Buch")
+        card(italian, "libro", "Buch")
+        card(italian, "penna", "Stift")
+        card(persian, "ketab", "Buch")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("1 gewusst · 0 Nochmal").assertIsDisplayed()
+
+            compose.onNodeWithText("Weiter mit Italienisch (2)").performClick()
+            heading("Italienisch").assertIsDisplayed()
+            compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            repeat(2) {
+                compose.onNodeWithText("Aufdecken").performClick()
+                compose.onNodeWithText("Gut").performClick()
+            }
+            compose.onNodeWithText("Weiter mit Persisch (1)").performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+
+            compose.onNodeWithText("Für heute geschafft: 1 Karte").assertIsDisplayed()
+            compose.onNodeWithText("Weiter mit", substring = true).assertDoesNotExist()
+            // In place of the one done: back is the language it started from.
+            compose.onNodeWithText("Zurück").performClick()
+            heading("Arabisch").assertIsDisplayed()
         }
     }
 
@@ -381,6 +421,7 @@ class VocabularyScreenTest {
             app.flashcards.create(arabic, CardDraft("azraq", "blau", topicId = colours))
         }
         card(arabic, "kitab", "Buch")
+        card(language("Italienisch"), "libro", "Buch")
 
         launchApp().use {
             openLanguage("Arabisch")
@@ -402,6 +443,9 @@ class VocabularyScreenTest {
                 compose.onNodeWithText("Gut").performClick()
             }
             compose.onNodeWithText("Thema geübt: 2 Karten").assertIsDisplayed()
+            compose.onNodeWithText("2 gewusst · 0 Nochmal").assertIsDisplayed()
+            // A topic practised offers no other language.
+            compose.onNodeWithText("Weiter mit", substring = true).assertDoesNotExist()
         }
     }
 

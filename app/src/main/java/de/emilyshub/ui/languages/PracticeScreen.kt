@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -37,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,10 +63,12 @@ import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Rating
 import de.emilyshub.languages.Round
+import de.emilyshub.languages.RoundBalance
 import de.emilyshub.languages.Workload
 import de.emilyshub.ui.launchNow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.io.Serializable
 import kotlin.math.roundToInt
@@ -79,6 +83,9 @@ import kotlin.math.roundToInt
  * The card shown is opened in its editor by [onEditCard] (#146): back, the practice is where it was, the card covered
  * or not as it was, with its texts changed; deleted, or no more asked the way it was shown, the round goes on with the
  * next, as the workload no longer has it.
+ * At the end, how it came out: each way asked today by its first answer of the day, from the log ("19 gewusst ·
+ * 4 Nochmal"); after the day's workload, the other language with the most still open is offered, "Weiter mit
+ * Italienisch (12)", which [onPractiseNext] practises in its place (#147).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
@@ -88,6 +95,7 @@ fun PracticeScreen(
     languageId: Long,
     onBack: () -> Unit,
     onEditCard: (cardId: Long) -> Unit,
+    onPractiseNext: (languageId: Long) -> Unit,
     topicId: Long? = null,
 ) {
     val state by remember(flashcards, day, languageId, topicId) {
@@ -189,7 +197,24 @@ fun PracticeScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = onBack) { Text(stringResource(R.string.practice_back)) }
+                val asked = workload.doneToday.map { it.key }
+                val balance by produceState<RoundBalance?>(null, flashcards, asked) { value = flashcards.balance(asked) }
+                balance?.takeIf { it.known + it.again > 0 }?.let {
+                    Text(
+                        stringResource(R.string.practice_balance, it.known, it.again),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                // Only after the day's workload: a topic practised is done when it is.
+                val next by remember(flashcards, day, languageId, topicId) {
+                    if (topicId != null) flowOf(null) else day.dates().flatMapLatest { flashcards.nextLanguage(languageId, it) }
+                }.collectAsState(initial = null)
+                next?.let {
+                    Button(onClick = { onPractiseNext(it.id) }) { Text(stringResource(R.string.practice_next, it.name, it.open)) }
+                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.practice_back)) }
+                } ?: Button(onClick = onBack) { Text(stringResource(R.string.practice_back)) }
             }
             return@Scaffold
         }
