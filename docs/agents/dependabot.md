@@ -28,6 +28,19 @@ Whether Dependabot takes the file shows under Insights → Dependency graph → 
 4. **Say what was checked** in one comment on the pull request: the versions, what their changelogs say that
    matters here, and what was mended. Then Emily merges.
 
+## An alert without a pull request
+
+Dependabot cannot propose a fix for a library no build file names: one brought in by another library (Guava through
+Health Connect), or by the build's own tools (the Android Gradle plugin, lint, KSP), whose versions the plugin fixes.
+Such an alert stays open without a pull request. Its fix is a line in `securityFloors` in `settings.gradle.kts`: the
+lowest version the build may resolve of that library, with the advisory it answers. Every configuration of every
+project, the buildscript classpath included, resolves a lower one in that version; `dependencyInsight` names the rule
+as the reason. A line goes again once nothing resolves below it any more, as after an update of the plugin.
+
+To find what the alerts are about without access to them: list what the build resolves and look each up at osv.dev,
+which carries GitHub's advisories (done on 16.11.2026 for the first floors). Then the build as CI runs it, the release
+build with R8 included.
+
 ## Not proposed
 
 - `targetSdk` (fixed at 35 by SPEC.md §12) and `minSdk` are set in `app/build.gradle.kts`, not in the catalog.
