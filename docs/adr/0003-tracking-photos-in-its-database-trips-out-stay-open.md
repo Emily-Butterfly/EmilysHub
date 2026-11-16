@@ -6,10 +6,14 @@ does, and are overwritten on disk by `secure_delete` when deleted, "Alles lösch
 key of their own derived from Tracking's, a place in the island's snapshot, and their own way through backup, restore
 and deleting. The lessons' attachments have that way (`AttachmentStore`), but under the app's key, not Tracking's.
 
-The cost: a backup holds the whole database in its content, at most 20 MB (`BackupFile.MAX_BYTES`). So photos are
-kept small, at most 1600 px at the long edge, and an event has at most 6. Revisit if Tracking's backups come near that
-size: then the photos move to files, carried as records of their own in the backup, encrypted under a key from
-Tracking's.
+The cost: a backup takes the whole database along. At first it lay in the backup's content, which also holds the
+Doku and all other data, at most 20 MB (`BackupFile.MAX_BYTES`): a few dozen photos would have kept every backup from
+being made. Since 16.11.2026 (format 3 of `BackupFile`) the islands' databases follow the content as records of their
+own, in pieces of 4 MB, and an island may be up to 64 MB (`IslandSnapshot.MAX_BYTES`), several hundred photos; a
+backup holds it in memory while it is made and opened. A photo that would take Tracking past 56 MB is not kept
+(`PhotoAdd.Full`), so that the backup never fails for it; deleting photos makes room again. Photos are still kept
+small, at most 1600 px at the long edge, and an event has at most 6. Revisit if Tracking comes near that size: then
+the database is written into the backup as a stream, without holding it in memory, or the photos move to files.
 
 Taking a photo hands the screen to the camera app, and saving the doctor's summary to the folder picker. Both stop the
 activity, which locks an island (SPEC.md §14). Locked, the photo could not be encrypted on its return, and would wait

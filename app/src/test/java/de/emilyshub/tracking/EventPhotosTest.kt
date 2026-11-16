@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayOutputStream
 import java.time.Instant
+import kotlin.random.Random
 
 /**
  * The photos of an event (SPEC.md §17, "Ereignisse"): kept in Tracking's own database, so encrypted with its key, in its
@@ -59,6 +60,30 @@ class EventPhotosTest {
     }
 
     @Test
+    fun `none is kept once Tracking would be more than its backup carries, until photos are deleted`() = runBlocking {
+        val id = create()
+        val filler = checkNotNull(events.create(EventKind.Bath))
+        // Bytes that do not shrink, up to just under the most Tracking takes a photo into.
+        val fillers = checkNotNull(
+            fixture.tracking.changing { database ->
+                List(EventPhotos.MAX_DATABASE_BYTES / MEGABYTE - 1) { index ->
+                    database.photos().insert(EventPhoto(eventId = filler, takenAt = Instant.EPOCH, jpeg = Random(index).nextBytes(MEGABYTE)))
+                }
+            },
+        )
+        val small = jpeg(40, 30)
+        assertTrue(events.addPhoto(id, small) is PhotoAdd.Added)
+        fixture.tracking.changing { database ->
+            database.photos().insert(EventPhoto(eventId = filler, takenAt = Instant.EPOCH, jpeg = Random(-1).nextBytes(MEGABYTE)))
+        }
+
+        assertEquals(PhotoAdd.Full, events.addPhoto(id, small))
+
+        events.deletePhoto(fillers.first())
+        assertTrue(events.addPhoto(id, small) is PhotoAdd.Added)
+    }
+
+    @Test
     fun `a photo deleted is gone, and all of an event go with it`() = runBlocking {
         val id = create()
         val first = (events.addPhoto(id, jpeg(40, 30)) as PhotoAdd.Added).id
@@ -88,6 +113,10 @@ class EventPhotosTest {
         fixture.tracking.lock()
 
         assertEquals(PhotoAdd.Locked, events.addPhoto(id, jpeg(40, 30)))
+    }
+
+    private companion object {
+        const val MEGABYTE = 1024 * 1024
     }
 
     private fun jpeg(width: Int, height: Int): ByteArray {

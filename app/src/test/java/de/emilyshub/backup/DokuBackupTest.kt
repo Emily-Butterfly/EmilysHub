@@ -7,6 +7,7 @@ import de.emilyshub.TestApplication
 import de.emilyshub.doku.Doku
 import de.emilyshub.island.IslandClipboard
 import de.emilyshub.doku.DokuDatabase
+import de.emilyshub.island.IslandSnapshot
 import de.emilyshub.island.IslandState
 import de.emilyshub.doku.PatientDraft
 import de.emilyshub.doku.PatientOrder
@@ -200,24 +201,25 @@ class DokuBackupTest {
     @Test
     fun `a Doku section changed is refused`() {
         setUpDoku()
-        val content = contentOf(exported())
+        val file = exported()
+        val content = contentOf(file)
         val doku = content.getJSONObject("doku")
 
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("keys", "AAAA")))) }
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("keys", "kein Base64")))) }
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("more", "")))) }
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).apply { remove("database") }))) }
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", "Doku"))) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("keys", "AAAA")), file)) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("keys", "kein Base64")), file)) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).put("more", "")), file)) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", JSONObject(doku.toString()).apply { remove("database") }), file)) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("doku", "Doku"), file)) }
         assertProblem(BackupProblem.NewerVersion) {
-            open(sealed(content.put("doku", JSONObject(doku.toString()).put("schema", DokuDatabase.VERSION + 1))))
+            open(sealed(content.put("doku", JSONObject(doku.toString()).put("schema", DokuDatabase.VERSION + 1)), file))
         }
     }
 
     @Test
-    fun `the Doku counts towards the size of a backup`() {
+    fun `a Doku larger than a backup carries of an island is refused`() {
         setUpDoku()
         doku.lock()
-        databaseFile.appendBytes(ByteArray(BackupFile.MAX_BYTES))
+        databaseFile.appendBytes(ByteArray(IslandSnapshot.MAX_BYTES))
 
         assertProblem(BackupProblem.TooLarge) { exported() }
     }
@@ -356,8 +358,12 @@ class DokuBackupTest {
 
     private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
 
-    private fun sealed(content: JSONObject) =
-        BackupFile.seal(content.toString().toByteArray(), BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS))
+    /** [content] in place of the content of [file], the records that follow it kept. */
+    private fun sealed(content: JSONObject, file: ByteArray) = BackupFile.seal(
+        content.toString().toByteArray(),
+        BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS),
+        BackupFile.open(file, PASSWORD).attachments,
+    )
 
     private fun assertProblem(problem: BackupProblem, block: () -> Unit) {
         assertEquals(problem, assertThrows(BackupException::class.java, block).problem)

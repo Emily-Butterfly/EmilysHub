@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.room.RoomDatabase
 import de.emilyshub.backup.BackupException
-import de.emilyshub.backup.BackupFile
 import de.emilyshub.backup.BackupKey
 import de.emilyshub.backup.BackupProblem
 import de.emilyshub.logged
@@ -377,7 +376,7 @@ class Island<D : RoomDatabase> internal constructor(
             val stored = keyFile.read() ?: return@withContext null
             // What is in the write-ahead log into the database first, so that the backup carries no more than it needs.
             opened?.database?.checkpoint()
-            files.snapshot(stored.passwordOnly(), BackupFile.MAX_BYTES) ?: throw BackupException(BackupProblem.TooLarge)
+            files.snapshot(stored.passwordOnly(), IslandSnapshot.MAX_BYTES) ?: throw BackupException(BackupProblem.TooLarge)
         }
     }
 

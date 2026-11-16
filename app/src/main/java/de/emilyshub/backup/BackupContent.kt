@@ -1,6 +1,9 @@
 package de.emilyshub.backup
 
+import de.emilyshub.data.HubDatabase
+import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.island.IslandSnapshot
+import de.emilyshub.tracking.TrackingDatabase
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -18,10 +21,15 @@ data class BackupAttachment(val file: String, val bytes: Long)
  * All data of the app as a backup holds it (SPEC.md §10): the rows of each of the [tables], from a database of the
  * [schema] version given, as they were when [created]; the [doku] and [tracking] each in its own encryption, if it
  * has a password. As JSON: {"schema": 16, "created": "2026-10-23T05:00:00Z", "tables": {"routines": {"columns":
- * ["id", ...], "rows": [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": "<Base64>",
- * "wal": "<Base64>"}}, the Doku's write-ahead log only if it has one, the Doku only if there is one, and "tracking"
+ * ["id", ...], "rows": [[1, ...], ...]}, ...}, "doku": {"schema": 4, "keys": "<Base64>", "database": 1234,
+ * "wal": 56}}, the Doku's write-ahead log only if it has one, the Doku only if there is one, and "tracking"
  * as "doku"; and, if there are any, the [attachments] that follow the content in the file, in their order:
  * "attachments": [["<file>", 1234], ...].
+ *
+ * The islands' database and log are not in the content but follow it as records of their own ([records]), each cut
+ * into pieces of at most [PIECE_BYTES], their sizes in the content: so that Tracking's photos (#133) do not share the
+ * content's [BackupFile.MAX_BYTES] with all else. Before format 3 of [BackupFile] they were in the content, in Base64;
+ * such backups still open.
  */
 class BackupContent(
     val schema: Int,
@@ -48,14 +56,19 @@ class BackupContent(
         return root.toString().toByteArray()
     }
 
-    private fun islandJson(island: IslandSnapshot): JSONObject {
-        val base64 = Base64.getEncoder()
-        return JSONObject()
-            .put(SCHEMA, island.schema)
-            .put(KEYS, base64.encodeToString(island.sealedKeys))
-            .put(DATABASE, base64.encodeToString(island.database))
-            .apply { island.wal?.let { put(WAL, base64.encodeToString(it)) } }
-    }
+    private fun islandJson(island: IslandSnapshot): JSONObject = JSONObject()
+        .put(SCHEMA, island.schema)
+        .put(KEYS, Base64.getEncoder().encodeToString(island.sealedKeys))
+        .put(DATABASE, island.database.size)
+        .apply { island.wal?.let { put(WAL, it.size) } }
+
+    /**
+     * The records that follow the content, before the [attachments]: the Doku's database and log, then Tracking's, each
+     * in pieces of at most [PIECE_BYTES], made one by one as they are written.
+     */
+    fun records(): Sequence<ByteArray> = listOfNotNull(doku?.database, doku?.wal, tracking?.database, tracking?.wal)
+        .asSequence()
+        .flatMap { bytes -> (bytes.indices step PIECE_BYTES).asSequence().map { bytes.copyOfRange(it, minOf(it + PIECE_BYTES, bytes.size)) } }
 
     companion object {
         private const val SCHEMA = "schema"
@@ -70,22 +83,34 @@ class BackupContent(
         private const val WAL = "wal"
         private const val ATTACHMENTS = "attachments"
 
+        /** The largest piece of an island's database or log, one record each. */
+        const val PIECE_BYTES = 4 * 1024 * 1024
+
         /**
          * Read strictly: a key missing or unknown, or a value of another type, counts as damage, as does nesting deeper
-         * than a backup has, which the parser would follow until its stack ran out.
+         * than a backup has, which the parser would follow until its stack ran out. One of a newer version of the app
+         * is told as such ([BackupProblem.NewerVersion]) before anything else is read; then the islands' databases and
+         * logs are read from the [records] that follow the content.
          */
-        fun fromJson(json: ByteArray): BackupContent = try {
+        fun fromJson(json: ByteArray, records: () -> ByteArray? = { null }): BackupContent = try {
             if (depthOf(json) > MAX_DEPTH) damaged()
             val root = JSONObject(String(json, Charsets.UTF_8))
             // Older backups, and those made without a Doku, Tracking or attachments, have none.
             if (root.keySet() - DOKU - TRACKING - ATTACHMENTS != setOf(SCHEMA, CREATED, TABLES)) damaged()
+            val schema = root.get(SCHEMA) as? Int ?: damaged()
+            val doku = if (root.has(DOKU)) root.getJSONObject(DOKU) else null
+            val tracking = if (root.has(TRACKING)) root.getJSONObject(TRACKING) else null
+            val newer = schema > HubDatabase.VERSION ||
+                (doku?.let(::islandSchema) ?: 0) > DokuDatabase.VERSION ||
+                (tracking?.let(::islandSchema) ?: 0) > TrackingDatabase.VERSION
+            if (newer) throw BackupException(BackupProblem.NewerVersion)
             val tables = root.getJSONObject(TABLES)
             BackupContent(
-                schema = root.get(SCHEMA) as? Int ?: damaged(),
+                schema = schema,
                 created = Instant.parse(root.get(CREATED) as? String ?: damaged()),
                 tables = tables.keySet().associateWith { tableRows(tables.getJSONObject(it)) },
-                doku = if (root.has(DOKU)) island(root.getJSONObject(DOKU)) else null,
-                tracking = if (root.has(TRACKING)) island(root.getJSONObject(TRACKING)) else null,
+                doku = doku?.let { island(it, records) },
+                tracking = tracking?.let { island(it, records) },
                 attachments = if (root.has(ATTACHMENTS)) attachments(root.getJSONArray(ATTACHMENTS)) else emptyList(),
             )
         } catch (e: JSONException) {
@@ -101,16 +126,39 @@ class BackupContent(
          * The Doku or Tracking: its keys must be sealed under its password alone; the database is checked only once it
          * is opened.
          */
-        private fun island(island: JSONObject): IslandSnapshot {
+        private fun island(island: JSONObject, records: () -> ByteArray?): IslandSnapshot {
             if (island.keySet() - WAL != setOf(SCHEMA, KEYS, DATABASE)) damaged()
             val base64 = Base64.getDecoder()
-            fun bytes(key: String) = base64.decode(island.get(key) as? String ?: damaged())
+            fun bytes(key: String) = when (val value = island.get(key)) {
+                // In the content, as before format 3.
+                is String -> base64.decode(value)
+                is Int -> carried(value.toLong(), records)
+                is Long -> carried(value, records)
+                else -> damaged()
+            }
+            val keys = base64.decode(island.get(KEYS) as? String ?: damaged())
             return IslandSnapshot.of(
-                schema = island.get(SCHEMA) as? Int ?: damaged(),
-                sealedKeys = bytes(KEYS),
+                schema = islandSchema(island),
+                sealedKeys = keys,
                 database = bytes(DATABASE),
                 wal = if (island.has(WAL)) bytes(WAL) else null,
             ) ?: damaged()
+        }
+
+        private fun islandSchema(island: JSONObject): Int = island.opt(SCHEMA) as? Int ?: damaged()
+
+        /** [size] bytes, from the pieces that follow, each full but the last: no more than an island can have. */
+        private fun carried(size: Long, records: () -> ByteArray?): ByteArray {
+            if (size !in 0..IslandSnapshot.MAX_BYTES.toLong()) damaged()
+            val bytes = ByteArray(size.toInt())
+            var filled = 0
+            while (filled < bytes.size) {
+                val piece = records() ?: damaged()
+                if (piece.size != minOf(PIECE_BYTES, bytes.size - filled)) damaged()
+                piece.copyInto(bytes, filled)
+                filled += piece.size
+            }
+            return bytes
         }
 
         private fun attachments(list: JSONArray): List<BackupAttachment> = List(list.length()) { index ->

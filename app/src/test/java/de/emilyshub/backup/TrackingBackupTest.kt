@@ -31,6 +31,8 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
+import java.util.Base64
+import kotlin.random.Random
 
 /**
  * Tracking in the backups (SPEC.md §10, §17): taken along in its own encryption, without unlocking it, as the Doku is,
@@ -169,12 +171,13 @@ class TrackingBackupTest {
     @Test
     fun `a Tracking section of a newer app version is refused`() {
         setUpTracking()
-        val content = contentOf(exported())
+        val file = exported()
+        val content = contentOf(file)
         val section = content.getJSONObject("tracking")
 
-        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("tracking", JSONObject(section.toString()).put("keys", "AAAA")))) }
+        assertProblem(BackupProblem.Damaged) { open(sealed(content.put("tracking", JSONObject(section.toString()).put("keys", "AAAA")), file)) }
         assertProblem(BackupProblem.NewerVersion) {
-            open(sealed(content.put("tracking", JSONObject(section.toString()).put("schema", TrackingDatabase.VERSION + 1))))
+            open(sealed(content.put("tracking", JSONObject(section.toString()).put("schema", TrackingDatabase.VERSION + 1)), file))
         }
     }
 
@@ -217,6 +220,70 @@ class TrackingBackupTest {
     }
 
     @Test
+    fun `photos more than a backup's content can hold go along, in records of their own`() {
+        setUpTracking()
+        // Each a megabyte of bytes that do not shrink, more than the content of a backup holds in all.
+        val photos = List(BackupFile.MAX_BYTES / MEGABYTE + 2) { index -> Random(index).nextBytes(MEGABYTE) }
+        runBlocking {
+            tracking.changing { database ->
+                val event = database.events().insert(TrackingEvent(kind = EventKind.Bath, at = Instant.parse("2026-10-23T04:00:00Z")))
+                photos.forEach { database.photos().insert(EventPhoto(eventId = event, takenAt = Instant.parse("2026-10-23T04:05:00Z"), jpeg = it)) }
+            }
+        }
+        tracking.lock()
+        val file = exported()
+        assertTrue(file.size > BackupFile.MAX_BYTES)
+        assertTrue(BackupFile.open(file, PASSWORD).plaintext.size < MEGABYTE)
+        unlock()
+        runBlocking { tracking.deleteAll(TRACKING_PASSWORD) }
+
+        restore(file, trackingPassword = TRACKING_PASSWORD)
+
+        unlock()
+        val kept = runBlocking {
+            tracking.withDatabase { database -> database.events().all().flatMap { database.photos().of(it.id) }.map { checkNotNull(database.photos().jpeg(it.id)).toList() } }
+        }
+        assertEquals(photos.map { it.toList() }, kept)
+    }
+
+    @Test
+    fun `a piece of Tracking's database missing or changed in size is damage`() {
+        setUpTracking()
+        write("Medikament A")
+        val file = exported()
+        val opened = BackupFile.open(file, PASSWORD)
+        val key = BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS)
+        val pieces = opened.attachments
+
+        assertProblem(BackupProblem.Damaged) { open(BackupFile.seal(opened.plaintext, key, pieces.drop(1))) }
+        assertProblem(BackupProblem.Damaged) { open(BackupFile.seal(opened.plaintext, key, listOf(pieces.first() + 0) + pieces.drop(1))) }
+        assertProblem(BackupProblem.Damaged) { open(BackupFile.seal(opened.plaintext, key, pieces + byteArrayOf(0))) }
+    }
+
+    @Test
+    fun `a backup that held Tracking in its content, as before format 3, still brings it back`() {
+        setUpTracking()
+        write("Medikament A")
+        tracking.lock()
+        val file = exported()
+        val opened = BackupFile.open(file, PASSWORD)
+        val content = JSONObject(String(opened.plaintext))
+        val section = content.getJSONObject("tracking")
+        val database = opened.attachments.fold(ByteArray(0)) { all, piece -> all + piece }
+        assertEquals(section.getInt("database"), database.size)
+        assertFalse(section.has("wal"))
+        content.put("tracking", section.put("database", Base64.getEncoder().encodeToString(database)))
+        val older = BackupFile.seal2(content.toString().toByteArray(), BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS))
+        unlock()
+        write("Medikament B")
+
+        restore(older, trackingPassword = TRACKING_PASSWORD)
+
+        unlock()
+        assertEquals("Medikament A", read())
+    }
+
+    @Test
     fun `deleting all empties what a backup of Tracking then holds`() {
         setUpTracking()
         write("Medikament A")
@@ -255,8 +322,12 @@ class TrackingBackupTest {
 
     private fun contentOf(file: ByteArray) = JSONObject(String(BackupFile.open(file, PASSWORD).plaintext))
 
-    private fun sealed(content: JSONObject) =
-        BackupFile.seal(content.toString().toByteArray(), BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS))
+    /** [content] in place of the content of [file], the records that follow it kept. */
+    private fun sealed(content: JSONObject, file: ByteArray) = BackupFile.seal(
+        content.toString().toByteArray(),
+        BackupKey.derive(PASSWORD, iterations = FEW_ITERATIONS),
+        BackupFile.open(file, PASSWORD).attachments,
+    )
 
     private fun assertProblem(problem: BackupProblem, block: () -> Unit) {
         assertEquals(problem, assertThrows(BackupException::class.java, block).problem)
@@ -267,5 +338,6 @@ class TrackingBackupTest {
         const val DOKU_PASSWORD = "Doku-Geheimnis"
         const val TRACKING_PASSWORD = "Tracking-Geheimnis"
         const val FEW_ITERATIONS = 1_000
+        const val MEGABYTE = 1024 * 1024
     }
 }

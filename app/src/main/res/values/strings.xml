@@ -1888,6 +1888,7 @@
     <string name="tracking_photo_hint">Aufgenommen mit der Kamera-App, sofort verschlüsselt in Tracking abgelegt, nie in der Galerie.</string>
     <string name="tracking_photo_busy">Das Foto wird verschlüsselt …</string>
     <string name="tracking_photo_too_many">Ein Ereignis hat höchstens %d Fotos.</string>
+    <string name="tracking_photo_full">Tracking ist voll: Mehr Fotos passen nicht ins Backup. Lösche Fotos, die du nicht mehr brauchst.</string>
     <string name="tracking_photo_unreadable">Das Foto ließ sich nicht lesen.</string>
     <string name="tracking_photo_description">Foto vom %s</string>
     <string name="tracking_photo_close">Schließen</string>

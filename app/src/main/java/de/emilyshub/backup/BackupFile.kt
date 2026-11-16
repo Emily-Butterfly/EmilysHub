@@ -32,11 +32,12 @@ class DecryptedBackup(val plaintext: ByteArray, val key: BackupKey, val attachme
  * A backup file (SPEC.md §10), encrypted with AES-256-GCM. It begins with a header: "EMHB", the format version (1
  * byte), the PBKDF2 iterations (4 bytes), the salt (16) and the password check (16).
  *
- * Format 2, which the app writes, follows it with records, each whether it is the last (1 byte), its length (4), its
+ * Format 3, which the app writes, follows it with records, each whether it is the last (1 byte), its length (4), its
  * nonce (12) and its sealed content, which authenticates the header, its place in the file and whether it is the last: so that none can be left
  * out, swapped or added. The first holds the content, at most [MAX_BYTES]; then come the attachments, one each, at most
  * [MAX_RECORD_BYTES]; the last is empty. Written and read as a stream, so that the attachments need not all fit in
- * memory at once.
+ * memory at once. Format 2 is laid out as 3; its content held the islands' databases too ([BackupContent]), so an
+ * older app is told that one of format 3 is of a newer version, rather than that it is damaged.
  *
  * Format 1, of older backups, has the nonce in the header, then the content sealed as one, the whole file no larger than
  * [MAX_BYTES].
@@ -51,7 +52,8 @@ object BackupFile {
     private const val MORE = 0
     private const val LAST = 1
     private const val FORMAT_1 = 1
-    private const val FORMAT = 2
+    private const val FORMAT_2 = 2
+    private const val FORMAT = 3
     private val MAGIC = "EMHB".toByteArray()
     private const val NONCE_BYTES = 12
     private const val TAG_BYTES = 16
@@ -59,9 +61,9 @@ object BackupFile {
     private const val HEADER_1_BYTES = KEY_HEADER_BYTES + NONCE_BYTES
     private val random = SecureRandom()
 
-    /** Writes a backup of format 2 to [output]: its [content] first, then each attachment in order, then the end. */
-    class Writer internal constructor(private val output: DataOutputStream, private val key: BackupKey) {
-        private val header = keyHeader(FORMAT, key)
+    /** Writes a backup of format 3 to [output]: its [content] first, then each attachment in order, then the end. */
+    class Writer internal constructor(private val output: DataOutputStream, private val key: BackupKey, format: Int = FORMAT) {
+        private val header = keyHeader(format, key)
         private var index = 0L
         private var finished = false
 
@@ -148,10 +150,12 @@ object BackupFile {
         }
     }
 
-    /** A backup of format 2 to be written to [output] with [key], its [content] first; finish it with [Writer.finish]. */
-    fun writer(output: OutputStream, key: BackupKey, content: ByteArray): Writer {
+    /** A backup of format 3 to be written to [output] with [key], its [content] first; finish it with [Writer.finish]. */
+    fun writer(output: OutputStream, key: BackupKey, content: ByteArray): Writer = writer(output, key, content, FORMAT)
+
+    private fun writer(output: OutputStream, key: BackupKey, content: ByteArray, format: Int): Writer {
         if (content.size > MAX_BYTES) throw BackupException(BackupProblem.TooLarge)
-        return Writer(DataOutputStream(output), key).apply { record(content, last = false) }
+        return Writer(DataOutputStream(output), key, format).apply { record(content, last = false) }
     }
 
     /** The backup in [input], opened with [password]: the key derived and checked, ready to be read. */
@@ -163,10 +167,10 @@ object BackupFile {
         val format = stream.read()
         if (format > FORMAT) throw BackupException(BackupProblem.NewerVersion)
         return when (format) {
-            FORMAT -> {
+            FORMAT_2, FORMAT -> {
                 val rest = ByteArray(KEY_HEADER_BYTES - MAGIC.size - 1)
                 if (readUpTo(stream, rest) < rest.size) damaged()
-                val header = MAGIC + byteArrayOf(FORMAT.toByte()) + rest
+                val header = MAGIC + byteArrayOf(format.toByte()) + rest
                 Reader(stream, header, keyOf(header, password), content = null)
             }
             FORMAT_1 -> {
@@ -178,10 +182,17 @@ object BackupFile {
         }
     }
 
-    /** A backup of format 2 in memory: [content], then [attachments]. */
-    fun seal(content: ByteArray, key: BackupKey, attachments: List<ByteArray> = emptyList()): ByteArray {
+    /** A backup of format 3 in memory: [content], then [attachments]. */
+    fun seal(content: ByteArray, key: BackupKey, attachments: List<ByteArray> = emptyList()): ByteArray =
+        seal(FORMAT, content, key, attachments)
+
+    /** A backup of format 2, as the versions of the app before format 3 made them: for the tests of what they still open. */
+    internal fun seal2(content: ByteArray, key: BackupKey, attachments: List<ByteArray> = emptyList()): ByteArray =
+        seal(FORMAT_2, content, key, attachments)
+
+    private fun seal(format: Int, content: ByteArray, key: BackupKey, attachments: List<ByteArray>): ByteArray {
         val out = ByteArrayOutputStream()
-        writer(out, key, content).apply {
+        writer(out, key, content, format).apply {
             attachments.forEach(::attachment)
             finish()
         }

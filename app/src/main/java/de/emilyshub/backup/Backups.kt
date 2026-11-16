@@ -3,13 +3,11 @@ package de.emilyshub.backup
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
-import de.emilyshub.doku.DokuDatabase
 import de.emilyshub.island.IslandVault
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
-import de.emilyshub.tracking.TrackingDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -63,9 +61,10 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  * for its password, by night too. It comes back only with the Doku password that held when the backup was made, and
  * else, or from a backup without one, stays as it is. [tracking] likewise, with the Tracking password (SPEC.md §17).
  *
- * The lessons' [attachments] follow the content in the file, each in a record of its own, so that a backup is written
- * and read as a stream (format 2 of [BackupFile]). Opening a backup checks them all and lays them aside, encrypted;
- * restoring puts them in place of the app's own.
+ * The islands' databases follow the content in the file in records of their own ([BackupContent.records]), then the
+ * lessons' [attachments], each in a record of its own, so that a backup is written and read as a stream (format 3 of
+ * [BackupFile]). Opening a backup checks the attachments and lays them aside, encrypted; restoring puts them in place
+ * of the app's own.
  */
 class Backups(
     private val database: () -> HubDatabase,
@@ -133,9 +132,11 @@ class Backups(
             }
             // One that cannot be read is left out with its row, rather than keeping every backup from being made.
             val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
-            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried).toJson()
+            val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried)
+            val json = content.toJson()
             output().use { out ->
-                val writer = BackupFile.writer(out, key, content)
+                val writer = BackupFile.writer(out, key, json)
+                content.records().forEach(writer::attachment)
                 carried.forEach { writer.attachment(checkNotNull(attachments.read(it.file)) { "An attachment went missing" }) }
                 writer.finish()
             }
@@ -175,14 +176,8 @@ class Backups(
         try {
             val (found, key) = input().use { stream ->
                 val reader = BackupFile.reader(stream, password)
-                val found = BackupContent.fromJson(reader.content())
-                // Told as such before anything else of it is read, whatever else may be amiss.
-                val newer = found.schema > HubDatabase.VERSION ||
-                    (found.doku?.schema ?: 0) > DokuDatabase.VERSION ||
-                    (found.tracking?.schema ?: 0) > TrackingDatabase.VERSION
-                if (newer) {
-                    throw BackupException(BackupProblem.NewerVersion)
-                }
+                // One of a newer version is told as such before its records are read, whatever else may be amiss.
+                val found = BackupContent.fromJson(reader.content(), reader::next)
                 if (found.attachments.map { it.file }.toSet().size != found.attachments.size) damaged()
                 found.attachments.forEach { carried ->
                     val bytes = reader.next() ?: damaged()

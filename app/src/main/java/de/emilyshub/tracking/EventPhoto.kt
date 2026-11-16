@@ -8,6 +8,7 @@ import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import de.emilyshub.island.IslandSnapshot
 import java.time.Instant
 
 /**
@@ -71,6 +72,9 @@ sealed interface PhotoAdd {
     /** The event has [EventPhotos.MAX_PER_EVENT] already. */
     data object TooMany : PhotoAdd
 
+    /** Tracking would be larger than its backup can carry ([EventPhotos.MAX_DATABASE_BYTES]): nothing was kept. */
+    data object Full : PhotoAdd
+
     /** No picture Android can read, or larger than [EventPhotos.MAX_TAKEN_BYTES]. */
     data object Unreadable : PhotoAdd
 
@@ -84,7 +88,7 @@ sealed interface PhotoAdd {
 /**
  * How the photos of an event are kept (eigene Festlegung): no longer than [MAX_EDGE] at the long edge, enough to see
  * the skin on a doctor's screen, and small enough that many fit into Tracking's backup, which holds its whole database;
- * at most [MAX_PER_EVENT] to an event.
+ * at most [MAX_PER_EVENT] to an event, and none once Tracking would be larger than [MAX_DATABASE_BYTES].
  */
 object EventPhotos {
     /** The longest edge a photo keeps, in pixels. */
@@ -92,6 +96,12 @@ object EventPhotos {
 
     /** The most photos an event has. */
     const val MAX_PER_EVENT = 6
+
+    /**
+     * The most of Tracking's database in use a photo is added to: what a backup carries of an island
+     * ([IslandSnapshot.MAX_BYTES]), but 8 MB, for the pages of its indices and its write-ahead log.
+     */
+    const val MAX_DATABASE_BYTES = IslandSnapshot.MAX_BYTES - 8 * 1024 * 1024
 
     /** The largest photo taken that is read: 40 MB, more than any phone's camera makes. */
     const val MAX_TAKEN_BYTES = 40 * 1024 * 1024

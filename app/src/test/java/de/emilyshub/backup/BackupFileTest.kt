@@ -92,8 +92,18 @@ class BackupFileTest {
     }
 
     @Test
+    fun `a backup of format 2, as versions before the islands' own records made them, still opens`() {
+        val file = BackupFile.seal2(content, key, listOf(byteArrayOf(1, 2, 3)))
+
+        val opened = BackupFile.open(file, PASSWORD)
+        assertArrayEquals(content, opened.plaintext)
+        assertEquals(listOf(listOf<Byte>(1, 2, 3)), opened.attachments.map { it.toList() })
+        assertProblem(BackupProblem.Damaged) { BackupFile.open(file.copyOf().also { it[VERSION_AT] = 3 }, PASSWORD) }
+    }
+
+    @Test
     fun `a backup of a newer format is refused as such`() {
-        val file = BackupFile.seal(content, key).also { it[VERSION_AT] = 3 }
+        val file = BackupFile.seal(content, key).also { it[VERSION_AT] = 4 }
 
         assertProblem(BackupProblem.NewerVersion) { BackupFile.open(file, PASSWORD) }
     }

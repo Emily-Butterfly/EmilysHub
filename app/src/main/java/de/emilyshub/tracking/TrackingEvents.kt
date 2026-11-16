@@ -107,8 +107,19 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
             if (database.events().get(id) == null) return@changing PhotoAdd.NoEvent
             val photos = database.photos()
             if (photos.count(id) >= EventPhotos.MAX_PER_EVENT) return@changing PhotoAdd.TooMany
+            if (usedBytes(database) + jpeg.size > EventPhotos.MAX_DATABASE_BYTES) return@changing PhotoAdd.Full
             PhotoAdd.Added(photos.insert(EventPhoto(eventId = id, takenAt = clock.instant().truncatedTo(ChronoUnit.SECONDS), jpeg = jpeg)))
         } ?: PhotoAdd.Locked
+    }
+
+    /**
+     * How much of Tracking's database is in use: its pages but the free ones, which deleted rows leave and new ones
+     * take first, so that the file grows only past them.
+     */
+    private fun usedBytes(database: TrackingDatabase): Long {
+        val db = database.openHelper.writableDatabase
+        fun pragma(name: String) = db.query("PRAGMA $name").use { it.moveToFirst(); it.getLong(0) }
+        return (pragma("page_count") - pragma("freelist_count")) * db.pageSize
     }
 
     /** The photos of event [id], the first taken first; none once locked. */

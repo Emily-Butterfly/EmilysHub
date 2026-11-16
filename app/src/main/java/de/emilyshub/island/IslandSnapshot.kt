@@ -23,6 +23,12 @@ class IslandSnapshot internal constructor(
 
     companion object {
         /**
+         * The largest database and log of an island a backup takes along: 64 MB, room for many photos of Tracking's
+         * events (#133), and little enough that a backup, which holds them in memory, is still made.
+         */
+        const val MAX_BYTES = 64 * 1024 * 1024
+
+        /**
          * The snapshot of these parts, as a backup holds them; null if they are not one: the keys damaged, sealed under
          * the fingerprint, or with more iterations than the app would ever set.
          */
