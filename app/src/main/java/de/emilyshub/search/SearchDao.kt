@@ -65,8 +65,8 @@ interface SearchDao {
     suspend fun lessons(pattern: String): List<LessonCandidate>
 
     /**
-     * The cards of the Vokabeltrainer, by their front, back, transcription, note and Beispielsatz (#155), titled by their sides and language
-     * (SPEC.md §8, §15; #107).
+     * The cards of the Vokabeltrainer, by their front, back, transcription, note and Beispielsatz (#155), titled by
+     * their sides and language (SPEC.md §8, §15; #107).
      */
     @Query(
         "SELECT * FROM (SELECT c.id, c.front || ' – ' || c.back || ' · ' || l.name AS title, " +

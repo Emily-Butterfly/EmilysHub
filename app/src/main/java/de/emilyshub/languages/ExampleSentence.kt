@@ -38,27 +38,36 @@ object ExampleSentence {
         return found.firstOrNull { wholeWord(sentence, it) } ?: found.firstOrNull()
     }
 
-    /** [sentence] with [GAP] in place of [front]; none if the front does not stand in it. */
-    fun withGap(sentence: String, front: String): String? = wordIn(sentence, front)?.let { sentence.replaceRange(it, GAP) }
-
     /**
-     * From [first] to the end of the character at [last] in [sentence], and over what follows it that the search leaves
-     * out, such as the vowel marks on a last letter.
+     * From [first] to the end of the character at [last] in [sentence], and over the marks on it, such as the vowel
+     * marks on a last letter, which the search leaves out, or a dot above that no letter of its own has.
      */
     private fun rangeOf(sentence: String, first: Int, last: Int): IntRange {
         var end = sentence.offsetByCodePoints(last, 1)
-        while (end < sentence.length) {
-            val next = sentence.offsetByCodePoints(end, 1)
-            if (InputText.searchable(sentence.substring(end, next)).isNotEmpty()) break
-            end = next
-        }
+        while (end < sentence.length && isMark(sentence, end)) end = sentence.offsetByCodePoints(end, 1)
         return first until end
     }
 
-    /** Whether [range] of [sentence] has no letter or digit right before or after it. */
+    /** Whether [range] of [sentence] has no letter or digit right before or after it, a letter's marks with it. */
     private fun wholeWord(sentence: String, range: IntRange): Boolean {
-        val before = range.first > 0 && Character.isLetterOrDigit(sentence.codePointBefore(range.first))
+        var start = range.first
+        while (start > 0 && isMark(sentence, sentence.offsetByCodePoints(start, -1))) {
+            start = sentence.offsetByCodePoints(start, -1)
+        }
+        val before = start > 0 && Character.isLetterOrDigit(sentence.codePointBefore(start))
         val after = range.last + 1 < sentence.length && Character.isLetterOrDigit(sentence.codePointAt(range.last + 1))
         return !before && !after
     }
+
+    /**
+     * Whether the character at [at] of [sentence] belongs to the letter before it: a mark, or what the search leaves
+     * out.
+     */
+    private fun isMark(sentence: String, at: Int): Boolean {
+        val char = sentence.codePointAt(at)
+        return Character.getType(char).toByte() in MARKS || InputText.searchable(Character.toString(char)).isEmpty()
+    }
+
+    /** The kinds of characters Unicode has for marks on a letter. */
+    private val MARKS = setOf(Character.NON_SPACING_MARK, Character.COMBINING_SPACING_MARK, Character.ENCLOSING_MARK)
 }

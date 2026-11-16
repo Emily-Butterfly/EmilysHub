@@ -325,7 +325,7 @@ internal fun CardFace(
     val card = prompt.card
     // Each card starts covered, each way.
     var revealed by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf(false) }
-    val example = card.example.takeIf { it.isNotEmpty() }
+    val example = card.example.ifEmpty { null }
     val word = remember(card.example, card.front) { example?.let { ExampleSentence.wordIn(it, card.front) } }
     // Asked from the back, the sentence with its gap is a help to the question.
     val exampleAsHelp = prompt.reverse && word != null

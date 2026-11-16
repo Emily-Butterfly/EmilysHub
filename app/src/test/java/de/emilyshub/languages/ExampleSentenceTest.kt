@@ -7,6 +7,9 @@ import org.junit.Test
 /** Where a card's front stands in its Beispielsatz, and the sentence with a gap there (SPEC.md §15; #155). */
 class ExampleSentenceTest {
 
+    private fun withGap(sentence: String, front: String): String? =
+        ExampleSentence.wordIn(sentence, front)?.let { sentence.replaceRange(it, ExampleSentence.GAP) }
+
     private fun wordOf(sentence: String, front: String): String? = ExampleSentence.wordIn(sentence, front)?.let(sentence::substring)
 
     @Test
@@ -20,7 +23,7 @@ class ExampleSentenceTest {
         // Fronts and sentences written with and without the vowel marks.
         assertEquals("كِتَابٌ", wordOf("هذا كِتَابٌ جديد", "كتاب"))
         assertEquals("كتاب", wordOf("هذا كتاب جديد", "كِتَاب"))
-        assertEquals("هذا … جديد", ExampleSentence.withGap("هذا كِتَابٌ جديد", "كتاب"))
+        assertEquals("هذا … جديد", withGap("هذا كِتَابٌ جديد", "كتاب"))
     }
 
     @Test
@@ -31,7 +34,7 @@ class ExampleSentenceTest {
     @Test
     fun `a front not in the sentence, as when it is inflected there, is not found`() {
         assertNull(ExampleSentence.wordIn("Ich ging nach Hause.", "gehen"))
-        assertNull(ExampleSentence.withGap("Ich ging nach Hause.", "gehen"))
+        assertNull(withGap("Ich ging nach Hause.", "gehen"))
         assertNull(ExampleSentence.wordIn("", "gehen"))
     }
 
@@ -44,7 +47,18 @@ class ExampleSentenceTest {
 
     @Test
     fun `the gap stands where the front stood, the rest of the sentence as it is`() {
-        assertEquals("Der … bellt.", ExampleSentence.withGap("Der Hund bellt.", "Hund"))
-        assertEquals("… bellt.", ExampleSentence.withGap("Hund bellt.", "hund"))
+        assertEquals("Der … bellt.", withGap("Der Hund bellt.", "Hund"))
+        assertEquals("… bellt.", withGap("Hund bellt.", "hund"))
+    }
+
+    @Test
+    fun `a vowel mark before the front does not make it a word of its own`() {
+        // "وَكِتَاب", and the book, is no whole word "كتاب"; the one after it is.
+        assertEquals(9, ExampleSentence.wordIn("وَكِتَاب كتاب", "كتاب")?.first)
+    }
+
+    @Test
+    fun `a mark on the last letter that has no letter of its own goes into the gap`() {
+        assertEquals("ein … hier", withGap("ein waq\u0307 hier", "waq"))
     }
 }

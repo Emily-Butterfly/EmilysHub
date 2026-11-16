@@ -254,8 +254,8 @@ data class CardDraft(
     )
 
     /**
-     * [card] with what is typed here: its sides, transcription, note, topic, whether asked both ways and its example; what was planned
-     * for it stays, but for its back once it is no longer asked so.
+     * [card] with what is typed here: its sides, transcription, note, topic, whether asked both ways and its
+     * Beispielsatz; what was planned for it stays, but for its back once it is no longer asked so.
      */
     fun applyTo(card: Card): Card {
         val typed = card.copy(front = front, back = back, transcription = transcription, note = note, topicId = topicId, bothWays = bothWays, example = example)
