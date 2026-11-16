@@ -36,11 +36,17 @@ class AttachmentStore(private val folder: () -> File, private val key: () -> Sec
         }
         val sealed = cipher.iv + cipher.doFinal(plain)
         val temp = File(dir, name + TEMP)
-        FileOutputStream(temp).use { out ->
-            out.write(sealed)
-            out.fd.sync()
+        try {
+            FileOutputStream(temp).use { out ->
+                out.write(sealed)
+                out.fd.sync()
+            }
+            Files.move(temp.toPath(), File(dir, name).toPath(), ATOMIC_MOVE)
+        } catch (e: java.io.IOException) {
+            // The phone's storage full, say: nothing half-written is left behind.
+            temp.delete()
+            throw e
         }
-        Files.move(temp.toPath(), File(dir, name).toPath(), ATOMIC_MOVE)
     }
 
     /** What is kept under [name], decrypted; none if there is nothing, or it is damaged or not of this key. */

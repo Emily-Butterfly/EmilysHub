@@ -695,6 +695,7 @@
     <string name="backup_too_large">Die Datei ist zu groß für ein Backup.</string>
     <string name="backup_newer_version">Das Backup stammt aus einer neueren Version der App. Aktualisiere die App, um es zu laden.</string>
     <string name="backup_older_version">Das Backup stammt aus einer älteren Version der App und lässt sich hier nicht laden.</string>
+    <string name="backup_no_space">Nicht genug Platz auf dem Handy, um das Backup zu öffnen. Mach Platz frei und versuch es noch einmal.</string>
     <string name="backup_unreadable">Die Datei konnte nicht gelesen werden.</string>
     <string name="backup_replace_title">Backup laden?</string>
     <string name="backup_replace_text">Das Backup vom %1$s ersetzt alle Daten in der App. Was jetzt in der App ist, geht dabei verloren.</string>
@@ -1888,6 +1889,7 @@
     <string name="tracking_photo_hint">Aufgenommen mit der Kamera-App, sofort verschlüsselt in Tracking abgelegt, nie in der Galerie.</string>
     <string name="tracking_photo_busy">Das Foto wird verschlüsselt …</string>
     <string name="tracking_photo_too_many">Ein Ereignis hat höchstens %d Fotos.</string>
+    <string name="tracking_photo_not_written">Kein Platz auf dem Handy: Das Foto wurde nicht gespeichert.</string>
     <string name="tracking_photo_unreadable">Das Foto ließ sich nicht lesen.</string>
     <string name="tracking_photo_description">Foto vom %s</string>
     <string name="tracking_photo_close">Schließen</string>

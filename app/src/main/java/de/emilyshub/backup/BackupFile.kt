@@ -15,7 +15,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 
 /** Why a backup cannot be opened or made. */
-enum class BackupProblem { NotABackup, Damaged, WrongPassword, TooLarge, NewerVersion, OlderVersion, WrongDokuPassword, WrongTrackingPassword }
+enum class BackupProblem { NotABackup, Damaged, WrongPassword, TooLarge, NewerVersion, OlderVersion, WrongDokuPassword, WrongTrackingPassword, NoSpace }
 
 /** Whether it is the Doku's or Tracking's password given that was wrong: then nothing has changed, to try again. */
 val BackupProblem.isWrongIslandPassword: Boolean

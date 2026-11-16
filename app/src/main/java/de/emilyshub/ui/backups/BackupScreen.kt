@@ -647,6 +647,7 @@ internal val BackupProblem.message: Int
         BackupProblem.OlderVersion -> R.string.backup_older_version
         BackupProblem.WrongDokuPassword -> R.string.backup_wrong_doku_password
         BackupProblem.WrongTrackingPassword -> R.string.backup_wrong_tracking_password
+        BackupProblem.NoSpace -> R.string.backup_no_space
     }
 
 /** Android knows no type for a backup of EmilysHub. */

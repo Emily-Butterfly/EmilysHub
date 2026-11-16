@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What adding a photo came to, shown under the button. */
-private enum class PhotoNote { Busy, TooMany, Unreadable }
+private enum class PhotoNote { Busy, TooMany, Unreadable, NotWritten }
 
 /**
  * The photos of event [eventId] (SPEC.md §17, "Ereignisse"): "+ Foto" lends the camera app the one file it writes the
@@ -98,6 +98,7 @@ internal fun EventPhotosSection(tracking: Tracking, events: TrackingEvents, even
                 is PhotoAdd.Added, PhotoAdd.Locked, PhotoAdd.NoEvent -> null
                 PhotoAdd.TooMany -> PhotoNote.TooMany
                 PhotoAdd.Unreadable -> PhotoNote.Unreadable
+                PhotoAdd.NotWritten -> PhotoNote.NotWritten
             }
         }
     }
@@ -124,6 +125,7 @@ internal fun EventPhotosSection(tracking: Tracking, events: TrackingEvents, even
         note == PhotoNote.Busy -> stringResource(R.string.tracking_photo_busy)
         note == PhotoNote.TooMany -> stringResource(R.string.tracking_photo_too_many, EventPhotos.MAX_PER_EVENT)
         note == PhotoNote.Unreadable -> stringResource(R.string.tracking_photo_unreadable)
+        note == PhotoNote.NotWritten -> stringResource(R.string.tracking_photo_not_written)
         else -> stringResource(R.string.tracking_photo_hint)
     }
     Text(noteText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

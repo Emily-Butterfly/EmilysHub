@@ -81,6 +81,22 @@ class EventPhotosTest {
     }
 
     @Test
+    fun `a photo whose file cannot be written, as with the phone's storage full, is not kept, nor anything of it`() = runBlocking {
+        val id = create()
+        val dir = File("${ApplicationProvider.getApplicationContext<android.content.Context>().getDatabasePath(TrackingDatabase.NAME).path}-files")
+        // Where the folder of the files would be, a file: nothing can be written into it.
+        dir.deleteRecursively()
+        dir.writeText("")
+
+        assertEquals(PhotoAdd.NotWritten, events.addPhoto(id, jpeg(40, 30)))
+
+        assertEquals(emptyList<PhotoInfo>(), events.photos(id))
+        assertEquals(listOf(dir.name), dir.parentFile!!.list()!!.filter { it.startsWith(dir.name) })
+        dir.delete()
+        assertTrue(events.addPhoto(id, jpeg(40, 30)) is PhotoAdd.Added)
+    }
+
+    @Test
     fun `a file changed or put in the place of another does not open`() = runBlocking {
         val id = create()
         val first = (events.addPhoto(id, jpeg(40, 30)) as PhotoAdd.Added).id

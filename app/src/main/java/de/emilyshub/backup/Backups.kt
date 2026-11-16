@@ -12,6 +12,7 @@ import de.emilyshub.security.KeyWrap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
@@ -190,13 +191,13 @@ class Backups(
                 val reader = BackupFile.reader(stream, password)
                 // One of a newer version is told as such before its records are read, whatever else may be amiss.
                 val found = BackupContent.fromJson(reader.content(), reader::next) { island, name, bytes ->
-                    (if (island == "doku") doku else tracking).putAside(name, bytes)
+                    layingAside { (if (island == "doku") doku else tracking).putAside(name, bytes) }
                 }
                 if (found.attachments.map { it.file }.toSet().size != found.attachments.size) damaged()
                 found.attachments.forEach { carried ->
                     val bytes = reader.next() ?: damaged()
                     if (bytes.size.toLong() != carried.bytes || !attachments.isName(carried.file)) damaged()
-                    attachments.putAside(carried.file, bytes)
+                    layingAside { attachments.putAside(carried.file, bytes) }
                 }
                 if (reader.next() != null) damaged()
                 found to reader.key
@@ -208,6 +209,16 @@ class Backups(
             clearAside()
             throw e
         }
+    }
+
+    /**
+     * What [block] makes of laying a backup's file aside: written to the phone's storage, which may be full, told as
+     * such ([BackupProblem.NoSpace]) rather than as a backup that cannot be read.
+     */
+    private fun <T> layingAside(block: () -> T): T = try {
+        block()
+    } catch (e: IOException) {
+        throw BackupException(BackupProblem.NoSpace, e)
     }
 
     /** Lets go of all a backup opened before laid aside: the lessons' attachments and the islands' own files. */

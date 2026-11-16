@@ -461,9 +461,14 @@ class Island<D : RoomDatabase> internal constructor(
             if (locks != since) return@withLock null
             withContext(io) {
                 openDatabase(rawKey).also {
-                    // Opened here, so that a damaged file fails now, not on the first screen.
-                    it.openHelper.writableDatabase
-                    afterOpening(it, files.own.store(key))
+                    try {
+                        // Opened here, so that a damaged file fails now, not on the first screen.
+                        it.openHelper.writableDatabase
+                        afterOpening(it, files.own.store(key))
+                    } catch (e: Exception) {
+                        it.close()
+                        throw e
+                    }
                 }
             }
         }

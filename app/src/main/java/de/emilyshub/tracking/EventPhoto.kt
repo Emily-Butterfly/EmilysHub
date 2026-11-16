@@ -8,7 +8,9 @@ import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import android.database.sqlite.SQLiteFullException
 import de.emilyshub.island.IslandFileStore
+import java.io.IOException
 import java.time.Instant
 
 /**
@@ -78,6 +80,9 @@ sealed interface PhotoAdd {
     /** No picture Android can read, or larger than [EventPhotos.MAX_TAKEN_BYTES]. */
     data object Unreadable : PhotoAdd
 
+    /** Its file could not be written, as the phone's storage is full: nothing was kept. */
+    data object NotWritten : PhotoAdd
+
     /** The event is gone. */
     data object NoEvent : PhotoAdd
 
@@ -105,18 +110,35 @@ object EventPhotos {
     /**
      * Moves the photos that lay in Tracking's database before version 10 into their [files], once it is open: each
      * written, then its row deleted, overwritten on disk ([de.emilyshub.island.SECURE_DELETE]), so that nothing is lost
-     * should the app stop meanwhile.
+     * should the app stop meanwhile; one whose photo was deleted meanwhile only deleted. With the phone's storage full,
+     * it stops, Tracking opens all the same and those left are read where they wait ([read]), to be moved the next time.
      */
     fun moveOutOfDatabase(database: TrackingDatabase, files: IslandFileStore) {
         val db = database.openHelper.writableDatabase
-        val waiting = db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$TO_MOVE'").use { it.count > 0 }
-        if (!waiting) return
+        if (!waiting(database)) return
         val names = db.query("SELECT file FROM $TO_MOVE").use { cursor -> List(cursor.count) { cursor.moveToPosition(it); cursor.getString(0) } }
-        names.forEach { name ->
-            val jpeg = db.query("SELECT jpeg FROM $TO_MOVE WHERE file = ?", arrayOf(name)).use { if (it.moveToFirst()) it.getBlob(0) else null }
-            if (jpeg != null) files.write(name, jpeg)
-            db.execSQL("DELETE FROM $TO_MOVE WHERE file = ?", arrayOf(name))
+        val kept = db.query("SELECT file FROM event_photo").use { cursor -> List(cursor.count) { cursor.moveToPosition(it); cursor.getString(0) } }.toSet()
+        try {
+            names.forEach { name ->
+                if (name in kept) waitingJpeg(database, name)?.let { files.write(name, it) }
+                db.execSQL("DELETE FROM $TO_MOVE WHERE file = ?", arrayOf(name))
+            }
+            db.execSQL("DROP TABLE $TO_MOVE")
+        } catch (_: IOException) {
+            // No room for the next file: the rest stay where they are.
+        } catch (_: SQLiteFullException) {
+            // No room for the database to write in.
         }
-        db.execSQL("DROP TABLE $TO_MOVE")
     }
+
+    /** The photo in the file [name] of [files], or, not moved there yet, where it waits in [database]. */
+    fun read(database: TrackingDatabase, files: IslandFileStore, name: String): ByteArray? =
+        files.read(name) ?: if (waiting(database)) waitingJpeg(database, name) else null
+
+    /** Whether photos wait in [database] to be moved into their files. */
+    private fun waiting(database: TrackingDatabase): Boolean =
+        database.openHelper.writableDatabase.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$TO_MOVE'").use { it.count > 0 }
+
+    private fun waitingJpeg(database: TrackingDatabase, name: String): ByteArray? =
+        database.openHelper.writableDatabase.query("SELECT jpeg FROM $TO_MOVE WHERE file = ?", arrayOf(name)).use { if (it.moveToFirst()) it.getBlob(0) else null }
 }

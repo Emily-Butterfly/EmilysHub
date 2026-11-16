@@ -2,6 +2,7 @@ package de.emilyshub.security
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 
@@ -12,9 +13,15 @@ import java.nio.file.StandardCopyOption.ATOMIC_MOVE
  */
 fun writeDurably(file: File, bytes: ByteArray) {
     val temp = File(file.parentFile, "${file.name}.tmp")
-    FileOutputStream(temp).use { out ->
-        out.write(bytes)
-        out.fd.sync()
+    try {
+        FileOutputStream(temp).use { out ->
+            out.write(bytes)
+            out.fd.sync()
+        }
+        Files.move(temp.toPath(), file.toPath(), ATOMIC_MOVE)
+    } catch (e: IOException) {
+        // The phone's storage full, say: nothing half-written is left behind.
+        temp.delete()
+        throw e
     }
-    Files.move(temp.toPath(), file.toPath(), ATOMIC_MOVE)
 }

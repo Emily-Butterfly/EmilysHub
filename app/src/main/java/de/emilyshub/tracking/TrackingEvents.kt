@@ -3,6 +3,7 @@ package de.emilyshub.tracking
 import de.emilyshub.languages.Photos
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -112,7 +113,11 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
             val photos = database.photos()
             if (photos.count(id) >= EventPhotos.MAX_PER_EVENT) return@changingWithFiles PhotoAdd.TooMany
             val file = files.newName()
-            files.write(file, jpeg)
+            try {
+                files.write(file, jpeg)
+            } catch (_: IOException) {
+                return@changingWithFiles PhotoAdd.NotWritten
+            }
             try {
                 PhotoAdd.Added(photos.insert(EventPhoto(eventId = id, takenAt = clock.instant().truncatedTo(ChronoUnit.SECONDS), file = file)))
             } catch (e: Exception) {
@@ -126,7 +131,9 @@ class TrackingEvents(private val tracking: TrackingStore, private val clock: Clo
     suspend fun photos(id: Long): List<PhotoInfo>? = tracking.withDatabase { it.photos().of(id) }
 
     /** The JPEG of photo [id]; none if gone, or once locked. */
-    suspend fun photo(id: Long): ByteArray? = tracking.withFiles { database, files -> database.photos().file(id)?.let(files::read) }
+    suspend fun photo(id: Long): ByteArray? = tracking.withFiles { database, files ->
+        database.photos().file(id)?.let { EventPhotos.read(database, files, it) }
+    }
 
     /** Deletes photo [id], its file too. */
     suspend fun deletePhoto(id: Long) {

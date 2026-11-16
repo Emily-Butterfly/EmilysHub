@@ -31,7 +31,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import de.emilyshub.island.IslandFile
+import de.emilyshub.island.IslandVault
+import kotlinx.coroutines.Dispatchers
+import java.io.IOException
 import java.time.Instant
+import javax.crypto.KeyGenerator
 import java.util.Base64
 import kotlin.random.Random
 
@@ -251,6 +257,30 @@ class TrackingBackupTest {
 
         unlock()
         assertEquals("Tracking as it was", listOf(listOf<Byte>(4, 5)), photos())
+    }
+
+    @Test
+    fun `a backup whose photos find no room on the phone as it is opened is told so, not as unreadable`() {
+        setUpTracking()
+        addPhotos(listOf(byteArrayOf(1, 2, 3)))
+        val file = exported()
+        val full = object : IslandVault by tracking {
+            override fun putAside(name: String, bytes: ByteArray): IslandFile? = throw IOException("No space left on device")
+        }
+        val openingHere = Backups(
+            database = { app.database },
+            settings = { app.database.settings() },
+            wrappingKey = { KeyGenerator.getInstance("AES").apply { init(256) }.generateKey() },
+            clock = app.clock,
+            migration = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() },
+            doku = app.doku,
+            tracking = full,
+            attachments = app.lessonFiles,
+            io = Dispatchers.Unconfined,
+            iterations = FEW_ITERATIONS,
+        )
+
+        assertProblem(BackupProblem.NoSpace) { runBlocking { openingHere.open({ ByteArrayInputStream(file) }, PASSWORD) } }
     }
 
     @Test

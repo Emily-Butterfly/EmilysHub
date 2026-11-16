@@ -70,7 +70,7 @@ class TrackingEvaluation(
         val summary = DoctorSummary.of(records, from, to, hints)
         if (!withPhotos) return@withFiles summary
         val photos = database.photos().ofEvents(summary.events.map { it.id }).mapNotNull { photo ->
-            database.photos().file(photo.id)?.let(files::read)?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
+            database.photos().file(photo.id)?.let { EventPhotos.read(database, files, it) }?.let { SummaryPhoto(photo.eventId, photo.takenAt, it) }
         }
         summary.copy(photos = photos)
     }

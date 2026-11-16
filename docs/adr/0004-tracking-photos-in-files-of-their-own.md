@@ -20,3 +20,8 @@ after the update (`EventPhotos.moveOutOfDatabase`), each row of the database the
 What a file costs against the database: a deleted file is deleted, not overwritten as the database's rows are
 (`secure_delete`); on flash storage an overwrite would not reach the old blocks anyway, and what is left there is
 encrypted under Tracking's key. Photos are still kept small, at most 1600 px at the long edge, and an event has at most 6.
+
+With the phone's storage full, a photo whose file cannot be written is not kept, and the user is told so ("Kein Platz
+auf dem Handy"); nothing half-written is left behind. The photos still waiting in the database stay there, are read
+from there and move the next time Tracking is opened; Tracking opens all the same. Opening a backup lays its files
+aside first and so needs room for them; without it, the user is told so, not that the backup cannot be read.

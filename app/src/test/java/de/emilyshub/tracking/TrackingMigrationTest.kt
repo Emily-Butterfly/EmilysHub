@@ -227,4 +227,34 @@ class TrackingMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun `with no room for the files, the photos stay where they wait, are read there, and move the next time`() {
+        createTrackingAsExported(context, version = 9) {
+            it.execSQL("INSERT INTO tracking_event (id, kind, at, skin_areas) VALUES (1, 'bath', '2026-11-15T10:00:00Z', 'legs')")
+            it.execSQL("INSERT INTO event_photo (id, event_id, taken_at, jpeg) VALUES (4, 1, '2026-11-15T10:05:00Z', x'010203'), (5, 1, '2026-11-15T10:06:00Z', x'0405'), (6, 1, '2026-11-15T10:07:00Z', x'06')")
+        }
+        val key = ByteArray(32) { 7 }
+        // Where the folder would be, a file: no file can be written, as with the phone's storage full.
+        val full = IslandOwnFiles(File(context.cacheDir, "full").apply { writeText("") }).store(key)
+        val room = IslandOwnFiles(File(context.cacheDir, "room")).store(key)
+
+        val database = testTrackingDatabase(context)
+        try {
+            runBlocking {
+                EventPhotos.moveOutOfDatabase(database, full)
+                val waiting = database.photos().of(1).map { checkNotNull(EventPhotos.read(database, full, checkNotNull(database.photos().file(it.id)))).toList() }
+                assertEquals(listOf(listOf<Byte>(1, 2, 3), listOf<Byte>(4, 5), listOf<Byte>(6)), waiting)
+                database.photos().delete(6)
+
+                EventPhotos.moveOutOfDatabase(database, room)
+
+                val moved = database.photos().of(1).map { checkNotNull(room.read(checkNotNull(database.photos().file(it.id)))).toList() }
+                assertEquals(listOf(listOf<Byte>(1, 2, 3), listOf<Byte>(4, 5)), moved)
+                assertEquals("the one deleted meanwhile is not moved", 2, File(context.cacheDir, "room").list()!!.size)
+            }
+        } finally {
+            database.close()
+        }
+    }
 }
