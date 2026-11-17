@@ -42,6 +42,8 @@
         <item quantity="other">Kein Streak. Letzter: %d Tage</item>
     </plurals>
     <string name="today_heatmap">Erledigt, letzte 6 Monate</string>
+    <string name="today_practise">Vokabeln üben</string>
+    <string name="today_practise_language">%1$s (%2$d)</string>
     <!-- A day of the heatmap tapped: "Mi, 14.10.: 5 erledigt". -->
     <string name="today_heatmap_day">%1$s, %2$s: %3$d erledigt</string>
     <!-- A day of the heatmap as TalkBack reads it: "Mittwoch, 14. Oktober: 5 erledigt". -->
@@ -797,8 +799,6 @@
     </plurals>
     <string name="ledger_title">Haushaltsbuch</string>
     <string name="ledger_open">Haushaltsbuch öffnen</string>
-    <string name="today_practise">Vokabeln üben</string>
-    <string name="today_practise_language">%1$s (%2$d)</string>
     <string name="ledger_open_short">€</string>
     <string name="ledger_income">Einnahmen</string>
     <string name="ledger_expenses">Ausgaben</string>

@@ -600,7 +600,7 @@ class VocabularyScreenTest {
     }
 
     @Test
-    fun `with more languages open, Heute offers them the most open first, and back from one leads to Heute`() {
+    fun `with more languages open, Heute offers them the most open first, and back from one, or from the next, leads to Heute`() {
         val arabic = language("Arabisch")
         val persian = language("Persisch")
         val italian = language("Italienisch")
@@ -609,7 +609,7 @@ class VocabularyScreenTest {
         card(persian, "qalam", "Stift")
         card(italian, "libro", "Buch")
 
-        launchApp().use {
+        launchApp().use { scenario ->
             compose.onNodeWithContentDescription("Vokabeln üben").performClick()
             assertEquals(
                 listOf("Persisch (2)", "Arabisch (1)", "Italienisch (1)"),
@@ -619,6 +619,17 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Italienisch (1)").performClick()
             heading("Italienisch").assertIsDisplayed()
             compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithText("‹ Gestern").assertIsDisplayed()
+            // Done with one, "Weiter mit …" goes on with the next in its place; the back key leads to Heute from there too.
+            compose.onNodeWithContentDescription("Vokabeln üben").performClick()
+            compose.onNodeWithText("Arabisch (1)").performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNodeWithText("Weiter mit Persisch (2)").performClick()
+            heading("Persisch").assertIsDisplayed()
+            compose.waitForIdle()
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 
             compose.onNodeWithText("‹ Gestern").assertIsDisplayed()
             compose.onNodeWithContentDescription("Vokabeln üben").assertIsDisplayed()

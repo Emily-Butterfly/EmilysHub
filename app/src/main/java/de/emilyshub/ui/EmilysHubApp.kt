@@ -561,7 +561,7 @@ private fun TopLevelScaffold(
                                 onManageTeachers = { open(Destination.TeacherList) },
                             )
                         }
-                        // On Heute, not yesterday, practising the cards while some are open today, left of the "€" (#158).
+                        // On Heute, not yesterday, practising the cards while some are open today, left of the "€" (SPEC.md §1; #158).
                         if (current == TopLevelDestination.Today && !yesterday) {
                             PractiseCardsButton(hub.flashcards, hub.day, onPractise = { open(Destination.Practice(it)) })
                         }
