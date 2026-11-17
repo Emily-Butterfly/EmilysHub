@@ -137,6 +137,7 @@ import de.emilyshub.ui.tags.TagsScreen
 import de.emilyshub.ui.theme.EmilysHubTheme
 import de.emilyshub.ui.theme.isDark
 import de.emilyshub.ui.today.HeuteFolds
+import de.emilyshub.ui.today.PractiseCardsButton
 import de.emilyshub.ui.today.StreakFlameButton
 import de.emilyshub.ui.today.TodayScreen
 import de.emilyshub.ui.today.YesterdayScreen
@@ -559,6 +560,10 @@ private fun TopLevelScaffold(
                                 onManageLanguages = { open(Destination.LanguageList) },
                                 onManageTeachers = { open(Destination.TeacherList) },
                             )
+                        }
+                        // On Heute, not yesterday, practising the cards while some are open today, left of the "€" (#158).
+                        if (current == TopLevelDestination.Today && !yesterday) {
+                            PractiseCardsButton(hub.flashcards, hub.day, onPractise = { open(Destination.Practice(it)) })
                         }
                         // On Heute a small "€" for the household book, beside the flame (SPEC.md §1).
                         if (current == TopLevelDestination.Today) {

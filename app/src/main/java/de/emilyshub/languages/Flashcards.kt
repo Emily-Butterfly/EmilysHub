@@ -128,8 +128,11 @@ data class RoundBalance(val known: Int, val again: Int) {
     }
 }
 
-/** The language practised next once one is done (SPEC.md §15; #147): its [id], its [name], and how much is still [open] today. */
-data class NextLanguage(val id: Long, val name: String, val open: Int)
+/**
+ * A language with something still [open] today, by its [id] and [name]: practised next once one is done (SPEC.md §15;
+ * #147), and offered by Heute (#158).
+ */
+data class OpenLanguage(val id: Long, val name: String, val open: Int)
 
 /**
  * An answer given (SPEC.md §15; #145): to the card asked the way [before] has it, as it was planned before, its entry in
@@ -283,20 +286,26 @@ class Flashcards(
     }.flowOn(io)
 
     /**
+     * The languages not archived with something still open on [today] but [except], the most open first, by name if
+     * alike: those Heute offers to practise (#158), the first of them after another language's round (#147).
+     */
+    fun openLanguages(today: LocalDate, except: Long? = null): Flow<List<OpenLanguage>> = flow {
+        val open = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
+            val byLanguage = cards.groupBy { it.languageId }
+            all.filter { !it.archived && it.id != except }
+                .map { OpenLanguage(it.id, it.name, Workload.of(byLanguage[it.id].orEmpty(), it.newCardsPerDay, today).remaining.size) }
+                .filter { it.open > 0 }
+                .sortedWith(compareByDescending(OpenLanguage::open).then(compareBy(InputText.byName, OpenLanguage::name)))
+        }
+        emitAll(open)
+    }.flowOn(io)
+
+    /**
      * The language to practise after [languageId] on [today] (SPEC.md §15; #147): of the others not archived, the one
      * with the most still open, by name if alike; none while nothing is open elsewhere.
      */
-    fun nextLanguage(languageId: Long, today: LocalDate): Flow<NextLanguage?> = flow {
-        val next = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
-            val byLanguage = cards.groupBy { it.languageId }
-            all.filter { !it.archived && it.id != languageId }
-                .map { NextLanguage(it.id, it.name, Workload.of(byLanguage[it.id].orEmpty(), it.newCardsPerDay, today).remaining.size) }
-                .filter { it.open > 0 }
-                .sortedWith(compareByDescending(NextLanguage::open).then(compareBy(InputText.byName, NextLanguage::name)))
-                .firstOrNull()
-        }
-        emitAll(next)
-    }.flowOn(io)
+    fun nextLanguage(languageId: Long, today: LocalDate): Flow<OpenLanguage?> =
+        openLanguages(today, except = languageId).map { it.firstOrNull() }
 
     /** Whether the card [cardId] hakt (SPEC.md §15; #149), for its editor to say so. */
     suspend fun stuck(cardId: Long): Boolean = withContext(io) { Stuck.cards(dao.reviewsOf(cardId)).isNotEmpty() }

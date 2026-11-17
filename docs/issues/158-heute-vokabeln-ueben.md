@@ -23,18 +23,18 @@ Aus Heute direkt üben, ohne den Umweg über Sonstiges › Sprachen: Hat heute e
 
 ## Akzeptanzkriterien
 
-- [ ] Icon „Translate“ in der oberen Leiste von Heute links vom „€“, nur solange heute in einer nicht archivierten Sprache noch etwas offen ist; es verschwindet, sobald das Tagespensum aller Sprachen geschafft ist, auch während Heute offen ist (etwa nach dem Üben oder um Mitternacht)
-- [ ] TalkBack sagt „Vokabeln üben“
-- [ ] Eine Sprache mit Offenem: Tippen öffnet ihre Abfrage
-- [ ] Mehrere: Tippen öffnet ein Menü mit diesen Sprachen, das meiste Offene zuerst, bei gleich viel nach Name, mit der Zahl in Klammern; die Wahl öffnet die Abfrage
-- [ ] Aus Heute geöffnet, führen Zurück-Pfeil, Zurück-Taste und „Zurück“ am Ende der Runde nach Heute; „Weiter mit …“ und „Karte ändern“ gehen wie sonst, zurück ebenfalls nach Heute
-- [ ] Nicht in der Ansicht „‹ Gestern“
-- [ ] SPEC.md §1 (Liste der Leiste in Heute) und §15 nennen das Icon
+- [x] Icon „Translate“ in der oberen Leiste von Heute links vom „€“, nur solange heute in einer nicht archivierten Sprache noch etwas offen ist; es verschwindet, sobald das Tagespensum aller Sprachen geschafft ist, auch während Heute offen ist (etwa nach dem Üben oder um Mitternacht)
+- [x] TalkBack sagt „Vokabeln üben“
+- [x] Eine Sprache mit Offenem: Tippen öffnet ihre Abfrage
+- [x] Mehrere: Tippen öffnet ein Menü mit diesen Sprachen, das meiste Offene zuerst, bei gleich viel nach Name, mit der Zahl in Klammern; die Wahl öffnet die Abfrage
+- [x] Aus Heute geöffnet, führen Zurück-Pfeil, Zurück-Taste und „Zurück“ am Ende der Runde nach Heute; „Weiter mit …“ und „Karte ändern“ gehen wie sonst, zurück ebenfalls nach Heute
+- [x] Nicht in der Ansicht „‹ Gestern“
+- [x] SPEC.md §1 (Liste der Leiste in Heute) und §15 nennen das Icon
 
 ## Tests
 
-- [ ] Unit: welche Sprachen Offenes haben und in welcher Reihenfolge (Zahl, Name bei Gleichstand), archivierte und geschaffte nicht
-- [ ] UI: kein Icon ohne Offenes; eine Sprache öffnet direkt; mehrere zeigen das Menü in der Reihenfolge; zurück aus der Abfrage nach Heute; nicht in „Gestern“
+- [x] Unit: welche Sprachen Offenes haben und in welcher Reihenfolge (Zahl, Name bei Gleichstand), archivierte und geschaffte nicht
+- [x] UI: kein Icon ohne Offenes; eine Sprache öffnet direkt; mehrere zeigen das Menü in der Reihenfolge; zurück aus der Abfrage nach Heute; nicht in „Gestern“
 
 ## Entscheidungen
 

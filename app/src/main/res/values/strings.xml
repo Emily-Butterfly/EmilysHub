@@ -797,6 +797,8 @@
     </plurals>
     <string name="ledger_title">Haushaltsbuch</string>
     <string name="ledger_open">Haushaltsbuch öffnen</string>
+    <string name="today_practise">Vokabeln üben</string>
+    <string name="today_practise_language">%1$s (%2$d)</string>
     <string name="ledger_open_short">€</string>
     <string name="ledger_income">Einnahmen</string>
     <string name="ledger_expenses">Ausgaben</string>

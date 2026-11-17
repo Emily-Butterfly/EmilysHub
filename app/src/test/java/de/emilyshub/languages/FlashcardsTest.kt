@@ -275,12 +275,42 @@ class FlashcardsTest {
         repeat(5) { card(archived, "Wort $it") }
         languages.setLanguageArchived(archived, true)
 
-        assertEquals("as much open, by name", NextLanguage(albanian, "Albanisch", 3), cards.nextLanguage(arabic, today).first())
-        assertEquals(NextLanguage(persian, "Persisch", 3), cards.nextLanguage(albanian, today).first())
+        assertEquals("as much open, by name", OpenLanguage(albanian, "Albanisch", 3), cards.nextLanguage(arabic, today).first())
+        assertEquals(OpenLanguage(persian, "Persisch", 3), cards.nextLanguage(albanian, today).first())
         (workload(albanian).remaining + workload(persian).remaining).forEach { cards.answer(it.id, Rating.Good) }
-        assertEquals(NextLanguage(italian, "Italienisch", 2), cards.nextLanguage(arabic, today).first())
+        assertEquals(OpenLanguage(italian, "Italienisch", 2), cards.nextLanguage(arabic, today).first())
         workload(italian).remaining.forEach { cards.answer(it.id, Rating.Good) }
         assertEquals("nothing open elsewhere", null, cards.nextLanguage(arabic, today).first())
+    }
+
+    @Test
+    fun `Heute offers the languages with something open today, the most open first, by name if alike`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val persian = language("Persisch")
+        val albanian = language("Albanisch")
+        val archived = language("Türkisch")
+        language("Ohne Karten")
+        card(arabic, "Buch")
+        repeat(2) { card(italian, "Wort $it") }
+        repeat(3) { card(persian, "Wort $it") }
+        repeat(3) { card(albanian, "Wort $it") }
+        repeat(5) { card(archived, "Wort $it") }
+        languages.setLanguageArchived(archived, true)
+
+        assertEquals(
+            listOf(
+                OpenLanguage(albanian, "Albanisch", 3),
+                OpenLanguage(persian, "Persisch", 3),
+                OpenLanguage(italian, "Italienisch", 2),
+                OpenLanguage(arabic, "Arabisch", 1),
+            ),
+            cards.openLanguages(today).first(),
+        )
+        workload(arabic).remaining.forEach { cards.answer(it.id, Rating.Good) }
+        assertEquals("one done is offered no more", listOf(albanian, persian, italian), cards.openLanguages(today).first().map { it.id })
+        (workload(albanian).remaining + workload(persian).remaining + workload(italian).remaining).forEach { cards.answer(it.id, Rating.Good) }
+        assertEquals("all done", emptyList<OpenLanguage>(), cards.openLanguages(today).first())
     }
 
     @Test

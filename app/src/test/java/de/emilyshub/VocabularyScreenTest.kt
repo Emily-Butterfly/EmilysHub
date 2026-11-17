@@ -579,6 +579,63 @@ class VocabularyScreenTest {
         }
     }
 
+    @Test
+    fun `Heute practises the one language with cards open from its bar, back to Heute, and then offers it no more`() {
+        launchApp().use {
+            compose.onNodeWithContentDescription("Vokabeln üben").assertDoesNotExist()
+        }
+        val arabic = language("Arabisch")
+        card(arabic, "كتاب", "Buch")
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Vokabeln üben").performClick()
+            heading("Arabisch").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            compose.onNode(hasText("Zurück") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("‹ Gestern").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Vokabeln üben").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `with more languages open, Heute offers them the most open first, and back from one leads to Heute`() {
+        val arabic = language("Arabisch")
+        val persian = language("Persisch")
+        val italian = language("Italienisch")
+        card(arabic, "kitab", "Buch")
+        card(persian, "ketab", "Buch")
+        card(persian, "qalam", "Stift")
+        card(italian, "libro", "Buch")
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Vokabeln üben").performClick()
+            assertEquals(
+                listOf("Persisch (2)", "Arabisch (1)", "Italienisch (1)"),
+                compose.onAllNodes(hasClickAction() and hasText(" (", substring = true)).fetchSemanticsNodes()
+                    .map { it.config[SemanticsProperties.Text].joinToString() },
+            )
+            compose.onNodeWithText("Italienisch (1)").performClick()
+            heading("Italienisch").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithText("‹ Gestern").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Vokabeln üben").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `yesterday's view has no practising in its bar`() {
+        card(language("Arabisch"), "kitab", "Buch")
+
+        launchApp().use {
+            compose.onNodeWithContentDescription("Vokabeln üben").assertIsDisplayed()
+            compose.onNodeWithText("‹ Gestern").performClick()
+            compose.onNodeWithContentDescription("Vokabeln üben").assertDoesNotExist()
+        }
+    }
+
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 
     private fun card(languageId: Long, front: String, back: String) = runBlocking { app.flashcards.create(languageId, CardDraft(front, back)) }
