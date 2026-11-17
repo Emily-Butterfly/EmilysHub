@@ -247,6 +247,7 @@ Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht
 | 155 | [Vokabeltrainer: Beispielsatz mit Lücke](155-vokabeln-beispielsatz.md) | 🤖 | – |
 | 156 | [Vokabeltrainer: Rückstand nach einer Pause verteilen](156-vokabeln-rueckstand-verteilen.md) | 🤖 | 143 |
 | 157 | [Vokabeltrainer: Vorlesen mit der Sprachausgabe des Handys](157-vokabeln-sprachausgabe.md) | 🤖 | – |
+| 158 | [Heute: Vokabeln üben aus der oberen Leiste](158-heute-vokabeln-ueben.md) | 🤖 | – |
 
 ## Einzeltickets
 
