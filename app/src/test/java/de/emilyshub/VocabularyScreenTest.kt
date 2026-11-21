@@ -696,6 +696,40 @@ class VocabularyScreenTest {
         }
     }
 
+    @Test
+    fun `the evaluation tells how regularly the cards are practised, and what is due in the days to come`() {
+        val arabic = language("Arabisch")
+        val book = (card(arabic, "kitab", "Buch") as Saving.Saved).id
+        card(arabic, "qalam", "Stift")
+        // The first answer of a card is not counted as known or not: it was not learnt then.
+        runBlocking {
+            app.flashcards.answer(book, Rating.Again)
+            app.flashcards.answer(book, Rating.Good)
+        }
+        val preview = checkNotNull(runBlocking { app.flashcards.summary(arabic, LocalDate.parse("2026-10-23")).first() }.preview)
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Auswertung").performClick()
+            compose.onNodeWithText("Diesen Monat an 1 von 23 Tagen geübt · 2 Abfragen · 100 % gewusst").assertIsDisplayed()
+            compose.onNodeWithText("Dieses Jahr an 1 Tag geübt · 2 Abfragen · 100 % gewusst").assertIsDisplayed()
+            compose.onNodeWithText("Insgesamt an 1 Tag geübt · 2 Abfragen · 100 % gewusst").assertIsDisplayed()
+            compose.onNodeWithText("Morgen fällig: ${preview.tomorrow} · nächste 7 Tage: ${preview.nextWeek}").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `without cards the evaluation tells nothing of practising`() {
+        language("Arabisch")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Auswertung").performClick()
+            compose.onNodeWithText("geübt", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("Morgen fällig", substring = true).assertDoesNotExist()
+        }
+    }
+
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 
     private fun card(languageId: Long, front: String, back: String) = runBlocking { app.flashcards.create(languageId, CardDraft(front, back)) }

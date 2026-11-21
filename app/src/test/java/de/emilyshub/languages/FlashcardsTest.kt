@@ -594,7 +594,11 @@ class FlashcardsTest {
         makeSure("kitab")
         val now = clock.now.atZone(clock.zone).toLocalDate()
 
-        assertEquals("the two new ones due", CardsSummary(total = 3, sure = 1, dueToday = 2, stuck = 0), cards.summary(arabic, now).first())
+        val summary = cards.summary(arabic, now).first()
+        assertEquals("the two new ones due", listOf(3, 1, 2, 0), with(summary) { listOf(total, sure, dueToday, stuck) })
+        assertEquals("the sure one is due later", DuePreview(tomorrow = 0, nextWeek = 0), summary.preview)
+        languages.setLanguageArchived(arabic, true)
+        assertEquals("no preview for an archived language", null, cards.summary(arabic, now).first().preview)
     }
 
     @Test

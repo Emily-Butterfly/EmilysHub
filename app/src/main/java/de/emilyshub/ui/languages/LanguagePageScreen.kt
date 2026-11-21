@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -50,6 +51,7 @@ import de.emilyshub.languages.CardsSummary
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguagePage
 import de.emilyshub.languages.Languages
+import de.emilyshub.languages.Practised
 import de.emilyshub.languages.LessonRow
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.ChoiceChip
@@ -60,6 +62,7 @@ import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlin.math.roundToInt
 
 /**
  * A language's page (SPEC.md §15), with four tabs: "Sessions", its lessons, the newest first, which open in their editor
@@ -218,21 +221,29 @@ private fun LessonLine(row: LessonRow, onClick: () -> Unit) {
     HorizontalDivider()
 }
 
-/** What each teacher's lessons of it come to, for the month, the year and in all. */
+/**
+ * What each teacher's lessons of it come to, for the month, the year and in all; above, its cards (#107), how regularly
+ * they were practised in those periods and, unless it is archived, what is due in the days to come (#150).
+ */
 @Composable
 private fun EvaluationTab(page: LanguagePage, cards: CardsSummary?) {
-    // Its cards in a line, once it has any (#107).
+    // Its cards in a line, once it has any (#107), and how they are practised (#150).
     val cardsLine: @Composable () -> Unit = {
         cards?.takeIf { it.total > 0 }?.let {
-            Text(
-                if (it.stuck > 0) {
-                    stringResource(R.string.evaluation_cards_stuck, it.total, it.sure, it.dueToday, it.stuck)
-                } else {
-                    stringResource(R.string.evaluation_cards, it.total, it.sure, it.dueToday)
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    if (it.stuck > 0) {
+                        stringResource(R.string.evaluation_cards_stuck, it.total, it.sure, it.dueToday, it.stuck)
+                    } else {
+                        stringResource(R.string.evaluation_cards, it.total, it.sure, it.dueToday)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                PractisedLines(it.practised)
+                it.preview?.let { preview ->
+                    Text(stringResource(R.string.evaluation_preview, preview.tomorrow, preview.nextWeek), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
     if (page.byTeacher.isEmpty()) {
@@ -255,6 +266,31 @@ private fun EvaluationTab(page: LanguagePage, cards: CardsSummary?) {
                 }
             }
         }
+    }
+}
+
+/**
+ * How regularly the cards were [practised] (#150), a line each for the month, the year and in all: "Diesen Monat an
+ * 12 von 16 Tagen geübt · 240 Abfragen · 85 % gewusst", the share known only once there is one.
+ */
+@Composable
+private fun PractisedLines(practised: Practised) {
+    listOf(
+        Triple(R.string.evaluation_practised_this_month, practised.month, practised.daysOfMonth),
+        Triple(R.string.languages_this_year, practised.year, null),
+        Triple(R.string.languages_total, practised.total, null),
+    ).forEach { (label, tally, of) ->
+        val days = if (of != null) {
+            pluralStringResource(R.plurals.evaluation_practised_days_of, of, tally.days, of)
+        } else {
+            pluralStringResource(R.plurals.evaluation_practised_days, tally.days, tally.days)
+        }
+        val parts = listOfNotNull(
+            "${stringResource(label)} $days",
+            pluralStringResource(R.plurals.evaluation_practised_answers, tally.answers, tally.answers),
+            tally.known?.let { stringResource(R.string.evaluation_practised_known, (it * 100).roundToInt()) },
+        )
+        Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
     }
 }
 

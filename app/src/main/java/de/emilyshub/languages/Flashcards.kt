@@ -52,9 +52,17 @@ data class TopicCards(val cards: Int, val sure: Int) {
 
 /**
  * A language's cards as its evaluation tells them (SPEC.md §15; #107): all of them ([total]), those [sure], those
- * [dueToday], and those that hakt ([stuck], #149).
+ * [dueToday], those that hakt ([stuck], #149), how regularly they were [practised] and, unless the language is archived,
+ * what is due in the days to come ([preview], #150).
  */
-data class CardsSummary(val total: Int, val sure: Int, val dueToday: Int, val stuck: Int)
+data class CardsSummary(
+    val total: Int,
+    val sure: Int,
+    val dueToday: Int,
+    val stuck: Int,
+    val practised: Practised,
+    val preview: DuePreview?,
+)
 
 /**
  * The tab Karten of a language (SPEC.md §15): its [cards] by front, the [topics] of the language to filter them by, by
@@ -279,8 +287,16 @@ class Flashcards(
      */
     fun summary(languageId: Long, today: LocalDate): Flow<CardsSummary> = flow {
         val summary = combine(languages.observeLanguages(), dao.observeOf(languageId), dao.observeReviewsOf(languageId)) { all, cards, reviews ->
-            val newPerDay = all.find { it.id == languageId }?.newCardsPerDay ?: Language.NEW_CARDS_DEFAULT
-            CardsSummary(cards.size, cards.count { it.sure }, Workload.of(cards, newPerDay, today).remaining.size, Stuck.cards(reviews).size)
+            val language = all.find { it.id == languageId }
+            val newPerDay = language?.newCardsPerDay ?: Language.NEW_CARDS_DEFAULT
+            CardsSummary(
+                total = cards.size,
+                sure = cards.count { it.sure },
+                dueToday = Workload.of(cards, newPerDay, today).remaining.size,
+                stuck = Stuck.cards(reviews).size,
+                practised = Practised.of(reviews, today, clock.zone),
+                preview = DuePreview.of(cards, today).takeIf { language?.archived != true },
+            )
         }
         emitAll(summary)
     }.flowOn(io)
