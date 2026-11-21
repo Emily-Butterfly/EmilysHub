@@ -36,7 +36,9 @@ enum class TypedAnswer {
             else -> Wrong
         }
 
-        /** [text] as compared with its marks: as the search has it, but with them. */
-        private fun spelt(text: String) = InputText.comparable(text).replace("ß", "ss")
+        /** [text] as compared with its marks: as the search has it, but with them; the tatweel only stretches a word. */
+        private fun spelt(text: String) = InputText.comparable(text).replace("ß", "ss").replace(TATWEEL, "")
+
+        private const val TATWEEL = "\u0640"
     }
 }

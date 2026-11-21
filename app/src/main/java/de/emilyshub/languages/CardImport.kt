@@ -1,6 +1,6 @@
 package de.emilyshub.languages
 
-import de.emilyshub.data.InputText
+import de.emilyshub.inbox.Sorting
 
 /** A card read from line [line] of a file, as it is to be made. */
 data class FileCard(val line: Int, val draft: CardDraft)
@@ -47,13 +47,14 @@ object CardImport {
 
     /**
      * The card an entry of the inbox of [text] is sorted in as (SPEC.md §16; #152): its first line as front and back
-     * where it reads so as a line of a note does, else as the front; the lines after it as the note.
+     * where it reads so as a line of a note does, the lines after it as the note; else its first line as the front, cut
+     * to what a front takes as a to-do's title is ([Sorting]), and the rest as the note.
      */
     fun fromInbox(text: String): CardDraft {
         val lines = text.trim().lines()
-        val note = lines.drop(1).joinToString("\n").trim()
-        val sides = sidesOf(lines.first()) ?: CardDraft(front = InputText.singleLine(lines.first()))
-        return sides.copy(note = note)
+        sidesOf(lines.first())?.let { return it.copy(note = lines.drop(1).joinToString("\n").trim()) }
+        val sorting = Sorting.of(0, text, Card.FRONT_MAX)
+        return CardDraft(front = sorting.title, note = sorting.rest)
     }
 
     /** [line] as the two sides of a card, as a note's line reads so; none if it does not. */

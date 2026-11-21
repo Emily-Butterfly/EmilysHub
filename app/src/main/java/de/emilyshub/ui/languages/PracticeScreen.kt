@@ -154,7 +154,8 @@ fun PracticeScreen(
     val name by remember(flashcards, languageId) { flashcards.languageName(languageId) }.collectAsState(initial = "")
     val voice by remember(flashcards, languageId) { flashcards.voice(languageId) }.collectAsState(initial = null)
     val readAloud = rememberReadAloud(speech, voice)
-    val asked by remember(flashcards, languageId) { flashcards.answering(languageId) }.collectAsState(initial = Answering())
+    // Read before the first card shows, so that it does not show "Aufdecken" first where the answer is to be typed.
+    val asked by remember(flashcards, languageId) { flashcards.answering(languageId) }.collectAsState(initial = null)
     val workload = when (shown) {
         is Practising -> shown.workload
         // Each card of the topic or exam once, and again after "Nochmal".
@@ -208,7 +209,8 @@ fun PracticeScreen(
             )
         },
     ) { contentPadding ->
-        if (workload == null) return@Scaffold
+        val howAsked = asked
+        if (workload == null || howAsked == null) return@Scaffold
         if (card == null) {
             Column(
                 modifier = Modifier
@@ -278,7 +280,7 @@ fun PracticeScreen(
                     hint = workload.firstTime,
                     enabled = answering == null,
                     readAloud = readAloud,
-                    answering = asked,
+                    answering = howAsked,
                     onAnswer = { rating ->
                         answering = card
                         scope.launchNow {

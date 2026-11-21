@@ -29,4 +29,5 @@ Im Unterricht fällt ein Wort, und der Karten-Editor ist zu weit weg. Im Eingang
 Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); die Einzelheiten sind nicht in einem Interview abgestimmt.
 
 - Beim Bau: „die zuletzt für eine Karte gewählte“ Sprache ist die der zuletzt angelegten Karte (unter den nicht archivierten), aus den Karten gelesen, ohne eigenes Feld.
+- Beim Bau: eine erste Zeile ohne Trennzeichen, zu lang für eine Vorderseite (200 Zeichen), wird wie ein Titel an einem Leerzeichen gekürzt; was übrig bleibt, beginnt die Notiz.
 - Nicht einzeln bestätigt: kein eigener Kurzbefehl „Neue Vokabel“; der Eingang reicht und hält die Zahl der Wege klein.

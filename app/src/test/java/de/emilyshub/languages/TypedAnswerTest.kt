@@ -44,4 +44,10 @@ class TypedAnswerTest {
     fun `a meaning right is right even where another is right but for the marks`() {
         assertEquals(TypedAnswer.Right, TypedAnswer.check("كتب", "كَتَبَ, كتب"))
     }
+
+    @Test
+    fun `the stretching tatweel is no vowel mark, and does not count`() {
+        assertEquals(TypedAnswer.Right, TypedAnswer.check("كتـاب", "كتاب"))
+        assertEquals(TypedAnswer.RightButMarks, TypedAnswer.check("كتـاب", "كِتَاب"))
+    }
 }

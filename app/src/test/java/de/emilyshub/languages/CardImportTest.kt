@@ -1,6 +1,7 @@
 package de.emilyshub.languages
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Reading cards from a lesson's note and from a text file (SPEC.md §15, Anlegen; #105). */
@@ -24,6 +25,17 @@ class CardImportTest {
         assertEquals(CardDraft("madrasa", note = "Schule – fragen"), CardImport.fromInbox("madrasa\nSchule – fragen"))
         // A side left empty does not split it.
         assertEquals(CardDraft("nur vorn –"), CardImport.fromInbox("nur vorn – "))
+    }
+
+    @Test
+    fun `an inbox entry's first line too long for a front is cut at a space, what is left over starts the note`() {
+        val words = List(50) { "wort$it" }.joinToString(" ")
+        val card = CardImport.fromInbox("$words\nnoch eine Zeile")
+
+        assertTrue(card.front.length <= Card.FRONT_MAX)
+        assertEquals(words, "${card.front} ${card.note.lines().first()}")
+        assertEquals("noch eine Zeile", card.note.lines().last())
+        assertEquals(emptySet<CardProblem>(), card.copy(back = "x").problems.filter { it == CardProblem.FrontTooLong }.toSet())
     }
 
     @Test
