@@ -6,6 +6,7 @@ import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardGoal
 import de.emilyshub.languages.CardReview
+import de.emilyshub.languages.CardSettings
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
@@ -197,4 +198,7 @@ interface BackupDao {
 
     @Query("SELECT * FROM card_goals")
     fun cardGoals(): List<CardGoal>
+
+    @Query("SELECT * FROM card_settings")
+    fun cardSettings(): List<CardSettings>
 }

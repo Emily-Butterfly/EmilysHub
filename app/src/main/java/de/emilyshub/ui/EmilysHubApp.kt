@@ -557,6 +557,7 @@ private fun TopLevelScaffold(
                         // Where the languages and teachers are managed (SPEC.md §15).
                         if (moreOpen == MoreEntry.Languages) {
                             LanguagesMenu(
+                                hub.flashcards,
                                 onManageLanguages = { open(Destination.LanguageList) },
                                 onManageTeachers = { open(Destination.TeacherList) },
                             )

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.Serializable
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -68,17 +69,18 @@ data class CardsSummary(
 
 /**
  * The tab Karten of a language (SPEC.md §15): its [cards] by front, the [topics] of the language to filter them by, by
- * name, and how many new cards a day takes ([newPerDay]).
+ * name, how many new cards a day takes ([newPerDay]) and how many ways a day's workload asks at most ([dailyLimit], #156).
  */
-data class CardsTab(val cards: List<CardRow>, val topics: List<Topic>, val newPerDay: Int)
+data class CardsTab(val cards: List<CardRow>, val topics: List<Topic>, val newPerDay: Int, val dailyLimit: Int? = null)
 
 /**
  * A language's workload on a day (SPEC.md §15): the cards [remaining], each the way it is asked ([Prompt]), those due
  * first, the longest due first, then the new ones it takes, in the order they were made, each from its front before its
  * back; those asked that day already ([doneToday]); and whether the language is practised for the first time, no card
- * of it asked before that day ([firstTime]). A card asked both ways comes one way a day at most (#141).
+ * of it asked before that day ([firstTime]). A card asked both ways comes one way a day at most (#141). Under a limit
+ * (#156), the due ones beyond it [waiting].
  */
-data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, val firstTime: Boolean = false) {
+data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, val firstTime: Boolean = false, val waiting: Int = 0) {
     /** Whether nothing of it is open any more. */
     val done: Boolean get() = remaining.isEmpty()
 
@@ -89,20 +91,30 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
     val dueCount: Int get() = remaining.size - newCount
 
     companion object {
-        /** Of [cards], all of one language that takes [newPerDay] new cards a day, the workload on [today]. */
-        fun of(cards: List<Card>, newPerDay: Int, today: LocalDate): Workload {
+        /**
+         * Of [cards], all of one language that takes [newPerDay] new cards a day, the workload on [today]. With a
+         * [limit] (#156), the ways it takes on the day, those it [asked] already counted, each once: the longest due
+         * first up to it, and new ones only while nothing due waits beyond it, as far as it reaches.
+         */
+        fun of(cards: List<Card>, newPerDay: Int, today: LocalDate, limit: Int? = null, asked: AskedToday = AskedToday()): Workload {
             val prompts = cards.flatMap { it.prompts }
-            val asked = prompts.filter { it.lastReview == today }
+            val askedToday = prompts.filter { it.lastReview == today }
             // A card asked one way today is not asked the other (#141).
-            val busy = asked.map { it.id }.toMutableSet()
-            val due = prompts.filter { it.dueOn(today) }.sortedWith(Prompt.BY_DUE).filter { busy.add(it.id) }
+            val busy = askedToday.map { it.id }.toMutableSet()
+            val allDue = prompts.filter { it.dueOn(today) }.sortedWith(Prompt.BY_DUE).filter { busy.add(it.id) }
+            val keys = prompts.map { it.key }.toSet()
+            val room = limit?.let { (it - asked.inWorkload.count { key -> key in keys }).coerceAtLeast(0) } ?: Int.MAX_VALUE
+            val due = allDue.take(room)
+            val waiting = allDue.size - due.size
             val newToday = prompts.count { it.firstReview == today }
+            // While a backlog waits beyond the limit, no new ones.
+            val newRoom = if (waiting > 0) 0 else minOf((newPerDay - newToday).coerceAtLeast(0), room - due.size)
             val new = prompts.filter { it.new }.sortedWith(Prompt.BY_MADE)
                 .filter { busy.add(it.id) }
-                .take((newPerDay - newToday).coerceAtLeast(0))
+                .take(newRoom)
             // Asked on a day before, in the day's workload or in a topic.
             val askedBefore = prompts.any { it.lastReview?.isBefore(today) == true }
-            return Workload(due + new, asked, firstTime = !askedBefore)
+            return Workload(due + new, askedToday, firstTime = !askedBefore, waiting = waiting)
         }
 
         /**
@@ -260,6 +272,7 @@ class Flashcards(
                 cards = cards.sortedWith(compareBy(InputText.byName) { it.front }).map { CardRow(it, it.topicId?.let(byId::get), it.id in stuck) },
                 topics = own.sortedWith(compareBy(InputText.byName) { it.name }),
                 newPerDay = language.newCardsPerDay,
+                dailyLimit = language.dailyLimit,
             )
         }
         emitAll(tab)
@@ -270,9 +283,7 @@ class Flashcards(
      * gone.
      */
     fun workload(languageId: Long, today: LocalDate): Flow<Workload?> = flow {
-        val workload = combine(languages.observeLanguages(), dao.observeOf(languageId)) { all, cards ->
-            all.find { it.id == languageId }?.takeIf { !it.archived }?.let { Workload.of(cards, it.newCardsPerDay, today) }
-        }
+        val workload = observeWorkloads(today).map { it.workloads[languageId] }
         emitAll(workload)
     }.flowOn(io)
 
@@ -338,23 +349,38 @@ class Flashcards(
 
     /** The workload on [today] of each language not archived that has cards, by its id, as they change. */
     fun workloads(today: LocalDate): Flow<Map<Long, Workload>> = flow {
-        val workloads = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
-            val byLanguage = cards.groupBy { it.languageId }
-            all.filter { !it.archived && it.id in byLanguage }
-                .associate { it.id to Workload.of(byLanguage.getValue(it.id), it.newCardsPerDay, today) }
-        }
-        emitAll(workloads)
+        emitAll(observeWorkloads(today).map { day -> day.workloads.filterKeys { it in day.withCards } })
     }.flowOn(io)
+
+    /**
+     * The workloads on [today] of all languages not archived, as they change: under their limits, the overall one shared
+     * out by backlog (#156), so that each depends on all the others.
+     */
+    private fun observeWorkloads(today: LocalDate): Flow<WorkloadsOn> = combine(
+        languages.observeLanguages(), dao.observeAll(), dao.observeReviewsSince(sinceBefore(today)), dao.observeSettings(),
+    ) { all, cards, reviews, settings -> workloadsOn(all, cards, reviews, settings, today) }
+
+    /** The workloads on [today] as they stand now, as [observeWorkloads] has them. */
+    private suspend fun workloadsNow(today: LocalDate): WorkloadsOn =
+        workloadsOn(languages.languages(), dao.all(), dao.reviewsSince(sinceBefore(today)), dao.settings(), today)
+
+    private fun workloadsOn(all: List<Language>, cards: List<Card>, reviews: List<CardReview>, settings: CardSettings?, today: LocalDate) =
+        WorkloadsOn(
+            DailyLimits.workloads(all, cards, reviews, settings?.dailyLimit, today, clock.zone),
+            withCards = cards.map { it.languageId }.toSet(),
+        )
+
+    /** From when the answers of [today] are read: from a day before, which is safe whatever the time zone; [AskedToday] keeps those of the day. */
+    private fun sinceBefore(today: LocalDate): Instant = today.minusDays(1).atStartOfDay(clock.zone).toInstant()
 
     /**
      * The languages not archived with something still open on [today] but [except], the most open first, by name if
      * alike: those Heute offers to practise (#158), the first of them after another language's round (#147).
      */
     fun openLanguages(today: LocalDate, except: Long? = null): Flow<List<OpenLanguage>> = flow {
-        val open = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
-            val byLanguage = cards.groupBy { it.languageId }
+        val open = combine(languages.observeLanguages(), observeWorkloads(today)) { all, day ->
             all.filter { !it.archived && it.id != except }
-                .map { OpenLanguage(it.id, it.name, Workload.of(byLanguage[it.id].orEmpty(), it.newCardsPerDay, today).remaining.size) }
+                .map { OpenLanguage(it.id, it.name, day.workloads[it.id]?.remaining?.size ?: 0) }
                 .filter { it.open > 0 }
                 .sortedWith(compareByDescending(OpenLanguage::open).then(compareBy(InputText.byName, OpenLanguage::name)))
         }
@@ -474,6 +500,34 @@ class Flashcards(
         }
     }
 
+    /**
+     * How many ways of the cards of the language [languageId] a day's workload asks at most (#156), kept within
+     * [DailyLimits.PER_LANGUAGE]; none for no limit. A workload done by it tells so, as by an answer.
+     */
+    suspend fun setDailyLimit(languageId: Long, limit: Int?) = tellingWorkloadsDone {
+        languages.setDailyLimit(languageId, limit?.coerceIn(DailyLimits.PER_LANGUAGE))
+    }
+
+    /** The overall limit (#156), as it changes; none for no limit. */
+    fun overallLimit(): Flow<Int?> = flow { emitAll(dao.observeSettings().map { it?.dailyLimit }) }.flowOn(io)
+
+    /**
+     * How many ways of the cards of all languages together the day's workloads ask at most (#156), kept within
+     * [DailyLimits.OVERALL]; none for no limit. Workloads done by it tell so.
+     */
+    suspend fun setOverallLimit(limit: Int?) = tellingWorkloadsDone {
+        dao.setSettings(CardSettings(dailyLimit = limit?.coerceIn(DailyLimits.OVERALL)))
+    }
+
+    /** Does [change], and tells each workload of today that it made done (#106). */
+    private suspend fun tellingWorkloadsDone(change: suspend () -> Unit) = write {
+        val today = today()
+        val before = workloadsNow(today).workloads
+        change()
+        val after = workloadsNow(today).workloads
+        after.filter { (id, workload) -> workload.done && before[id]?.done == false }.keys.forEach { onWorkloadDone(it) }
+    }
+
     /** How many new cards a day the language [languageId] takes, kept within [Language.NEW_CARDS]. */
     suspend fun setNewPerDay(languageId: Long, count: Int) = write {
         languages.setNewCardsPerDay(languageId, count.coerceIn(Language.NEW_CARDS))
@@ -519,7 +573,16 @@ class Flashcards(
                     ),
                 )
             }
-            Answered(prompt, dao.insert(CardReview(cardId = cardId, at = clock.instant(), grade = rating.grade, reverse = reverse)))
+            val review = CardReview(
+                cardId = cardId,
+                at = clock.instant(),
+                grade = rating.grade,
+                reverse = reverse,
+                // Kept in the day's backlog, and counted against a limit only as the day's workload asked it (#156).
+                wasDue = prompt.dueOn(today),
+                inWorkload = countsAsNew && ofWorkload,
+            )
+            Answered(prompt, dao.insert(review))
         } ?: return@write null
         val languageId = answered.before.card.languageId
         val didWorkload = ofWorkload && workloadOf(languageId, today)?.done == true
@@ -550,10 +613,7 @@ class Flashcards(
         dao.goalsOf(languageId).forEach { watch.cardGoal(it.goalId) }
 
     /** The workload of the language [languageId] on [today] as it stands; none for an archived language. */
-    private suspend fun workloadOf(languageId: Long, today: LocalDate): Workload? {
-        val language = languages.language(languageId)?.takeIf { !it.archived } ?: return null
-        return Workload.of(dao.of(languageId), language.newCardsPerDay, today)
-    }
+    private suspend fun workloadOf(languageId: Long, today: LocalDate): Workload? = workloadsNow(today).workloads[languageId]
 
     /**
      * The interval in days each answer to [prompt] would give now, as each button shows it and [answer] then plans it.
@@ -584,3 +644,6 @@ class Flashcards(
  * known (#153); [hideVowelMarks], its side is asked without its vowel marks (#154).
  */
 data class Answering(val typed: Boolean = false, val locale: Locale? = null, val hideVowelMarks: Boolean = false)
+
+/** The [workloads] of a day of all languages not archived, and the languages [withCards]. */
+private data class WorkloadsOn(val workloads: Map<Long, Workload>, val withCards: Set<Long>)

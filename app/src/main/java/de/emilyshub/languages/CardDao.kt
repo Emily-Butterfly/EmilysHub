@@ -5,13 +5,18 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 /** The cards of the Vokabeltrainer and the answers to them (SPEC.md §15). */
 @Dao
 interface CardDao {
     @Query("SELECT * FROM cards")
     fun observeAll(): Flow<List<Card>>
+
+    @Query("SELECT * FROM cards")
+    suspend fun all(): List<Card>
 
     @Query("SELECT * FROM cards WHERE language_id = :languageId")
     fun observeOf(languageId: Long): Flow<List<Card>>
@@ -33,6 +38,22 @@ interface CardDao {
 
     @Insert
     suspend fun insert(review: CardReview): Long
+
+    /** The answers given from [since] on, of all languages (#156). */
+    @Query("SELECT * FROM card_reviews WHERE at >= :since")
+    fun observeReviewsSince(since: Instant): Flow<List<CardReview>>
+
+    @Query("SELECT * FROM card_reviews WHERE at >= :since")
+    suspend fun reviewsSince(since: Instant): List<CardReview>
+
+    @Query("SELECT * FROM card_settings WHERE id = ${CardSettings.ONLY}")
+    fun observeSettings(): Flow<CardSettings?>
+
+    @Query("SELECT * FROM card_settings WHERE id = ${CardSettings.ONLY}")
+    suspend fun settings(): CardSettings?
+
+    @Upsert
+    suspend fun setSettings(settings: CardSettings)
 
     @Query("SELECT * FROM card_goals WHERE goal_id = :goalId")
     suspend fun goal(goalId: Long): CardGoal?

@@ -911,6 +911,67 @@ class VocabularyScreenTest {
         }
     }
 
+    @Test
+    fun `a language's limit is set in the tab's menu, and the start page tells what waits beyond it`() {
+        val arabic = language("Arabisch")
+        dueCards(arabic, 25)
+
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithText("Heute: 25 fällig").assertIsDisplayed()
+            compose.onNode(hasText("Arabisch") and isHeading()).performClick()
+            tab("Karten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Höchstens Abfragen am Tag: ohne Grenze").performClick()
+            compose.onNode(hasText("Ohne Grenze") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("Heute: 20 fällig · 5 warten").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Höchstens Abfragen am Tag: 20").assertIsDisplayed()
+        }
+        assertEquals(20, runBlocking { app.flashcards.tab(arabic).first() }?.dailyLimit)
+    }
+
+    @Test
+    fun `the overall limit is set in the start page's menu, and its line tells what waits once the day's are done`() {
+        val arabic = language("Arabisch")
+        dueCards(arabic, 25)
+        runBlocking { app.flashcards.setOverallLimit(20) }
+        // The day's twenty done.
+        runBlocking {
+            repeat(20) {
+                val next = checkNotNull(app.flashcards.workload(arabic, LocalDate.now(app.clock)).first()).remaining.first()
+                app.flashcards.answer(next.id, Rating.Good)
+            }
+        }
+
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithText("Für heute geschafft · 5 warten").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Menü der Sprachen").performClick()
+            compose.onNodeWithText("Höchstens Abfragen am Tag, alle Sprachen: 20").performClick()
+            compose.onNode(hasText("Ohne Grenze") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Speichern") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNodeWithText("Heute: 5 fällig").assertIsDisplayed()
+        }
+        assertEquals(null, runBlocking { app.flashcards.overallLimit().first() })
+    }
+
+    /** [count] cards of [languageId], answered some days ago and due today. */
+    private fun dueCards(languageId: Long, count: Int) {
+        val start = app.clock.now
+        app.clock.now = start.minus(10, ChronoUnit.DAYS)
+        runBlocking {
+            repeat(count) {
+                val id = (app.flashcards.create(languageId, CardDraft("k$it", "b$it")) as Saving.Saved).id
+                app.flashcards.answer(id, Rating.Good)
+            }
+        }
+        app.clock.now = start
+    }
+
     /** The answer [label], set apart as the one an answer typed suggests. */
     private fun suggested(label: String) = compose.onNode(
         hasText(label) and hasClickAction() and SemanticsMatcher("suggested") { node ->

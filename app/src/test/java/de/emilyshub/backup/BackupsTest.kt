@@ -726,6 +726,7 @@ class BackupsTest {
                 checkNotNull(app.wishes.editing(northernLights)?.original).copy(cardLanguageId = arabicLessons, cardCount = "500"),
             )
             app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
+            app.flashcards.setOverallLimit(200)
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)
             app.ledger.createTemplate(

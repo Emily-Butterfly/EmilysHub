@@ -9,6 +9,7 @@ import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardGoal
 import de.emilyshub.languages.CardReview
+import de.emilyshub.languages.CardSettings
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.Language
 import de.emilyshub.languages.Lesson
@@ -1262,6 +1263,29 @@ class HubDatabaseMigrationTest {
             assertEquals(false, languages.language(1)?.hideVowelMarks)
             languages.setHideVowelMarks(1, hide = true)
             assertEquals(true, languages.language(1)?.hideVowelMarks)
+        }
+    }
+
+    @Test
+    fun `version 59 moves to version 60 without limits and with answers that tell nothing of them and then both are kept`() {
+        createAtVersion(59) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day, typed_answers, hide_vowel_marks) VALUES (1, 'Arabisch', 0, 10, 0, 0)")
+            it.execSQL("INSERT INTO cards (id, language_id, front, back, transcription, note) VALUES (1, 1, 'kitab', 'Buch', '', '')")
+            it.execSQL("INSERT INTO card_reviews (id, card_id, at, grade, reverse) VALUES (1, 1, '2026-11-20T09:00:00Z', 3, 0)")
+        }
+
+        withMigratedDatabase { database ->
+            val languages = database.languages()
+            assertEquals(null, languages.language(1)?.dailyLimit)
+            languages.setDailyLimit(1, 50)
+            assertEquals(50, languages.language(1)?.dailyLimit)
+
+            val cards = database.cards()
+            val old = cards.reviewsOf(1).single()
+            assertEquals(false to false, old.wasDue to old.inWorkload)
+            assertEquals(null, cards.settings())
+            cards.setSettings(CardSettings(dailyLimit = 200))
+            assertEquals(200, cards.settings()?.dailyLimit)
         }
     }
 

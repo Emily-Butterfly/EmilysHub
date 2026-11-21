@@ -34,6 +34,8 @@ data class Language(
     @ColumnInfo(name = "typed_answers", defaultValue = "0") val typedAnswers: Boolean = false,
     /** Whether the side in the language is asked without its vowel marks, uncovered with them (SPEC.md §15; #154). */
     @ColumnInfo(name = "hide_vowel_marks", defaultValue = "0") val hideVowelMarks: Boolean = false,
+    /** How many ways of its cards a day's workload asks at most (SPEC.md §15; #156), of [DailyLimits.PER_LANGUAGE]; none, no limit. */
+    @ColumnInfo(name = "daily_limit") val dailyLimit: Int? = null,
 ) {
     companion object {
         /** The longest a language's name may be, in characters. */

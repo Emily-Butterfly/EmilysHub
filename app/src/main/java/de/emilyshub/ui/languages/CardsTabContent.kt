@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -40,9 +41,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
@@ -58,6 +61,7 @@ import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardFile
 import de.emilyshub.languages.CardRow
 import de.emilyshub.languages.CardsTab
+import de.emilyshub.languages.DailyLimits
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Language
 import de.emilyshub.ui.ChoiceChip
@@ -102,6 +106,7 @@ internal fun CardsTabContent(
     var stuckOnly by rememberSaveable { mutableStateOf(false) }
     var settingNew by rememberSaveable { mutableStateOf(false) }
     var settingAnswering by rememberSaveable { mutableStateOf(false) }
+    var settingLimit by rememberSaveable { mutableStateOf(false) }
     val answering by remember(flashcards, languageId) { flashcards.answering(languageId) }.collectAsState(initial = Answering())
     // A file picked and read, to look at before its cards are made; not kept past the screen.
     var picked by remember { mutableStateOf<CardFile?>(null) }
@@ -156,6 +161,7 @@ internal fun CardsTabContent(
                     hideVowelMarks = answering.hideVowelMarks.takeIf { it || shown.cards.any { row -> InputText.hasVowelMarks(row.card.front) } },
                     onHideVowelMarks = { hide -> scope.launchNow { flashcards.setHideVowelMarks(languageId, hide) } },
                     onSetNew = { settingNew = true },
+                    onSetLimit = { settingLimit = true },
                     onSetAnswering = { settingAnswering = true },
                     onImport = { pick.launch(arrayOf("text/*")) },
                 )
@@ -239,6 +245,19 @@ internal fun CardsTabContent(
             onDismiss = { settingNew = false },
         )
     }
+    if (settingLimit) {
+        LimitDialog(
+            title = R.string.cards_limit,
+            text = R.string.cards_limit_text,
+            current = shown.dailyLimit,
+            range = DailyLimits.PER_LANGUAGE,
+            onConfirm = { limit ->
+                settingLimit = false
+                scope.launchNow { flashcards.setDailyLimit(languageId, limit) }
+            },
+            onDismiss = { settingLimit = false },
+        )
+    }
     if (settingAnswering) {
         AnsweringDialog(
             typed = answering.typed,
@@ -303,7 +322,7 @@ private fun DirectedLine(text: String, maxLines: Int) {
 }
 
 /**
- * The menu of the tab: how many new cards a day takes, whether the practice asks for the answer [typed] (#153), whether
+ * The menu of the tab: how many new cards a day takes, how many ways a day's workload asks at most (#156), whether the practice asks for the answer [typed] (#153), whether
  * the question leaves out the vowel marks, ticked or not as [hideVowelMarks] says and not offered while it is none
  * (#154), and cards from a file of the phone ([onImport]).
  */
@@ -314,6 +333,7 @@ private fun CardsMenu(
     hideVowelMarks: Boolean?,
     onHideVowelMarks: (Boolean) -> Unit,
     onSetNew: () -> Unit,
+    onSetLimit: () -> Unit,
     onSetAnswering: () -> Unit,
     onImport: () -> Unit,
 ) {
@@ -328,6 +348,13 @@ private fun CardsMenu(
                 onClick = {
                     expanded = false
                     onSetNew()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(tab.dailyLimit?.let { stringResource(R.string.cards_limit_value, it) } ?: stringResource(R.string.cards_limit_none_value)) },
+                onClick = {
+                    expanded = false
+                    onSetLimit()
                 },
             )
             DropdownMenuItem(
@@ -359,6 +386,49 @@ private fun CardsMenu(
         }
     }
 }
+
+/**
+ * Asks for a limit of the day's workloads (#156), of [title] and [text]: "Ohne Grenze", or a number of [range] in steps
+ * of [LIMIT_STEP], from [current]; [onConfirm] gives none for no limit.
+ */
+@Composable
+internal fun LimitDialog(title: Int, text: Int, current: Int?, range: IntRange, onConfirm: (Int?) -> Unit, onDismiss: () -> Unit) {
+    var limited by rememberSaveable { mutableStateOf(current != null) }
+    var value by rememberSaveable { mutableFloatStateOf((current ?: range.first).toFloat()) }
+    val chosen = (value.roundToInt() / LIMIT_STEP * LIMIT_STEP).coerceIn(range)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(text))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = !limited, role = Role.Checkbox) { limited = !it },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = !limited, onCheckedChange = null)
+                    Text(stringResource(R.string.cards_limit_none), modifier = Modifier.padding(start = 12.dp))
+                }
+                if (limited) {
+                    Text(chosen.toString(), style = MaterialTheme.typography.titleMedium)
+                    Slider(
+                        value = value,
+                        onValueChange = { value = it },
+                        valueRange = range.first.toFloat()..range.last.toFloat(),
+                        steps = (range.last - range.first) / LIMIT_STEP - 1,
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(chosen.takeIf { limited }) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** The steps a limit is chosen in. */
+private const val LIMIT_STEP = 10
 
 /** Asks whether the practice of the language uncovers the answer or asks for it [typed] (#153), in all its ways. */
 @Composable

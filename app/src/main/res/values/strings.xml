@@ -1526,6 +1526,17 @@
     <string name="cards_today_due">Heute: %1$d fällig</string>
     <string name="cards_today_new">Heute: %1$d neu</string>
     <string name="cards_done_today">Für heute geschafft</string>
+    <string name="cards_done_today_waiting">Für heute geschafft · %1$d warten</string>
+    <string name="cards_today_due_waiting">Heute: %1$d fällig · %2$d warten</string>
+    <string name="cards_limit">Höchstens Abfragen am Tag</string>
+    <string name="cards_limit_overall">Höchstens Abfragen am Tag, alle Sprachen</string>
+    <string name="cards_limit_value">Höchstens Abfragen am Tag: %1$d</string>
+    <string name="cards_limit_none_value">Höchstens Abfragen am Tag: ohne Grenze</string>
+    <string name="cards_limit_overall_value">Höchstens Abfragen am Tag, alle Sprachen: %1$d</string>
+    <string name="cards_limit_overall_none_value">Höchstens Abfragen am Tag, alle Sprachen: ohne Grenze</string>
+    <string name="cards_limit_none">Ohne Grenze</string>
+    <string name="cards_limit_text">Nach einer Pause verteilt die Grenze, was fällig ist, auf mehrere Tage, das am längsten Fällige zuerst. Ist sie erreicht, ist das Tagespensum geschafft; solange mehr wartet, kommen keine neuen Karten.</string>
+    <string name="cards_limit_overall_text">Die Grenze über alle Sprachen teilt sich nach dem, was in jeder Sprache fällig ist. Hat eine Sprache auch eine eigene Grenze, gilt die kleinere.</string>
     <string name="cards_practice">Üben</string>
     <string name="practice_position">%1$d von %2$d</string>
     <string name="card_both_ways">In beide Richtungen abfragen</string>

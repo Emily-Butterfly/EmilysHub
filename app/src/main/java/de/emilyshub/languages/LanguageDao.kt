@@ -93,6 +93,10 @@ interface LanguageDao {
     @Query("UPDATE languages SET voice = :voice WHERE id = :languageId")
     suspend fun setVoice(languageId: Long, voice: String?)
 
+    /** How many ways of the language's cards a day's workload asks at most, none for no limit (SPEC.md §15; #156). */
+    @Query("UPDATE languages SET daily_limit = :limit WHERE id = :languageId")
+    suspend fun setDailyLimit(languageId: Long, limit: Int?)
+
     /** Whether the language's side of its cards is asked without its vowel marks (SPEC.md §15; #154). */
     @Query("UPDATE languages SET hide_vowel_marks = :hide WHERE id = :languageId")
     suspend fun setHideVowelMarks(languageId: Long, hide: Boolean)

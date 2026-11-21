@@ -881,3 +881,16 @@ val MIGRATION_58_59 = object : Migration(58, 59) {
         db.execSQL("ALTER TABLE `languages` ADD COLUMN `hide_vowel_marks` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * 59 → 60: a limit of a day's workload for each language and one over all (#156), none at first; and an answer tells
+ * whether its way was due and whether the day's workload asked it. Those given before tell neither.
+ */
+val MIGRATION_59_60 = object : Migration(59, 60) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `daily_limit` INTEGER")
+        db.execSQL("ALTER TABLE `card_reviews` ADD COLUMN `was_due` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `card_reviews` ADD COLUMN `in_workload` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `card_settings` (`id` INTEGER NOT NULL, `daily_limit` INTEGER, PRIMARY KEY(`id`))")
+    }
+}

@@ -212,6 +212,10 @@ data class CardReview(
     val grade: Int,
     /** Whether it was asked from its back (#141). */
     @ColumnInfo(defaultValue = "0") val reverse: Boolean = false,
+    /** Whether that way was due when answered (#156), which keeps it in the day's backlog. */
+    @ColumnInfo(name = "was_due", defaultValue = "0") val wasDue: Boolean = false,
+    /** Whether the day's workload asked it (#156), not a topic or exam practised: which counts against a limit. */
+    @ColumnInfo(name = "in_workload", defaultValue = "0") val inWorkload: Boolean = false,
 )
 
 /** What keeps a [CardDraft] from being saved, each shown at its field in the editor. */

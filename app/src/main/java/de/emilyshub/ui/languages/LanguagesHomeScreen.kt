@@ -29,6 +29,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.DailyLimits
 import de.emilyshub.languages.ExamStatus
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguageCard
@@ -45,6 +48,7 @@ import de.emilyshub.languages.Languages
 import de.emilyshub.languages.Periods
 import de.emilyshub.languages.Workload
 import de.emilyshub.ui.PlaceholderScreen
+import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
@@ -142,17 +146,20 @@ private fun PeriodsCard(
 
 /**
  * How many cards are due today and how many new ones, apart, as new ones take longer (#143), with "Üben", or that
- * today's are done: on the start page and atop the tab Karten.
+ * today's are done: on the start page and atop the tab Karten. Under a limit, what waits beyond it (#156), when there
+ * are no new ones.
  */
 @Composable
 internal fun WorkloadLine(workload: Workload, onPractice: () -> Unit, modifier: Modifier = Modifier) {
     if (workload.done) {
-        Text(stringResource(R.string.cards_done_today), style = MaterialTheme.typography.bodyMedium, modifier = modifier)
+        val done = if (workload.waiting > 0) stringResource(R.string.cards_done_today_waiting, workload.waiting) else stringResource(R.string.cards_done_today)
+        Text(done, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
         return
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             when {
+                workload.waiting > 0 -> stringResource(R.string.cards_today_due_waiting, workload.dueCount, workload.waiting)
                 workload.newCount == 0 -> stringResource(R.string.cards_today_due, workload.dueCount)
                 workload.dueCount == 0 -> stringResource(R.string.cards_today_new, workload.newCount)
                 else -> stringResource(R.string.cards_today_due_new, workload.dueCount, workload.newCount)
@@ -164,10 +171,16 @@ internal fun WorkloadLine(workload: Workload, onPractice: () -> Unit, modifier: 
     }
 }
 
-/** The three dots of Sprachen in the top bar: where the languages and the teachers are managed (SPEC.md §15). */
+/**
+ * The three dots of Sprachen in the top bar: where the languages and the teachers are managed (SPEC.md §15), and the
+ * limit of the day's workloads over all languages (#156).
+ */
 @Composable
-fun LanguagesMenu(onManageLanguages: () -> Unit, onManageTeachers: () -> Unit) {
+fun LanguagesMenu(flashcards: Flashcards, onManageLanguages: () -> Unit, onManageTeachers: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    var settingLimit by rememberSaveable { mutableStateOf(false) }
+    val overall by remember(flashcards) { flashcards.overallLimit() }.collectAsState(initial = null)
+    val scope = rememberCoroutineScope()
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.languages_menu))
@@ -187,6 +200,28 @@ fun LanguagesMenu(onManageLanguages: () -> Unit, onManageTeachers: () -> Unit) {
                     onManageTeachers()
                 },
             )
+            DropdownMenuItem(
+                text = {
+                    Text(overall?.let { stringResource(R.string.cards_limit_overall_value, it) } ?: stringResource(R.string.cards_limit_overall_none_value))
+                },
+                onClick = {
+                    expanded = false
+                    settingLimit = true
+                },
+            )
         }
+    }
+    if (settingLimit) {
+        LimitDialog(
+            title = R.string.cards_limit_overall,
+            text = R.string.cards_limit_overall_text,
+            current = overall,
+            range = DailyLimits.OVERALL,
+            onConfirm = { limit ->
+                settingLimit = false
+                scope.launchNow { flashcards.setOverallLimit(limit) }
+            },
+            onDismiss = { settingLimit = false },
+        )
     }
 }
