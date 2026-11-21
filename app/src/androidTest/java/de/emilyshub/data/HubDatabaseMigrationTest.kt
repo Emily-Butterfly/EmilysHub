@@ -1251,6 +1251,20 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 58 moves to version 59 with the languages there asked with their vowel marks and then one without is kept`() {
+        createAtVersion(58) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day, typed_answers) VALUES (1, 'Arabisch', 0, 10, 0)")
+        }
+
+        withMigratedDatabase { database ->
+            val languages = database.languages()
+            assertEquals(false, languages.language(1)?.hideVowelMarks)
+            languages.setHideVowelMarks(1, hide = true)
+            assertEquals(true, languages.language(1)?.hideVowelMarks)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

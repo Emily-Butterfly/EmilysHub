@@ -93,6 +93,10 @@ interface LanguageDao {
     @Query("UPDATE languages SET voice = :voice WHERE id = :languageId")
     suspend fun setVoice(languageId: Long, voice: String?)
 
+    /** Whether the language's side of its cards is asked without its vowel marks (SPEC.md §15; #154). */
+    @Query("UPDATE languages SET hide_vowel_marks = :hide WHERE id = :languageId")
+    suspend fun setHideVowelMarks(languageId: Long, hide: Boolean)
+
     /** Whether the practice of the language's cards asks for the answer typed (SPEC.md §15; #153). */
     @Query("UPDATE languages SET typed_answers = :typed WHERE id = :languageId")
     suspend fun setTypedAnswers(languageId: Long, typed: Boolean)

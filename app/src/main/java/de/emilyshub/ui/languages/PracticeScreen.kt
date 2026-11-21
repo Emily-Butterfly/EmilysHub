@@ -341,7 +341,8 @@ private val UndoIcon: ImageVector
  * when the side in it is to be typed; "Prüfen" or Enter uncovers the card and compares ([TypedAnswer]), "Weiß nicht"
  * uncovers it as an answer wrong. Right, "Richtig" and "Gut" set apart; right but for the vowel marks, so said, with both
  * spellings; wrong, what was typed struck through above the answer, and "Nochmal" set apart. Only a suggestion: all four
- * answers stay. What was typed is not kept.
+ * answers stay. What was typed is not kept. Its side in the language is asked without its vowel marks where
+ * [answering] says so (#154), and shown with them once uncovered; asked from its back, nothing changes.
  */
 @Composable
 internal fun CardFace(
@@ -389,7 +390,9 @@ internal fun CardFace(
             if (prompt.reverse) {
                 Text(stringResource(R.string.practice_reverse), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
-            Text(prompt.question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            // Its side asked without its vowel marks, if so chosen, and with them once uncovered (#154); the back as it is.
+            val question = if (answering.hideVowelMarks && !prompt.reverse && !revealed) InputText.withoutVowelMarks(prompt.question) else prompt.question
+            Text(question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             if (!prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
             if (example != null && exampleAsHelp) ExampleLine(example, word, covered = !revealed)
             if (typing && !revealed) {

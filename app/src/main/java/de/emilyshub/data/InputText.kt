@@ -45,6 +45,12 @@ object InputText {
      */
     fun searchable(text: String) = comparable(text).replace("ß", "ss").filterNot(::isArabicMark)
 
+    /** [text] without the Arabic vowel and Quranic marks and the tatweel that [searchable] passes over (#154). */
+    fun withoutVowelMarks(text: String) = text.filterNot(::isArabicMark)
+
+    /** Whether [text] has any of the marks [withoutVowelMarks] leaves out. */
+    fun hasVowelMarks(text: String) = text.any(::isArabicMark)
+
     /** The Arabic vowel and Quranic marks, and the tatweel, which only stretches a word. */
     private fun isArabicMark(char: Char) =
         char in '\u064B'..'\u065F' || char == '\u0670' || char in '\u06D6'..'\u06ED' || char == '\u0640'

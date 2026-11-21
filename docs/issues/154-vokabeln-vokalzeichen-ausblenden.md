@@ -13,16 +13,16 @@ Arabisch wird meist ohne Vokalzeichen gelesen. Karten stehen oft mit ihnen da, u
 
 ## Akzeptanzkriterien
 
-- [ ] Je Sprache im Menü des Reiters Karten: „Vokalzeichen in der Frage ausblenden“, Standard aus; angeboten, sobald eine Karte der Sprache Vokalzeichen hat
-- [ ] Eingeschaltet steht die Seite in der Sprache in der Frage ohne Vokalzeichen (dieselben Zeichen, die `InputText` beim Suchen übergeht, dazu das Tatweel wie dort); aufgedeckt steht sie mit ihnen da
-- [ ] In der Rückrichtung (#141) ändert sich nichts: gefragt ist die Übersetzung, aufgedeckt die Seite in der Sprache mit Vokalzeichen
-- [ ] Gespeichert wird nichts an der Karte
-- [ ] Die Einstellung je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
+- [x] Je Sprache im Menü des Reiters Karten: „Vokalzeichen in der Frage ausblenden“, Standard aus; angeboten, sobald eine Karte der Sprache Vokalzeichen hat
+- [x] Eingeschaltet steht die Seite in der Sprache in der Frage ohne Vokalzeichen (dieselben Zeichen, die `InputText` beim Suchen übergeht, dazu das Tatweel wie dort); aufgedeckt steht sie mit ihnen da
+- [x] In der Rückrichtung (#141) ändert sich nichts: gefragt ist die Übersetzung, aufgedeckt die Seite in der Sprache mit Vokalzeichen
+- [x] Gespeichert wird nichts an der Karte
+- [x] Die Einstellung je Sprache: Schema-Version eins hoch, Migration mit Test, im Backup (`docs/agents/schema-change.md`)
 
 ## Tests
 
-- [ ] Unit: Ausblenden lässt Buchstaben stehen
-- [ ] UI: Frage ohne, aufgedeckt mit Vokalzeichen
+- [x] Unit: Ausblenden lässt Buchstaben stehen
+- [x] UI: Frage ohne, aufgedeckt mit Vokalzeichen
 
 ## Entscheidungen
 
@@ -30,3 +30,4 @@ Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); die E
 
 - Nicht einzeln bestätigt: je Sprache statt je Karte, weil es eine Stufe des Lernens ist und nicht eine Eigenschaft eines Wortes.
 - Andere Schriften mit Vokalzeichen (Hebräisch) kommen dazu, sobald es eine solche Sprache gibt.
+- Beim Bau: „sobald eine Karte der Sprache Vokalzeichen hat“ heißt auf ihrer Vorderseite; eingeschaltet bleibt der Punkt im Menü, auch wenn keine Karte mehr welche hat, damit er sich ausschalten lässt.

@@ -25,6 +25,7 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.state.ToggleableState
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
@@ -848,6 +849,66 @@ class VocabularyScreenTest {
         }
         // The keyboard is asked for the language, as named in German.
         assertEquals(Locale.forLanguageTag("ar"), runBlocking { app.flashcards.answering(arabic).first() }.locale)
+    }
+
+    @Test
+    fun `with the vowel marks left out the question has none, and uncovered it has them`() {
+        val arabic = language("Arabisch")
+        card(arabic, "قَلَم", "Stift")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Vokalzeichen in der Frage ausblenden").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNode(hasText("Vokalzeichen in der Frage ausblenden") and SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.On))
+                .assertIsDisplayed()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("قلم").assertIsDisplayed()
+            compose.onNodeWithText("قَلَم").assertDoesNotExist()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("قَلَم").assertIsDisplayed()
+            compose.onNodeWithText("Stift").assertIsDisplayed()
+        }
+        assertEquals(true, runBlocking { app.flashcards.answering(arabic).first() }.hideVowelMarks)
+        assertEquals("nothing is kept on the card", "قَلَم", cardOf(arabic, "قَلَم").front)
+    }
+
+    @Test
+    fun `with the vowel marks left out, asked from its back nothing changes`() {
+        val arabic = language("Arabisch")
+        runBlocking {
+            app.flashcards.setHideVowelMarks(arabic, hide = true)
+            val write = (app.flashcards.create(arabic, CardDraft("كَتَبَ", "schreiben", bothWays = true)) as Saving.Saved).id
+            app.flashcards.answer(write, Rating.Easy)
+        }
+        // The next day, its front is not due, its back new.
+        app.clock.now = app.clock.now.plus(1, ChronoUnit.DAYS)
+
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Rückrichtung").assertIsDisplayed()
+            compose.onNodeWithText("schreiben").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("كَتَبَ").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `without vowel marks on any card the menu does not offer to leave them out`() {
+        card(language("Italienisch"), "libro", "Buch")
+
+        launchApp().use {
+            openLanguage("Italienisch")
+            tab("Karten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Abfrage: aufdecken").assertIsDisplayed()
+            compose.onNodeWithText("Vokalzeichen in der Frage ausblenden").assertDoesNotExist()
+        }
     }
 
     /** The answer [label], set apart as the one an answer typed suggests. */

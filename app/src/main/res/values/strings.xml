@@ -1516,6 +1516,7 @@
     <string name="cards_new_per_day_value">Neue Karten am Tag: %1$d</string>
     <string name="cards_new_per_day_text">Wie viele neue Karten das Tagespensum höchstens nimmt, von 0 bis 50.</string>
     <string name="cards_answering">Abfrage</string>
+    <string name="cards_hide_vowel_marks">Vokalzeichen in der Frage ausblenden</string>
     <string name="cards_answering_reveal_value">Abfrage: aufdecken</string>
     <string name="cards_answering_typed_value">Abfrage: eintippen</string>
     <string name="cards_answering_reveal">Aufdecken</string>

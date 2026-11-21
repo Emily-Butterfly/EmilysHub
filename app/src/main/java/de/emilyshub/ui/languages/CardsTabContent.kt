@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +53,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardFile
 import de.emilyshub.languages.CardRow
@@ -74,7 +79,8 @@ import kotlin.math.roundToInt
  * (#149).
  * Atop, how many are due today with "Üben" ([onPractice]), or that today's are done, as on the start page, while the
  * language is not archived. Its menu sets how many new cards a day takes, whether the practice asks for the answer
- * uncovered or typed (#153), and imports cards from a text file picked in Android's file dialog, after a preview.
+ * uncovered or typed (#153), once a card of the language has vowel marks whether the question leaves them out (#154),
+ * and imports cards from a text file picked in Android's file dialog, after a preview.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
@@ -146,6 +152,9 @@ internal fun CardsTabContent(
                 CardsMenu(
                     shown,
                     typed = answering.typed,
+                    // Offered once a card has them to leave out; also while left out, to be shown again.
+                    hideVowelMarks = answering.hideVowelMarks.takeIf { it || shown.cards.any { row -> InputText.hasVowelMarks(row.card.front) } },
+                    onHideVowelMarks = { hide -> scope.launchNow { flashcards.setHideVowelMarks(languageId, hide) } },
                     onSetNew = { settingNew = true },
                     onSetAnswering = { settingAnswering = true },
                     onImport = { pick.launch(arrayOf("text/*")) },
@@ -294,11 +303,20 @@ private fun DirectedLine(text: String, maxLines: Int) {
 }
 
 /**
- * The menu of the tab: how many new cards a day takes, whether the practice asks for the answer [typed] (#153), and
- * cards from a file of the phone ([onImport]).
+ * The menu of the tab: how many new cards a day takes, whether the practice asks for the answer [typed] (#153), whether
+ * the question leaves out the vowel marks, ticked or not as [hideVowelMarks] says and not offered while it is none
+ * (#154), and cards from a file of the phone ([onImport]).
  */
 @Composable
-private fun CardsMenu(tab: CardsTab, typed: Boolean, onSetNew: () -> Unit, onSetAnswering: () -> Unit, onImport: () -> Unit) {
+private fun CardsMenu(
+    tab: CardsTab,
+    typed: Boolean,
+    hideVowelMarks: Boolean?,
+    onHideVowelMarks: (Boolean) -> Unit,
+    onSetNew: () -> Unit,
+    onSetAnswering: () -> Unit,
+    onImport: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -319,6 +337,18 @@ private fun CardsMenu(tab: CardsTab, typed: Boolean, onSetNew: () -> Unit, onSet
                     onSetAnswering()
                 },
             )
+            hideVowelMarks?.let { hidden ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.cards_hide_vowel_marks)) },
+                    trailingIcon = { Checkbox(checked = hidden, onCheckedChange = null) },
+                    onClick = {
+                        expanded = false
+                        onHideVowelMarks(!hidden)
+                    },
+                    // TalkBack says whether it is ticked.
+                    modifier = Modifier.semantics { toggleableState = ToggleableState(hidden) },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.cards_import)) },
                 onClick = {

@@ -230,15 +230,19 @@ class Flashcards(
 
     /**
      * How the language [languageId] asks its cards (SPEC.md §15; #153), as it changes: whether the answer is typed
-     * rather than uncovered, and the language a keyboard is asked for to type in it; uncovered once it is gone.
+     * rather than uncovered, the language a keyboard is asked for to type in it, and whether its side is asked without
+     * its vowel marks (#154); uncovered, with the marks, once it is gone.
      */
     fun answering(languageId: Long): Flow<Answering> = flow {
         emitAll(
             languages.observeLanguages().map { all ->
-                all.find { it.id == languageId }?.let { Answering(it.typedAnswers, Language.keyboardLocale(it.name)) } ?: Answering()
+                all.find { it.id == languageId }?.let { Answering(it.typedAnswers, Language.keyboardLocale(it.name), it.hideVowelMarks) } ?: Answering()
             }.distinctUntilChanged(),
         )
     }.flowOn(io)
+
+    /** Whether the practice of the language [languageId] asks its side without its vowel marks (#154). */
+    suspend fun setHideVowelMarks(languageId: Long, hide: Boolean) = write { languages.setHideVowelMarks(languageId, hide) }
 
     /** Whether the practice of the language [languageId] asks for the answer typed rather than uncovered (#153). */
     suspend fun setTypedAnswers(languageId: Long, typed: Boolean) = write { languages.setTypedAnswers(languageId, typed) }
@@ -575,5 +579,8 @@ class Flashcards(
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 }
 
-/** How a language asks its cards (#153): [typed], the answer is typed rather than uncovered, with a keyboard in [locale] where known. */
-data class Answering(val typed: Boolean = false, val locale: Locale? = null)
+/**
+ * How a language asks its cards: [typed], the answer is typed rather than uncovered, with a keyboard in [locale] where
+ * known (#153); [hideVowelMarks], its side is asked without its vowel marks (#154).
+ */
+data class Answering(val typed: Boolean = false, val locale: Locale? = null, val hideVowelMarks: Boolean = false)

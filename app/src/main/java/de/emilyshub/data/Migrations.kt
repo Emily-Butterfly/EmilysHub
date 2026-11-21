@@ -874,3 +874,10 @@ val MIGRATION_57_58 = object : Migration(57, 58) {
         db.execSQL("ALTER TABLE `languages` ADD COLUMN `typed_answers` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/** 58 → 59: a language may ask its side without its vowel marks (#154); the languages there ask it with them, as before. */
+val MIGRATION_58_59 = object : Migration(58, 59) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `hide_vowel_marks` INTEGER NOT NULL DEFAULT 0")
+    }
+}
