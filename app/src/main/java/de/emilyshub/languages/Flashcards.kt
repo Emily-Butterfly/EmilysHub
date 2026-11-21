@@ -96,12 +96,12 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
         }
 
         /**
-         * A topic practised on [today] (SPEC.md §15; #107): all its [cards] the ways they are asked, in the order
-         * [Flashcards.topicPractice] gives them, those asked today or in the [round] already done, so that each comes
+         * A topic or an exam practised on [today] (SPEC.md §15; #107, #148): all its [cards] the ways they are asked,
+         * in the order [Flashcards.practice] gives them, those asked today or in the [round] already done, so that each comes
          * once, again only after "Nochmal", and a round taken up again goes on where it was; of a card asked both ways,
          * one way a day (#141).
          */
-        fun ofTopic(cards: List<Prompt>, round: Round, today: LocalDate): Workload {
+        fun ofSelection(cards: List<Prompt>, round: Round, today: LocalDate): Workload {
             val asked = round.asked.toSet() + cards.filter { it.lastReview == today }.map { it.key }
             val busy = cards.filter { it.key in asked }.map { it.id }.toMutableSet()
             return Workload(cards.filter { it.key !in asked && busy.add(it.id) }, cards.filter { it.key in asked })
@@ -247,15 +247,25 @@ class Flashcards(
     }.flowOn(io)
 
     /**
-     * All the cards of the topic [topicId] to practise on [today] (SPEC.md §15; #107), done or not, of an exam taken or
-     * not, each the ways it is asked (#141): those due first, the longest due first, then the new ones in the order
-     * made, then the others, the soonest due first. None once the topic is gone or its language archived.
+     * All the cards of [selection] to practise on [today] (SPEC.md §15): of a topic (#107), or of all the topics of an
+     * exam (#148), done or not, of an exam taken or not, each the ways it is asked (#141): those due first, the longest
+     * due first, then the new ones in the order made, then the others, the soonest due first. None once the topic or
+     * exam is gone or its language archived.
      */
-    fun topicPractice(topicId: Long, today: LocalDate): Flow<List<Prompt>?> = flow {
-        val practice = combine(languages.observeTopics(), languages.observeLanguages(), dao.observeAll()) { topics, all, cards ->
-            val topic = topics.find { it.id == topicId } ?: return@combine null
-            all.find { it.id == topic.languageId }?.takeIf { !it.archived } ?: return@combine null
-            val own = cards.filter { it.topicId == topicId }.flatMap { it.prompts }
+    fun practice(selection: CardSelection, today: LocalDate): Flow<List<Prompt>?> = flow {
+        val practice = combine(
+            languages.observeTopics(),
+            languages.observeExams(),
+            languages.observeLanguages(),
+            dao.observeAll(),
+        ) { topics, exams, all, cards ->
+            val (languageId, topicIds) = when (selection) {
+                is CardSelection.OfTopic -> topics.find { it.id == selection.topicId }?.let { it.languageId to setOf(it.id) }
+                is CardSelection.OfExam -> exams.find { it.id == selection.examId }
+                    ?.let { exam -> exam.languageId to topics.filter { it.examId == exam.id }.map { it.id }.toSet() }
+            } ?: return@combine null
+            all.find { it.id == languageId }?.takeIf { !it.archived } ?: return@combine null
+            val own = cards.filter { it.topicId in topicIds }.flatMap { it.prompts }
             val (due, notDue) = own.partition { it.dueOn(today) }
             val (new, later) = notDue.partition { it.new }
             due.sortedWith(Prompt.BY_DUE) + new.sortedWith(Prompt.BY_MADE) + later.sortedWith(Prompt.BY_DUE)

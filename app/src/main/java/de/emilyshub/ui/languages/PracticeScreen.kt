@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.languages.Answered
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.languages.ExampleSentence
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Prompt
@@ -85,7 +86,8 @@ import kotlin.math.roundToInt
  * with the interval it would give. Each answer is kept at once; "Nochmal" brings the card again at the end of the round.
  * Left any time, "Üben" goes on where it was. At the end, "Für heute geschafft". Archived or gone meanwhile, it closes.
  * The last answer can be taken back while it is open, the card then shown again covered, the round as it was (#145).
- * With a [topicId], it asks all the cards of that topic instead, each once, those due first (#107).
+ * With a [selection], it asks all the cards of a topic (#107) or of an exam's topics (#148) instead, each once, those
+ * due first, and ends with "Thema geübt" or "Prüfung geübt".
  * The card shown is opened in its editor by [onEditCard] (#146): back, the practice is where it was, the card covered
  * or not as it was, with its texts changed; deleted, or no more asked the way it was shown, the round goes on with the
  * next, as the workload no longer has it.
@@ -104,14 +106,14 @@ fun PracticeScreen(
     onBack: () -> Unit,
     onEditCard: (cardId: Long) -> Unit,
     onPractiseNext: (languageId: Long) -> Unit,
-    topicId: Long? = null,
+    selection: CardSelection? = null,
 ) {
-    val state by remember(flashcards, day, languageId, topicId) {
+    val state by remember(flashcards, day, languageId, selection) {
         day.dates().flatMapLatest { today ->
-            if (topicId == null) {
+            if (selection == null) {
                 flashcards.workload(languageId, today).map { it?.let(::Practising) }
             } else {
-                flashcards.topicPractice(topicId, today).map { it?.let(::PractisingTopic) }
+                flashcards.practice(selection, today).map { it?.let(::PractisingSelection) }
             }
         }.map<PracticeState?, PracticeState> { it ?: Gone }
     }.collectAsState(initial = Reading)
@@ -138,8 +140,8 @@ fun PracticeScreen(
     val readAloud = rememberReadAloud(speech, voice)
     val workload = when (shown) {
         is Practising -> shown.workload
-        // Each card of the topic once, and again after "Nochmal".
-        is PractisingTopic -> Workload.ofTopic(shown.cards, round, day.today())
+        // Each card of the topic or exam once, and again after "Nochmal".
+        is PractisingSelection -> Workload.ofSelection(shown.cards, round, day.today())
         else -> null
     }
     val current = workload?.let(round::current)
@@ -201,7 +203,11 @@ fun PracticeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.padding(top = 48.dp))
-                val done = if (topicId == null) R.plurals.practice_done else R.plurals.practice_topic_done
+                val done = when (selection) {
+                    null -> R.plurals.practice_done
+                    is CardSelection.OfTopic -> R.plurals.practice_topic_done
+                    is CardSelection.OfExam -> R.plurals.practice_exam_done
+                }
                 Text(
                     pluralStringResource(done, workload.doneToday.size, workload.doneToday.size),
                     style = MaterialTheme.typography.headlineSmall,
@@ -218,9 +224,9 @@ fun PracticeScreen(
                         textAlign = TextAlign.Center,
                     )
                 }
-                // Only after the day's workload: a topic practised is done when it is.
-                val next by remember(flashcards, day, languageId, topicId) {
-                    if (topicId != null) flowOf(null) else day.dates().flatMapLatest { flashcards.nextLanguage(languageId, it) }
+                // Only after the day's workload: a topic or exam practised is done when it is.
+                val next by remember(flashcards, day, languageId, selection) {
+                    if (selection != null) flowOf(null) else day.dates().flatMapLatest { flashcards.nextLanguage(languageId, it) }
                 }.collectAsState(initial = null)
                 val other = next
                 if (other != null) {
@@ -259,11 +265,11 @@ fun PracticeScreen(
                         answering = card
                         scope.launchNow {
                             val before = round
-                            // Practising a topic, its new cards do not count against those of the day (#107).
+                            // Practising a topic or exam, its new cards do not count against those of the day (#107).
                             val answered = flashcards.answer(
                                 card.id,
                                 rating,
-                                countsAsNew = topicId == null,
+                                countsAsNew = selection == null,
                                 reverse = card.reverse,
                                 tellsWorkloadDone = !workloadTold,
                             )
@@ -499,5 +505,5 @@ private data object Gone : PracticeState
 
 private data class Practising(val workload: Workload) : PracticeState
 
-/** A topic practised (#107): all its [cards], the ways they are asked, in their order. */
-private data class PractisingTopic(val cards: List<Prompt>) : PracticeState
+/** A topic or exam practised (#107, #148): all its [cards], the ways they are asked, in their order. */
+private data class PractisingSelection(val cards: List<Prompt>) : PracticeState

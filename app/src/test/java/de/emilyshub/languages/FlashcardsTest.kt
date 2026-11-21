@@ -461,13 +461,13 @@ class FlashcardsTest {
         clock.now = clock.now.plus(1, ChronoUnit.DAYS)
         val today = LocalDate.parse("2026-11-13")
 
-        val ordered = cards.topicPractice(colours, today).first().orEmpty()
+        val ordered = cards.practice(CardSelection.OfTopic(colours), today).first().orEmpty()
         assertEquals(listOf("grün", "gelb", "blau", "rot"), ordered.map { it.front })
 
         var round = Round()
         val seen = mutableListOf<String>()
         while (true) {
-            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round, today)
+            val workload = Workload.ofSelection(cards.practice(CardSelection.OfTopic(colours), today).first().orEmpty(), round, today)
             val card = round.current(workload) ?: break
             seen += card.front
             cards.answer(card.id, Rating.Good, countsAsNew = false)
@@ -475,6 +475,38 @@ class FlashcardsTest {
         }
         assertEquals("each once, also those not due", listOf("grün", "gelb", "blau", "rot"), seen)
     }
+
+    @Test
+    fun `an exam is practised with all the cards of its topics, in the order a topic is, taken or not, not in an archived language`() =
+        runBlocking {
+            val arabic = language("Arabisch")
+            val exam = (languages.createExam(arabic, ExamDraft("A2", LocalDate.parse("2026-12-20"))) as Saving.Saved).id
+            val other = (languages.createExam(arabic, ExamDraft("B1", LocalDate.parse("2027-06-20"))) as Saving.Saved).id
+            val colours = (languages.createTopic(arabic, "Farben", examId = exam) as Saving.Saved).id
+            val food = (languages.createTopic(arabic, "Essen", examId = exam) as Saving.Saved).id
+            val later = (languages.createTopic(arabic, "Später", examId = other) as Saving.Saved).id
+            listOf("rot" to colours, "brot" to food, "blau" to colours, "reis" to food, "fern" to later)
+                .forEach { (front, topic) -> cards.create(arabic, CardDraft(front, "$front?", topicId = topic)) }
+            card(arabic, "ohne Thema")
+            answer("rot", Rating.Easy) // due in 8 days
+            answer("brot", Rating.Hard) // due tomorrow
+            answer("blau", Rating.Good) // due in 2 days
+            clock.now = clock.now.plus(1, ChronoUnit.DAYS)
+            val today = LocalDate.parse("2026-11-13")
+
+            fun fronts() = runBlocking { cards.practice(CardSelection.OfExam(exam), today).first() }?.map { it.front }
+            assertEquals("due, then new, then the soonest due", listOf("brot", "reis", "blau", "rot"), fronts())
+            assertEquals(listOf("blau", "rot"), cards.practice(CardSelection.OfTopic(colours), today).first()?.map { it.front })
+
+            languages.setExamTaken(exam, taken = true)
+            assertEquals("taken, it is practised all the same", listOf("brot", "reis", "blau", "rot"), fronts())
+
+            languages.setLanguageArchived(arabic, true)
+            assertEquals("none in an archived language", null, fronts())
+            languages.setLanguageArchived(arabic, false)
+            languages.deleteExam(exam)
+            assertEquals("none once the exam is gone", null, fronts())
+        }
 
     @Test
     fun `a card asked early grows little, and a new one practised in its topic does not count against the new cards of the day`() =
@@ -523,11 +555,11 @@ class FlashcardsTest {
         val arabic = language("Arabisch")
         val colours = topic(arabic, "Farben")
         listOf("rot", "blau", "grün").forEach { cards.create(arabic, CardDraft(it, "$it?", topicId = colours)) }
-        val first = checkNotNull(cards.topicPractice(colours, today).first()).first()
+        val first = checkNotNull(cards.practice(CardSelection.OfTopic(colours), today).first()).first()
         cards.answer(first.id, Rating.Good, countsAsNew = false)
 
         // Left, and taken up again.
-        val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), Round(), today)
+        val workload = Workload.ofSelection(cards.practice(CardSelection.OfTopic(colours), today).first().orEmpty(), Round(), today)
 
         assertEquals(listOf("blau", "grün"), workload.remaining.map { it.front })
         assertEquals(2 to 3, Round().position(workload))
@@ -695,7 +727,7 @@ class FlashcardsTest {
         var round = Round()
         val seen = mutableListOf<Pair<String, Boolean>>()
         while (true) {
-            val workload = Workload.ofTopic(cards.topicPractice(colours, today).first().orEmpty(), round, today)
+            val workload = Workload.ofSelection(cards.practice(CardSelection.OfTopic(colours), today).first().orEmpty(), round, today)
             val prompt = round.current(workload) ?: break
             seen += prompt.question to prompt.reverse
             cards.answer(prompt.id, Rating.Good, countsAsNew = false, reverse = prompt.reverse)
@@ -705,7 +737,7 @@ class FlashcardsTest {
 
         clock.now = berlin("2026-11-13T10:00")
         val tomorrow = LocalDate.parse("2026-11-13")
-        val next = Round().current(Workload.ofTopic(cards.topicPractice(colours, tomorrow).first().orEmpty(), Round(), tomorrow))
+        val next = Round().current(Workload.ofSelection(cards.practice(CardSelection.OfTopic(colours), tomorrow).first().orEmpty(), Round(), tomorrow))
         assertEquals("ahmar" to true, next?.question to next?.reverse)
         assertEquals("rot", next?.answer)
     }

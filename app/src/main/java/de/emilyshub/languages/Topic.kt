@@ -173,3 +173,13 @@ data class TopicsTab(
         }
     }
 }
+
+/**
+ * What is practised beyond the day's workload (SPEC.md §15): all the cards of a topic ([OfTopic], #107), or of all the
+ * topics of an exam ([OfExam], #148), each answer counting as it would, but no new one against the limit of the day.
+ */
+sealed interface CardSelection : Serializable {
+    data class OfTopic(val topicId: Long) : CardSelection
+
+    data class OfExam(val examId: Long) : CardSelection
+}

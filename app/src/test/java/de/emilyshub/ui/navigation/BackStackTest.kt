@@ -1,5 +1,6 @@
 package de.emilyshub.ui.navigation
 
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.todos.TodoEditorTarget
 import de.emilyshub.ui.wishes.WishEditorTarget
@@ -114,7 +115,7 @@ class BackStackTest {
         // Its round, its last answer and whether it did the workload are each language's own (#147).
         val practice = BackStack().push(Destination.LanguagePage(1)).push(Destination.Practice(1))
         assertNotEquals("the practice of another language starts afresh", practice.topStateKey, practice.replaceTop(Destination.Practice(2)).topStateKey)
-        assertNotEquals("a topic of it too", practice.topStateKey, practice.replaceTop(Destination.Practice(1, topicId = 3)).topStateKey)
+        assertNotEquals("a topic of it too", practice.topStateKey, practice.replaceTop(Destination.Practice(1, selection = CardSelection.OfTopic(3))).topStateKey)
     }
 
     @Test

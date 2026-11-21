@@ -1619,9 +1619,14 @@
     <string name="topic_cards_open">Karten von „%1$s“ zeigen</string>
     <string name="exam_cards">Karten: %1$d von %2$d sicher</string>
     <string name="topic_practise">Thema üben</string>
+    <string name="exam_practise">Prüfung üben</string>
     <plurals name="practice_topic_done">
         <item quantity="one">Thema geübt: %d Karte</item>
         <item quantity="other">Thema geübt: %d Karten</item>
+    </plurals>
+    <plurals name="practice_exam_done">
+        <item quantity="one">Prüfung geübt: %d Karte</item>
+        <item quantity="other">Prüfung geübt: %d Karten</item>
     </plurals>
     <string name="cards_search">Karten durchsuchen</string>
     <string name="cards_search_none">Keine Karte passt zu „%1$s“.</string>

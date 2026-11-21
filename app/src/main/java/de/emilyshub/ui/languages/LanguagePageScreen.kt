@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.languages.CardsSummary
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguagePage
@@ -84,7 +85,7 @@ fun LanguagePageScreen(
     onCreateLesson: () -> Unit,
     onOpenCard: (Long) -> Unit,
     onCreateCard: () -> Unit,
-    onPractiseTopic: (topicId: Long) -> Unit,
+    onPractiseSelection: (CardSelection) -> Unit,
     onPractice: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -155,7 +156,7 @@ fun LanguagePageScreen(
                         cardsTopic = topicId
                         tab = CARDS_TAB
                     },
-                    onPractiseTopic = onPractiseTopic,
+                    onPractise = onPractiseSelection,
                     focusExam = examId,
                 )
                 CARDS_TAB -> CardsTabContent(flashcards, day, languageId, cardsTopic, onTopicFilterChange = { cardsTopic = it }, onOpenCard, onPractice)

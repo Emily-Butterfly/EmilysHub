@@ -3,6 +3,7 @@ package de.emilyshub.ui.navigation
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.inbox.Sorting
 import de.emilyshub.languages.AttachmentRef
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.search.SearchArea
@@ -143,10 +144,11 @@ sealed interface Destination : Serializable {
     data class CardEditor(override val target: CardEditorTarget) : Editor
 
     /**
-     * Practising the cards of a language due today, or all of the topic [topicId] (SPEC.md §15, Vokabeltrainer); one of
-     * another language or topic put in its place starts afresh, its round and its last answer its own (#147).
+     * Practising the cards of a language due today, or all of a topic or an exam ([selection]; SPEC.md §15,
+     * Vokabeltrainer; #107, #148); one of another language, topic or exam put in its place starts afresh, its round and
+     * its last answer its own (#147).
      */
-    data class Practice(val languageId: Long, val topicId: Long? = null) : Destination {
+    data class Practice(val languageId: Long, val selection: CardSelection? = null) : Destination {
         override val stateKey get() = toString()
     }
 

@@ -24,6 +24,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.CardDraft
+import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
 import de.emilyshub.languages.Rating
@@ -644,6 +645,54 @@ class VocabularyScreenTest {
             compose.onNodeWithContentDescription("Vokabeln üben").assertIsDisplayed()
             compose.onNodeWithText("‹ Gestern").performClick()
             compose.onNodeWithContentDescription("Vokabeln üben").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `an exam's menu practises the cards of all its topics to the end, also once it is taken`() {
+        val arabic = language("Arabisch")
+        runBlocking {
+            val exam = (app.languages.createExam(arabic, ExamDraft("A2", LocalDate.parse("2026-12-20"))) as Saving.Saved).id
+            val colours = (app.languages.createTopic(arabic, "Farben", examId = exam) as Saving.Saved).id
+            val food = (app.languages.createTopic(arabic, "Essen", examId = exam) as Saving.Saved).id
+            app.languages.createTopic(arabic, "Leer", examId = exam)
+            app.flashcards.create(arabic, CardDraft("ahmar", "rot", topicId = colours))
+            app.flashcards.create(arabic, CardDraft("khubz", "Brot", topicId = food))
+            app.languages.setExamTaken(exam, taken = true)
+        }
+        card(arabic, "kitab", "Buch")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Themen").performClick()
+            compose.onNodeWithContentDescription("Menü für A2").performClick()
+            compose.onNodeWithText("Prüfung üben").performClick()
+
+            compose.onNodeWithText("1 von 2").assertIsDisplayed()
+            repeat(2) {
+                compose.onNodeWithText("kitab").assertDoesNotExist()
+                compose.onNodeWithText("Aufdecken").performClick()
+                compose.onNodeWithText("Gut").performClick()
+            }
+            compose.onNodeWithText("Prüfung geübt: 2 Karten").assertIsDisplayed()
+            compose.onNodeWithText("Weiter mit", substring = true).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `an exam whose topics have no cards offers no practising`() {
+        val arabic = language("Arabisch")
+        runBlocking {
+            val exam = (app.languages.createExam(arabic, ExamDraft("A2", LocalDate.parse("2026-12-20"))) as Saving.Saved).id
+            app.languages.createTopic(arabic, "Farben", examId = exam)
+        }
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Themen").performClick()
+            compose.onNodeWithContentDescription("Menü für A2").performClick()
+            compose.onNodeWithText("Prüfung ändern").assertExists()
+            compose.onNodeWithText("Prüfung üben").assertDoesNotExist()
         }
     }
 

@@ -364,7 +364,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New(top.languageId))) },
                     onOpenCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
                     onCreateCard = { open(Destination.CardEditor(CardEditorTarget.New(top.languageId))) },
-                    onPractiseTopic = { open(Destination.Practice(top.languageId, topicId = it)) },
+                    onPractiseSelection = { open(Destination.Practice(top.languageId, selection = it)) },
                     onPractice = { open(Destination.Practice(top.languageId)) },
                     onBack = back,
                 )
@@ -374,7 +374,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 )
                 is Destination.CardEditor -> CardEditorScreen(hub.flashcards, hub.speech, top.target, onClose = back)
                 is Destination.Practice -> PracticeScreen(
-                    hub.flashcards, hub.speech, hub.day, top.languageId, onBack = back, topicId = top.topicId,
+                    hub.flashcards, hub.speech, hub.day, top.languageId, onBack = back, selection = top.selection,
                     onEditCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
                     onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
                 )

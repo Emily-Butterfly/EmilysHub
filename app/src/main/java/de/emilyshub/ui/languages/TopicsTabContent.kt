@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.ExamProblem
@@ -131,7 +132,7 @@ internal fun TopicsTabContent(
     tab: TopicsTab,
     onOpenLesson: (Long) -> Unit,
     onShowCards: (topicId: Long) -> Unit,
-    onPractiseTopic: (topicId: Long) -> Unit,
+    onPractise: (CardSelection) -> Unit,
     focusExam: Long? = null,
 ) {
     val cardCounts by remember(flashcards, languageId) { flashcards.topicCounts(languageId) }.collectAsState(initial = emptyMap())
@@ -201,7 +202,8 @@ internal fun TopicsTabContent(
             onDelete = { dialog = TopicsDialog.DeleteTopic(it.topic.id) },
             cards = cardCounts,
             onShowCards = { onShowCards(it.topic.id) },
-            onPractise = { onPractiseTopic(it.topic.id) },
+            onPractise = { onPractise(CardSelection.OfTopic(it.topic.id)) },
+            onPractiseExam = { onPractise(CardSelection.OfExam(it)) },
         )
         tab.upcoming.forEach { group ->
             examGroup(group, folded = false, onFold = null, exams = exams, actions = onTopic, onTakeBack = takeBack) { dialog = it }
@@ -361,6 +363,8 @@ private class TopicActions(
     val cards: Map<Long, TopicCards>,
     val onShowCards: (TopicRow) -> Unit,
     val onPractise: (TopicRow) -> Unit,
+    /** "Prüfung üben", by the exam's id (#148). */
+    val onPractiseExam: (Long) -> Unit,
 )
 
 /** An exam's heading, with its menu, and its topics unless [folded]; [onFold] folds or unfolds one taken. */
@@ -387,7 +391,9 @@ private fun LazyListScope.examGroup(
             subtitle = subtitle,
             fold = onFold?.let { it to folded },
         ) {
-            ExamMenu(exam, hasOpen = status.open > 0, onTakeBack = { onTakeBack(exam.id) }, onDialog = onDialog)
+            // Taken too, as long as its topics have cards (#148).
+            val practise = { actions.onPractiseExam(exam.id) }.takeIf { group.topics.any { (actions.cards[it.topic.id]?.cards ?: 0) > 0 } }
+            ExamMenu(exam, hasOpen = status.open > 0, onTakeBack = { onTakeBack(exam.id) }, onDialog = onDialog, onPractise = practise)
         }
     }
     if (!folded) topicRows(group, exams, actions)
@@ -443,15 +449,27 @@ private fun GroupHeading(
     }
 }
 
-/** The menu of an exam: changed, marked taken or taken back, its open topics moved, deleted. */
+/**
+ * The menu of an exam: practised, if its topics have cards ([onPractise], #148), changed, marked taken or taken back,
+ * its open topics moved, deleted.
+ */
 @Composable
-private fun ExamMenu(exam: Exam, hasOpen: Boolean, onTakeBack: () -> Unit, onDialog: (TopicsDialog) -> Unit) {
+private fun ExamMenu(exam: Exam, hasOpen: Boolean, onTakeBack: () -> Unit, onDialog: (TopicsDialog) -> Unit, onPractise: (() -> Unit)?) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.exam_menu, exam.name))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (onPractise != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.exam_practise)) },
+                    onClick = {
+                        expanded = false
+                        onPractise()
+                    },
+                )
+            }
             val entries = buildList {
                 if (!exam.taken) add(R.string.topic_create to TopicsDialog.NewTopic(exam.id))
                 add(R.string.exam_edit to TopicsDialog.EditExam(exam.id))
