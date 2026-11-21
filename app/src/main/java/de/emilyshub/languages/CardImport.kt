@@ -1,5 +1,7 @@
 package de.emilyshub.languages
 
+import de.emilyshub.data.InputText
+
 /** A card read from line [line] of a file, as it is to be made. */
 data class FileCard(val line: Int, val draft: CardDraft)
 
@@ -41,7 +43,21 @@ object CardImport {
     private val BOLD = Regex("""\*\*|__""")
 
     /** The lines of [note] that read as a card, in their order, with front and back only. */
-    fun fromNote(note: String): List<CardDraft> = note.lines().mapNotNull { line ->
+    fun fromNote(note: String): List<CardDraft> = note.lines().mapNotNull(::sidesOf)
+
+    /**
+     * The card an entry of the inbox of [text] is sorted in as (SPEC.md §16; #152): its first line as front and back
+     * where it reads so as a line of a note does, else as the front; the lines after it as the note.
+     */
+    fun fromInbox(text: String): CardDraft {
+        val lines = text.trim().lines()
+        val note = lines.drop(1).joinToString("\n").trim()
+        val sides = sidesOf(lines.first()) ?: CardDraft(front = InputText.singleLine(lines.first()))
+        return sides.copy(note = note)
+    }
+
+    /** [line] as the two sides of a card, as a note's line reads so; none if it does not. */
+    private fun sidesOf(line: String): CardDraft? {
         var text = line
         while (true) {
             val stripped = LEADING_MARKDOWN.replace(text, "")
@@ -50,8 +66,8 @@ object CardImport {
         }
         text = BOLD.replace(text, "")
         val (at, separator) = NOTE_SEPARATORS.mapNotNull { sep -> text.indexOf(sep).takeIf { it >= 0 }?.let { it to sep } }
-            .minByOrNull { it.first } ?: return@mapNotNull null
-        CardDraft(front = text.substring(0, at), back = text.substring(at + separator.length)).cleaned()
+            .minByOrNull { it.first } ?: return null
+        return CardDraft(front = text.substring(0, at), back = text.substring(at + separator.length)).cleaned()
             .takeIf { it.problems.isEmpty() }
     }
 

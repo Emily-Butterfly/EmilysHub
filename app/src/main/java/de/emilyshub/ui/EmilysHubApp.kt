@@ -372,7 +372,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     hub.languages, hub.lessonFiles, hub.flashcards, top.target, onClose = back,
                     onOpenAttachment = { open(Destination.AttachmentViewer(it)) },
                 )
-                is Destination.CardEditor -> CardEditorScreen(hub.flashcards, hub.speech, top.target, onClose = back)
+                is Destination.CardEditor -> CardEditorScreen(hub.flashcards, hub.speech, hub.inbox, top.target, onClose = back)
                 is Destination.Practice -> PracticeScreen(
                     hub.flashcards, hub.speech, hub.day, top.languageId, onBack = back, selection = top.selection,
                     onEditCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
@@ -387,7 +387,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                 Destination.Capture -> CaptureScreen(hub.inbox, onBack = back)
                 Destination.HealthRationale -> HealthRationaleScreen(onBack = back)
                 Destination.Inbox -> InboxScreen(
-                    hub.inbox, hub.day, onSort = { into, entry -> open(Destination.sorting(into, entry)) }, onBack = back,
+                    hub.inbox, hub.flashcards, hub.day, onSort = { into, entry -> open(Destination.sorting(into, entry)) }, onBack = back,
                 )
                 Destination.Recurring -> RecurringListScreen(hub.ledger, onOpen = { open(Destination.RecurringEditor(it)) }, onBack = back)
                 Destination.LedgerArchive ->

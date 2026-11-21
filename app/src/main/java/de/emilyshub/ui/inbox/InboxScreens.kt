@@ -57,12 +57,22 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.inbox.Inbox
 import de.emilyshub.inbox.InboxEntry
+import de.emilyshub.languages.Flashcards
+import de.emilyshub.languages.Language
 import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.launchNow
 
-/** What an entry of the inbox can be sorted in as (SPEC.md §16). */
-enum class SortInto { Todo, Note, Routine }
+/** What an entry of the inbox can be sorted in as (SPEC.md §16): a to-do, a note, a routine, or a card of a language (#152). */
+sealed interface SortInto {
+    data object Todo : SortInto
+
+    data object Note : SortInto
+
+    data object Routine : SortInto
+
+    data class Card(val languageId: Long) : SortInto
+}
 
 /**
  * The line a thought is captured in (SPEC.md §16): one line, kept in the inbox by "Fertig" on the keyboard, or by the
@@ -163,13 +173,17 @@ fun InboxLine(inbox: Inbox, onOpen: () -> Unit) {
 
 /**
  * The inbox (SPEC.md §16), the newest first, each entry with its text and when it was captured. Its text changes with a
- * tap, on as many lines as it takes; each is sorted in as a to-do, a note or a routine ([onSort]), which leaves the
- * inbox once that is saved, or deleted at once, with the way to undo it.
+ * tap, on as many lines as it takes; each is sorted in as a to-do, a note, a routine or, while there is a language not
+ * archived, a card ([onSort]), which leaves the inbox once that is saved, or deleted at once, with the way to undo it.
+ * With more than one language, a card asks first which, the one the newest card was made for on top (#152).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InboxScreen(inbox: Inbox, day: Day, onSort: (SortInto, InboxEntry) -> Unit, onBack: () -> Unit) {
+fun InboxScreen(inbox: Inbox, flashcards: Flashcards, day: Day, onSort: (SortInto, InboxEntry) -> Unit, onBack: () -> Unit) {
     val entries by remember(inbox) { inbox.entries() }.collectAsState(initial = null)
+    val cardLanguages by remember(flashcards) { flashcards.cardLanguages() }.collectAsState(initial = emptyList())
+    // The entry whose language for a card is being chosen.
+    var choosingLanguage by rememberSaveable { mutableStateOf<Long?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var changing by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -210,7 +224,11 @@ fun InboxScreen(inbox: Inbox, day: Day, onSort: (SortInto, InboxEntry) -> Unit, 
                     entry = entry,
                     day = day,
                     onChange = { changing = entry.id },
+                    asCard = cardLanguages.isNotEmpty(),
                     onSort = { onSort(it, entry) },
+                    onSortAsCard = {
+                        cardLanguages.singleOrNull()?.let { onSort(SortInto.Card(it.id), entry) } ?: run { choosingLanguage = entry.id }
+                    },
                     onDelete = {
                         scope.launchNow {
                             val deleted = inbox.delete(entry.id) ?: return@launchNow
@@ -233,10 +251,54 @@ fun InboxScreen(inbox: Inbox, day: Day, onSort: (SortInto, InboxEntry) -> Unit, 
             onDismiss = { changing = null },
         )
     }
+    entries?.find { it.id == choosingLanguage }?.let { entry ->
+        if (cardLanguages.isEmpty()) return@let
+        LanguageDialog(
+            languages = cardLanguages,
+            onChoose = { language ->
+                choosingLanguage = null
+                onSort(SortInto.Card(language.id), entry)
+            },
+            onDismiss = { choosingLanguage = null },
+        )
+    }
+}
+
+/** Which of [languages] an entry becomes a card of, in their order. */
+@Composable
+private fun LanguageDialog(languages: List<Language>, onChoose: (Language) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.inbox_card_language)) },
+        text = {
+            Column {
+                languages.forEach { language ->
+                    Text(
+                        language.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { onChoose(language) }
+                            .padding(vertical = 12.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable
-private fun InboxRow(entry: InboxEntry, day: Day, onChange: () -> Unit, onSort: (SortInto) -> Unit, onDelete: () -> Unit) {
+private fun InboxRow(
+    entry: InboxEntry,
+    day: Day,
+    asCard: Boolean,
+    onChange: () -> Unit,
+    onSort: (SortInto) -> Unit,
+    onSortAsCard: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -259,6 +321,7 @@ private fun InboxRow(entry: InboxEntry, day: Day, onChange: () -> Unit, onSort: 
             OutlinedButton(onClick = { onSort(SortInto.Todo) }) { Text(stringResource(R.string.inbox_as_todo)) }
             OutlinedButton(onClick = { onSort(SortInto.Note) }) { Text(stringResource(R.string.inbox_as_note)) }
             OutlinedButton(onClick = { onSort(SortInto.Routine) }) { Text(stringResource(R.string.inbox_as_routine)) }
+            if (asCard) OutlinedButton(onClick = onSortAsCard) { Text(stringResource(R.string.inbox_as_card)) }
             TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
         }
     }

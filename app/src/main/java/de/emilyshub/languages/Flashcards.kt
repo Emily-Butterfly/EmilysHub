@@ -212,6 +212,20 @@ class Flashcards(
         emitAll(languages.observeLanguages().map { all -> all.find { it.id == languageId }?.voice })
     }.flowOn(io)
 
+    /**
+     * The languages not archived that an inbox entry can become a card of (SPEC.md §16; #152), as they change: the one
+     * the newest card of them was made for first, the others by name.
+     */
+    fun cardLanguages(): Flow<List<Language>> = flow {
+        val offered = combine(languages.observeLanguages(), dao.observeAll()) { all, cards ->
+            val open = all.filterNot { it.archived }
+            val ids = open.map { it.id }.toSet()
+            val last = cards.filter { it.languageId in ids }.maxByOrNull { it.id }?.languageId
+            open.sortedWith(compareBy<Language> { it.id != last }.then(compareBy(InputText.byName) { it.name }))
+        }
+        emitAll(offered)
+    }.flowOn(io)
+
     /** The tab Karten of the language [languageId], as it changes; none once it is gone. */
     fun tab(languageId: Long): Flow<CardsTab?> = flow {
         val tab = combine(

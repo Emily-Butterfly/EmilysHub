@@ -25,6 +25,7 @@ import de.emilyshub.Day
 import de.emilyshub.TestClock
 import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.FakeLessonDocuments
@@ -102,7 +103,7 @@ class CardFaceTest {
             runBlocking { flashcards.create(languageId, CardDraft("kitab", "Buch")) }
             val speech = FakeSpeech()
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, speech, CardEditorTarget.New(languageId), onClose = {})
+                CardEditorScreen(flashcards, speech, Inbox({ database }, clock, Dispatchers.Unconfined), CardEditorTarget.New(languageId), onClose = {})
             }
             compose.onNodeWithText("Vorderseite").performTextInput("Kitab")
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
@@ -123,7 +124,7 @@ class CardFaceTest {
             var closed = false
             val speech = FakeSpeech()
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, speech, CardEditorTarget.New(languageId), onClose = { closed = true })
+                CardEditorScreen(flashcards, speech, Inbox({ database }, clock, Dispatchers.Unconfined), CardEditorTarget.New(languageId), onClose = { closed = true })
             }
             compose.onNodeWithText("Vorderseite").performTextInput("ahmar")
             compose.onNodeWithText("Rückseite").performTextInput("rot")
@@ -199,7 +200,7 @@ class CardFaceTest {
             var closed = false
             val speech = FakeSpeech()
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, speech, CardEditorTarget.New(languageId), onClose = { closed = true })
+                CardEditorScreen(flashcards, speech, Inbox({ database }, clock, Dispatchers.Unconfined), CardEditorTarget.New(languageId), onClose = { closed = true })
             }
             compose.onNodeWithText("Vorderseite").performTextInput("kitab")
             compose.onNodeWithText("Rückseite").performTextInput("Buch")
@@ -253,7 +254,7 @@ class CardFaceTest {
             val (flashcards, languageId) = flashcards(database)
             val speech = FakeSpeech()
             Robolectric.buildActivity(ComponentActivity::class.java).setup().get().setContent {
-                CardEditorScreen(flashcards, speech, CardEditorTarget.New(languageId), onClose = {})
+                CardEditorScreen(flashcards, speech, Inbox({ database }, clock, Dispatchers.Unconfined), CardEditorTarget.New(languageId), onClose = {})
             }
             compose.onNodeWithText("Vorderseite").performTextInput("gehen")
             compose.onNodeWithText("Rückseite").performTextInput("to go")

@@ -3,6 +3,7 @@ package de.emilyshub.ui.navigation
 import de.emilyshub.inbox.InboxEntry
 import de.emilyshub.inbox.Sorting
 import de.emilyshub.languages.AttachmentRef
+import de.emilyshub.languages.CardImport
 import de.emilyshub.languages.CardSelection
 import de.emilyshub.notes.NoteDraft
 import de.emilyshub.routines.RoutineDraft
@@ -193,12 +194,13 @@ sealed interface Destination : Serializable {
 
         /**
          * The editor of a new entry that the inbox's [entry] is sorted [into] (SPEC.md §16): its first line as the title or
-         * name, as long as that may be, and the rest below.
+         * name, as long as that may be, and the rest below; as a card, its first line as its sides or front (#152).
          */
         fun sorting(into: SortInto, entry: InboxEntry): Destination = when (into) {
             SortInto.Todo -> TodoEditor(TodoEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, TodoDraft.TITLE_MAX)))
             SortInto.Note -> NoteEditor(NoteEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, NoteDraft.TITLE_MAX)))
             SortInto.Routine -> RoutineEditor(RoutineEditorTarget.FromInbox(Sorting.of(entry.id, entry.text, RoutineDraft.NAME_MAX)))
+            is SortInto.Card -> CardEditor(CardEditorTarget.FromInbox(into.languageId, entry.id, CardImport.fromInbox(entry.text)))
         }
     }
 }

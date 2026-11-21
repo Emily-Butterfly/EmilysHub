@@ -1,6 +1,7 @@
 package de.emilyshub
 
 import android.Manifest
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextContains
@@ -20,6 +21,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.data.Saving
+import de.emilyshub.languages.CardDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -35,7 +38,7 @@ import java.time.Duration
 
 /**
  * The Eingang (SPEC.md §16, #93): a thought captured in Heute with a line and "Fertig", and sorted in later from the
- * list as a to-do, a note or a routine, or deleted.
+ * list as a to-do, a note, a routine or a card (#152), or deleted.
  */
 @RunWith(AndroidJUnit4::class)
 class InboxScreenTest {
@@ -173,6 +176,72 @@ class InboxScreenTest {
     }
 
     @Test
+    fun `without a language not archived an entry offers no card`() {
+        app.inbox("kitab – Buch")
+        runBlocking { app.languages.setLanguageArchived(language("Arabisch"), archived = true) }
+
+        launchApp().use {
+            openInbox()
+            compose.onNode(hasText("To-do") and hasClickAction()).assertIsDisplayed()
+            compose.onNode(hasText("Karte") and hasClickAction()).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun `sorted in as a card of the only language, its first line is its sides, the rest its note, and it leaves once saved`() {
+        app.inbox("kitab – Buch\nPlural kutub")
+        val arabic = language("Arabisch")
+
+        launchApp().use {
+            openInbox()
+            compose.onNode(hasText("Karte") and hasClickAction()).performClick()
+            compose.onNode(isHeading() and hasText("Neue Karte")).assertIsDisplayed()
+            compose.onNode(hasSetTextAction() and hasText("Vorderseite")).assertTextContains("kitab")
+            compose.onNode(hasSetTextAction() and hasText("Rückseite")).assertTextContains("Buch")
+            compose.onNode(hasSetTextAction() and hasText("Notiz", substring = true)).assertTextContains("Plural kutub")
+            compose.onNode(hasText("Speichern und neue") and hasClickAction()).assertDoesNotExist()
+
+            // Left without saving, it stays in the inbox.
+            compose.onNodeWithContentDescription("Zurück").performClick()
+            compose.onNode(isHeading() and hasText("Eingang")).assertIsDisplayed()
+            assertEquals(1, texts().size)
+
+            compose.onNode(hasText("Karte") and hasClickAction()).performClick()
+            compose.onNode(hasText("Speichern") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("Der Eingang ist leer").assertIsDisplayed()
+        }
+        val card = runBlocking { app.flashcards.tab(arabic).first() }?.cards?.single()?.card
+        assertEquals(Triple("kitab", "Buch", "Plural kutub"), card?.let { Triple(it.front, it.back, it.note) })
+    }
+
+    @Test
+    fun `with two languages a card asks which first, the one the newest card was made for on top`() {
+        app.inbox("ciao")
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        runBlocking { app.flashcards.create(italian, CardDraft("grazie", "danke")) }
+
+        launchApp().use {
+            openInbox()
+            compose.onNode(hasText("Karte") and hasClickAction()).performClick()
+            val choices = compose.onAllNodes(hasAnyAncestor(isDialog()) and hasClickAction() and (hasText("Arabisch") or hasText("Italienisch")))
+                .fetchSemanticsNodes().map { it.config[SemanticsProperties.Text].joinToString() }
+            assertEquals(listOf("Italienisch", "Arabisch"), choices)
+            compose.onNode(hasText("Arabisch") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.onNode(isHeading() and hasText("Neue Karte")).assertIsDisplayed()
+            compose.onNode(hasSetTextAction() and hasText("Vorderseite")).assertTextContains("ciao")
+            compose.onNode(hasSetTextAction() and hasText("Rückseite")).performTextInput("hallo")
+            assertEquals(1, texts().size)
+            compose.onNode(hasText("Speichern") and hasClickAction()).performClick()
+
+            compose.onNodeWithText("Der Eingang ist leer").assertIsDisplayed()
+        }
+        assertEquals(listOf("ciao"), runBlocking { app.flashcards.tab(arabic).first() }?.cards?.map { it.card.front })
+    }
+
+    @Test
     fun `the search finds what is in the inbox and opens it`() {
         app.inbox("Fahrrad reparieren\nKette ölen")
 
@@ -198,6 +267,8 @@ class InboxScreenTest {
     private fun capture() = compose.onNode(hasSetTextAction() and hasText("Was geht dir durch den Kopf?"))
 
     private fun openInbox() = compose.onNode(hasText("Eingang", substring = true) and hasClickAction()).performClick()
+
+    private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 
     private fun texts() = runBlocking { app.inbox.entries().first().map { it.text } }
 }

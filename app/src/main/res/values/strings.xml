@@ -1425,6 +1425,8 @@
     <string name="inbox_as_todo">To-do</string>
     <string name="inbox_as_note">Notiz</string>
     <string name="inbox_as_routine">Routine</string>
+    <string name="inbox_as_card">Karte</string>
+    <string name="inbox_card_language">Karte für welche Sprache?</string>
     <string name="inbox_deleted">Aus dem Eingang gelöscht</string>
     <string name="inbox_change">Text ändern</string>
     <string name="inbox_change_title">Gedanke</string>

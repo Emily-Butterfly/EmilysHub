@@ -64,6 +64,25 @@ class FlashcardsTest {
     }
 
     @Test
+    fun `an inbox entry is offered as a card to the languages not archived, the last a card was made for first`() = runBlocking {
+        assertEquals(emptyList<String>(), cards.cardLanguages().first().map { it.name })
+        val italian = language("Italienisch")
+        val arabic = language("Arabisch")
+        val turkish = language("Türkisch")
+        assertEquals(listOf("Arabisch", "Italienisch", "Türkisch"), cards.cardLanguages().first().map { it.name })
+
+        card(arabic, "kitab")
+        card(turkish, "kitap")
+        assertEquals(listOf("Türkisch", "Arabisch", "Italienisch"), cards.cardLanguages().first().map { it.name })
+
+        languages.setLanguageArchived(turkish, archived = true)
+        assertEquals("the last one archived, the others by name", listOf("Arabisch", "Italienisch"), cards.cardLanguages().first().map { it.name })
+        languages.setLanguageArchived(arabic, archived = true)
+        languages.setLanguageArchived(italian, archived = true)
+        assertEquals(emptyList<String>(), cards.cardLanguages().first())
+    }
+
+    @Test
     fun `while a front is typed, the editor learns whether another card of the language has it`() = runBlocking {
         val arabic = language("Arabisch")
         val italian = language("Italienisch")

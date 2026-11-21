@@ -7,6 +7,26 @@ import org.junit.Test
 class CardImportTest {
 
     @Test
+    fun `an inbox entry's first line reads as its two sides with each separator, the rest its note`() {
+        assertEquals(CardDraft("kitab", "Buch"), CardImport.fromInbox("kitab – Buch"))
+        assertEquals(CardDraft("qalam", "Stift"), CardImport.fromInbox("qalam - Stift"))
+        assertEquals(CardDraft("bab", "Tür"), CardImport.fromInbox("bab = Tür"))
+        assertEquals(CardDraft("bait", "Haus"), CardImport.fromInbox("bait\tHaus"))
+        assertEquals(
+            CardDraft("kitab", "Buch", note = "Plural kutub\nvon Amal"),
+            CardImport.fromInbox("kitab – Buch\nPlural kutub\nvon Amal"),
+        )
+    }
+
+    @Test
+    fun `an inbox entry without a separator on its first line is its front, the rest its note`() {
+        assertEquals(CardDraft("madrasa"), CardImport.fromInbox("madrasa"))
+        assertEquals(CardDraft("madrasa", note = "Schule – fragen"), CardImport.fromInbox("madrasa\nSchule – fragen"))
+        // A side left empty does not split it.
+        assertEquals(CardDraft("nur vorn –"), CardImport.fromInbox("nur vorn – "))
+    }
+
+    @Test
     fun `a line of a note reads as a card with a dash, an en dash, an equals sign or a tab between its two sides`() {
         val note = "kitab – Buch\nqalam - Stift\nbab = Tür\nbait\tHaus\nnur ein Satz ohne Trenner\nbinta-ammi ist kein Trenner"
 

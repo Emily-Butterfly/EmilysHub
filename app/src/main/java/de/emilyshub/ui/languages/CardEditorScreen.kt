@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
+import de.emilyshub.inbox.Inbox
 import de.emilyshub.languages.Card
 import de.emilyshub.languages.CardDraft
 import de.emilyshub.languages.CardProblem
@@ -75,9 +76,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.Serializable
 
-/** What the editor of cards opens: a new one of the language [New.languageId], or one saved already. */
+/**
+ * What the editor of cards opens: a new one of the language [New.languageId], or one saved already, or a new one made
+ * of the inbox's entry [FromInbox.entryId], which starts as [FromInbox.draft] and leaves the inbox once saved (#152).
+ */
 sealed interface CardEditorTarget : Serializable {
     data class New(val languageId: Long) : CardEditorTarget
+
+    data class FromInbox(val languageId: Long, val entryId: Long, val draft: CardDraft) : CardEditorTarget
 
     data class Edit(val cardId: Long) : CardEditorTarget
 }
@@ -94,11 +100,20 @@ sealed interface CardEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun CardEditorScreen(flashcards: Flashcards, speech: Speech, target: CardEditorTarget, onClose: () -> Unit) {
+fun CardEditorScreen(flashcards: Flashcards, speech: Speech, inbox: Inbox, target: CardEditorTarget, onClose: () -> Unit) {
     val cardId = (target as? CardEditorTarget.Edit)?.cardId
-    var languageId by rememberSaveable { mutableStateOf((target as? CardEditorTarget.New)?.languageId) }
+    val fromInbox = target as? CardEditorTarget.FromInbox
+    var languageId by rememberSaveable {
+        mutableStateOf(
+            when (target) {
+                is CardEditorTarget.New -> target.languageId
+                is CardEditorTarget.FromInbox -> target.languageId
+                is CardEditorTarget.Edit -> null
+            },
+        )
+    }
     var original by rememberSaveable { mutableStateOf<CardDraft?>(null) }
-    var draft by rememberSaveable { mutableStateOf(CardDraft()) }
+    var draft by rememberSaveable { mutableStateOf(fromInbox?.draft ?: CardDraft()) }
     // The form as a new one starts out, to tell whether anything was typed; after "Speichern und neue", the next one.
     var fresh by rememberSaveable { mutableStateOf(draft) }
     var showProblems by rememberSaveable { mutableStateOf(false) }
@@ -156,7 +171,10 @@ fun CardEditorScreen(flashcards: Flashcards, speech: Speech, target: CardEditorT
             closeWith.leaveThrough {
                 val saving = if (cardId == null) flashcards.create(language, saved) else flashcards.save(cardId, saved)
                 when (saving) {
-                    is Saving.Saved -> onClose()
+                    is Saving.Saved -> {
+                        if (fromInbox != null) inbox.sortedOut(fromInbox.entryId)
+                        onClose()
+                    }
                     is Saving.Refused -> {
                         refused = saving.problems
                         showProblems = true
@@ -228,7 +246,8 @@ fun CardEditorScreen(flashcards: Flashcards, speech: Speech, target: CardEditorT
                 },
             )
         },
-        bottomBar = { if (cardId == null) NewCardSaveBar(onSaveNext = saveNext, onSave = save, enabled = !savingNext) else SaveBar(onSave = save) },
+        // "Speichern und neue" not for an entry of the inbox, which leaves it with the one card.
+        bottomBar = { if (cardId == null && fromInbox == null) NewCardSaveBar(onSaveNext = saveNext, onSave = save, enabled = !savingNext) else SaveBar(onSave = save) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { contentPadding ->
         Column(
