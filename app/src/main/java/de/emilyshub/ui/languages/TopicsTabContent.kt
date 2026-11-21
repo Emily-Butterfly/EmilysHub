@@ -134,6 +134,7 @@ internal fun TopicsTabContent(
     onShowCards: (topicId: Long) -> Unit,
     onPractiseSelection: (CardSelection) -> Unit,
     focusExam: Long? = null,
+    archived: Boolean = false,
 ) {
     val cardCounts by remember(flashcards, languageId) { flashcards.topicCounts(languageId) }.collectAsState(initial = emptyMap())
     var dialog by rememberSaveable { mutableStateOf<TopicsDialog?>(null) }
@@ -204,6 +205,7 @@ internal fun TopicsTabContent(
             onShowCards = { onShowCards(it.topic.id) },
             onPractise = { onPractiseSelection(CardSelection.OfTopic(it.topic.id)) },
             onPractiseExam = { onPractiseSelection(CardSelection.OfExam(it)) },
+            practisable = !archived,
         )
         tab.upcoming.forEach { group ->
             examGroup(group, folded = false, onFold = null, exams = exams, actions = onTopic, onTakeBack = takeBack) { dialog = it }
@@ -365,9 +367,14 @@ private class TopicActions(
     val onPractise: (TopicRow) -> Unit,
     /** "Prüfung üben", by the exam's id (#148). */
     val onPractiseExam: (Long) -> Unit,
+    /** Whether the language's cards are practised at all: not while it is archived, as they are not asked then. */
+    val practisable: Boolean,
 ) {
-    /** Whether any of [topics] has cards, to practise. */
-    fun haveCards(topics: List<TopicRow>) = topics.any { (cards[it.topic.id]?.cards ?: 0) > 0 }
+    /** Whether [row] offers "Thema üben": its topic has cards, and they are practised. */
+    fun canPractise(row: TopicRow) = practisable && row.topic.id in cards
+
+    /** Whether an exam of [topics] offers "Prüfung üben": any of them has cards, and they are practised. */
+    fun canPractise(topics: List<TopicRow>) = practisable && topics.any { (cards[it.topic.id]?.cards ?: 0) > 0 }
 }
 
 /** An exam's heading, with its menu, and its topics unless [folded]; [onFold] folds or unfolds one taken. */
@@ -395,7 +402,7 @@ private fun LazyListScope.examGroup(
             fold = onFold?.let { it to folded },
         ) {
             // Taken too, as long as its topics have cards (#148).
-            val practise = { actions.onPractiseExam(exam.id) }.takeIf { actions.haveCards(group.topics) }
+            val practise = { actions.onPractiseExam(exam.id) }.takeIf { actions.canPractise(group.topics) }
             ExamMenu(exam, hasOpen = status.open > 0, onTakeBack = { onTakeBack(exam.id) }, onDialog = onDialog, onPractise = practise)
         }
     }
@@ -545,7 +552,7 @@ private fun TopicLine(row: TopicRow, checkable: Boolean, actions: TopicActions) 
             }
         },
         trailingContent = {
-            if (checkable || !topic.done || topic.id in actions.cards) TopicMenu(row, checkable, actions)
+            if (checkable || !topic.done || actions.canPractise(row)) TopicMenu(row, checkable, actions)
         },
         modifier = Modifier.clickable { actions.onOpen(row) },
     )
@@ -562,7 +569,7 @@ private fun TopicMenu(row: TopicRow, checkable: Boolean, actions: TopicActions) 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val entries = buildList {
                 // Also one done, and one of an exam taken (#107).
-                if (row.topic.id in actions.cards) add(R.string.topic_practise to actions.onPractise)
+                if (actions.canPractise(row)) add(R.string.topic_practise to actions.onPractise)
                 if (checkable) add(R.string.language_rename to actions.onRename)
                 if (checkable || !row.topic.done) add(R.string.topic_move to actions.onMove)
                 if (checkable) add(R.string.delete to actions.onDelete)

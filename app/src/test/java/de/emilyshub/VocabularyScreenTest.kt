@@ -680,6 +680,40 @@ class VocabularyScreenTest {
     }
 
     @Test
+    fun `an archived language offers neither its topics nor its exams to practise`() {
+        val arabic = language("Arabisch")
+        runBlocking {
+            val exam = (app.languages.createExam(arabic, ExamDraft("A2", LocalDate.parse("2026-12-20"))) as Saving.Saved).id
+            val colours = (app.languages.createTopic(arabic, "Farben", examId = exam) as Saving.Saved).id
+            app.flashcards.create(arabic, CardDraft("ahmar", "rot", topicId = colours))
+            app.languages.setLanguageArchived(arabic, true)
+        }
+
+        // Each menu in an app of its own: one open covers the other.
+        listOf("Menü für A2" to ("Prüfung ändern" to "Prüfung üben"), "Menü für Farben" to ("Umbenennen" to "Thema üben"))
+            .forEach { (menu, entries) ->
+                launchApp().use {
+                    openArchivedTopics("Arabisch")
+                    // Its cards are still counted.
+                    compose.onNodeWithText("1 Karte · 0 sicher").assertIsDisplayed()
+                    compose.onNodeWithContentDescription(menu).performClick()
+                    compose.onNodeWithText(entries.first).assertExists()
+                    compose.onNodeWithText(entries.second).assertDoesNotExist()
+                }
+            }
+    }
+
+    /** The tab Themen of the archived language [name], reached as it is: through "Sprachen verwalten". */
+    private fun openArchivedTopics(name: String) {
+        openLanguages()
+        compose.onNodeWithContentDescription("Menü der Sprachen").performClick()
+        compose.onNodeWithText("Sprachen verwalten").performClick()
+        compose.onNodeWithContentDescription("Menü für $name").performClick()
+        compose.onNodeWithText("Sessions ansehen").performClick()
+        tab("Themen").performClick()
+    }
+
+    @Test
     fun `an exam whose topics have no cards offers no practising`() {
         val arabic = language("Arabisch")
         runBlocking {
