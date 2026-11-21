@@ -110,7 +110,24 @@ data class ExamDraft(val name: String = "", val date: LocalDate? = null, val goa
  * of all its [topics] not done yet.
  */
 data class ExamStatus(val exam: Exam, val days: Long, val open: Int, val topics: Int) {
+    /**
+     * The pace its open topics ask for until it (#151): in its last week all of them, before that the open topics per
+     * week left, the weeks the days to it divided by 7 and at least 1, rounded up; none without open topics, on its
+     * day, after it or once it is taken.
+     */
+    val pace: ExamPace?
+        get() = when {
+            exam.taken || open == 0 || days <= 0 -> null
+            days <= DAYS_PER_WEEK -> ExamPace.Total(open)
+            else -> {
+                val weeks = (days / DAYS_PER_WEEK).coerceAtLeast(1)
+                ExamPace.PerWeek(((open + weeks - 1) / weeks).toInt())
+            }
+        }
+
     companion object {
+        private const val DAYS_PER_WEEK = 7L
+
         /** [exam] as it stands [today], with [topics] its own. */
         fun of(exam: Exam, topics: List<Topic>, today: LocalDate) = ExamStatus(
             exam = exam,
@@ -124,6 +141,13 @@ data class ExamStatus(val exam: Exam, val days: Long, val open: Int, val topics:
             exams.filterNot { it.taken }.minWithOrNull(compareBy<Exam> { it.date }.thenBy { it.id })
                 ?.let { exam -> of(exam, topics.filter { it.examId == exam.id }, today) }
     }
+}
+
+/** How many open topics an exam asks for: [PerWeek] until its last week, then the [Total] left until it. */
+sealed interface ExamPace {
+    data class PerWeek(val topics: Int) : ExamPace
+
+    data class Total(val topics: Int) : ExamPace
 }
 
 /** A topic on its list: in how many lessons it was treated ([lessons]) and when last ([last]), none if never. */

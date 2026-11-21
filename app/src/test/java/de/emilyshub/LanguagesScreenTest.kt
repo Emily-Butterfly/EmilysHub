@@ -24,6 +24,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
+import de.emilyshub.languages.ExamDraft
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonEditing
 import de.emilyshub.languages.TeacherDraft
@@ -228,6 +229,38 @@ class LanguagesScreenTest {
         val exam = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).topics.taken.single().exam?.exam }
         assertEquals("A2", exam?.name)
         assertEquals("bestanden", exam?.result)
+    }
+
+    @Test
+    fun `the next exam tells the pace its open topics ask for, on the card and on top of the tab, not in its group`() {
+        runBlocking {
+            val arabic = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            val today = LocalDate.now(app.clock)
+            val exam = (app.languages.createExam(arabic, ExamDraft("A2", today.plusDays(43))) as Saving.Saved).id
+            repeat(12) { app.languages.createTopic(arabic, "Thema $it", examId = exam) }
+        }
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithText("Nächste Prüfung: A2 · noch 43 Tage · 12 von 12 offen · etwa 2 Themen pro Woche").assertIsDisplayed()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNode(hasText("Themen") and isSelectable()).performClick()
+            compose.onNodeWithText("noch 43 Tage · 12 von 12 offen · etwa 2 Themen pro Woche").assertIsDisplayed()
+            // The exam's own group tells how far off it is, without the pace.
+            compose.onNodeWithText("noch 43 Tage · 12 von 12 offen").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `in the last week the next exam tells the topics left until it`() {
+        runBlocking {
+            val arabic = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            val exam = (app.languages.createExam(arabic, ExamDraft("A2", LocalDate.now(app.clock).plusDays(5))) as Saving.Saved).id
+            app.languages.createTopic(arabic, "Verben", examId = exam)
+        }
+        launchApp().use {
+            openLanguages()
+            compose.onNodeWithText("Nächste Prüfung: A2 · noch 5 Tage · 1 von 1 offen · 1 Thema bis zur Prüfung").assertIsDisplayed()
+        }
     }
 
     @Test

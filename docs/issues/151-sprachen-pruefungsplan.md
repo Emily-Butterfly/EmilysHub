@@ -13,16 +13,16 @@ Die nächste Prüfung zeigt „noch 43 Tage · 12 von 30 offen“. Ob das reicht
 
 ## Akzeptanzkriterien
 
-- [ ] Die Zeile der nächsten Prüfung (Startseite und Reiter Themen) bekommt „· etwa 2 Themen pro Woche“: offene Themen geteilt durch die verbleibenden Wochen (Tage bis zur Prüfung durch 7, mindestens 1), aufgerundet
-- [ ] In der letzten Woche vor der Prüfung statt dessen „· 12 Themen bis zur Prüfung“
-- [ ] Ohne offene Themen, am Tag der Prüfung, danach und bei abgelegten Prüfungen nichts davon
-- [ ] Im Zielbaum (#84) bleibt die Zeile der Prüfung, wie sie ist
-- [ ] SPEC.md §15 nennt das Tempo
+- [x] Die Zeile der nächsten Prüfung (Startseite und Reiter Themen) bekommt „· etwa 2 Themen pro Woche“: offene Themen geteilt durch die verbleibenden Wochen (Tage bis zur Prüfung durch 7, mindestens 1), aufgerundet
+- [x] In der letzten Woche vor der Prüfung statt dessen „· 12 Themen bis zur Prüfung“
+- [x] Ohne offene Themen, am Tag der Prüfung, danach und bei abgelegten Prüfungen nichts davon
+- [x] Im Zielbaum (#84) bleibt die Zeile der Prüfung, wie sie ist
+- [x] SPEC.md §15 nennt das Tempo
 
 ## Tests
 
-- [ ] Unit: Rechnung an den Grenzen (7 und 8 Tage, 1 Tag, aufrunden)
-- [ ] UI: Zeile mit Tempo
+- [x] Unit: Rechnung an den Grenzen (7 und 8 Tage, 1 Tag, aufrunden)
+- [x] UI: Zeile mit Tempo
 
 ## Entscheidungen
 

@@ -59,6 +59,7 @@ import de.emilyshub.data.NameProblem
 import de.emilyshub.languages.CardSelection
 import de.emilyshub.languages.Exam
 import de.emilyshub.languages.ExamDraft
+import de.emilyshub.languages.ExamPace
 import de.emilyshub.languages.ExamProblem
 import de.emilyshub.languages.ExamStatus
 import de.emilyshub.languages.Flashcards
@@ -80,16 +81,25 @@ import java.io.Serializable
 import java.time.LocalDate
 import kotlin.math.absoluteValue
 
-/** How far off [status]'s exam is and how its topics stand: "noch 43 Tage · 12 von 30 offen", "heute", "seit 3 Tagen". */
+/**
+ * How far off [status]'s exam is and how its topics stand: "noch 43 Tage · 12 von 30 offen", "heute", "seit 3 Tagen";
+ * as the next exam ([withPace]) also the pace its open topics ask for, "· etwa 2 Themen pro Woche" (#151).
+ */
 @Composable
-internal fun examStatusText(status: ExamStatus): String {
+internal fun examStatusText(status: ExamStatus, withPace: Boolean = false): String {
     val days = status.days.toInt()
     val distance = when {
         days > 0 -> pluralStringResource(R.plurals.exam_days_left, days, days)
         days == 0 -> stringResource(R.string.exam_today)
         else -> pluralStringResource(R.plurals.exam_days_since, days.absoluteValue, days.absoluteValue)
     }
-    return stringResource(R.string.exam_status, distance, stringResource(R.string.exam_open_topics, status.open, status.topics))
+    val line = stringResource(R.string.exam_status, distance, stringResource(R.string.exam_open_topics, status.open, status.topics))
+    val pace = when (val pace = status.pace.takeIf { withPace }) {
+        is ExamPace.PerWeek -> pluralStringResource(R.plurals.exam_pace_per_week, pace.topics, pace.topics)
+        is ExamPace.Total -> pluralStringResource(R.plurals.exam_pace_total, pace.topics, pace.topics)
+        null -> return line
+    }
+    return stringResource(R.string.exam_status, line, pace)
 }
 
 /** The dialogs of the tab, one at a time, kept past a turn. */
@@ -167,7 +177,7 @@ internal fun TopicsTabContent(
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(R.string.exam_next, next.exam.name), style = MaterialTheme.typography.titleMedium)
-                            Text(examStatusText(next), style = MaterialTheme.typography.bodyMedium)
+                            Text(examStatusText(next, withPace = true), style = MaterialTheme.typography.bodyMedium)
                             // The cards of its topics, if they have any (#107).
                             val sum = TopicCards.sumOf(tab.topicIdsOf(next.exam.id), cardCounts)
                             if (sum.cards > 0) {

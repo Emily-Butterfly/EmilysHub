@@ -1332,6 +1332,14 @@
         <item quantity="other">seit %1$d Tagen</item>
     </plurals>
     <string name="exam_open_topics">%1$d von %2$d offen</string>
+    <plurals name="exam_pace_per_week">
+        <item quantity="one">etwa %1$d Thema pro Woche</item>
+        <item quantity="other">etwa %1$d Themen pro Woche</item>
+    </plurals>
+    <plurals name="exam_pace_total">
+        <item quantity="one">%1$d Thema bis zur Prüfung</item>
+        <item quantity="other">%1$d Themen bis zur Prüfung</item>
+    </plurals>
     <string name="exam_status">%1$s · %2$s</string>
     <string name="exam_next">Nächste Prüfung: %1$s</string>
     <string name="exam_title_line">%1$s · %2$s</string>

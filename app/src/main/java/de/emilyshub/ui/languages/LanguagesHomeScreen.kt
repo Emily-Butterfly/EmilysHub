@@ -121,7 +121,7 @@ private fun PeriodsCard(
             PeriodLines(periods)
             nextExam?.let {
                 Text(
-                    "${stringResource(R.string.exam_next, it.exam.name)} · ${examStatusText(it)}",
+                    "${stringResource(R.string.exam_next, it.exam.name)} · ${examStatusText(it, withPace = true)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
