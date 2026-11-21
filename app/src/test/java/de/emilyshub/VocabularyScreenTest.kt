@@ -5,11 +5,15 @@ import android.net.Uri
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
@@ -17,6 +21,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -763,6 +768,94 @@ class VocabularyScreenTest {
             compose.onNodeWithText("Morgen fällig", substring = true).assertDoesNotExist()
         }
     }
+
+    @Test
+    fun `typed, the answer is checked and an answer suggested, wrong struck through, and Weiss nicht is wrong`() {
+        val arabic = language("Arabisch")
+        card(arabic, "كتاب", "Buch, Heft")
+        card(arabic, "قلم", "Stift")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Abfrage: aufdecken").performClick()
+            compose.onNode(hasText("Eintippen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Abfrage: eintippen").assertIsDisplayed()
+            compose.onNodeWithText("Abfrage: eintippen").performClick()
+            compose.onNode(hasText("Abbrechen") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+
+            // One meaning is enough, case does not count; Enter checks.
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").assertDoesNotExist()
+            field("Antwort").assertIsFocused()
+            field("Antwort").performTextInput(" heft")
+            field("Antwort").performImeAction()
+            compose.onNodeWithText("Richtig").assertIsDisplayed()
+            compose.onNodeWithText("Buch, Heft").assertIsDisplayed()
+            suggested("Gut").assertIsDisplayed()
+            compose.onNodeWithText("Gut").performClick()
+
+            // Wrong: struck through, the answer under it, Nochmal suggested; all four answers still there.
+            compose.onNodeWithText("قلم").assertIsDisplayed()
+            field("Antwort").performTextInput("Heft")
+            compose.onNodeWithText("Prüfen").performClick()
+            compose.onNode(hasText("Heft") and SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "falsch")).assertIsDisplayed()
+            compose.onNodeWithText("Stift").assertIsDisplayed()
+            suggested("Nochmal").assertIsDisplayed()
+            listOf("Schwer", "Gut", "Leicht").forEach { compose.onNode(hasText(it) and hasClickAction()).assertIsDisplayed() }
+            compose.onNodeWithText("Nochmal").performClick()
+
+            // Again in the round: not known, it uncovers as wrong, nothing struck through.
+            compose.onNodeWithText("قلم").assertIsDisplayed()
+            field("Antwort").assertTextEquals("Antwort", "")
+            compose.onNodeWithText("Weiß nicht").performClick()
+            compose.onNodeWithText("Stift").assertIsDisplayed()
+            compose.onNodeWithText("Richtig", substring = true).assertDoesNotExist()
+            suggested("Nochmal").assertIsDisplayed()
+            compose.onNodeWithText("Gut").performClick()
+
+            compose.onNodeWithText("Für heute geschafft: 2 Karten").assertIsDisplayed()
+        }
+        assertEquals(true, runBlocking { app.flashcards.answering(arabic).first() }.typed)
+    }
+
+    @Test
+    fun `typed from its back, the side in the language is typed, and right but for the vowel marks says so with both`() {
+        val arabic = language("Arabisch")
+        runBlocking {
+            app.flashcards.setTypedAnswers(arabic, typed = true)
+            val write = (app.flashcards.create(arabic, CardDraft("كَتَبَ", "schreiben", bothWays = true)) as Saving.Saved).id
+            app.flashcards.answer(write, Rating.Easy)
+        }
+        // The next day, its front is not due, its back new.
+        app.clock.now = app.clock.now.plus(1, ChronoUnit.DAYS)
+
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Rückrichtung").assertIsDisplayed()
+            compose.onNodeWithText("schreiben").assertIsDisplayed()
+            field("Antwort").performTextInput("كتب")
+            compose.onNodeWithText("Prüfen").performClick()
+
+            compose.onNodeWithText("Richtig, bis auf die Vokalzeichen").assertIsDisplayed()
+            compose.onNodeWithText("Eingetippt: كتب").assertIsDisplayed()
+            compose.onNodeWithText("كَتَبَ").assertIsDisplayed()
+            suggested("Gut").assertIsDisplayed()
+        }
+        // The keyboard is asked for the language, as named in German.
+        assertEquals(Locale.forLanguageTag("ar"), runBlocking { app.flashcards.answering(arabic).first() }.locale)
+    }
+
+    /** The answer [label], set apart as the one an answer typed suggests. */
+    private fun suggested(label: String) = compose.onNode(
+        hasText(label) and hasClickAction() and SemanticsMatcher("suggested") { node ->
+            node.config.getOrElseNullable(SemanticsProperties.StateDescription) { null }?.endsWith(", vorgeschlagen") == true
+        },
+    )
 
     private fun language(name: String) = runBlocking { (app.languages.createLanguage(name) as Saving.Saved).id }
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardFile
 import de.emilyshub.languages.CardRow
 import de.emilyshub.languages.CardsTab
@@ -71,8 +73,8 @@ import kotlin.math.roundToInt
  * One that hakt is marked so, in the error colour, and while there are such, "Hakt" beside the topics shows only them
  * (#149).
  * Atop, how many are due today with "Üben" ([onPractice]), or that today's are done, as on the start page, while the
- * language is not archived. Its menu sets how many new cards a day takes, and imports cards from a text file picked in
- * Android's file dialog, after a preview.
+ * language is not archived. Its menu sets how many new cards a day takes, whether the practice asks for the answer
+ * uncovered or typed (#153), and imports cards from a text file picked in Android's file dialog, after a preview.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
@@ -93,6 +95,8 @@ internal fun CardsTabContent(
     // Only the cards that hakt (#149), in the place of a topic.
     var stuckOnly by rememberSaveable { mutableStateOf(false) }
     var settingNew by rememberSaveable { mutableStateOf(false) }
+    var settingAnswering by rememberSaveable { mutableStateOf(false) }
+    val answering by remember(flashcards, languageId) { flashcards.answering(languageId) }.collectAsState(initial = Answering())
     // A file picked and read, to look at before its cards are made; not kept past the screen.
     var picked by remember { mutableStateOf<CardFile?>(null) }
     val scope = rememberCoroutineScope()
@@ -139,7 +143,13 @@ internal fun CardsTabContent(
                         }
                     }
                 }
-                CardsMenu(shown, onSetNew = { settingNew = true }, onImport = { pick.launch(arrayOf("text/*")) })
+                CardsMenu(
+                    shown,
+                    typed = answering.typed,
+                    onSetNew = { settingNew = true },
+                    onSetAnswering = { settingAnswering = true },
+                    onImport = { pick.launch(arrayOf("text/*")) },
+                )
             }
         }
         val practice = workload
@@ -220,6 +230,16 @@ internal fun CardsTabContent(
             onDismiss = { settingNew = false },
         )
     }
+    if (settingAnswering) {
+        AnsweringDialog(
+            typed = answering.typed,
+            onChoose = { typed ->
+                settingAnswering = false
+                scope.launchNow { flashcards.setTypedAnswers(languageId, typed) }
+            },
+            onDismiss = { settingAnswering = false },
+        )
+    }
 }
 
 /**
@@ -273,9 +293,12 @@ private fun DirectedLine(text: String, maxLines: Int) {
     }
 }
 
-/** The menu of the tab: how many new cards a day takes, and cards from a file of the phone ([onImport]). */
+/**
+ * The menu of the tab: how many new cards a day takes, whether the practice asks for the answer [typed] (#153), and
+ * cards from a file of the phone ([onImport]).
+ */
 @Composable
-private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit, onImport: () -> Unit) {
+private fun CardsMenu(tab: CardsTab, typed: Boolean, onSetNew: () -> Unit, onSetAnswering: () -> Unit, onImport: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -290,6 +313,13 @@ private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit, onImport: () -> Unit)
                 },
             )
             DropdownMenuItem(
+                text = { Text(stringResource(if (typed) R.string.cards_answering_typed_value else R.string.cards_answering_reveal_value)) },
+                onClick = {
+                    expanded = false
+                    onSetAnswering()
+                },
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.cards_import)) },
                 onClick = {
                     expanded = false
@@ -298,6 +328,23 @@ private fun CardsMenu(tab: CardsTab, onSetNew: () -> Unit, onImport: () -> Unit)
             )
         }
     }
+}
+
+/** Asks whether the practice of the language uncovers the answer or asks for it [typed] (#153), in all its ways. */
+@Composable
+private fun AnsweringDialog(typed: Boolean, onChoose: (Boolean) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cards_answering)) },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                Text(stringResource(R.string.cards_answering_text), modifier = Modifier.padding(bottom = 8.dp))
+                RadioOption(stringResource(R.string.cards_answering_reveal), selected = !typed) { onChoose(false) }
+                RadioOption(stringResource(R.string.cards_answering_typed), selected = typed) { onChoose(true) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 /** Asks how many new cards a day takes, from [current], within [Language.NEW_CARDS]. */

@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -20,6 +21,7 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 /** What making many cards at once came to: how many were [created], and how many [skipped] as there already. */
@@ -225,6 +227,21 @@ class Flashcards(
         }
         emitAll(offered)
     }.flowOn(io)
+
+    /**
+     * How the language [languageId] asks its cards (SPEC.md §15; #153), as it changes: whether the answer is typed
+     * rather than uncovered, and the language a keyboard is asked for to type in it; uncovered once it is gone.
+     */
+    fun answering(languageId: Long): Flow<Answering> = flow {
+        emitAll(
+            languages.observeLanguages().map { all ->
+                all.find { it.id == languageId }?.let { Answering(it.typedAnswers, Language.keyboardLocale(it.name)) } ?: Answering()
+            }.distinctUntilChanged(),
+        )
+    }.flowOn(io)
+
+    /** Whether the practice of the language [languageId] asks for the answer typed rather than uncovered (#153). */
+    suspend fun setTypedAnswers(languageId: Long, typed: Boolean) = write { languages.setTypedAnswers(languageId, typed) }
 
     /** The tab Karten of the language [languageId], as it changes; none once it is gone. */
     fun tab(languageId: Long): Flow<CardsTab?> = flow {
@@ -557,3 +574,6 @@ class Flashcards(
     /** Writes on [io], to the end once started. */
     private suspend fun <T> write(block: suspend () -> T): T = withContext(io + NonCancellable) { block() }
 }
+
+/** How a language asks its cards (#153): [typed], the answer is typed rather than uncovered, with a keyboard in [locale] where known. */
+data class Answering(val typed: Boolean = false, val locale: Locale? = null)

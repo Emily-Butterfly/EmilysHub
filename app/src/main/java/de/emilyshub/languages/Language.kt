@@ -9,6 +9,7 @@ import de.emilyshub.data.InputText
 import de.emilyshub.ledger.Money
 import java.io.Serializable
 import java.time.LocalDate
+import java.util.Locale
 
 /**
  * A language taught (SPEC.md §15): by its [name], which no other reads the same as. Archived, it is offered no more,
@@ -26,6 +27,11 @@ data class Language(
      * no network; none until one is chosen, and then nothing is read.
      */
     val voice: String? = null,
+    /**
+     * Whether the practice of its cards asks for the answer typed rather than uncovered (SPEC.md §15; #153): uncovered
+     * until chosen otherwise.
+     */
+    @ColumnInfo(name = "typed_answers", defaultValue = "0") val typedAnswers: Boolean = false,
 ) {
     companion object {
         /** The longest a language's name may be, in characters. */
@@ -36,6 +42,17 @@ data class Language(
 
         /** How many new cards a day a language takes until set otherwise. */
         const val NEW_CARDS_DEFAULT = 10
+
+        /**
+         * The language a keyboard is asked for to type in the language named [name] (#153): the one called so in German,
+         * as for its voices (#157); none for a name that is no language, as nowhere else does a language have a code.
+         */
+        fun keyboardLocale(name: String): Locale? {
+            val wanted = name.trim()
+            if (wanted.isEmpty()) return null
+            return Locale.getISOLanguages().asSequence().map(Locale::forLanguageTag)
+                .firstOrNull { it.getDisplayLanguage(Locale.GERMAN).equals(wanted, ignoreCase = true) }
+        }
     }
 }
 

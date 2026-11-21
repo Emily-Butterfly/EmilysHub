@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -45,6 +49,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.pluralStringResource
@@ -56,13 +62,18 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.emilyshub.Day
 import de.emilyshub.R
+import de.emilyshub.data.InputText
 import de.emilyshub.languages.Answered
+import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardSelection
 import de.emilyshub.languages.ExampleSentence
 import de.emilyshub.languages.Flashcards
@@ -70,15 +81,19 @@ import de.emilyshub.languages.Prompt
 import de.emilyshub.languages.Rating
 import de.emilyshub.languages.Round
 import de.emilyshub.languages.RoundBalance
+import de.emilyshub.languages.TypedAnswer
 import de.emilyshub.languages.Workload
 import de.emilyshub.speech.Speech
+import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.launchNow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.io.Serializable
+import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.intl.Locale as ComposeLocale
 
 /**
  * Practising the cards of the language [languageId] (SPEC.md §15): its workload of today, one card at a time, "7 von 23"
@@ -95,6 +110,7 @@ import kotlin.math.roundToInt
  * 4 Nochmal"); after the day's workload, the other language with the most still open is offered, "Weiter mit
  * Italienisch (12)", which [onPractiseNext] practises in its place (#147).
  * With a voice of the phone chosen for the language, a loudspeaker reads its side aloud when pressed (#157).
+ * Chosen for the language, the answer is typed rather than uncovered (#153), the same in a topic or exam practised.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
@@ -138,6 +154,7 @@ fun PracticeScreen(
     val name by remember(flashcards, languageId) { flashcards.languageName(languageId) }.collectAsState(initial = "")
     val voice by remember(flashcards, languageId) { flashcards.voice(languageId) }.collectAsState(initial = null)
     val readAloud = rememberReadAloud(speech, voice)
+    val asked by remember(flashcards, languageId) { flashcards.answering(languageId) }.collectAsState(initial = Answering())
     val workload = when (shown) {
         is Practising -> shown.workload
         // Each card of the topic or exam once, and again after "Nochmal".
@@ -261,6 +278,7 @@ fun PracticeScreen(
                     hint = workload.firstTime,
                     enabled = answering == null,
                     readAloud = readAloud,
+                    answering = asked,
                     onAnswer = { rating ->
                         answering = card
                         scope.launchNow {
@@ -317,6 +335,11 @@ private val UndoIcon: ImageVector
  * uncovered, so as not to give the answer away (#157). Its Beispielsatz (#155), once uncovered, stands under the other
  * side with its front marked there; asked from its back, it stands under the question already, with a gap where its
  * front is ([ExampleSentence]), until the card is uncovered. One that does not have its front so shows only uncovered.
+ * [answering] typed (#153), a field under the question takes the answer, with the keyboard open, asked for the language
+ * when the side in it is to be typed; "Prüfen" or Enter uncovers the card and compares ([TypedAnswer]), "Weiß nicht"
+ * uncovers it as an answer wrong. Right, "Richtig" and "Gut" set apart; right but for the vowel marks, so said, with both
+ * spellings; wrong, what was typed struck through above the answer, and "Nochmal" set apart. Only a suggestion: all four
+ * answers stay. What was typed is not kept.
  */
 @Composable
 internal fun CardFace(
@@ -327,10 +350,24 @@ internal fun CardFace(
     onAnswer: (Rating) -> Unit,
     modifier: Modifier = Modifier,
     readAloud: ((String) -> Unit)? = null,
+    answering: Answering = Answering(),
 ) {
     val card = prompt.card
     // Each card starts covered, each way.
     var revealed by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf(false) }
+    // Typed, what was typed and how it compared once checked; none while not, or "Weiß nicht" pressed.
+    var typed by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf("") }
+    var verdict by rememberSaveable(card.id, prompt.reverse, prompt.lastReview) { mutableStateOf<TypedAnswer?>(null) }
+    val typing = answering.typed
+    val check = {
+        verdict = TypedAnswer.check(typed, prompt.answer)
+        revealed = true
+    }
+    val unknown = {
+        verdict = TypedAnswer.Wrong
+        typed = ""
+        revealed = true
+    }
     val example = card.example.ifEmpty { null }
     val word = remember(card.example, card.front) { example?.let { ExampleSentence.wordIn(it, card.front) } }
     // Asked from the back, the sentence with its gap is a help to the question.
@@ -341,8 +378,8 @@ internal fun CardFace(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                // Anywhere on the card uncovers it; TalkBack has the button for it.
-                .pointerInput(revealed) { if (!revealed) detectTapGestures { revealed = true } }
+                // Anywhere on the card uncovers it; TalkBack has the button for it. Not while the answer is to be typed.
+                .pointerInput(revealed, typing) { if (!revealed && !typing) detectTapGestures { revealed = true } }
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -353,8 +390,13 @@ internal fun CardFace(
             Text(prompt.question, style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             if (!prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
             if (example != null && exampleAsHelp) ExampleLine(example, word, covered = !revealed)
+            if (typing && !revealed) {
+                // Asked from its back, the side in the language is typed (#141).
+                AnswerField(typed, onChange = { typed = it }, locale = answering.locale.takeIf { prompt.reverse }, onDone = check)
+            }
             if (revealed) {
                 HorizontalDivider()
+                verdict?.let { TypedVerdict(it, typed) }
                 Text(prompt.answer, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 if (prompt.reverse) readAloud?.let { ReadAloudButton(it, card.front) }
                 if (example != null && !exampleAsHelp) ExampleLine(example, word, covered = false)
@@ -369,18 +411,85 @@ internal fun CardFace(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Over the keyboard, open while an answer is typed.
+                .imePadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (!revealed) {
+            if (!revealed && typing) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = unknown, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.practice_unknown)) }
+                    Button(onClick = check, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.practice_check)) }
+                }
+            } else if (!revealed) {
                 Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.practice_reveal)) }
             } else {
-                Answers(intervals, enabled, onAnswer)
+                val suggested = when (verdict) {
+                    TypedAnswer.Right, TypedAnswer.RightButMarks -> Rating.Good
+                    TypedAnswer.Wrong -> Rating.Again
+                    null -> null
+                }
+                Answers(intervals, enabled, onAnswer, suggested)
                 if (hint) {
                     Text(stringResource(R.string.practice_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+    }
+}
+
+/**
+ * The field the answer is typed in (#153), with the keyboard open as it shows, asked for [locale] where it is known; Enter
+ * checks it ([onDone]). Laid out right to left while what is typed starts so.
+ */
+@Composable
+private fun AnswerField(text: String, onChange: (String) -> Unit, locale: Locale?, onDone: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    DirectedBy(text) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = onChange,
+            label = { Text(stringResource(R.string.practice_answer)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                autoCorrectEnabled = false,
+                imeAction = ImeAction.Done,
+                hintLocales = locale?.let { LocaleList(ComposeLocale(it.toLanguageTag())) },
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focus),
+        )
+    }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+}
+
+/**
+ * How the answer [typed] compared ([verdict]): "Richtig"; right but for the vowel marks, so said, with what was typed;
+ * wrong, what was typed struck through, if anything was.
+ */
+@Composable
+private fun TypedVerdict(verdict: TypedAnswer, typed: String) {
+    val center = Modifier.fillMaxWidth()
+    when (verdict) {
+        TypedAnswer.Right ->
+            Text(stringResource(R.string.practice_typed_right), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center, modifier = center)
+        TypedAnswer.RightButMarks -> {
+            Text(stringResource(R.string.practice_typed_marks), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center, modifier = center)
+            Text(stringResource(R.string.practice_typed_was, InputText.singleLine(typed)), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = center)
+        }
+        TypedAnswer.Wrong -> if (InputText.isVisible(typed)) {
+            // Struck through is not heard: TalkBack says it is wrong.
+            val wrong = stringResource(R.string.practice_typed_wrong)
+            Text(
+                InputText.singleLine(typed),
+                style = MaterialTheme.typography.titleMedium.copy(textDecoration = TextDecoration.LineThrough),
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = center.semantics { stateDescription = wrong },
+            )
         }
     }
 }
@@ -404,26 +513,37 @@ private fun ExampleLine(sentence: String, word: IntRange?, covered: Boolean) {
     Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
 }
 
-/** The four answers in a row, each with its interval of [intervals] under it, "Nochmal" set apart in its colour. */
+/**
+ * The four answers in a row, each with its interval of [intervals] under it, "Nochmal" set apart in its colour; the one
+ * [suggested] by an answer typed (#153) filled, and so said.
+ */
 @Composable
-private fun Answers(intervals: Map<Rating, Int>, enabled: Boolean, onAnswer: (Rating) -> Unit) {
+private fun Answers(intervals: Map<Rating, Int>, enabled: Boolean, onAnswer: (Rating) -> Unit, suggested: Rating? = null) {
+    val suggestion = stringResource(R.string.practice_suggested)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ANSWERS.forEach { (rating, label) ->
             val interval = ReadableInterval.of(intervals.getValue(rating))
-            val spoken = interval.spoken()
+            val spoken = interval.spoken().let { if (rating == suggested) "$it, $suggestion" else it }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 // Four in a row leave little room on a narrow phone: less padding, and the label shrinks rather than being cut off.
                 FilledTonalButton(
                     onClick = { onAnswer(rating) },
                     enabled = enabled,
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                    colors = if (rating == Rating.Again) {
-                        ButtonDefaults.filledTonalButtonColors(
+                    colors = when {
+                        rating == suggested && rating == Rating.Again -> ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        )
+                        rating == suggested -> ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        rating == Rating.Again -> ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         )
-                    } else {
-                        ButtonDefaults.filledTonalButtonColors()
+                        else -> ButtonDefaults.filledTonalButtonColors()
                     },
                     // The interval is said with the answer, not on its own after it.
                     modifier = Modifier

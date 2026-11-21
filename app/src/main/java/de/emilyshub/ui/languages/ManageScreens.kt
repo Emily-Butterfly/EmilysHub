@@ -495,17 +495,17 @@ private fun VoiceDialog(chosen: String?, voices: List<OfflineVoice>, onChoose: (
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                VoiceOption(stringResource(R.string.language_voice_none), selected = chosen == null || voices.none { it.name == chosen }) { onChoose(null) }
-                voices.forEach { voice -> VoiceOption(voice.label, selected = voice.name == chosen) { onChoose(voice.name) } }
+                RadioOption(stringResource(R.string.language_voice_none), selected = chosen == null || voices.none { it.name == chosen }) { onChoose(null) }
+                voices.forEach { voice -> RadioOption(voice.label, selected = voice.name == chosen) { onChoose(voice.name) } }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
-/** One choice of [VoiceDialog], [label] with its radio button, the whole line to tap. */
+/** One choice of a dialog such as [VoiceDialog], [label] with its radio button, the whole line to tap. */
 @Composable
-private fun VoiceOption(label: String, selected: Boolean, onClick: () -> Unit) {
+internal fun RadioOption(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

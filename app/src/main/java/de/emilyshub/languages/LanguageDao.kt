@@ -93,6 +93,10 @@ interface LanguageDao {
     @Query("UPDATE languages SET voice = :voice WHERE id = :languageId")
     suspend fun setVoice(languageId: Long, voice: String?)
 
+    /** Whether the practice of the language's cards asks for the answer typed (SPEC.md §15; #153). */
+    @Query("UPDATE languages SET typed_answers = :typed WHERE id = :languageId")
+    suspend fun setTypedAnswers(languageId: Long, typed: Boolean)
+
     /** How many new cards a day the language takes (SPEC.md §15). */
     @Query("UPDATE languages SET new_cards_per_day = :count WHERE id = :languageId")
     suspend fun setNewCardsPerDay(languageId: Long, count: Int)

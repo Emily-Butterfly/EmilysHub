@@ -1237,6 +1237,20 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 57 moves to version 58 with the languages there uncovered and then one typed is kept`() {
+        createAtVersion(57) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day) VALUES (1, 'Arabisch', 0, 10)")
+        }
+
+        withMigratedDatabase { database ->
+            val languages = database.languages()
+            assertEquals(false, languages.language(1)?.typedAnswers)
+            languages.setTypedAnswers(1, typed = true)
+            assertEquals(true, languages.language(1)?.typedAnswers)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

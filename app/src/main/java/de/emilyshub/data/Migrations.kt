@@ -867,3 +867,10 @@ val MIGRATION_56_57 = object : Migration(56, 57) {
         db.execSQL("ALTER TABLE `cards` ADD COLUMN `example` TEXT NOT NULL DEFAULT ''")
     }
 }
+
+/** 57 → 58: a language's practice may ask for the answer typed (#153); the languages there are uncovered, as before. */
+val MIGRATION_57_58 = object : Migration(57, 58) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `languages` ADD COLUMN `typed_answers` INTEGER NOT NULL DEFAULT 0")
+    }
+}
