@@ -10,11 +10,12 @@ import java.time.ZoneId
  */
 data class Practised(val month: Tally, val daysOfMonth: Int, val year: Tally, val total: Tally) {
     /**
-     * Some answers: on how many [days] there were any, how many there were ([answers]), and the share of them [known],
-     * all but "Nochmal", without the very first answer of each way of a card, as it was not learnt then; none while
-     * nothing is left to count it by.
+     * Some answers: on how many [days] there were any, how many there were ([answers]), and the share of them known
+     * in whole percent, rounded down so that one "Nochmal" never shows as all known ([knownPercent]): all but
+     * "Nochmal", without the very first answer of each way of a card, as it was not learnt then; none while nothing is
+     * left to count it by.
      */
-    data class Tally(val days: Int, val answers: Int, val known: Double?)
+    data class Tally(val days: Int, val answers: Int, val knownPercent: Int?)
 
     companion object {
         /** What [reviews] come to as of [today], each by its day on the phone's calendar ([zone]). */
@@ -29,7 +30,7 @@ data class Practised(val month: Tally, val daysOfMonth: Int, val year: Tally, va
                 return Tally(
                     days = those.map { it.second }.distinct().size,
                     answers = those.size,
-                    known = counted.takeIf { it.isNotEmpty() }?.let { all -> all.count { it.grade != Rating.Again.grade }.toDouble() / all.size },
+                    knownPercent = counted.takeIf { it.isNotEmpty() }?.let { all -> all.count { it.grade != Rating.Again.grade } * 100 / all.size },
                 )
             }
             val month = YearMonth.from(today)

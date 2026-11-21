@@ -51,8 +51,8 @@ import de.emilyshub.languages.CardsSummary
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.LanguagePage
 import de.emilyshub.languages.Languages
-import de.emilyshub.languages.Practised
 import de.emilyshub.languages.LessonRow
+import de.emilyshub.languages.Practised
 import de.emilyshub.ledger.Money
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.PlaceholderScreen
@@ -62,7 +62,6 @@ import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlin.math.roundToInt
 
 /**
  * A language's page (SPEC.md §15), with four tabs: "Sessions", its lessons, the newest first, which open in their editor
@@ -159,7 +158,7 @@ fun LanguagePageScreen(
                         cardsTopic = topicId
                         tab = CARDS_TAB
                     },
-                    onPractise = onPractiseSelection,
+                    onPractiseSelection = onPractiseSelection,
                     focusExam = examId,
                 )
                 CARDS_TAB -> CardsTabContent(flashcards, day, languageId, cardsTopic, onTopicFilterChange = { cardsTopic = it }, onOpenCard, onPractice)
@@ -275,23 +274,22 @@ private fun EvaluationTab(page: LanguagePage, cards: CardsSummary?) {
  */
 @Composable
 private fun PractisedLines(practised: Practised) {
-    listOf(
-        Triple(R.string.evaluation_practised_this_month, practised.month, practised.daysOfMonth),
-        Triple(R.string.languages_this_year, practised.year, null),
-        Triple(R.string.languages_total, practised.total, null),
-    ).forEach { (label, tally, of) ->
-        val days = if (of != null) {
-            pluralStringResource(R.plurals.evaluation_practised_days_of, of, tally.days, of)
-        } else {
-            pluralStringResource(R.plurals.evaluation_practised_days, tally.days, tally.days)
-        }
-        val parts = listOfNotNull(
-            "${stringResource(label)} $days",
-            pluralStringResource(R.plurals.evaluation_practised_answers, tally.answers, tally.answers),
-            tally.known?.let { stringResource(R.string.evaluation_practised_known, (it * 100).roundToInt()) },
-        )
-        Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
+    with(practised) {
+        PractisedLine(pluralStringResource(R.plurals.evaluation_practised_month, daysOfMonth, month.days, daysOfMonth), month)
+        PractisedLine(pluralStringResource(R.plurals.evaluation_practised_year, year.days, year.days), year)
+        PractisedLine(pluralStringResource(R.plurals.evaluation_practised_total, total.days, total.days), total)
     }
+}
+
+/** A line of [PractisedLines]: on how many days ([days], told for its period), then the [tally]'s answers and the share known. */
+@Composable
+private fun PractisedLine(days: String, tally: Practised.Tally) {
+    val parts = listOfNotNull(
+        days,
+        pluralStringResource(R.plurals.evaluation_practised_answers, tally.answers, tally.answers),
+        tally.knownPercent?.let { stringResource(R.string.evaluation_practised_known, it) },
+    )
+    Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
 }
 
 /** Where "Sessions", "Themen" and "Karten" are among the tabs, "Auswertung" after them. */

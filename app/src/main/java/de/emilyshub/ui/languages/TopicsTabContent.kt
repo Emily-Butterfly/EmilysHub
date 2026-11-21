@@ -132,7 +132,7 @@ internal fun TopicsTabContent(
     tab: TopicsTab,
     onOpenLesson: (Long) -> Unit,
     onShowCards: (topicId: Long) -> Unit,
-    onPractise: (CardSelection) -> Unit,
+    onPractiseSelection: (CardSelection) -> Unit,
     focusExam: Long? = null,
 ) {
     val cardCounts by remember(flashcards, languageId) { flashcards.topicCounts(languageId) }.collectAsState(initial = emptyMap())
@@ -202,8 +202,8 @@ internal fun TopicsTabContent(
             onDelete = { dialog = TopicsDialog.DeleteTopic(it.topic.id) },
             cards = cardCounts,
             onShowCards = { onShowCards(it.topic.id) },
-            onPractise = { onPractise(CardSelection.OfTopic(it.topic.id)) },
-            onPractiseExam = { onPractise(CardSelection.OfExam(it)) },
+            onPractise = { onPractiseSelection(CardSelection.OfTopic(it.topic.id)) },
+            onPractiseExam = { onPractiseSelection(CardSelection.OfExam(it)) },
         )
         tab.upcoming.forEach { group ->
             examGroup(group, folded = false, onFold = null, exams = exams, actions = onTopic, onTakeBack = takeBack) { dialog = it }
@@ -365,7 +365,10 @@ private class TopicActions(
     val onPractise: (TopicRow) -> Unit,
     /** "Prüfung üben", by the exam's id (#148). */
     val onPractiseExam: (Long) -> Unit,
-)
+) {
+    /** Whether any of [topics] has cards, to practise. */
+    fun haveCards(topics: List<TopicRow>) = topics.any { (cards[it.topic.id]?.cards ?: 0) > 0 }
+}
 
 /** An exam's heading, with its menu, and its topics unless [folded]; [onFold] folds or unfolds one taken. */
 private fun LazyListScope.examGroup(
@@ -392,7 +395,7 @@ private fun LazyListScope.examGroup(
             fold = onFold?.let { it to folded },
         ) {
             // Taken too, as long as its topics have cards (#148).
-            val practise = { actions.onPractiseExam(exam.id) }.takeIf { group.topics.any { (actions.cards[it.topic.id]?.cards ?: 0) > 0 } }
+            val practise = { actions.onPractiseExam(exam.id) }.takeIf { actions.haveCards(group.topics) }
             ExamMenu(exam, hasOpen = status.open > 0, onTakeBack = { onTakeBack(exam.id) }, onDialog = onDialog, onPractise = practise)
         }
     }

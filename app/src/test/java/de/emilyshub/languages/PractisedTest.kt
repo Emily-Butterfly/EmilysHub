@@ -30,10 +30,10 @@ class PractisedTest {
 
         val practised = Practised.of(reviews, today = LocalDate.parse("2026-11-16"), zone)
 
-        assertEquals(Practised.Tally(days = 2, answers = 3, known = 0.5), practised.month)
+        assertEquals(Practised.Tally(days = 2, answers = 3, knownPercent = 50), practised.month)
         assertEquals("of the month's days up to today", 16, practised.daysOfMonth)
-        assertEquals("the first answers of each way, in October and 2025, left out", Practised.Tally(days = 3, answers = 4, known = 0.5), practised.year)
-        assertEquals(Practised.Tally(days = 4, answers = 5, known = 0.5), practised.total)
+        assertEquals("the first answers of each way, in October and 2025, left out", Practised.Tally(days = 3, answers = 4, knownPercent = 50), practised.year)
+        assertEquals(Practised.Tally(days = 4, answers = 5, knownPercent = 50), practised.total)
     }
 
     @Test
@@ -50,22 +50,22 @@ class PractisedTest {
         val month = Practised.of(reviews, today = LocalDate.parse("2026-11-16"), zone).month
 
         assertEquals(6, month.answers)
-        assertEquals(2.0 / 3, checkNotNull(month.known), 1e-9)
+        assertEquals("rounded down", 66, month.knownPercent)
     }
 
     @Test
     fun `a first answer before the month leaves the month's answers all counted`() {
         val reviews = listOf(review(1, "2026-10-20T08:00", Rating.Good), review(1, "2026-11-02T08:00", Rating.Again))
 
-        assertEquals(0.0, checkNotNull(Practised.of(reviews, LocalDate.parse("2026-11-16"), zone).month.known), 1e-9)
+        assertEquals(0, Practised.of(reviews, LocalDate.parse("2026-11-16"), zone).month.knownPercent)
     }
 
     @Test
     fun `with only first answers, or none, there is no share known`() {
         val practised = Practised.of(listOf(review(1, "2026-11-02T08:00", Rating.Good)), LocalDate.parse("2026-11-16"), zone)
 
-        assertNull(practised.month.known)
-        assertEquals(Practised.Tally(days = 0, answers = 0, known = null), Practised.of(emptyList(), LocalDate.parse("2026-11-16"), zone).total)
+        assertNull(practised.month.knownPercent)
+        assertEquals(Practised.Tally(days = 0, answers = 0, knownPercent = null), Practised.of(emptyList(), LocalDate.parse("2026-11-16"), zone).total)
     }
 
     @Test

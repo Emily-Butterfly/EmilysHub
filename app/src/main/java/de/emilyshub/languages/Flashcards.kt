@@ -151,7 +151,7 @@ data class Answered(val before: Prompt, val reviewId: Long, val didWorkload: Boo
 
 /**
  * A round of practice (SPEC.md §15): the cards answered "Nochmal" in it, which come again at its end, in that order
- * ([again]), and all those it [asked], for a topic practised (SPEC.md §15; #107). Kept by the screen, not saved: left,
+ * ([again]), and all those it [asked], for a topic or an exam practised (SPEC.md §15; #107, #148). Kept by the screen, not saved: left,
  * the round is over, and such a card is due the next day.
  */
 data class Round(val again: List<PromptKey> = emptyList(), val asked: List<PromptKey> = emptyList()) : Serializable {
@@ -282,8 +282,8 @@ class Flashcards(
     }.flowOn(io)
 
     /**
-     * The cards of the language [languageId] as its evaluation counts them on [today] (SPEC.md §15; #107), as they
-     * change.
+     * The cards of the language [languageId] as its evaluation counts them on [today] (SPEC.md §15; #107), with how
+     * regularly they were practised and what is due in the days to come (#150), as they change.
      */
     fun summary(languageId: Long, today: LocalDate): Flow<CardsSummary> = flow {
         val summary = combine(languages.observeLanguages(), dao.observeOf(languageId), dao.observeReviewsOf(languageId)) { all, cards, reviews ->

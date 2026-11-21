@@ -1632,14 +1632,17 @@
     <string name="cards_search_none">Keine Karte passt zu „%1$s“.</string>
     <string name="evaluation_cards">Karten: %1$d · sicher %2$d · heute fällig %3$d</string>
     <string name="evaluation_cards_stuck">Karten: %1$d · sicher %2$d · heute fällig %3$d · hakt %4$d</string>
-    <string name="evaluation_practised_this_month">Diesen Monat</string>
-    <plurals name="evaluation_practised_days_of">
-        <item quantity="one">an %1$d von %2$d Tag geübt</item>
-        <item quantity="other">an %1$d von %2$d Tagen geübt</item>
+    <plurals name="evaluation_practised_month">
+        <item quantity="one">Diesen Monat an %1$d von %2$d Tag geübt</item>
+        <item quantity="other">Diesen Monat an %1$d von %2$d Tagen geübt</item>
     </plurals>
-    <plurals name="evaluation_practised_days">
-        <item quantity="one">an %d Tag geübt</item>
-        <item quantity="other">an %d Tagen geübt</item>
+    <plurals name="evaluation_practised_year">
+        <item quantity="one">Dieses Jahr an %d Tag geübt</item>
+        <item quantity="other">Dieses Jahr an %d Tagen geübt</item>
+    </plurals>
+    <plurals name="evaluation_practised_total">
+        <item quantity="one">Insgesamt an %d Tag geübt</item>
+        <item quantity="other">Insgesamt an %d Tagen geübt</item>
     </plurals>
     <plurals name="evaluation_practised_answers">
         <item quantity="one">%d Abfrage</item>
