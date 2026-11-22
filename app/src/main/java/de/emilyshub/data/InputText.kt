@@ -48,8 +48,10 @@ object InputText {
     /** [text] without the Arabic vowel and Quranic marks and the tatweel that [searchable] passes over (#154). */
     fun withoutVowelMarks(text: String) = text.filterNot(::isArabicMark)
 
-    /** Whether [text] has any of the marks [withoutVowelMarks] leaves out. */
-    fun hasVowelMarks(text: String) = text.any(::isArabicMark)
+    /** Whether [text] has vowel marks that [withoutVowelMarks] leaves out; a tatweel alone is none. */
+    fun hasVowelMarks(text: String) = text.any { isArabicMark(it) && it != TATWEEL }
+
+    private const val TATWEEL = '\u0640'
 
     /** The Arabic vowel and Quranic marks, and the tatweel, which only stretches a word. */
     private fun isArabicMark(char: Char) =

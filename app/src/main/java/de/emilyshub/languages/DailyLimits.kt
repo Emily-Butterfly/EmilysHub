@@ -113,6 +113,7 @@ data class CardSettings(
     @ColumnInfo(name = "daily_limit") val dailyLimit: Int? = null,
 ) {
     companion object {
+        /** The id of its only row. */
         const val ONLY = 1
     }
 }

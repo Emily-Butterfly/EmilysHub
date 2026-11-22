@@ -30,5 +30,6 @@ class VowelMarksTest {
         assertTrue(InputText.hasVowelMarks("كَتَبَ"))
         assertFalse(InputText.hasVowelMarks("كتب"))
         assertFalse(InputText.hasVowelMarks("Buch"))
+        assertFalse("a tatweel alone is none", InputText.hasVowelMarks("كتـاب"))
     }
 }

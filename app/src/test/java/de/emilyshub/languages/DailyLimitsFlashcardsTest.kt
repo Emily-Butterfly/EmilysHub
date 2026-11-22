@@ -103,6 +103,26 @@ class DailyLimitsFlashcardsTest {
     }
 
     @Test
+    fun `a card deleted that lowers a share tells a workload thus done`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        dueCards(arabic, 30, prefix = "a")
+        dueCards(italian, 10, prefix = "i")
+        cards.setOverallLimit(20)
+        repeat(4) { answerNext(italian, Rating.Good) }
+        assertEquals(1, workload(italian).remaining.size)
+
+        // Italian's backlog 8 of 38: its share 4, which it has asked.
+        workload(italian).remaining.single().let { cards.delete(it.id) }
+        assertEquals(listOf<Long>(), done)
+        val waiting = workload(italian).remaining.first()
+        cards.delete(waiting.id)
+
+        assertTrue(workload(italian).done)
+        assertEquals(listOf(italian), done)
+    }
+
+    @Test
     fun `a topic practised knows no limit and does not count against it`() = runBlocking {
         val arabic = language("Arabisch")
         val topic = (languages.createTopic(arabic, "Verben") as Saving.Saved).id

@@ -364,6 +364,7 @@ class Flashcards(
     private suspend fun workloadsNow(today: LocalDate): WorkloadsOn =
         workloadsOn(languages.languages(), dao.all(), dao.reviewsSince(sinceBefore(today)), dao.settings(), today)
 
+    /** The workloads on [today] of the languages [all], of their [cards], with the [reviews] and the overall limit of [settings]. */
     private fun workloadsOn(all: List<Language>, cards: List<Card>, reviews: List<CardReview>, settings: CardSettings?, today: LocalDate) =
         WorkloadsOn(
             DailyLimits.workloads(all, cards, reviews, settings?.dailyLimit, today, clock.zone),
@@ -419,13 +420,12 @@ class Flashcards(
     /**
      * Changes the card [id] to what [draft] has, what was planned for it staying; refused as [create] is. No longer
      * asked both ways, what was planned and logged for its back is gone (#141); as that changes whether it is sure and
-     * what the day's workload holds, the Karten-Ziele follow, and a workload done by it tells so.
+     * what the day's workload holds, the Karten-Ziele follow, and a workload done by it tells so: of any language, as
+     * a backlog changed shares the overall limit out anew (#156).
      */
-    suspend fun save(id: Long, draft: CardDraft): Saving<CardProblem> = write {
+    suspend fun save(id: Long, draft: CardDraft): Saving<CardProblem> = tellingWorkloadsDone {
         val today = today()
-        val languageOf = dao.card(id)?.languageId
-        val doneBefore = languageOf?.let { workloadOf(it, today)?.done }
-        val saving = database().withTransaction {
+        database().withTransaction {
             val saved = dao.card(id) ?: return@withTransaction Saving.Saved(id)
             val clean = draft.cleaned()
             val problems = problemsOf(saved.languageId, clean, except = id)
@@ -437,8 +437,6 @@ class Flashcards(
             }
             Saving.Saved(id)
         }
-        if (languageOf != null && doneBefore == false && workloadOf(languageOf, today)?.done == true) onWorkloadDone(languageOf)
-        saving
     }
 
     /**
@@ -489,8 +487,11 @@ class Flashcards(
     /** The card [id] as it is saved; none once it is gone. */
     suspend fun card(id: Long): Card? = withContext(io) { dao.card(id) }
 
-    /** Deletes the card [id], and the answers to it. The screen asks first. */
-    suspend fun delete(id: Long) = write {
+    /**
+     * Deletes the card [id], and the answers to it. The screen asks first. A workload done by it tells so, of any
+     * language, as its backlog shares the overall limit out (#156).
+     */
+    suspend fun delete(id: Long) = tellingWorkloadsDone {
         database().withTransaction {
             val card = dao.card(id) ?: return@withTransaction
             database().watchingGoals(today()) { watch ->
@@ -519,13 +520,17 @@ class Flashcards(
         dao.setSettings(CardSettings(dailyLimit = limit?.coerceIn(DailyLimits.OVERALL)))
     }
 
-    /** Does [change], and tells each workload of today that it made done (#106). */
-    private suspend fun tellingWorkloadsDone(change: suspend () -> Unit) = write {
+    /**
+     * Does [change], and tells each workload of today that it made done (#106), of whichever language: a change to one
+     * may share the overall limit out anew among all (#156).
+     */
+    private suspend fun <T> tellingWorkloadsDone(change: suspend () -> T): T = write {
         val today = today()
         val before = workloadsNow(today).workloads
-        change()
+        val changed = change()
         val after = workloadsNow(today).workloads
         after.filter { (id, workload) -> workload.done && before[id]?.done == false }.keys.forEach { onWorkloadDone(it) }
+        changed
     }
 
     /** How many new cards a day the language [languageId] takes, kept within [Language.NEW_CARDS]. */
