@@ -254,6 +254,7 @@ Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht
 | # | Slice | Art | Blockiert durch |
 |---|---|---|---|
 | 141 | [Vokabeltrainer: Karten in beide Richtungen abfragen](141-vokabeln-beide-richtungen.md) | 🤖 | – |
+| 159 | [To-dos: „Am Wochenende“ gilt Samstag und Sonntag](159-todos-wochenende.md) | 🤖 | – |
 
 ## Ohne Ticket
 
