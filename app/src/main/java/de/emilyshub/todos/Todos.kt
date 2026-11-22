@@ -95,6 +95,7 @@ class Todos(
         return DueTodo(
             todo.id, todo.title, todo.due, todo.priority, done = todo.doneAt != null, overdue = isOverdue(todo, now),
             checklist(), if (waiting) placeNames else emptyList(), todo.recurrence, todo.end, todo.seriesNumber,
+            dueUntil = todo.dueUntil,
         )
     }
 
@@ -194,7 +195,9 @@ class Todos(
                 watch.todo(id)
                 val placesBefore = dao.placeIdsOf(id).toSet()
                 val goalId = database().wishes().stillThere(cleaned.goalId)
-                dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId, todo.seriesNumber))
+                // Due on the same day still, a to-do moved to the weekend stays due until its Sunday.
+                val dueUntil = todo.dueUntil.takeIf { cleaned.due.date == todo.dueDate }
+                dao.update(cleaned.copy(goalId = goalId).toTodo(id, todo.doneAt, todo.reminding, todo.nextId, todo.seriesNumber).copy(dueUntil = dueUntil))
                 saveTags(id, cleaned.tagIds)
                 savePlaces(id, cleaned.placeIds)
                 val placesChanged = dao.placeIdsOf(id).toSet() != placesBefore
@@ -277,13 +280,18 @@ class Todos(
      * coming again moves alone, as there, and its series, ending on a day before [date], ends on [date] instead. Tells
      * how it moved, to [undo] it; nothing for one done or gone, or already due that day, which stays as it is.
      */
-    suspend fun moveTo(id: Long, date: LocalDate): TodoMove? = write {
+    suspend fun moveTo(id: Long, date: LocalDate): TodoMove? = moveTo(id, MoveTarget(date))
+
+    /** Moves the open to-do to [target] as [moveTo] a day does: to the weekend, due from its Saturday until its Sunday. */
+    suspend fun moveTo(id: Long, target: MoveTarget): TodoMove? = write {
         database().withTransaction {
             val todo = dao.get(id)?.takeIf { it.doneAt == null } ?: return@withTransaction null
-            val to = todo.due.movedTo(date).takeIf { it != todo.due } ?: return@withTransaction null
+            val date = target.date
+            val to = todo.due.movedTo(date)
+            if (to == todo.due && target.until == todo.dueUntil) return@withTransaction null
             val endedOn = todo.endsOn?.takeIf { todo.recurrence != null && it.isBefore(date) }
-            TodoMove(id, from = todo.due, to = to, endedOn = endedOn).also {
-                setDue(todo, to, endsOn = if (endedOn != null) date else todo.endsOn)
+            TodoMove(id, from = todo.due, to = to, endedOn = endedOn, fromUntil = todo.dueUntil, toUntil = target.until).also {
+                setDue(todo, to, endsOn = if (endedOn != null) date else todo.endsOn, until = target.until)
             }
         }
     }
@@ -294,15 +302,19 @@ class Todos(
      */
     suspend fun undo(move: TodoMove) = write {
         database().withTransaction {
-            val todo = dao.get(move.todoId)?.takeIf { it.doneAt == null && it.due == move.to } ?: return@withTransaction
+            val todo = dao.get(move.todoId)?.takeIf { it.doneAt == null && it.due == move.to && it.dueUntil == move.toUntil }
+                ?: return@withTransaction
             val endsOn = move.endedOn?.takeIf { todo.endsOn == move.to.date } ?: todo.endsOn
-            setDue(todo, move.from, endsOn)
+            setDue(todo, move.from, endsOn, until = move.fromUntil)
         }
     }
 
-    /** Sets the to-do due as [due] says, its series ending on [endsOn], all else as it is, and its reminder anew. */
-    private suspend fun setDue(todo: Todo, due: Due, endsOn: LocalDate?) {
-        dao.update(todo.copy(dueDate = due.date, dueTime = (due as? Due.At)?.time, endsOn = endsOn))
+    /**
+     * Sets the to-do due as [due] says, [until] a Sunday if over a weekend, its series ending on [endsOn], all else as
+     * it is, and its reminder anew.
+     */
+    private suspend fun setDue(todo: Todo, due: Due, endsOn: LocalDate?, until: LocalDate?) {
+        dao.update(todo.copy(dueDate = due.date, dueTime = (due as? Due.At)?.time, dueUntil = until, endsOn = endsOn))
         rearm(todo.id, due, todo.wake)
     }
 
@@ -475,9 +487,13 @@ class Todos(
     /** The next full hour, for a time due to start from: 08:00 at 07:10, and midnight of the next day at 23:10. */
     fun nextFullHour(): LocalDateTime = LocalDateTime.now(clock).truncatedTo(ChronoUnit.HOURS).plusHours(1)
 
-    /** Whether [todo] is open at [now] after it was due: after its day, or after the minute of its time. */
+    /**
+     * Whether [todo] is open at [now] after it was due: after its day, or after the minute of its time; moved to the
+     * weekend, only after its Sunday, whatever its time.
+     */
     fun isOverdue(todo: Todo, now: Instant): Boolean {
         val due = todo.due
+        todo.dueUntil?.let { until -> return todo.doneAt == null && until.isBefore(dayOf(now)) }
         return todo.doneAt == null && when (due) {
             Due.None -> false
             is Due.On -> due.date.isBefore(dayOf(now))

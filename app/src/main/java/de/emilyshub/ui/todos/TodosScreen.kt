@@ -43,6 +43,7 @@ import de.emilyshub.Day
 import de.emilyshub.R
 import de.emilyshub.tags.Tag
 import de.emilyshub.tags.Tags
+import de.emilyshub.todos.MoveTarget
 import de.emilyshub.todos.TodoOrder
 import de.emilyshub.todos.TodoWithDetails
 import de.emilyshub.todos.Todos
@@ -130,10 +131,10 @@ fun TodosScreen(
                                 }
                             },
                             onClick = { onOpen(todo.id) },
-                            onMove = { date ->
+                            onMove = { target ->
                                 scope.launchNow {
-                                    val move = todos.moveTo(todo.id, date) ?: return@launchNow
-                                    snackbar.offerUndo(movedMessage.format(date.dateLine()), undoLabel) { todos.undo(move) }
+                                    val move = todos.moveTo(todo.id, target) ?: return@launchNow
+                                    snackbar.offerUndo(movedMessage.format(target.date.dateLine()), undoLabel) { todos.undo(move) }
                                 }
                             },
                         )
@@ -220,7 +221,7 @@ private fun TodoRow(
     overdue: Boolean,
     onTick: () -> Unit,
     onClick: () -> Unit,
-    onMove: (LocalDate) -> Unit,
+    onMove: (MoveTarget) -> Unit,
 ) {
     val todo = details.todo
     val tick = stringResource(R.string.todo_tick, todo.title)

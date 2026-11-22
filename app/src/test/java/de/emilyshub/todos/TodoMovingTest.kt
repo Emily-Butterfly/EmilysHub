@@ -56,6 +56,55 @@ class TodoMovingTest {
     }
 
     @Test
+    fun `moved to the weekend it is due Saturday and Sunday, overdue only from Monday, with a time too`() = runBlocking {
+        val saturday = LocalDate.parse("2026-10-24")
+        val sunday = LocalDate.parse("2026-10-25")
+        val plain = todos.create(TodoDraft("Fenster"))
+        val timed = todos.create(TodoDraft("Anrufen", due = Due.At(today, LocalTime.of(9, 0))))
+
+        val move = todos.moveTo(plain, MoveTo.Weekend.target(today))
+        todos.moveTo(timed, MoveTo.Weekend.target(today))
+
+        assertEquals(TodoMove(plain, from = Due.None, to = Due.On(saturday), toUntil = sunday), move)
+        assertEquals(sunday, todos.get(plain)?.dueUntil)
+        listOf(plain, timed).forEach { id ->
+            val todo = checkNotNull(todos.get(id))
+            assertEquals(false, todos.isOverdue(todo, berlin("2026-10-24T23:00")))
+            assertEquals(false, todos.isOverdue(todo, berlin("2026-10-25T23:59")))
+            assertEquals(true, todos.isOverdue(todo, berlin("2026-10-26T00:00")))
+        }
+    }
+
+    @Test
+    fun `undone, moved on another day, or given another day in the editor, it is due one day again`() = runBlocking {
+        val id = todos.create(TodoDraft("Fenster"))
+        val move = checkNotNull(todos.moveTo(id, MoveTo.Weekend.target(today)))
+        todos.undo(move)
+        assertEquals(null to null, todos.get(id)?.let { it.dueDate to it.dueUntil })
+
+        todos.moveTo(id, MoveTo.Weekend.target(today))
+        todos.moveTo(id, MoveTo.Tomorrow.target(today))
+        assertNull(todos.get(id)?.dueUntil)
+
+        todos.moveTo(id, MoveTo.Weekend.target(today))
+        // Changed in the editor otherwise, the weekend stays.
+        todos.update(id, TodoDraft("Fenster putzen", due = Due.On(LocalDate.parse("2026-10-24"))))
+        assertEquals(LocalDate.parse("2026-10-25"), todos.get(id)?.dueUntil)
+        todos.update(id, TodoDraft("Fenster putzen", due = Due.On(LocalDate.parse("2026-10-28"))))
+        assertNull(todos.get(id)?.dueUntil)
+    }
+
+    @Test
+    fun `a Saturday picked is that day only, and a weekend moved to again from one day takes its Sunday`() = runBlocking {
+        val id = todos.create(TodoDraft("Fenster", due = Due.On(LocalDate.parse("2026-10-24"))))
+        assertNull(todos.get(id)?.dueUntil)
+
+        // Due that Saturday already, the weekend still lasts to its Sunday.
+        checkNotNull(todos.moveTo(id, MoveTo.Weekend.target(today)))
+        assertEquals(LocalDate.parse("2026-10-25"), todos.get(id)?.dueUntil)
+    }
+
+    @Test
     fun `one due whenever gets the day, without a time`() = runBlocking {
         val id = todos.create(TodoDraft("Fenster"))
 
@@ -174,4 +223,6 @@ class TodoMovingTest {
         assertEquals(Instant.parse("2026-10-24T06:00:00Z"), todos.nextAlarm(after = clock.now))
         assertEquals("the reminders are told", before + 1, changes)
     }
+
+    private fun berlin(time: String): Instant = LocalDateTime.parse(time).atZone(clock.zone).toInstant()
 }

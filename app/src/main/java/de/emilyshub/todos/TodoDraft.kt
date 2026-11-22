@@ -108,7 +108,8 @@ data class TodoDraft(
      */
     fun toTodo(id: Long = 0, doneAt: Instant? = null, reminding: Reminding = Reminding(), nextId: Long? = null, seriesNumber: Int = 1) =
         Todo(
-            id, title, description, due.date, (due as? Due.At)?.time, priority, doneAt, reminding, goalId, recurrence, nextId,
+            id, title, description, due.date, (due as? Due.At)?.time, priority = priority, doneAt = doneAt, reminding = reminding,
+            goalId = goalId, recurrence = recurrence, nextId = nextId,
             endsAfter = (end as? RecurrenceEnd.AfterTimes)?.times,
             endsOn = (end as? RecurrenceEnd.OnDate)?.date,
             seriesNumber = seriesNumber,

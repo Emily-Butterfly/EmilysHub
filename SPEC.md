@@ -48,7 +48,7 @@ Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; 
 ### Menü je Eintrag
 
 - Jeder Eintrag in Heute hat ein Menü, auch per langem Druck. Antippen der Zeile hakt weiter ab.
-- **To-do**: „Morgen · Am Wochenende · Nächste Woche · Datum wählen · Öffnen“. Verschieben ändert nur das Datum der Fälligkeit, die Uhrzeit bleibt; danach bietet eine Leiste „Rückgängig“. „Am Wochenende“ ist der kommende Samstag, „Nächste Woche“ der kommende Montag. Dasselbe Menü haben die To-dos im Tab To-dos.
+- **To-do**: „Morgen · Am Wochenende · Nächste Woche · Datum wählen · Öffnen“. Verschieben ändert nur das Datum der Fälligkeit, die Uhrzeit bleibt; danach bietet eine Leiste „Rückgängig“. „Am Wochenende“ ist der kommende Samstag (an einem Samstag oder Sonntag der nächste), und das To-do gilt dann das ganze Wochenende: Samstag und Sonntag steht es bei Heute als To-do von heute, mit seiner Uhrzeit nur am Samstag; überfällig ist es erst ab Montag. Ein über „Datum wählen“ gewählter Samstag ist nur dieser Tag; ein anderes Datum, im Menü oder im Editor, hebt das Wochenende auf. „Nächste Woche“ ist der kommende Montag. Dasselbe Menü haben die To-dos im Tab To-dos.
 - **Routine**: „Überspringen · Heute nicht · Öffnen“; einen eigenen Knopf „Überspringen“ hat die Zeile nicht mehr. Eine offene Routine mit Checkliste zeigt dort „Starten“ (§2, Ablauf-Modus).
 - „Öffnen“ führt in den Editor.
 

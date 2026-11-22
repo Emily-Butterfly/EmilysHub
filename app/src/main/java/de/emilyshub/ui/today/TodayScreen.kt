@@ -62,6 +62,7 @@ import de.emilyshub.today.startable
 import de.emilyshub.today.tickable
 import de.emilyshub.todos.Due
 import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.MoveTarget
 import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.ui.ChecklistRow
 import de.emilyshub.ui.Hint
@@ -137,10 +138,10 @@ fun TodayScreen(
                     snackbar.offerUndo(tickedMessage.format(entry.name), undoLabel) { heute.onToday.setDone(entry, done = false) }
                 }
             },
-            move = { todo, date ->
+            move = { todo, target ->
                 scope.launchNow {
-                    val move = heute.move(todo, date) ?: return@launchNow
-                    snackbar.offerUndo(movedMessage.format(date.dateLine()), undoLabel) { heute.undoMove(move) }
+                    val move = heute.move(todo, target) ?: return@launchNow
+                    snackbar.offerUndo(movedMessage.format(target.date.dateLine()), undoLabel) { heute.undoMove(move) }
                 }
             },
             openTodo = onOpenTodo,
@@ -388,7 +389,7 @@ private typealias Act = (suspend Heute.() -> Unit) -> Unit
 private class OnHeute(
     val today: LocalDate,
     val tickOff: (TodayEntry) -> Unit,
-    val move: (DueTodo, LocalDate) -> Unit,
+    val move: (DueTodo, MoveTarget) -> Unit,
     val openTodo: (Long) -> Unit,
     val openRoutine: (Long) -> Unit,
     val startRun: (DueRoutine) -> Unit,
@@ -476,7 +477,7 @@ private fun TodoEntry(
                 today = onHeute.today,
                 expanded = menuOpen,
                 onExpandedChange = { menuOpen = it },
-                onMove = { date -> onHeute.move(todo, date) },
+                onMove = { target -> onHeute.move(todo, target) },
                 onOpen = { onHeute.openTodo(todo.todoId) },
             )
         }
@@ -541,6 +542,8 @@ private fun DueTodoRow(
                     todo.overdue -> stringResource(R.string.today_todo_overdue, day)
                     due is Due.At && due.date == today -> stringResource(R.string.today_todo_at, due.time.clockTime())
                     due is Due.On && due.date == today -> stringResource(R.string.today_todo)
+                    // Moved to the weekend, on its Sunday as on its Saturday (its time on that day only).
+                    todo.dueOn(today) -> stringResource(R.string.today_todo)
                     else -> stringResource(R.string.today_todo_due, day)
                 },
                 style = MaterialTheme.typography.labelLarge,

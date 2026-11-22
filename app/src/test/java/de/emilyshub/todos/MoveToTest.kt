@@ -27,6 +27,15 @@ class MoveToTest {
     }
 
     @Test
+    fun `the weekend lasts from its Saturday to its Sunday, the other moves are one day`() {
+        val friday = LocalDate.of(2026, 10, 23)
+
+        assertEquals(MoveTarget(LocalDate.of(2026, 10, 24), until = LocalDate.of(2026, 10, 25)), MoveTo.Weekend.target(friday))
+        assertEquals(MoveTarget(friday.plusDays(1)), MoveTo.Tomorrow.target(friday))
+        assertEquals(MoveTarget(LocalDate.of(2026, 10, 26)), MoveTo.NextWeek.target(friday))
+    }
+
+    @Test
     fun `next week is the coming Monday, on a Monday the one after`() {
         val nextMonday = LocalDate.of(2026, 10, 26)
 

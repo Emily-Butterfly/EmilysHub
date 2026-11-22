@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -179,6 +180,25 @@ class TodayMenuTest {
             item("Nächste Woche").performClick()
 
             assertEquals(Due.On(LocalDate.parse("2026-10-26")), due(id))
+        }
+    }
+
+    @Test
+    fun `moved to the weekend, a to-do is today's on Sunday too, and not overdue`() {
+        val id = app.todo("Fenster putzen")
+        launchApp().use {
+            compose.onNode(isSelectable() and hasText("To-dos")).performClick()
+            menuOf("Fenster putzen")
+            item("Am Wochenende").performClick()
+            compose.onNodeWithText("Auf Sa., 24. Okt. verschoben").assertIsDisplayed()
+        }
+        assertEquals(LocalDate.parse("2026-10-25"), runBlocking { app.todos.get(id) }?.dueUntil)
+
+        app.clock.now = Instant.parse("2026-10-25T08:00:00Z") // Sunday, 09:00 in Berlin
+        launchApp().use {
+            compose.onNodeWithText("To-do").assertIsDisplayed()
+            row("Fenster putzen").assertIsDisplayed()
+            compose.onNodeWithText("Überfällig", substring = true).assertDoesNotExist()
         }
     }
 

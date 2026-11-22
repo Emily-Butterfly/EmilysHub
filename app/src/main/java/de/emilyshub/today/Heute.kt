@@ -13,6 +13,7 @@ import de.emilyshub.stats.Progress
 import de.emilyshub.stats.StreakFlame
 import de.emilyshub.stats.StreakRule
 import de.emilyshub.todos.DueTodo
+import de.emilyshub.todos.MoveTarget
 import de.emilyshub.todos.TodoMove
 import de.emilyshub.todos.Todos
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -154,10 +155,10 @@ class Heute(
     suspend fun undo(routine: DueRoutine) = routines.reopen(routine.occurrenceId)
 
     /**
-     * Moves the to-do to [date] (SPEC.md §1, Menü je Eintrag), as [Todos.moveTo] has it; tells how it moved, to
+     * Moves the to-do to [target] (SPEC.md §1, Menü je Eintrag), as [Todos.moveTo] has it; tells how it moved, to
      * [undoMove] it, and nothing for one done or gone.
      */
-    suspend fun move(todo: DueTodo, date: LocalDate): TodoMove? = todos.moveTo(todo.todoId, date)
+    suspend fun move(todo: DueTodo, target: MoveTarget): TodoMove? = todos.moveTo(todo.todoId, target)
 
     /** Undoes the [move], as [Todos.undo] has it. */
     suspend fun undoMove(move: TodoMove) = todos.undo(move)

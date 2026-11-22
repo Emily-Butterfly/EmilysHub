@@ -1289,6 +1289,21 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 60 moves to version 61 with the to-dos due on their day only and then one due over a weekend is kept`() {
+        createAtVersion(60) {
+            it.execSQL("INSERT INTO todos (id, title, description, due_date, priority) VALUES (1, 'Fenster', '', '2026-10-24', 'normal')")
+        }
+
+        withMigratedDatabase { database ->
+            val todos = database.todos()
+            val window = checkNotNull(todos.get(1))
+            assertEquals(null, window.dueUntil)
+            todos.update(window.copy(dueUntil = LocalDate.parse("2026-10-25")))
+            assertEquals(LocalDate.parse("2026-10-25"), todos.get(1)?.dueUntil)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

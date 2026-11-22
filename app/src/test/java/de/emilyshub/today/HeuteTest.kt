@@ -17,9 +17,12 @@ import de.emilyshub.routines.Priority
 import de.emilyshub.stats.StreakFlame
 import de.emilyshub.todo
 import de.emilyshub.todos.Due
+import de.emilyshub.todos.MoveTarget
+import de.emilyshub.todos.MoveTo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
@@ -196,13 +199,29 @@ class HeuteTest {
         val seen = collect()
         val steuer = seen.last().blocks.overdue.single().todo
 
-        val move = checkNotNull(heute.move(steuer, FRIDAY.plusDays(1)))
+        val move = checkNotNull(heute.move(steuer, MoveTarget(FRIDAY.plusDays(1))))
         runCurrent()
         assertEquals(emptyList<String>(), seen.last().entries.map { it.name })
 
         heute.undoMove(move)
         runCurrent()
         assertEquals(listOf("Steuer"), seen.last().blocks.overdue.map { it.name })
+    }
+
+    @Test
+    fun `a to-do moved to the weekend is today's on Saturday and on Sunday, and overdue only on Monday`() = runTest {
+        app.todo("Fenster")
+        val id = runBlocking { app.todos.open().first() }.single().todo.id
+        runBlocking { app.todos.moveTo(id, MoveTo.Weekend.target(FRIDAY)) }
+
+        app.clock.now = Instant.parse("2026-10-24T08:00:00Z") // Saturday, 10:00 in Berlin
+        assertEquals(listOf("Fenster"), collect().last().blocks.upNext.map { it.name })
+        app.clock.now = Instant.parse("2026-10-25T20:00:00Z") // Sunday, 21:00
+        val sunday = collect().last().blocks
+        assertEquals(listOf("Fenster"), sunday.upNext.map { it.name })
+        assertEquals(emptyList<String>(), sunday.overdue.map { it.name })
+        app.clock.now = Instant.parse("2026-10-26T08:00:00Z") // Monday
+        assertEquals(listOf("Fenster"), collect().last().blocks.overdue.map { it.name })
     }
 
     @Test

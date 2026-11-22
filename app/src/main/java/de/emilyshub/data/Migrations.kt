@@ -894,3 +894,10 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `card_settings` (`id` INTEGER NOT NULL, `daily_limit` INTEGER, PRIMARY KEY(`id`))")
     }
 }
+
+/** 60 → 61: a to-do moved to the weekend is due until its Sunday (SPEC.md §1); those there are due on their day only. */
+val MIGRATION_60_61 = object : Migration(60, 61) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todos` ADD COLUMN `due_until` TEXT")
+    }
+}

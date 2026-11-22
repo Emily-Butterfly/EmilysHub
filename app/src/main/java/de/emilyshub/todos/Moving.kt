@@ -1,5 +1,6 @@
 package de.emilyshub.todos
 
+import java.io.Serializable
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -19,6 +20,9 @@ enum class MoveTo {
     NextWeek,
     ;
 
+    /** Where it moves to from [today]: to the weekend, due from its Saturday until its Sunday; else that one day. */
+    fun target(today: LocalDate): MoveTarget = from(today).let { date -> MoveTarget(date, until = date.plusDays(1).takeIf { this == Weekend }) }
+
     /** The day it moves to, from [today]. */
     fun from(today: LocalDate): LocalDate = when (this) {
         Tomorrow -> today.plusDays(1)
@@ -29,10 +33,24 @@ enum class MoveTo {
 }
 
 /**
- * A to-do moved to another day ([Todos.moveTo]): due as [from] before and as [to] after, and the day its series ended on
- * before, [endedOn], if the move pushed that end out to the new day; to undo it ([Todos.undo]).
+ * Where a to-do is moved to: due on [date], and, moved to the weekend, still due [until] its Sunday, overdue only after
+ * it; none, that day only.
  */
-data class TodoMove(val todoId: Long, val from: Due, val to: Due, val endedOn: LocalDate? = null)
+data class MoveTarget(val date: LocalDate, val until: LocalDate? = null) : Serializable
+
+/**
+ * A to-do moved to another day ([Todos.moveTo]): due as [from] before and as [to] after, until [fromUntil] and [toUntil]
+ * if it was due over a weekend, and the day its series ended on before, [endedOn], if the move pushed that end out to
+ * the new day; to undo it ([Todos.undo]).
+ */
+data class TodoMove(
+    val todoId: Long,
+    val from: Due,
+    val to: Due,
+    val endedOn: LocalDate? = null,
+    val fromUntil: LocalDate? = null,
+    val toUntil: LocalDate? = null,
+) : Serializable
 
 /** Due on [date] instead, at the same time if it has one; one due whenever on that day, without a time. */
 internal fun Due.movedTo(date: LocalDate): Due = when (this) {

@@ -57,6 +57,11 @@ data class Todo(
     @ColumnInfo(name = "due_date") val dueDate: LocalDate? = null,
     /** Only with a [dueDate]. */
     @ColumnInfo(name = "due_time") val dueTime: LocalTime? = null,
+    /**
+     * Moved to the weekend, the Sunday after its [dueDate]: due both days, shown as today's on each, and overdue only
+     * after it, its time aside (SPEC.md §1, Menü je Eintrag). None, it is due on its day only.
+     */
+    @ColumnInfo(name = "due_until") val dueUntil: LocalDate? = null,
     val priority: Priority = Priority.Normal,
     @ColumnInfo(name = "done_at") val doneAt: Instant? = null,
     @Embedded val reminding: Reminding = Reminding(),
@@ -102,7 +107,7 @@ data class Todo(
      * series. Waking some days before it is due comes along; a fixed moment to wake was for this one only.
      */
     fun comingNext(nextDue: LocalDate): Todo =
-        copy(id = 0, dueDate = nextDue, doneAt = null, nextId = null, reminding = Reminding(), seriesNumber = seriesNumber + 1)
+        copy(id = 0, dueDate = nextDue, dueUntil = null, doneAt = null, nextId = null, reminding = Reminding(), seriesNumber = seriesNumber + 1)
             .withWake(wake as? WakeTime.Before)
 
     /** When its series ends, from [endsAfter] and [endsOn]. */
@@ -243,7 +248,12 @@ data class DueTodo(
     val recurrence: Recurrence? = null,
     val end: RecurrenceEnd = RecurrenceEnd.Never,
     val seriesNumber: Int = 1,
-)
+    /** Moved to the weekend, the Sunday it is due until (SPEC.md §1, Menü je Eintrag). */
+    val dueUntil: LocalDate? = null,
+) {
+    /** Whether it is due [today] as today's: on its day, or moved to the weekend, on its Saturday or Sunday. */
+    fun dueOn(today: LocalDate): Boolean = due.date == today || (dueUntil != null && due.date?.isAfter(today) == false && !dueUntil.isBefore(today))
+}
 
 /**
  * A to-do to remind of (SPEC.md §3): its [title], when it is [due], the names of the [places] it reminds at, whether
