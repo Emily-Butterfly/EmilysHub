@@ -347,6 +347,15 @@ class Flashcards(
         emitAll(summary)
     }.flowOn(io)
 
+    /**
+     * The languages whose workload on [today] is done at its limit (#156), with more due waiting beyond it, as they
+     * change: done so also without an answer of it, as when its share is none, or shrinks as another language comes
+     * back from the archive; for the routines it does to be done too.
+     */
+    fun doneAtLimit(today: LocalDate): Flow<Set<Long>> = flow {
+        emitAll(observeWorkloads(today).map { day -> day.workloads.filterValues { it.done && it.waiting > 0 }.keys }.distinctUntilChanged())
+    }.flowOn(io)
+
     /** The workload on [today] of each language not archived that has cards, by its id, as they change. */
     fun workloads(today: LocalDate): Flow<Map<Long, Workload>> = flow {
         emitAll(observeWorkloads(today).map { day -> day.workloads.filterKeys { it in day.withCards } })

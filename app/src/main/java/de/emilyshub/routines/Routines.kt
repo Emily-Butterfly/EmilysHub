@@ -348,6 +348,24 @@ class Routines(
         open.forEach { markDone(it) }
     }
 
+    /**
+     * The day's workload of the language [languageId] is done at its limit (SPEC.md §15; #156), told as often as it is
+     * seen: each active routine done by it is done as [doneByVocabulary] does it, but only while none of its
+     * occurrences of today is done already.
+     */
+    suspend fun doneByVocabularyOnce(languageId: Long) {
+        val open = withContext(io) {
+            val today = today()
+            plan(today)
+            dao.withStatus(RoutineStatus.Active).filter { it.vocabularyLanguageId == languageId }.mapNotNull { routine ->
+                val todays = dao.occurrencesOn(routine.id, today)
+                if (todays.any { it.status == OccurrenceStatus.Done }) return@mapNotNull null
+                todays.filter { it.status == OccurrenceStatus.Open }.minByOrNull { it.time }?.id
+            }
+        }
+        open.forEach { markDone(it) }
+    }
+
     suspend fun skip(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Skipped)
 
     /**

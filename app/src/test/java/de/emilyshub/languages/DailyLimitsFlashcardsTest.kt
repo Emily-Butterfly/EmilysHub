@@ -123,6 +123,37 @@ class DailyLimitsFlashcardsTest {
     }
 
     @Test
+    fun `a workload done at its limit without an answer of it is told, as when a language taken back from the archive takes a share`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val turkish = language("Türkisch")
+        dueCards(arabic, 30, prefix = "a")
+        dueCards(italian, 10, prefix = "i")
+        dueCards(turkish, 40, prefix = "t")
+        languages.setLanguageArchived(turkish, archived = true)
+        cards.setOverallLimit(20)
+        repeat(4) { answerNext(italian, Rating.Good) }
+        assertEquals(emptySet<Long>(), cards.doneAtLimit(today()).first())
+
+        // Italian's share now 20 × 10/80, rounded: 2, which it has passed.
+        languages.setLanguageArchived(turkish, archived = false)
+
+        assertTrue(workload(italian).done)
+        assertEquals(setOf(italian), cards.doneAtLimit(today()).first())
+    }
+
+    @Test
+    fun `a workload done with nothing waiting is not done at its limit`() = runBlocking {
+        val arabic = language("Arabisch")
+        dueCards(arabic, 2)
+        database.languages().setDailyLimit(arabic, 20)
+        repeat(2) { answerNext(arabic, Rating.Good) }
+
+        assertTrue(workload(arabic).done)
+        assertEquals(emptySet<Long>(), cards.doneAtLimit(today()).first())
+    }
+
+    @Test
     fun `a topic practised knows no limit and does not count against it`() = runBlocking {
         val arabic = language("Arabisch")
         val topic = (languages.createTopic(arabic, "Verben") as Saving.Saved).id

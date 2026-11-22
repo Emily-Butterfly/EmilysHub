@@ -66,6 +66,17 @@ class VocabularyCountsTest {
     }
 
     @Test
+    fun `a workload done at its limit does the routine once, however often told, and not one done already today`() = runBlocking {
+        val arabic = language("Arabisch")
+        val id = routine("Vokabeln", "12:00", "18:00", vocabulary = arabic)
+
+        routines.doneByVocabularyOnce(arabic)
+        routines.doneByVocabularyOnce(arabic)
+        val todays = database.routines().occurrencesOn(id, routines.today()).sortedBy { it.time }
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), todays.map { it.status })
+    }
+
+    @Test
     fun `a card answered Nochmal is due tomorrow, so the workload counts as done, as the start page of Sprachen has it`() = runBlocking {
         val arabic = language("Arabisch")
         card(arabic, "kitab")

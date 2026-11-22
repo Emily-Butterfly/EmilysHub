@@ -959,6 +959,36 @@ class VocabularyScreenTest {
         assertEquals(null, runBlocking { app.flashcards.overallLimit().first() })
     }
 
+    @Test
+    fun `a workload done at its limit does its routine as the app opens, also one made after the answers`() {
+        val italian = language("Italienisch")
+        val arabic = language("Arabisch")
+        dueCards(arabic, 30)
+        dueCards(italian, 10)
+        runBlocking {
+            app.flashcards.setOverallLimit(20)
+            // Italian's share is 5: practised to it, with more waiting.
+            repeat(5) {
+                val next = checkNotNull(app.flashcards.workload(italian, LocalDate.now(app.clock)).first()).remaining.first()
+                app.flashcards.answer(next.id, Rating.Good)
+            }
+        }
+        // Made afterwards, no answer did it.
+        app.routine("Vokabeln", "18:00")
+        runBlocking {
+            val routine = app.testDatabase.routines().withStatus(RoutineStatus.Active).single()
+            app.testDatabase.routines().update(routine.copy(vocabularyLanguageId = italian))
+        }
+
+        fun statuses() = runBlocking { app.routines.dueOn(app.routines.today()).first() }.map { it.status }
+        assertEquals(listOf(OccurrenceStatus.Open), statuses())
+
+        launchApp().use {
+            compose.waitUntil(timeoutMillis = 5_000) { statuses() == listOf(OccurrenceStatus.Done) }
+        }
+        assertEquals(listOf(OccurrenceStatus.Done), statuses())
+    }
+
     /** [count] cards of [languageId], answered some days ago and due today. */
     private fun dueCards(languageId: Long, count: Int) {
         val start = app.clock.now
