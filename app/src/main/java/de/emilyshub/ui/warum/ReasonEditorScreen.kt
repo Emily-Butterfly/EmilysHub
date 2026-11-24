@@ -224,7 +224,7 @@ private fun LookFields(reasons: Reasons, draft: ReasonDraft, onChange: (ReasonLo
         val cleaned = draft.cleaned()
         // Half the width, as on the board.
         Box(Modifier.fillMaxWidth(0.5f).align(Alignment.CenterHorizontally)) {
-            ReasonCard(reasons, cleaned.text, cleaned.photo, look, roomForMenu = false)
+            ReasonAsOnBoard(reasons, cleaned.text, cleaned.photo, look, roomForMenu = false)
         }
         // A warning only: it may be saved all the same.
         if (look.hardToReadIn(standardColors())) {

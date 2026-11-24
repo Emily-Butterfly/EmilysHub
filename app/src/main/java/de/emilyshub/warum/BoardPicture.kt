@@ -12,6 +12,8 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
 import java.io.ByteArrayOutputStream
 import kotlin.math.roundToInt
 
@@ -46,7 +48,7 @@ class BoardPicture(private val typefaceOf: (ReasonFont) -> Typeface, private val
     /** [reasons], as high as [heights], drawn as one image, as PNG. */
     fun draw(reasons: List<DrawnReason>, heights: List<Int>, theme: BoardTheme): ByteArray {
         val layout = pages.layout(heights)
-        val bitmap = Bitmap.createBitmap(WIDTH, layout.height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(WIDTH, layout.height)
         try {
             val canvas = Canvas(bitmap)
             canvas.drawColor(theme.page)
@@ -61,26 +63,26 @@ class BoardPicture(private val typefaceOf: (ReasonFont) -> Typeface, private val
         }
     }
 
+    /** [reason] drawn within [bounds]: on its background, its photo above, its text below, in the round corners of the board. */
     private fun drawReason(canvas: Canvas, reason: DrawnReason, bounds: RectF, theme: BoardTheme) {
         val corners = Path().apply { addRoundRect(bounds, CORNER, CORNER, Path.Direction.CW) }
-        canvas.save()
-        canvas.clipPath(corners)
-        canvas.drawColor(reason.look.backgroundIn(theme.standard))
-        var top = bounds.top
-        reason.photo?.let { bytes ->
-            val height = photoHeight(bytes) ?: return@let
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { photo ->
-                val target = Rect(bounds.left.roundToInt(), top.roundToInt(), bounds.right.roundToInt(), (top + height).roundToInt())
-                canvas.drawBitmap(photo, null, target, Paint(Paint.FILTER_BITMAP_FLAG))
-                photo.recycle()
+        canvas.withClip(corners) {
+            drawColor(reason.look.backgroundIn(theme.standard))
+            var top = bounds.top
+            reason.photo?.let { bytes ->
+                val height = photoHeight(bytes) ?: return@let
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { photo ->
+                    val target = Rect(bounds.left.roundToInt(), top.roundToInt(), bounds.right.roundToInt(), (top + height).roundToInt())
+                    drawBitmap(photo, null, target, Paint(Paint.FILTER_BITMAP_FLAG))
+                    photo.recycle()
+                }
+                top += height
             }
-            top += height
+            textLayout(reason, theme)?.let { text ->
+                translate(bounds.left + TEXT_SIDE, top + textPadding(reason))
+                text.draw(this)
+            }
         }
-        textLayout(reason, theme)?.let { text ->
-            canvas.translate(bounds.left + TEXT_SIDE, top + textPadding(reason))
-            text.draw(canvas)
-        }
-        canvas.restore()
     }
 
     /** How high a photo in [bytes] is at the column's width; none if it is no picture. */
@@ -91,6 +93,7 @@ class BoardPicture(private val typefaceOf: (ReasonFont) -> Typeface, private val
         return (COLUMN.toFloat() * bounds.outHeight / bounds.outWidth).roundToInt()
     }
 
+    /** The text of [reason] laid out as it is drawn, in the middle of its column; none without a text. */
     private fun textLayout(reason: DrawnReason, theme: BoardTheme): StaticLayout? {
         if (reason.text.isEmpty()) return null
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -109,6 +112,7 @@ class BoardPicture(private val typefaceOf: (ReasonFont) -> Typeface, private val
             .build()
     }
 
+    /** Above and below the text: more alone than as the strip below a photo, as on the board. */
     private fun textPadding(reason: DrawnReason) = if (reason.photo == null) TEXT_ALONE else TEXT_STRIP
 
     companion object {
@@ -118,14 +122,15 @@ class BoardPicture(private val typefaceOf: (ReasonFont) -> Typeface, private val
         /** About how high an image may be before the board goes on in the next (SPEC.md §18). */
         const val LIMIT = 16_000
 
-        // As the board on a phone's screen, at the width of an image: about 2.6 pixels for each dp there.
-        private const val PADDING = 48
-        private const val GAP = 24
+        // As the board on a phone's screen, at the width of an image: about 2.6 pixels for each dp there. Its 8 dp at the
+        // edges and between, a card's corners of 12 dp, and the text 16 dp from the sides, 20 dp alone and 12 dp below a photo.
+        private const val PADDING = 21
+        private const val GAP = 21
         private const val COLUMN = (WIDTH - 2 * PADDING - GAP) / 2
-        private const val CORNER = 30f
-        private const val TEXT_SIDE = 40
+        private const val CORNER = 31f
+        private const val TEXT_SIDE = 42
         private const val TEXT_ALONE = 52
-        private const val TEXT_STRIP = 32
+        private const val TEXT_STRIP = 31
         private const val SMALL = 36f
         private const val MEDIUM = 47f
         private const val LARGE = 62f

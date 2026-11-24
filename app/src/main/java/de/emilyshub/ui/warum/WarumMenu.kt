@@ -40,16 +40,21 @@ fun WarumMenu(reasons: Reasons, export: BoardExport) {
     var open by remember { mutableStateOf(false) }
     var asking by rememberSaveable { mutableStateOf(false) }
     val theme = BoardTheme(standardColors(), page = MaterialTheme.colorScheme.background.toArgb())
+    val busy = stringResource(R.string.warum_export_busy)
+    val done = stringResource(R.string.warum_export_done)
+    val failed = stringResource(R.string.warum_export_failed)
 
+    /** Tells whether the image, or all of them, could be [saved]. */
     fun told(saved: Boolean) {
-        val text = if (saved) R.string.warum_export_done else R.string.warum_export_failed
-        Toast.makeText(context, context.getString(text), Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, if (saved) done else failed, Toast.LENGTH_SHORT).show()
     }
 
-    val one = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
+    // One image, to the file chosen in Android's file dialog.
+    val oneFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
         if (uri != null) scope.launchNow { told(export.saveOne(uri.toString(), theme)) }
     }
-    val several = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    // Several, into a folder chosen once.
+    val intoFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) scope.launchNow { told(export.saveInto(uri.toString(), theme)) }
     }
 
@@ -65,12 +70,12 @@ fun WarumMenu(reasons: Reasons, export: BoardExport) {
                 TextButton(
                     onClick = {
                         asking = false
-                        Toast.makeText(context, context.getString(R.string.warum_export_busy), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, busy, Toast.LENGTH_SHORT).show()
                         scope.launchNow {
                             when (val count = export.count(theme)) {
                                 0 -> Unit
-                                1 -> one.launch(export.fileName(page = 1, of = count))
-                                else -> several.launch(null)
+                                1 -> oneFile.launch(export.fileName(page = 1, of = count))
+                                else -> intoFolder.launch(null)
                             }
                         }
                     },

@@ -95,15 +95,17 @@ internal fun styleOf(look: ReasonLook, place: ReasonPlace): TextStyle {
 @Composable
 internal fun backgroundOf(look: ReasonLook): Color = Color(look.backgroundIn(standardColors()))
 
-/** What "Standard" is in the design the app shows: its text on the tiles' colour. */
+/** What "Standard" is in the design the app shows: its text on the colour of a Grund on the board. */
 @Composable
 internal fun standardColors() = StandardColors(
     text = MaterialTheme.colorScheme.onSurface.toArgb(),
     background = MaterialTheme.colorScheme.surfaceContainerHigh.toArgb(),
 )
 
+/** The lines of a Grund's text this far apart, by the size of its letters; the same in the images of the board. */
 private const val LINE_HEIGHT = 1.3f
 
+/** The name [font] is shown by. */
 @StringRes
 internal fun nameOf(font: ReasonFont): Int = when (font) {
     ReasonFont.Standard -> R.string.font_standard
@@ -116,6 +118,7 @@ internal fun nameOf(font: ReasonFont): Int = when (font) {
     ReasonFont.Typewriter -> R.string.font_typewriter
 }
 
+/** The name [size] is shown by. */
 @StringRes
 internal fun nameOf(size: ReasonSize): Int = when (size) {
     ReasonSize.Small -> R.string.size_small
@@ -145,6 +148,7 @@ internal fun nameOf(color: ReasonColor): String {
     )
 }
 
+/** The name of [hue]. */
 @StringRes
 private fun hueName(hue: Hue): Int = when (hue) {
     Hue.Red -> R.string.hue_red

@@ -35,7 +35,8 @@ class BoardExport(
     suspend fun saveOne(address: String, theme: BoardTheme): Boolean = withContext(io + NonCancellable) {
         val pages = pagesOf(theme)
         val page = pages.singleOrNull() ?: return@withContext false
-        documents.write(address, draw(page, theme))
+        val bytes = drawn(page, theme) ?: return@withContext false
+        documents.write(address, bytes)
     }
 
     /** Writes every image of the board into the folder at [address]; whether all of them could be. */
@@ -45,7 +46,7 @@ class BoardExport(
         val folder = folderAt(address)
         try {
             pages.forEachIndexed { index, page ->
-                val bytes = draw(page, theme)
+                val bytes = drawn(page, theme) ?: return@withContext false
                 folder.write(fileName(index + 1, pages.size)).use { it.write(bytes) }
             }
             true
@@ -57,20 +58,29 @@ class BoardExport(
         }
     }
 
-    /** One image: the Gründe of [page], drawn with their photos read anew. */
-    private suspend fun draw(page: Page, theme: BoardTheme): ByteArray {
-        val drawn = page.reasons.map { drawn(it) }
-        return picture.draw(drawn, page.heights, theme)
+    /**
+     * One image: the Gründe of [page], drawn with their photos read anew; none if the phone has not the memory for an
+     * image this high, which is then told as not saved rather than ending the app.
+     */
+    private suspend fun drawn(page: Page, theme: BoardTheme): ByteArray? {
+        val toDraw = page.reasons.map { forDrawing(it) }
+        return try {
+            picture.draw(toDraw, page.heights, theme)
+        } catch (e: OutOfMemoryError) {
+            null
+        }
     }
 
     /** The board's Gründe split into images, each with how high they stand; their photos read one by one to measure. */
     private suspend fun pagesOf(theme: BoardTheme): List<Page> {
         val board = reasons.board().first()
-        val heights = board.map { picture.heightOf(drawn(it), theme) }
+        val heights = board.map { picture.heightOf(forDrawing(it), theme) }
         return picture.split(heights).map { range -> Page(board.slice(range), heights.slice(range)) }
     }
 
-    private suspend fun drawn(reason: Reason) = DrawnReason(reason.text, reason.look, reason.photo?.let { reasons.photo(it) })
+    /** [reason] as it is drawn, its photo read and decrypted for the image only. */
+    private suspend fun forDrawing(reason: Reason) = DrawnReason(reason.text, reason.look, reason.photo?.let { reasons.photo(it) })
 
+    /** The Gründe of one image, in their order, and how high each stands. */
     private class Page(val reasons: List<Reason>, val heights: List<Int>)
 }

@@ -71,7 +71,7 @@ class BoardExportTest {
         assertEquals(theme.page, image.getPixel(2, 2))
         // The newest on the left: the photo, then the blue one on the right.
         assertTrue("its photo", (0 until image.height step 4).any { near(image.getPixel(300, it), Color.GREEN) })
-        assertTrue("a strong blue tile", (0 until image.height step 4).any { image.getPixel(780, it) == ReasonColor.Blue4.argb })
+        assertTrue("a Grund on strong blue", (0 until image.height step 4).any { image.getPixel(780, it) == ReasonColor.Blue4.argb })
     }
 
     @Test

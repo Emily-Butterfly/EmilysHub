@@ -212,7 +212,7 @@ private fun BoardReason(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxWidth()) {
-        ReasonCard(
+        ReasonAsOnBoard(
             reasons = reasons,
             text = reason.text,
             photo = reason.photo,
@@ -246,7 +246,7 @@ private fun BoardReason(
  * in its font, size and colours (SPEC.md §18). [roomForMenu] keeps the text clear of a menu in the corner.
  */
 @Composable
-internal fun ReasonCard(
+internal fun ReasonAsOnBoard(
     reasons: Reasons,
     text: String,
     photo: String?,
