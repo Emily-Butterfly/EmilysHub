@@ -19,7 +19,8 @@ import java.time.LocalDate
  * ([lastReview]), the day it is due ([due]) and the interval planned last, in days ([interval]); a new card has none of
  * them. Asked [bothWays] (#141), it is also asked from its back to its front, planned on its own as the [reverse]
  * fields say, as a second card would be. Optionally an [example], a sentence in its language with its front in it, which
- * the practice shows (#155; [ExampleSentence]). Its language cannot be deleted while it is there.
+ * the practice shows (#155; [ExampleSentence]). Made or changed by a Vokabeldatei (#165; [Reconciliation]), the key of its
+ * vocable there ([vocabKey]), none for a card made by hand. Its language cannot be deleted while it is there.
  */
 @Entity(
     tableName = "cards",
@@ -51,6 +52,7 @@ data class Card(
     @ColumnInfo(name = "reverse_due") val reverseDue: LocalDate? = null,
     @ColumnInfo(name = "reverse_interval") val reverseInterval: Int? = null,
     @ColumnInfo(defaultValue = "") val example: String = "",
+    @ColumnInfo(name = "vocab_key") val vocabKey: String? = null,
 ) : Serializable {
     /** It asked from its front, and, [bothWays], from its back too: what a day's workload and a topic take. */
     val prompts: List<Prompt> get() = listOfNotNull(Prompt(this), Prompt(this, reverse = true).takeIf { bothWays })

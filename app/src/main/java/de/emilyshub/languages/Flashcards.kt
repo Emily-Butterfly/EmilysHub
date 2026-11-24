@@ -430,6 +430,53 @@ class Flashcards(
         CardImport.fromFile(picked.bytes)
     }
 
+    /** The Vokabeldatei at [address], picked in Android's file dialog (#165): read, never kept. */
+    suspend fun readVocabFile(address: String): VocabFile = withContext(io) {
+        val picked = documents.read(address, VocabFiles.MAX_BYTES + 1) ?: return@withContext VocabFile.NotVocabFile
+        VocabFiles.read(picked.bytes)
+    }
+
+    /** What [vocabs] would do to the cards of the language [languageId] as they are now (#165). */
+    suspend fun reconciliation(languageId: Long, vocabs: List<Vocab>): Reconciliation = withContext(io) {
+        Reconciliation.of(dao.of(languageId), languages.topicsOf(languageId), vocabs)
+    }
+
+    /**
+     * Takes [vocabs] over into the cards of the language [languageId] (SPEC.md §15, Abgleich; #165), as
+     * [Reconciliation] tells it on the cards as they are then: the topics they name that it lacks are made, the
+     * vocables added become new cards, asked [bothWays] or not, but those of the entries [leftOut], and the cards
+     * changed take their vocable's front, back, note, topic and key, all else on them staying. No card goes. All at once.
+     */
+    suspend fun takeOver(languageId: Long, vocabs: List<Vocab>, leftOut: Set<Int>, bothWays: Boolean): VocabsTaken = write {
+        database().withTransaction {
+            val plan = Reconciliation.of(dao.of(languageId), languages.topicsOf(languageId), vocabs)
+            // A topic named is made once a card takes it, so that one left out makes none.
+            val topicIds = languages.topicsOf(languageId).associate { InputText.comparable(it.name) to it.id }.toMutableMap()
+            suspend fun topicOf(name: String?): Long? = name?.let {
+                topicIds.getOrPut(InputText.comparable(it)) { languages.insertTopic(Topic(languageId = languageId, name = it)) }
+            }
+            val added = plan.added.filter { it.entry !in leftOut }
+            added.forEach { vocab ->
+                val draft = CardDraft(vocab.front, vocab.back, note = vocab.note, topicId = topicOf(vocab.topic), bothWays = bothWays)
+                dao.insert(draft.applyTo(Card(languageId = languageId, front = "", back = "")).copy(vocabKey = vocab.key))
+            }
+            plan.changed.forEach { change ->
+                val vocab = change.vocab
+                val card = change.card
+                dao.update(
+                    card.copy(
+                        front = vocab.front,
+                        back = vocab.back,
+                        note = vocab.note.ifEmpty { card.note },
+                        topicId = topicOf(vocab.topic) ?: card.topicId,
+                        vocabKey = vocab.key,
+                    ),
+                )
+            }
+            VocabsTaken(created = added.size, changed = plan.changed.size)
+        }
+    }
+
     /** The card [id] as it is saved; none once it is gone. */
     suspend fun card(id: Long): Card? = withContext(io) { dao.card(id) }
 

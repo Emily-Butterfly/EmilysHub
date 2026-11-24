@@ -59,6 +59,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardFile
+import de.emilyshub.languages.VocabFile
 import de.emilyshub.languages.CardRow
 import de.emilyshub.languages.CardsTab
 import de.emilyshub.languages.DailyLimits
@@ -114,6 +115,11 @@ internal fun CardsTabContent(
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launchNow { picked = flashcards.readFile(uri.toString()) }
     }
+    // A Vokabeldatei picked and read, to look at before it is taken over (#165); not kept past the screen.
+    var pickedVocabs by remember { mutableStateOf<VocabFile?>(null) }
+    val pickVocabs = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launchNow { pickedVocabs = flashcards.readVocabFile(uri.toString()) }
+    }
     val shown = tab ?: return
 
     // One deleted meanwhile filters no more; none hakt any more, neither does that filter.
@@ -164,6 +170,8 @@ internal fun CardsTabContent(
                     onSetLimit = { settingLimit = true },
                     onSetAnswering = { settingAnswering = true },
                     onImport = { pick.launch(arrayOf("text/*")) },
+                    // Known by what it holds, not its name: "vokabeln.json.txt" reads as one too.
+                    onSyncVocabs = { pickVocabs.launch(arrayOf("*/*")) },
                 )
             }
         }
@@ -233,6 +241,11 @@ internal fun CardsTabContent(
         is CardFile.Read if file.cards.isNotEmpty() ->
             CardFilePreviewDialog(flashcards, languageId, file, shown.topics, onDismiss = { picked = null })
         else -> CardFileRefusedDialog(file, onDismiss = { picked = null })
+    }
+    when (val file = pickedVocabs) {
+        null -> Unit
+        is VocabFile.Read if file.vocabs.isNotEmpty() -> VocabFilePreviewDialog(flashcards, languageId, file, onDismiss = { pickedVocabs = null })
+        else -> VocabFileRefusedDialog(file, onDismiss = { pickedVocabs = null })
     }
 
     if (settingNew) {
@@ -324,7 +337,7 @@ private fun DirectedLine(text: String, maxLines: Int) {
 /**
  * The menu of the tab: how many new cards a day takes, how many ways a day's workload asks at most (#156), whether the practice asks for the answer [typed] (#153), whether
  * the question leaves out the vowel marks, ticked or not as [hideVowelMarks] says and not offered while it is none
- * (#154), and cards from a file of the phone ([onImport]).
+ * (#154), cards from a file of the phone ([onImport]), and a Vokabeldatei to take over ([onSyncVocabs], #165).
  */
 @Composable
 private fun CardsMenu(
@@ -336,6 +349,7 @@ private fun CardsMenu(
     onSetLimit: () -> Unit,
     onSetAnswering: () -> Unit,
     onImport: () -> Unit,
+    onSyncVocabs: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -381,6 +395,13 @@ private fun CardsMenu(
                 onClick = {
                     expanded = false
                     onImport()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.vocab_file_sync)) },
+                onClick = {
+                    expanded = false
+                    onSyncVocabs()
                 },
             )
         }

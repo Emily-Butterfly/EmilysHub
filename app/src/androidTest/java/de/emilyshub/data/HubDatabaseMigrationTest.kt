@@ -1352,6 +1352,22 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 64 moves to version 65 with the cards keyed by no vocable and then a key is kept`() {
+        createAtVersion(64) {
+            it.execSQL("INSERT INTO languages (id, name, archived, new_cards_per_day, typed_answers, hide_vowel_marks) VALUES (1, 'Arabisch', 0, 10, 0, 0)")
+            it.execSQL("INSERT INTO cards (id, language_id, front, back, transcription, note) VALUES (1, 1, 'kitab', 'Buch', '', '')")
+        }
+
+        withMigratedDatabase { database ->
+            val cards = database.cards()
+            val book = checkNotNull(cards.card(1))
+            assertEquals(null, book.vocabKey)
+            cards.update(book.copy(vocabKey = "v0001"))
+            assertEquals("v0001", cards.card(1)?.vocabKey)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

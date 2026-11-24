@@ -929,3 +929,10 @@ val MIGRATION_63_64 = object : Migration(63, 64) {
         db.execSQL("ALTER TABLE `reasons` ADD COLUMN `text_color` TEXT NOT NULL DEFAULT 'standard'")
     }
 }
+
+/** 64 → 65: a card knows the key of its vocable in a Vokabeldatei (SPEC.md §15, Abgleich; #165); those there, made by hand, none. */
+val MIGRATION_64_65 = object : Migration(64, 65) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `vocab_key` TEXT")
+    }
+}

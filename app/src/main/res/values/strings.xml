@@ -1600,6 +1600,45 @@
     <string name="cards_import_too_many_lines">Die Datei hat mehr als 2 000 Zeilen und wird nicht gelesen.</string>
     <string name="cards_import_not_text">Die Datei ist kein Text in UTF-8 und wird nicht gelesen.</string>
     <string name="cards_import_none">Keine Zeile der Datei liest sich als Karte. Je Zeile: Vorderseite, Rückseite, Umschrift, Notiz, Beispielsatz, getrennt mit Tabulator oder Semikolon.</string>
+    <string name="vocab_file_sync">Vokabeldatei abgleichen</string>
+    <string name="vocab_file_summary">%1$d neu · %2$d geändert · %3$d unverändert</string>
+    <string name="vocab_file_up_to_date">Alles schon aktuell</string>
+    <string name="vocab_file_take_over">Übernehmen</string>
+    <string name="vocab_file_taken">Angelegt: %1$d · geändert: %2$d</string>
+    <string name="vocab_file_hand_made">von Hand angelegt, jetzt mit der Vokabeldatei verbunden</string>
+    <string name="vocab_file_key_only">nur neu verknüpft</string>
+    <string name="vocab_file_field_front">Vorderseite</string>
+    <string name="vocab_file_field_back">Rückseite</string>
+    <string name="vocab_file_field_note">Notiz</string>
+    <string name="vocab_file_field_topic">Thema</string>
+    <string name="vocab_file_too_large">Die Datei ist größer als 3 MB und wird nicht gelesen.</string>
+    <string name="vocab_file_too_many">Die Datei hat mehr als 5 000 Vokabeln und wird nicht gelesen.</string>
+    <string name="vocab_file_not_vocab_file">Die Datei ist keine Vokabeldatei: ein JSON-Objekt mit der Liste „vokabeln“.</string>
+    <string name="vocab_file_none">Keine Vokabel der Datei ist lesbar. Jede braucht „ar_unvokalisiert“ und „bedeutung“.</string>
+    <plurals name="vocab_file_added">
+        <item quantity="one">%d neue Karte</item>
+        <item quantity="other">%d neue Karten</item>
+    </plurals>
+    <plurals name="vocab_file_changed">
+        <item quantity="one">%d geänderte Karte</item>
+        <item quantity="other">%d geänderte Karten</item>
+    </plurals>
+    <plurals name="vocab_file_unreadable">
+        <item quantity="one">%1$d Vokabel nicht lesbar (Eintrag %2$s)</item>
+        <item quantity="other">%1$d Vokabeln nicht lesbar (Eintrag %2$s)</item>
+    </plurals>
+    <plurals name="vocab_file_duplicate">
+        <item quantity="one">%1$d Vokabel mit doppeltem Schlüssel übersprungen (Eintrag %2$s)</item>
+        <item quantity="other">%1$d Vokabeln mit doppeltem Schlüssel übersprungen (Eintrag %2$s)</item>
+    </plurals>
+    <plurals name="vocab_file_refused">
+        <item quantity="one">%1$d nicht übernommen, die Vorderseite hat schon eine andere Karte: %2$s</item>
+        <item quantity="other">%1$d nicht übernommen, die Vorderseite hat schon eine andere Karte: %2$s</item>
+    </plurals>
+    <plurals name="vocab_file_new_topics">
+        <item quantity="one">%1$d neues Thema: %2$s</item>
+        <item quantity="other">%1$d neue Themen: %2$s</item>
+    </plurals>
     <plurals name="cards_count">
         <item quantity="one">%1$d Karte</item>
         <item quantity="other">%1$d Karten</item>
