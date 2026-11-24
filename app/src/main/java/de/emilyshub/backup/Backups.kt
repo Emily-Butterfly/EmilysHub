@@ -350,7 +350,9 @@ class Backups(
         val rows = backup().lessonAttachments()
         val photos = backup().reasons().mapNotNull { it.photo }
         val sizes = carried.associate { it.file to it.bytes }
-        if ((rows.map { it.file } + photos).toSet().size != carried.size) damaged()
+        // Each file once, not a lesson's and a reason's both.
+        val files = rows.map { it.file } + photos
+        if (files.size != carried.size || files.toSet().size != files.size) damaged()
         if (rows.any { sizes[it.file] != it.bytes } || photos.any { it !in sizes }) damaged()
         if (rows.groupBy { it.lessonId }.values.any { it.size > LessonFiles.MAX_ATTACHMENTS }) damaged()
         if (photos.size > Reasons.MAX_PHOTOS) damaged()

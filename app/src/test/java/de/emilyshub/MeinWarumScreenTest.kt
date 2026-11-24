@@ -186,15 +186,18 @@ class MeinWarumScreenTest {
     }
 
     @Test
-    fun `Mein Warum stays open when another tab is chosen, as the goals do`() {
+    fun `Mein Warum stays open when another tab is chosen, as the goals do, and comes back looked at`() {
         reason("Lina")
 
         launchApp().use {
             openWarum()
+            compose.onNodeWithContentDescription("Bearbeiten").performClick()
             compose.onNode(isSelectable() and hasText("Heute")).performClick()
             compose.onNode(isSelectable() and hasText("Sonstiges")).performClick()
             compose.onNode(isHeading() and hasText("Mein Warum")).assertIsDisplayed()
             compose.onNodeWithText("Lina").assertIsDisplayed()
+            // Back as it is looked at, not edited.
+            compose.onNodeWithContentDescription("Grund hinzufügen").assertDoesNotExist()
         }
     }
 

@@ -304,6 +304,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     tabs = tabs.closeMore()
                 } else {
                     if (tabs.more?.locks == true) tabs = tabs.closeMore()
+                    // Mein Warum comes back as it is looked at, not edited (SPEC.md §18).
+                    if (tabs.warumEditing) tabs = tabs.copy(warumEditing = false)
                     current = it
                 }
             },

@@ -7,6 +7,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestApplication
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentImport
+import de.emilyshub.languages.LessonDraft
+import de.emilyshub.languages.LessonEditing
+import de.emilyshub.languages.TeacherDraft
+import de.emilyshub.languages.TeacherEditing
 import de.emilyshub.warum.ReasonDraft
 import de.emilyshub.warum.Reasons
 import kotlinx.coroutines.flow.first
@@ -22,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -103,6 +108,39 @@ class ReasonPhotoBackupsTest {
         }
         val carried = opened.attachments + photos.map { byteArrayOf(1) }
         return BackupFile.seal(content.toString().toByteArray(), BackupKey.derive(PASSWORD, iterations = 1_000), carried)
+    }
+
+    @Test
+    fun `a backup whose reason has the photo of a lesson's attachment is refused`() {
+        reason("Das Meer", withPhoto = true)
+        runBlocking {
+            val language = (app.languages.createLanguage("Arabisch") as Saving.Saved).id
+            val teacher = (app.languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal", languageIds = setOf(language))) as Saving.Saved).id
+            val pdf = (app.lessonFiles.importPdf(app.lessonDocuments.put("Blatt.pdf", "%PDF-Blatt".toByteArray()), 0) as AttachmentImport.Added).attachment
+            app.languages.save(LessonEditing.New, LessonDraft(LocalDate.parse("2026-10-20"), "60", language, teacher, attachments = listOf(pdf)))
+        }
+        val file = exported()
+        val opened = BackupFile.open(file, PASSWORD)
+        val content = JSONObject(String(opened.plaintext))
+        val listed = content.getJSONArray("attachments")
+        val lessons = content.getJSONObject("tables").getJSONObject("lesson_attachments")
+        val lessonsFile = lessons.getJSONArray("rows").getJSONArray(0).getString(lessons.getJSONArray("columns").let { c -> (0 until c.length()).first { c.getString(it) == "file" } })
+        // The reason's own photo dropped, it points at the lesson's file, carried once.
+        val photoAt = (0 until listed.length()).first { listed.getJSONArray(it).getString(0) != lessonsFile }
+        content.setPhoto(lessonsFile)
+        listed.remove(photoAt)
+        val tampered = BackupFile.seal(
+            content.toString().toByteArray(),
+            BackupKey.derive(PASSWORD, iterations = 1_000),
+            opened.attachments.filterIndexed { index, _ -> index != photoAt },
+        )
+
+        try {
+            open(tampered)
+            fail("opened")
+        } catch (e: BackupException) {
+            assertEquals(BackupProblem.Damaged, e.problem)
+        }
     }
 
     /** A reason saying [text], with a photo of its own if [withPhoto]: the name the photo is kept under. */
