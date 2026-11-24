@@ -35,6 +35,7 @@ import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
+import de.emilyshub.warum.BoardExport
 import de.emilyshub.warum.Reasons
 import de.emilyshub.wishes.Wishes
 
@@ -63,6 +64,9 @@ interface Hub {
 
     /** Mein Warum: the Gründe, to look at in hard moments (SPEC.md §18). */
     val reasons: Reasons
+
+    /** Mein Warum as images, the only copy of it outside its encryption (SPEC.md §18). */
+    val boardExport: BoardExport
     val places: Places
     val wifi: CurrentWifi
     val location: CurrentLocation

@@ -7,8 +7,11 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import java.io.OutputStream
 
-/** A folder chosen in Android's dialog (ACTION_OPEN_DOCUMENT_TREE), at its [tree] address, as the Storage Access Framework gives it. */
-class DocumentFolder(context: Context, private val tree: Uri) : BackupFolder {
+/**
+ * A folder chosen in Android's dialog (ACTION_OPEN_DOCUMENT_TREE), at its [tree] address, as the Storage Access Framework
+ * gives it; the files made in it of the [mimeType] given, a backup's by default.
+ */
+class DocumentFolder(context: Context, private val tree: Uri, private val mimeType: String = MIME_TYPE) : BackupFolder {
     private val resolver = context.contentResolver
     private val folder = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
     private val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
@@ -32,7 +35,7 @@ class DocumentFolder(context: Context, private val tree: Uri) : BackupFolder {
 
     override fun write(fileName: String): OutputStream {
         val document = documents()[fileName]
-            ?: checkNotNull(DocumentsContract.createDocument(resolver, folder, MIME_TYPE, fileName)) { "Not created" }
+            ?: checkNotNull(DocumentsContract.createDocument(resolver, folder, mimeType, fileName)) { "Not created" }
         return checkNotNull(resolver.openOutputStream(document, "wt")) { "Not opened" }
     }
 

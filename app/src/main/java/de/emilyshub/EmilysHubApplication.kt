@@ -1,7 +1,9 @@
 package de.emilyshub
 
 import android.app.Application
+import android.graphics.Typeface
 import android.util.Log
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.net.toUri
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupKey
@@ -98,6 +100,10 @@ import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingQuestionnaire
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingSymptoms
+import de.emilyshub.ui.warum.fontResourceOf
+import de.emilyshub.warum.BoardExport
+import de.emilyshub.warum.BoardPicture
+import de.emilyshub.warum.ReasonFont
 import de.emilyshub.warum.Reasons
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -218,6 +224,9 @@ open class EmilysHubApplication : Application(), Hub {
     /** The folder for the nightly backups at [address]. */
     protected open fun backupFolderAt(address: String): BackupFolder = DocumentFolder(this, address.toUri())
 
+    /** The folder at [address] the images of Mein Warum go to when they are several (SPEC.md §18). */
+    protected open fun pictureFolderAt(address: String): BackupFolder = DocumentFolder(this, address.toUri(), "image/png")
+
     /** Where receivers and the alarm finish their work once they are gone, and where the app starts up. */
     open val background: CoroutineScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Default +
@@ -285,6 +294,12 @@ open class EmilysHubApplication : Application(), Hub {
 
     final override val inbox: Inbox by lazy { Inbox({ database }, clock, io) }
     final override val reasons: Reasons by lazy { Reasons({ database }, lessonFiles, io) }
+    final override val boardExport: BoardExport by lazy {
+        val typefaces = ReasonFont.entries.associateWith { font ->
+            fontResourceOf(font)?.let { runCatching { ResourcesCompat.getFont(this, it) }.getOrNull() } ?: Typeface.DEFAULT
+        }
+        BoardExport(reasons, lessonDocuments, ::pictureFolderAt, BoardPicture(typefaces::getValue), clock, io)
+    }
 
     final override val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
 

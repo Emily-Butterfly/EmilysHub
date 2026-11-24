@@ -1,5 +1,6 @@
 package de.emilyshub.ui.warum
 
+import androidx.annotation.FontRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -43,17 +44,21 @@ import de.emilyshub.warum.ReasonLook
 import de.emilyshub.warum.ReasonSize
 import de.emilyshub.warum.StandardColors
 
-/** The font family [font] is written in: the app's own for Standard, else the one brought along for it. */
-internal fun familyOf(font: ReasonFont): FontFamily = when (font) {
-    ReasonFont.Standard -> FontFamily.Default
-    ReasonFont.Serif -> FontFamily(Font(R.font.warum_serif))
-    ReasonFont.Round -> FontFamily(Font(R.font.warum_round))
-    ReasonFont.Hand -> FontFamily(Font(R.font.warum_hand))
-    ReasonFont.Script -> FontFamily(Font(R.font.warum_script))
-    ReasonFont.Poster -> FontFamily(Font(R.font.warum_poster))
-    ReasonFont.Elegant -> FontFamily(Font(R.font.warum_elegant))
-    ReasonFont.Typewriter -> FontFamily(Font(R.font.warum_typewriter))
+/** The font file brought along for [font]; none for Standard, the app's own. */
+@FontRes
+fun fontResourceOf(font: ReasonFont): Int? = when (font) {
+    ReasonFont.Standard -> null
+    ReasonFont.Serif -> R.font.warum_serif
+    ReasonFont.Round -> R.font.warum_round
+    ReasonFont.Hand -> R.font.warum_hand
+    ReasonFont.Script -> R.font.warum_script
+    ReasonFont.Poster -> R.font.warum_poster
+    ReasonFont.Elegant -> R.font.warum_elegant
+    ReasonFont.Typewriter -> R.font.warum_typewriter
 }
+
+/** The font family [font] is written in: the app's own for Standard, else the one brought along for it. */
+internal fun familyOf(font: ReasonFont): FontFamily = fontResourceOf(font)?.let { FontFamily(Font(it)) } ?: FontFamily.Default
 
 /** Where a Grund is shown, which sets how large its sizes are. */
 internal enum class ReasonPlace(val small: TextUnit, val medium: TextUnit, val large: TextUnit) {

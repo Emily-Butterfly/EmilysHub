@@ -3,6 +3,7 @@ package de.emilyshub
 import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
@@ -32,6 +33,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
@@ -311,6 +313,71 @@ class MeinWarumScreenTest {
             compose.onNodeWithText("Great Vibes (Schönschrift)").assertExists()
             compose.onAllNodesWithText("SIL Open Font License", substring = true).onFirst().assertExists()
         }
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `the board is exported as one image after the hint that it is not encrypted, through Android's file dialog`() {
+        reason("Lina")
+
+        launchApp().use { scenario ->
+            openWarum()
+            compose.onNodeWithContentDescription("Mehr zu „Mein Warum“").performClick()
+            compose.onNode(hasText("Als Bild exportieren") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNode(hasText("Das Bild ist nicht verschlüsselt.") and hasAnyAncestor(isDialog())).assertIsDisplayed()
+            compose.onNode(hasText("Weiter") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.waitUntil(10_000) { scenario.startedForResult() != null }
+            val request = scenario.pickFile(Uri.parse("content://bilder/1"))
+            assertEquals(Intent.ACTION_CREATE_DOCUMENT, request.action)
+            assertEquals("image/png", request.type)
+            assertEquals("Mein Warum 2026-10-23.png", request.getStringExtra(Intent.EXTRA_TITLE))
+            compose.waitUntil(10_000) { app.lessonDocuments.written.containsKey("content://bilder/1") }
+        }
+        val image = app.lessonDocuments.written.getValue("content://bilder/1")
+        assertEquals(1080, BitmapFactory.decodeByteArray(image, 0, image.size).width)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `a board too high for one image goes as several into a folder chosen once`() {
+        repeat(24) { reason("Grund $it: " + "so viel, was mich hält ".repeat(20)) }
+
+        launchApp().use { scenario ->
+            openWarum()
+            compose.onNodeWithContentDescription("Mehr zu „Mein Warum“").performClick()
+            compose.onNode(hasText("Als Bild exportieren") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNode(hasText("Weiter") and hasAnyAncestor(isDialog())).performClick()
+
+            compose.waitUntil(30_000) { scenario.startedForResult() != null }
+            val request = scenario.pickFile(Uri.parse("content://ordner"))
+            assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE, request.action)
+            compose.waitUntil(30_000) { app.pictureFolders["content://ordner"]?.files?.size?.let { it > 1 } == true }
+        }
+        val names = checkNotNull(app.pictureFolders["content://ordner"]).files.keys.toList()
+        assertEquals(List(names.size) { "Mein Warum 2026-10-23 (${it + 1} von ${names.size}).png" }, names)
+    }
+
+    @Test
+    fun `an empty board offers no export, nor does the board while it is edited`() {
+        launchApp().use {
+            openWarum()
+            compose.onNodeWithContentDescription("Mehr zu „Mein Warum“").assertDoesNotExist()
+        }
+        reason("Lina")
+        launchApp().use {
+            openWarum()
+            compose.onNodeWithContentDescription("Mehr zu „Mein Warum“").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Bearbeiten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu „Mein Warum“").assertDoesNotExist()
+        }
+    }
+
+    /** The request the app made of another app last, if any, without answering it. */
+    private fun ActivityScenario<MainActivity>.startedForResult(): Intent? {
+        var request: Intent? = null
+        onActivity { request = shadowOf(it).peekNextStartedActivityForResult()?.intent }
+        return request
     }
 
     private fun png(): ByteArray = ByteArrayOutputStream().also {

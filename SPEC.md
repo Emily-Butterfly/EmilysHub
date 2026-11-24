@@ -787,8 +787,9 @@ Ein **Grund** ist ein Eintrag auf dem Board:
 
 ### Als Bild exportieren
 
+- Im Menü (⋮) der Ansicht, solange das Board einen Grund hat; beim Bearbeiten nicht.
 - Das ganze Board als PNG, 1080 px breit, im Design, das die App gerade zeigt. Wird es höher als etwa 16 000 px, teilt es sich auf mehrere Bilder: jedes mit den nächsten Gründen in ihrer Reihenfolge, für sich neu angeordnet, nie durch einen Grund hindurch.
-- Gespeichert über die Dateiauswahl von Android, zuvor mit dem Hinweis „Das Bild ist nicht verschlüsselt.“; ein Bild als „Mein Warum 2026-11-24.png“, mehrere in einen einmal gewählten Ordner als „Mein Warum 2026-11-24 (1 von 3).png“ usw. Kein Teilen an andere Apps.
+- Gespeichert über die Dateiauswahl von Android, zuvor mit dem Hinweis „Das Bild ist nicht verschlüsselt.“; ein Bild als „Mein Warum 2026-11-24.png“, mehrere in einen einmal gewählten Ordner als „Mein Warum 2026-11-24 (1 von 3).png“ usw. Kein Teilen an andere Apps. Das Bild entsteht im Arbeitsspeicher und geht von dort in die gewählte Datei; nichts davon bleibt unverschlüsselt im Speicher der App.
 
 ### Entscheidungen
 

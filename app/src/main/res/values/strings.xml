@@ -2347,4 +2347,10 @@
     <string name="color_grey">Grau</string>
     <string name="color_dark_grey">Dunkelgrau</string>
     <string name="color_black">Schwarz</string>
+    <string name="warum_export">Als Bild exportieren</string>
+    <string name="warum_export_hint">Das Bild ist nicht verschlüsselt.</string>
+    <string name="warum_export_go">Weiter</string>
+    <string name="warum_export_busy">Das Bild wird gemacht …</string>
+    <string name="warum_export_done">Gespeichert</string>
+    <string name="warum_export_failed">Nicht gespeichert</string>
 </resources>

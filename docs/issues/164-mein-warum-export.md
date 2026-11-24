@@ -13,18 +13,18 @@ Das Board lässt sich als Bilddatei speichern.
 
 ## Akzeptanzkriterien
 
-- [ ] Im Menü (⋮) der Ansicht „Als Bild exportieren“; bei leerem Board nicht angeboten
-- [ ] Das ganze Board als PNG, 1080 px breit, im Design, das die App gerade zeigt, mit Fotos, Schriften und Farben
-- [ ] Höher als etwa 16 000 px: mehrere Bilder, jedes mit den nächsten Gründen in ihrer Reihenfolge, für sich neu angeordnet, nie durch einen Grund hindurch
-- [ ] Vor dem Speichern der Hinweis „Das Bild ist nicht verschlüsselt.“
-- [ ] Ein Bild über die Dateiauswahl als „Mein Warum 2026-11-24.png“; mehrere in einen einmal gewählten Ordner als „Mein Warum 2026-11-24 (1 von 3).png“ usw.
-- [ ] Kein Teilen an andere Apps; nichts bleibt unverschlüsselt im Speicher der App zurück
-- [ ] SPEC.md §9 und §18 nennen es
+- [x] Im Menü (⋮) der Ansicht „Als Bild exportieren“; bei leerem Board nicht angeboten
+- [x] Das ganze Board als PNG, 1080 px breit, im Design, das die App gerade zeigt, mit Fotos, Schriften und Farben
+- [x] Höher als etwa 16 000 px: mehrere Bilder, jedes mit den nächsten Gründen in ihrer Reihenfolge, für sich neu angeordnet, nie durch einen Grund hindurch
+- [x] Vor dem Speichern der Hinweis „Das Bild ist nicht verschlüsselt.“
+- [x] Ein Bild über die Dateiauswahl als „Mein Warum 2026-11-24.png“; mehrere in einen einmal gewählten Ordner als „Mein Warum 2026-11-24 (1 von 3).png“ usw.
+- [x] Kein Teilen an andere Apps; nichts bleibt unverschlüsselt im Speicher der App zurück
+- [x] SPEC.md §9 und §18 nennen es
 
 ## Tests
 
-- [ ] Unit: Aufteilen an der Grenze (ein Bild, genau an der Grenze, mehrere; ein einzelner hoher Grund); Dateinamen
-- [ ] UI: Export mit Hinweis, ein Bild und mehrere in einen Ordner
+- [x] Unit: Aufteilen an der Grenze (ein Bild, genau an der Grenze, mehrere; ein einzelner hoher Grund); Dateinamen
+- [x] UI: Export mit Hinweis, ein Bild und mehrere in einen Ordner
 
 ## Entscheidungen
 

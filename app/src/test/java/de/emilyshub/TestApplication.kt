@@ -101,6 +101,10 @@ class TestApplication : EmilysHubApplication() {
     val otherBackupFolders = mutableMapOf<String, FakeBackupFolder>()
     override fun backupFolderAt(address: String): BackupFolder = otherBackupFolders[address] ?: backupFolder
 
+    /** The folders the images of Mein Warum went to, by their addresses. */
+    val pictureFolders = mutableMapOf<String, FakeBackupFolder>()
+    override fun pictureFolderAt(address: String): BackupFolder = pictureFolders.getOrPut(address) { FakeBackupFolder("Bilder") }
+
     /** Whether Android lets the app fill the screen with a reminder ([ShadowFullScreenIntents]); not until a test says. */
     var fullScreenAlarmsAllowed = false
 }

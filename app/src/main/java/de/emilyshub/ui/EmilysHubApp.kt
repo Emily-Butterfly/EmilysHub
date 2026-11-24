@@ -157,6 +157,7 @@ import de.emilyshub.ui.warum.ReasonEditorScreen
 import de.emilyshub.ui.warum.ReasonEditorTarget
 import de.emilyshub.ui.warum.ReasonViewerScreen
 import de.emilyshub.ui.warum.ReasonsBoard
+import de.emilyshub.ui.warum.WarumMenu
 import de.emilyshub.ui.wishes.WishEditorScreen
 import de.emilyshub.ui.wishes.WishEditorTarget
 import de.emilyshub.ui.wishes.WishReviewScreen
@@ -587,6 +588,8 @@ private fun TopLevelScaffold(
                                 )
                             }
                         }
+                        // Its menu only as it is looked at, with "Als Bild exportieren" (SPEC.md §18).
+                        if (moreOpen == MoreEntry.Warum && !tabs.warumEditing) WarumMenu(hub.reasons, hub.boardExport)
                         // On Heute, not yesterday, practising the cards while some are open today, left of the "€" (SPEC.md §1; #158).
                         if (current == TopLevelDestination.Today && !yesterday) {
                             PractiseCardsButton(hub.flashcards, hub.day, onPractise = { open(Destination.Practice(it)) })
