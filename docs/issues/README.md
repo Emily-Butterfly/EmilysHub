@@ -1,6 +1,6 @@
 # Slices
 
-Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14**, #122 **Etappe 15**, #135 **Etappe 16** und #142 **Etappe 17**; Etappe 9 hat keins.
+Vertikale Slices aus [SPEC.md](../../SPEC.md). Jede Datei entspricht einem GitHub-Issue mit derselben Nummer; Sammel-Issues: #29 **EmilysHub v1** (Etappen 1–7), #49 **EmilysHub v1.1** (Etappe 8), #64 **Etappe 10**, #77 **Etappe 11**, #85 **Etappe 12**, #86 **Etappe 13**, #110 **Etappe 14**, #122 **Etappe 15**, #135 **Etappe 16**, #142 **Etappe 17** und #160 **Etappe 18**; Etappe 9 hat keins.
 
 ## Etappe 1 – Grundgerüst & Sicherheit
 
@@ -248,6 +248,17 @@ Aus der UX-Durchsicht des Vokabeltrainers vom 16.11.2026 (Commit 32ce029); nicht
 | 156 | [Vokabeltrainer: Rückstand nach einer Pause verteilen](156-vokabeln-rueckstand-verteilen.md) | 🤖 | 143 |
 | 157 | [Vokabeltrainer: Vorlesen mit der Sprachausgabe des Handys](157-vokabeln-sprachausgabe.md) | 🤖 | – |
 | 158 | [Heute: Vokabeln üben aus der oberen Leiste](158-heute-vokabeln-ueben.md) | 🤖 | – |
+
+## Etappe 18 – Mein Warum
+
+Ein Board mit den Gründen, weiterzuleben (SPEC.md §18), am 24.11.2026 mit der Nutzerin abgestimmt. Sammel-Issue #160. Nacheinander gebaut; #161 und #162 zählen die Schema-Version hoch.
+
+| # | Slice | Art | Blockiert durch |
+|---|---|---|---|
+| 161 | [Mein Warum: Board mit Text-Gründen](161-mein-warum-board.md) | 🤖 | – |
+| 162 | [Mein Warum: Gründe mit Foto](162-mein-warum-fotos.md) | 🤖 | 161 |
+| 163 | [Mein Warum: Schriften und Farben](163-mein-warum-schriften-farben.md) | 🤖 | 162 |
+| 164 | [Mein Warum: als Bild exportieren](164-mein-warum-export.md) | 🤖 | 163 |
 
 ## Einzeltickets
 

@@ -18,7 +18,7 @@ Persönliche, vollständig offline arbeitende Android-App als zentrale Anlaufste
 ### Navigation
 
 Untere Leiste mit den Tabs **Heute · Routinen · To-dos · Notizen · Sonstiges**.
-Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14), **Sprachen** (§15) und **Tracking** (§17). Alle öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele und Sprachen bleiben beim Wechsel des Tabs offen, Dokumentation und Tracking sperren sich dabei (§14, §17). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
+Startbildschirm ist **Heute**. **Sonstiges** ist eine Liste mit **Ziele** (§6; hieß bis v1 „Wunschliste“ und war bis Etappe 10 ein eigener Tab), **Dokumentation** (§14), **Sprachen** (§15), **Tracking** (§17) und **Mein Warum** (§18). Alle öffnen im Tab: Die untere Leiste bleibt, der Zurück-Pfeil führt zur Liste. Ziele, Sprachen und Mein Warum bleiben beim Wechsel des Tabs offen, Dokumentation und Tracking sperren sich dabei (§14, §17). Orte, Statusseite, Backups und Sicherheit liegen in den **Einstellungen**. Das **Haushaltsbuch** (§13) öffnet im Tab Notizen ein Knopf in der Mitte der oberen Leiste, direkt unter der Kamera: 1/4 der Bildschirmbreite, beschriftet „Haushaltsbuch“, bei zu wenig Platz „€“. In Heute öffnet es ein kleines „€“ links neben der Flamme. Der **Eingang** (§16) hat seine Zeile oben in Heute.
 
 ### Heute-Übersicht
 
@@ -232,7 +232,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 ## 8. Übergreifend
 
 - **Gemeinsame Tags** für alle Bereiche.
-- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch mit Abos, Sprachen mit ihren Karten, Eingang); die Dokumentation hat ihre eigene (§14).
+- **Suche** über alle Bereiche (Routinen, To-dos, Ziele, Notizen, Haushaltsbuch mit Abos, Sprachen mit ihren Karten, Eingang); die Dokumentation hat ihre eigene (§14). Mein Warum (§18) wird bewusst nicht durchsucht.
 - **Editoren** (alle außer denen der Dokumentation, die beim Schließen schon von selbst speichert):
   - Wer einen geänderten Entwurf verlässt, per Pfeil oder Zurück, wird gefragt: „Speichern · Verwerfen · Weiter bearbeiten“. Ohne Änderung schließt der Editor sofort.
   - Notizen und Sessions speichern beim Verlassen von selbst, wenn sie sich speichern lassen; einer Notiz ohne Titel gibt die erste Zeile ihres Textes den Titel. Sonst gilt die Rückfrage.
@@ -261,6 +261,7 @@ Innerhalb jeder Gruppe gilt die pro Ordner gewählte Sortierung (Name / letzte �
 | Manipulierte Dateien | Backup-Import mit Authentifizierung (AES-GCM) und strenger Schemaprüfung; Markdown ohne HTML/Links |
 | Unlesbare Daten | Rettungsbildschirm statt Absturz: Backup laden oder neu beginnen; die unlesbaren Dateien werden beiseitegelegt, nicht gelöscht (§10) |
 | Vorlesen (Sprachen, §15) | Die Sprachausgabe ist eine andere App, der Text der Karte geht an sie; deshalb nur Stimmen, die ohne Netz auskommen, so verlässt nichts das Handy. Nur auf Knopfdruck. Keine Berechtigung, nur eine `<queries>`-Angabe, damit die App die Sprachausgabe ab Android 11 sieht (entschieden am 16.11.2026) |
+| Mein Warum (§18) | Hinter der App-Sperre, ohne eigene Sperre, damit in einer Krise keine Hürde dazwischen steht. Fotos verschlüsselt wie die Anhänge der Sessions. Nichts hält fest, dass der Bereich geöffnet wurde. Der Export als Bild ist die einzige unverschlüsselte Kopie: über die Dateiauswahl, nach dem Hinweis, dass das Bild nicht verschlüsselt ist; kein Teilen an andere Apps |
 | Importierte Dateien (Sprachen, §15) | Anhänge liegen nur verschlüsselt im Speicher der App, nie im Klartext; Fotos werden neu kodiert, PDFs nur angezeigt (Androids eigener Renderer), nichts daraus ausgeführt; Größengrenzen beim Import; keine Kamera-Berechtigung, „Foto aufnehmen“ läuft über die Kamera-App des Handys |
 | Gesundheitsdaten (Dokumentation, §14) | Eigene SQLCipher-Datenbank, deren Schlüssel nur Doku-Passwort oder Fingerabdruck freigeben, nicht der Schlüssel der übrigen App; Sperre beim Verlassen, im Hintergrund und nach 5 min ohne Eingabe; nicht in Suche, Heute und Benachrichtigungen; Tastatur ohne Lernen; Zwischenablage vertraulich und beim Sperren geleert; gelöschte Daten überschrieben |
 | Gesundheitsdaten (Tracking, §17) | Wie die Dokumentation: eigene SQLCipher-Datenbank mit eigenem Passwort oder Fingerabdruck, gleiche Sperre und Insel-Regeln; Health Connect nur lesend und nur bei entsperrtem Tracking; PDF-Export nur von Hand, mit Hinweis auf die fehlende Verschlüsselung |
@@ -277,7 +278,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
 - **Auslagern**: In den Backups bestätigt „Heute weggekopiert“, dass die Backups auch auf einem anderen Gerät liegen; der Bildschirm zeigt „Zuletzt ausgelagert am …“. Ist das über 30 Tage her, oder wurde es 30 Tage nach dem ersten Backup noch nie bestätigt, warnt Heute („Deine Backups liegen nur auf dem Handy“). Die Bestätigung bleibt auf dem Gerät und steht nicht im Backup.
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
-- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein.
+- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein. Ebenso die Gründe von Mein Warum (§18) mit ihren Fotos.
 - Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
 - **Tracking** (§17) ebenso, mit dem Tracking-Passwort.
 
@@ -759,3 +760,41 @@ Abgestimmt im Interview vom 16.11.2026 (Etappe 16):
 - Garmins Tageswert gilt; feine Werte nur in der Tagesansicht; keine neue Hinweisregel.
 - Kein Stability-Wert, auch keine Faktorkarten; er bleibt als spätere, eigene Berechnung möglich.
 - Monatsfragebogen FUNCAP55 (CC BY) statt PROMIS (lizenzpflichtig); kein DSQ-PEM, weil PEM täglich erfasst wird; Fatigue und Schmerz über die Monatsmittel der täglichen Werte.
+
+## 18. Mein Warum
+
+Ein Board mit den Gründen, weiterzuleben, zum Anschauen in schweren Momenten, auch bei Suizidgedanken. Erreichbar über Sonstiges (🌱, §1), hinter der App-Sperre wie alles andere, ohne eigene Sperre. Nichts hält fest, dass es geöffnet wurde: keine Zähler, keine Erinnerungen, nichts in Heute oder im Tracking, nicht in der Suche (§8). Die Gründe stehen im Backup (§10).
+
+### Gründe
+
+Ein **Grund** ist ein Eintrag auf dem Board:
+
+| Feld | Details |
+|---|---|
+| Foto | Optional: aus der Galerie oder mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung wie bei den Sessions (§15); auf höchstens 2000 px an der langen Kante verkleinert, verschlüsselt gespeichert. Höchstens 100 Gründe mit Foto |
+| Text | Optional, schlicht, bis 500 Zeichen; bei einem Foto als Streifen darunter |
+| Schrift | Eine von acht in der App mitgebrachten Schriften (frei lizenziert, SIL Open Font License): Standard, eine Serifenschrift, eine runde, zwei Handschriften (locker und schönschriftlich), eine kräftige Plakatschrift, eine schmale elegante, eine Schreibmaschinenschrift; in klein, mittel oder groß. Zeichen, die sie nicht hat (etwa arabische), zeigt eine passende Schrift des Handys |
+| Farben | Hintergrund und Schrift aus derselben Palette von 35 Farben: sieben Farbtöne (Rot, Orange, Gelb, Grün, Türkis, Blau, Lila) in je vier Stufen von zart bis kräftig und sieben Neutrale (Weiß, Creme, Sand, drei Grautöne, Schwarz); dazu „Standard“, das dem Design der App folgt. Gewählte Farben bleiben in hellem und dunklem Design gleich |
+
+- Ein Grund braucht einen Text oder ein Foto; ganz leer wird er nicht gespeichert.
+- Der Text steht immer mittig, von rechts nach links, wenn er so beginnt. Haben Schrift und Hintergrund zu wenig Kontrast, sagt der Editor „Schwer zu lesen“, erlaubt es aber.
+
+### Board
+
+- **Ansicht**: Beim Öffnen immer die ruhige Ansicht, ohne Knöpfe außer dem Stift für „Bearbeiten“ und dem Menü (⋮) mit „Als Bild exportieren“. Zwei Spalten, jede Kachel so hoch wie ihr Inhalt; die Reihenfolge ist die selbst gelegte, ein neuer Grund kommt oben dazu. Antippen öffnet einen Grund groß, ein Foto bildschirmfüllend mit Zoom, einen Text in großer Schrift; Wischen führt zum nächsten.
+- **Leer**: „Hier sammelst du, was dich hält: Menschen, Momente, Pläne, Sätze.“ und „Ersten Grund hinzufügen“.
+- **Bearbeiten**: hinzufügen, ändern, verschieben durch langes Drücken und Ziehen und über „Nach vorn“ und „Nach hinten“ im Menü eines Grundes (auch für TalkBack), löschen mit Rückfrage („Diesen Grund löschen?“), samt Foto.
+
+### Als Bild exportieren
+
+- Das ganze Board als PNG, 1080 px breit, im Design, das die App gerade zeigt. Wird es höher als etwa 16 000 px, teilt es sich auf mehrere Bilder: jedes mit den nächsten Gründen in ihrer Reihenfolge, für sich neu angeordnet, nie durch einen Grund hindurch.
+- Gespeichert über die Dateiauswahl von Android, zuvor mit dem Hinweis „Das Bild ist nicht verschlüsselt.“; ein Bild als „Mein Warum 2026-11-24.png“, mehrere in einen einmal gewählten Ordner als „Mein Warum 2026-11-24 (1 von 3).png“ usw. Kein Teilen an andere Apps.
+
+### Entscheidungen
+
+Mit der Nutzerin am 24.11.2026 abgestimmt:
+
+- Kein fester Bereich mit Hilfe-Nummern im Board; erreichbar nur über Sonstiges, nicht über einen Kurzbefehl oder Heute.
+- Keine eigene Sperre; Ansehen und Bearbeiten getrennt.
+- Schlichter Text statt Markdown, dafür Schriften, Größen und Farben.
+- Bildschirmfotos bleiben gesperrt wie überall; der Export als Bild ist der Weg nach draußen.
