@@ -55,7 +55,7 @@ data class ReasonDraft(
             }
         }
 
-    /** On its lines, without spaces or empty lines at its edges: it stands in the middle of its tile. */
+    /** On its lines, without spaces or empty lines at its edges: it stands in the middle on the board. */
     fun cleaned() = copy(text = InputText.multiLine(text).trim())
 
     companion object {

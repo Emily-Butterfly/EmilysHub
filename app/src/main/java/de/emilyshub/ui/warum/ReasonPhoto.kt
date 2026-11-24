@@ -96,7 +96,7 @@ internal fun ZoomablePhoto(bytes: ByteArray) {
 
 private const val MAX_ZOOM = 5f
 
-/** As large as a tile or the editor needs it: half the width of a phone's screen, sharp. */
+/** As large as a Grund on the board or in the editor needs it: half the width of a phone's screen, sharp. */
 private const val PREVIEW_EDGE = 720
 
 private const val LOADING_HEIGHT = 120

@@ -61,7 +61,7 @@ import de.emilyshub.warum.Reason
 import de.emilyshub.warum.Reasons
 
 /**
- * The board of Mein Warum (SPEC.md §18): the Gründe in two columns, each tile as high as what it holds, in the order the
+ * The board of Mein Warum (SPEC.md §18): the Gründe in two columns, each as high as what it holds, in the order the
  * user laid them. Looked at ([editing] false), it has no buttons; a reason tapped opens large ([onOpen]). Edited, a
  * reason tapped is changed ([onEdit]), "+" adds one ([onAdd]), a long press drags one to another place, and its menu
  * moves it by one, also for TalkBack, or deletes it after asking. Empty, it says what it is for, with the way to the first.
@@ -124,7 +124,7 @@ fun ReasonsBoard(
                 } else {
                     Modifier
                 }
-                ReasonTile(
+                BoardReason(
                     reasons = reasons,
                     reason = reason,
                     editing = editing,
@@ -200,7 +200,7 @@ private fun Empty(contentPadding: PaddingValues, onAdd: () -> Unit) {
  * menu in the corner.
  */
 @Composable
-private fun ReasonTile(
+private fun BoardReason(
     reasons: Reasons,
     reason: Reason,
     editing: Boolean,
