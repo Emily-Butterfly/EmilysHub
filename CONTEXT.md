@@ -24,6 +24,14 @@ _Avoid_: Workload (nur im Code), Pensum allein, Tagesziel
 Eine Abfrage vom Öffnen bis zum Verlassen: die Karten des Tagespensums oder eines Themas, die Antworten darauf, die letzte Antwort, die sich noch zurücknehmen lässt.
 _Avoid_: Session (heißt in Sprachen eine Unterrichtsstunde), Durchgang
 
+**Vokabeldatei**:
+Die Liste der Vokabeln einer Sprache, die außerhalb der App gepflegt wird (etwa von einem Tutor) und immer wieder in neuer Fassung kommt. Jede Vokabel darin hat einen Schlüssel, an dem sie ihre Karte wiederfindet.
+_Avoid_: Wortschatz-Datei, Vokabelliste, Textdatei (die liest der Import, #105)
+
+**Abgleich**:
+Das Übernehmen einer Vokabeldatei: Vokabeln, die noch keine Karte haben, werden neue Karten, die anderen ändern ihre Karte; keine Karte wird gelöscht, und was geplant ist, bleibt.
+_Avoid_: Import (legt nur an), Sync, Update
+
 ### Daten
 
 **Ablage**:
@@ -34,6 +42,7 @@ _Avoid_: Anhänge (heißen nur die der Sessions), Speicher, Vault (nur im Code)
 
 - **Mein Warum** hält beliebig viele **Gründe**
 - Eine **Sprache** hat an jedem Tag ein **Tagespensum**; eine **Runde** fragt es ab, oder die Karten eines Themas, die zu keinem Tagespensum zählen
+- Ein **Abgleich** bringt eine **Vokabeldatei** in die Karten einer **Sprache**; eine Karte aus ihr kennt den Schlüssel ihrer Vokabel
 - Die **Ablage** hält die Anhänge der **Sessions** und die Fotos der **Gründe**, je mit ihrer Höchstzahl
 
 ## Flagged ambiguities
