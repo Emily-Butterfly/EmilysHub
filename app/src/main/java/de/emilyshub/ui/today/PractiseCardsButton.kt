@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 fun PractiseCardsButton(flashcards: Flashcards, day: Day, onPractise: (languageId: Long) -> Unit) {
-    val languages by remember(flashcards, day) { day.dates().flatMapLatest { flashcards.openLanguages(it) } }
+    val languages by remember(flashcards, day) { day.dates().flatMapLatest { flashcards.workloads.open(it) } }
         .collectAsState(initial = emptyList())
     if (languages.isEmpty()) return
     var choosing by rememberSaveable { mutableStateOf(false) }

@@ -6,8 +6,12 @@ import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
 import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,7 +40,7 @@ class DailyLimitsFlashcardsTest {
         { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
     private val done = mutableListOf<Long>()
-    private val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined, onWorkloadDone = { done += it })
+    private val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined, Workloads({ database }, clock, Dispatchers.Unconfined, onDone = { done += it }))
 
     private fun today(): LocalDate = LocalDate.now(clock)
 
@@ -134,13 +138,35 @@ class DailyLimitsFlashcardsTest {
         languages.setLanguageArchived(turkish, archived = true)
         cards.setOverallLimit(20)
         repeat(4) { answerNext(italian, Rating.Good) }
-        assertEquals(emptySet<Long>(), cards.doneAtLimit(today()).first())
+        assertEquals(emptySet<Long>(), cards.workloads.doneAtLimit(today()).first())
 
         // Italian's share now 20 × 10/80, rounded: 2, which it has passed.
         languages.setLanguageArchived(turkish, archived = false)
 
         assertTrue(workload(italian).done)
-        assertEquals(setOf(italian), cards.doneAtLimit(today()).first())
+        assertEquals(setOf(italian), cards.workloads.doneAtLimit(today()).first())
+    }
+
+    @Test
+    fun `while the app shows, a Tagespensum geschafft at its limit without an answer tells so`() = runBlocking {
+        val arabic = language("Arabisch")
+        val italian = language("Italienisch")
+        val turkish = language("Türkisch")
+        dueCards(arabic, 30, prefix = "a")
+        dueCards(italian, 10, prefix = "i")
+        dueCards(turkish, 40, prefix = "t")
+        languages.setLanguageArchived(turkish, archived = true)
+        cards.setOverallLimit(20)
+        repeat(4) { answerNext(italian, Rating.Good) }
+        done.clear()
+        val shown = launch { cards.workloads.tellDoneAtLimit(MutableStateFlow(today())) }
+
+        // Italian's share shrinks below what it has done, without an answer of it.
+        languages.setLanguageArchived(turkish, archived = false)
+
+        withTimeout(5_000) { while (italian !in done) delay(10) }
+        shown.cancel()
+        assertEquals(listOf(italian), done.distinct())
     }
 
     @Test
@@ -151,7 +177,7 @@ class DailyLimitsFlashcardsTest {
         repeat(2) { answerNext(arabic, Rating.Good) }
 
         assertTrue(workload(arabic).done)
-        assertEquals(emptySet<Long>(), cards.doneAtLimit(today()).first())
+        assertEquals(emptySet<Long>(), cards.workloads.doneAtLimit(today()).first())
     }
 
     @Test
@@ -179,12 +205,12 @@ class DailyLimitsFlashcardsTest {
         cards.setOverallLimit(20)
         languages.setLanguageArchived(arabic, archived = true)
 
-        assertNull(cards.workload(arabic, today()).first())
+        assertNull(cards.workloads.of(arabic, today()).first())
         assertEquals(10, workload(italian).remaining.size)
-        assertFalse(arabic in cards.workloads(today()).first())
+        assertFalse(arabic in cards.workloads.all(today()).first())
     }
 
-    private suspend fun workload(languageId: Long): Workload = checkNotNull(cards.workload(languageId, today()).first())
+    private suspend fun workload(languageId: Long): Workload = checkNotNull(cards.workloads.of(languageId, today()).first())
 
     /** Answers the next card of the language's workload [rating], as the practice does. */
     private suspend fun answerNext(languageId: Long, rating: Rating) {

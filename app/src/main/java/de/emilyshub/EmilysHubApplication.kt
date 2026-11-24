@@ -35,12 +35,12 @@ import de.emilyshub.island.IslandClipboard
 import de.emilyshub.island.IslandWrites
 import de.emilyshub.island.RawKey
 import de.emilyshub.island.SystemFingerprint
-import de.emilyshub.ui.CameraShot
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.PhoneLessonDocuments
+import de.emilyshub.languages.Workloads
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -99,6 +99,7 @@ import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingQuestionnaire
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingSymptoms
+import de.emilyshub.ui.CameraShot
 import de.emilyshub.ui.warum.fontResourceOf
 import de.emilyshub.vault.AttachmentStore
 import de.emilyshub.vault.Vault
@@ -319,7 +320,9 @@ open class EmilysHubApplication : Application(), Hub {
     }
 
     final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }
-    final override val flashcards: Flashcards by lazy { Flashcards({ database }, clock, lessonDocuments, io, onWorkloadDone = { routines.doneByVocabulary(it) }) }
+    final override val flashcards: Flashcards by lazy {
+        Flashcards({ database }, clock, lessonDocuments, io, Workloads({ database }, clock, io, onDone = { routines.doneByVocabulary(it) }))
+    }
 
     final override val search: Search by lazy { Search({ database }, io) }
 

@@ -941,7 +941,7 @@ class VocabularyScreenTest {
         // The day's twenty done.
         runBlocking {
             repeat(20) {
-                val next = checkNotNull(app.flashcards.workload(arabic, LocalDate.now(app.clock)).first()).remaining.first()
+                val next = checkNotNull(app.flashcards.workloads.of(arabic, LocalDate.now(app.clock)).first()).remaining.first()
                 app.flashcards.answer(next.id, Rating.Good)
             }
         }
@@ -969,7 +969,7 @@ class VocabularyScreenTest {
             app.flashcards.setOverallLimit(20)
             // Italian's share is 5: practised to it, with more waiting.
             repeat(5) {
-                val next = checkNotNull(app.flashcards.workload(italian, LocalDate.now(app.clock)).first()).remaining.first()
+                val next = checkNotNull(app.flashcards.workloads.of(italian, LocalDate.now(app.clock)).first()).remaining.first()
                 app.flashcards.answer(next.id, Rating.Good)
             }
         }

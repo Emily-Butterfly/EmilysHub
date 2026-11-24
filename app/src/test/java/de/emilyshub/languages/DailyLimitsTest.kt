@@ -33,7 +33,7 @@ class DailyLimitsTest {
     fun `with a limit the workload takes the longest due first up to it, and tells how many wait`() {
         val cards = listOf(due(1, daysAgo = 1), due(2, daysAgo = 5), due(3, daysAgo = 3), new(4))
 
-        val workload = Workload.of(cards, newPerDay = 10, today, limit = 2)
+        val workload = Workload.of(cards, newPerDay = 10, today, limit = 2, asked = AskedToday())
 
         assertEquals(listOf(2L, 3L), workload.remaining.map { it.id })
         assertEquals(1, workload.waiting)
@@ -42,14 +42,14 @@ class DailyLimitsTest {
     @Test
     fun `while more is due than the limit takes there are no new cards, without that new ones as far as the limit goes`() {
         val backlog = listOf(due(1), due(2), due(3), new(4))
-        assertTrue(Workload.of(backlog, newPerDay = 10, today, limit = 2).remaining.none { it.new })
+        assertTrue(Workload.of(backlog, newPerDay = 10, today, limit = 2, asked = AskedToday()).remaining.none { it.new })
 
         val room = listOf(due(1), new(2), new(3), new(4))
-        val workload = Workload.of(room, newPerDay = 10, today, limit = 3)
+        val workload = Workload.of(room, newPerDay = 10, today, limit = 3, asked = AskedToday())
         assertEquals(listOf(1L, 2L, 3L), workload.remaining.map { it.id })
         assertEquals(0, workload.waiting)
         // Not more new ones than the day takes, either.
-        assertEquals(listOf(1L, 2L), Workload.of(room, newPerDay = 1, today, limit = 3).remaining.map { it.id })
+        assertEquals(listOf(1L, 2L), Workload.of(room, newPerDay = 1, today, limit = 3, asked = AskedToday()).remaining.map { it.id })
     }
 
     @Test
@@ -78,7 +78,7 @@ class DailyLimitsTest {
     @Test
     fun `without a limit the workload is as before`() {
         val cards = listOf(due(1), due(2), new(3))
-        val workload = Workload.of(cards, newPerDay = 10, today)
+        val workload = Workload.of(cards, newPerDay = 10, today, limit = null, asked = AskedToday())
 
         assertEquals(listOf(1L, 2L, 3L), workload.remaining.map { it.id })
         assertEquals(0, workload.waiting)
@@ -88,7 +88,7 @@ class DailyLimitsTest {
     fun `asked both ways, the back does not come the day the front is due`() {
         val both = due(1).copy(bothWays = true, reverseStability = 3.0, reverseDifficulty = 5.0, reverseDue = today.minusDays(2), reverseInterval = 9)
 
-        val workload = Workload.of(listOf(both, due(2)), newPerDay = 10, today, limit = 5)
+        val workload = Workload.of(listOf(both, due(2)), newPerDay = 10, today, limit = 5, asked = AskedToday())
 
         assertEquals(listOf(PromptKey(1, true), PromptKey(2, false)), workload.remaining.map { it.key })
     }

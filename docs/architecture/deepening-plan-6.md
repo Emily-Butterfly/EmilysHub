@@ -81,7 +81,17 @@ the image of Mein Warum use them too; a name for the phone's files apart from th
 
 ## 3 · The Tagespensum, told once
 
-**Status:** open.
+**Status:** done. `Workloads` (languages/Workloads.kt) is the Tagespensum of each language: its flows (`of`, `all`,
+`open`, `next`), whether it still asks a card (`asks`), and the three ways it becomes geschafft and tells its routines
+so: an answer that asks the last of it (`doneBy`), a change that makes it so (`changing`, for a card saved or deleted
+and the limits), and, at its limit with more waiting, while the app shows (`tellDoneAtLimit`). `Flashcards` takes it
+as `workloads` and keeps the cards and answers; the flows and `WorkloadsOn` moved out of it. `Routines.doneByVocabulary`
+takes it once a day, however often told, and `doneByVocabularyOnce` is gone; so the practice's `workloadTold` and
+`answer`'s `tellsWorkloadDone` went. The app shell's `WorkloadsDoneWhileShown` (was `RoutinesDoneAtLimit`) only runs
+`tellDoneAtLimit` while the app shows. `Workload.of` takes the limit and what was asked without defaults; the evaluation
+gives none for all that is due. **Behaviour:** a routine done by vocabulary is done at most once a day (SPEC.md §15).
+Tests: `languages/VocabularyCountsTest` (geschafft twice in a day), `languages/DailyLimitsFlashcardsTest` (told while
+shown); the UI test of the routine done as the app opens stays, as it is what runs the watcher.
 
 ## 4 · The Runde as a module
 

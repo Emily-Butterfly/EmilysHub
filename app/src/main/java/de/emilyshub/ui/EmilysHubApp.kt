@@ -93,7 +93,7 @@ import de.emilyshub.ui.languages.LanguagesMenu
 import de.emilyshub.ui.languages.LessonEditorScreen
 import de.emilyshub.ui.languages.LessonEditorTarget
 import de.emilyshub.ui.languages.PracticeScreen
-import de.emilyshub.ui.languages.RoutinesDoneAtLimit
+import de.emilyshub.ui.languages.WorkloadsDoneWhileShown
 import de.emilyshub.ui.languages.TeacherEditorScreen
 import de.emilyshub.ui.languages.TeacherListScreen
 import de.emilyshub.ui.ledger.BookingEditorScreen
@@ -241,7 +241,7 @@ private fun SystemFollowsDesign(activity: ComponentActivity, design: Design, dar
 @Composable
 private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: () -> Unit) {
     // A day's workload of cards done at its limit does its routines, also without an answer (SPEC.md §15; #156).
-    RoutinesDoneAtLimit(hub.flashcards, hub.routines, hub.day)
+    WorkloadsDoneWhileShown(hub.flashcards.workloads, hub.day)
     // Saves to its end by itself, though the shell is gone meanwhile behind the lock (AppSettings).
     val scope = rememberCoroutineScope()
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Today) }

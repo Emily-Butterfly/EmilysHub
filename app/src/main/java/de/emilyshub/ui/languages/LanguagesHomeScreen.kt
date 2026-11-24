@@ -71,7 +71,7 @@ fun LanguagesHomeScreen(
     onCreateLesson: () -> Unit,
 ) {
     val overview by remember(languages) { languages.overview() }.collectAsState(initial = null)
-    val workloads by remember(flashcards, day) { day.dates().flatMapLatest(flashcards::workloads) }.collectAsState(initial = emptyMap())
+    val workloads by remember(flashcards, day) { day.dates().flatMapLatest(flashcards.workloads::all) }.collectAsState(initial = emptyMap())
     Box(
         Modifier
             .fillMaxSize()

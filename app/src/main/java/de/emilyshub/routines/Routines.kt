@@ -333,27 +333,11 @@ class Routines(
     suspend fun markDone(occurrenceId: Long) = setStatus(occurrenceId, OccurrenceStatus.Done)
 
     /**
-     * The day's workload of cards of the language [languageId] is done (SPEC.md §2, §15; #106): each active routine done
-     * by it has its earliest occurrence of today still open done, as if ticked off, its checklist with it. What is
-     * missed, skipped or dropped stays as it is.
+     * The Tagespensum of the language [languageId] is geschafft (SPEC.md §15): each active routine done by it is done
+     * today, its earliest open occurrence, but only while none of its occurrences of today is done already; so once a
+     * day, however often told (#145, #156).
      */
     suspend fun doneByVocabulary(languageId: Long) {
-        val open = withContext(io) {
-            val today = today()
-            plan(today)
-            dao.withStatus(RoutineStatus.Active).filter { it.vocabularyLanguageId == languageId }.mapNotNull { routine ->
-                dao.occurrencesOn(routine.id, today).filter { it.status == OccurrenceStatus.Open }.minByOrNull { it.time }?.id
-            }
-        }
-        open.forEach { markDone(it) }
-    }
-
-    /**
-     * The day's workload of the language [languageId] is done at its limit (SPEC.md §15; #156), told as often as it is
-     * seen: each active routine done by it is done as [doneByVocabulary] does it, but only while none of its
-     * occurrences of today is done already.
-     */
-    suspend fun doneByVocabularyOnce(languageId: Long) {
         val open = withContext(io) {
             val today = today()
             plan(today)

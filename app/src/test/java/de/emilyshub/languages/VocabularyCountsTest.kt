@@ -43,7 +43,7 @@ class VocabularyCountsTest {
         { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
     private val routines = Routines({ database }, clock, Dispatchers.Unconfined)
-    private val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined, onWorkloadDone = routines::doneByVocabulary)
+    private val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined, Workloads({ database }, clock, Dispatchers.Unconfined, onDone = routines::doneByVocabulary))
     private val wishes = Wishes({ database }, clock, Dispatchers.Unconfined)
 
     @After
@@ -71,8 +71,8 @@ class VocabularyCountsTest {
         val arabic = language("Arabisch")
         val id = routine("Vokabeln", "12:00", "18:00", vocabulary = arabic)
 
-        routines.doneByVocabularyOnce(arabic)
-        routines.doneByVocabularyOnce(arabic)
+        routines.doneByVocabulary(arabic)
+        routines.doneByVocabulary(arabic)
         val todays = database.routines().occurrencesOn(id, routines.today()).sortedBy { it.time }
         assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), todays.map { it.status })
     }
@@ -253,7 +253,24 @@ class VocabularyCountsTest {
         assertTrue(answered.didWorkload)
         cards.takeBack(answered)
 
-        cards.answer(book, Rating.Good, tellsWorkloadDone = !answered.didWorkload)
+        cards.answer(book, Rating.Good)
+
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), statuses("Vokabeln"))
+    }
+
+    @Test
+    fun `the Tagespensum geschafft twice in a day, its limit raised between, does the routine once`() = runBlocking {
+        val arabic = language("Arabisch")
+        card(arabic, "kitab")
+        card(arabic, "qalam")
+        routine("Vokabeln", "12:00", "18:00", vocabulary = arabic)
+        database.languages().setDailyLimit(arabic, 1)
+
+        answer(arabic, "kitab", Rating.Good)
+        assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), statuses("Vokabeln"))
+
+        database.languages().setDailyLimit(arabic, null)
+        answer(arabic, "qalam", Rating.Good)
 
         assertEquals(listOf(OccurrenceStatus.Done, OccurrenceStatus.Open), statuses("Vokabeln"))
     }

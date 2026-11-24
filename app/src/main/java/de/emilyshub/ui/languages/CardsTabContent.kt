@@ -99,7 +99,7 @@ internal fun CardsTabContent(
 ) {
     val tab by remember(flashcards, languageId) { flashcards.tab(languageId) }.collectAsState(initial = null)
     val today by remember(day) { day.dates() }.collectAsState(initial = day.today())
-    val workload by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.workload(languageId, it) } }
+    val workload by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.workloads.of(languageId, it) } }
         .collectAsState(initial = null)
     var query by rememberSaveable { mutableStateOf("") }
     // Only the cards that hakt (#149), in the place of a topic.

@@ -295,12 +295,12 @@ class FlashcardsTest {
         repeat(5) { card(archived, "Wort $it") }
         languages.setLanguageArchived(archived, true)
 
-        assertEquals("as much open, by name", OpenLanguage(albanian, "Albanisch", 3), cards.nextLanguage(arabic, today).first())
-        assertEquals(OpenLanguage(persian, "Persisch", 3), cards.nextLanguage(albanian, today).first())
+        assertEquals("as much open, by name", OpenLanguage(albanian, "Albanisch", 3), cards.workloads.next(arabic, today).first())
+        assertEquals(OpenLanguage(persian, "Persisch", 3), cards.workloads.next(albanian, today).first())
         (workload(albanian).remaining + workload(persian).remaining).forEach { cards.answer(it.id, Rating.Good) }
-        assertEquals(OpenLanguage(italian, "Italienisch", 2), cards.nextLanguage(arabic, today).first())
+        assertEquals(OpenLanguage(italian, "Italienisch", 2), cards.workloads.next(arabic, today).first())
         workload(italian).remaining.forEach { cards.answer(it.id, Rating.Good) }
-        assertEquals("nothing open elsewhere", null, cards.nextLanguage(arabic, today).first())
+        assertEquals("nothing open elsewhere", null, cards.workloads.next(arabic, today).first())
     }
 
     @Test
@@ -325,12 +325,12 @@ class FlashcardsTest {
                 OpenLanguage(italian, "Italienisch", 2),
                 OpenLanguage(arabic, "Arabisch", 1),
             ),
-            cards.openLanguages(today).first(),
+            cards.workloads.open(today).first(),
         )
         workload(arabic).remaining.forEach { cards.answer(it.id, Rating.Good) }
-        assertEquals("one done is offered no more", listOf(albanian, persian, italian), cards.openLanguages(today).first().map { it.id })
+        assertEquals("one done is offered no more", listOf(albanian, persian, italian), cards.workloads.open(today).first().map { it.id })
         (workload(albanian).remaining + workload(persian).remaining + workload(italian).remaining).forEach { cards.answer(it.id, Rating.Good) }
-        assertEquals("all done", emptyList<OpenLanguage>(), cards.openLanguages(today).first())
+        assertEquals("all done", emptyList<OpenLanguage>(), cards.workloads.open(today).first())
     }
 
     @Test
@@ -377,8 +377,8 @@ class FlashcardsTest {
 
         languages.setLanguageArchived(arabic, true)
 
-        assertNull(cards.workload(arabic, today).first())
-        assertEquals(setOf(italian), cards.workloads(today).first().keys)
+        assertNull(cards.workloads.of(arabic, today).first())
+        assertEquals(setOf(italian), cards.workloads.all(today).first().keys)
         assertEquals(listOf("Buch"), cards.tab(arabic).first()?.cards?.map { it.card.front })
     }
 
@@ -790,7 +790,7 @@ class FlashcardsTest {
     @Test
     fun `ticking off a card's back forgets its answers that way and may do the day's workload`() = runBlocking {
         val done = mutableListOf<Long>()
-        val told = Flashcards({ database }, clock, documents, Dispatchers.Unconfined, onWorkloadDone = { done += it })
+        val told = Flashcards({ database }, clock, documents, Dispatchers.Unconfined, Workloads({ database }, clock, Dispatchers.Unconfined, onDone = { done += it }))
         val arabic = language("Arabisch")
         val book = both(arabic, "Buch")
         told.answer(book, Rating.Good)
@@ -841,7 +841,7 @@ class FlashcardsTest {
         return round.answered(card, rating)
     }
 
-    private suspend fun workload(languageId: Long, on: LocalDate = today): Workload = checkNotNull(cards.workload(languageId, on).first())
+    private suspend fun workload(languageId: Long, on: LocalDate = today): Workload = checkNotNull(cards.workloads.of(languageId, on).first())
 
     private suspend fun language(name: String) = (languages.createLanguage(name) as Saving.Saved).id
 

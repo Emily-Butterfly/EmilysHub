@@ -127,7 +127,7 @@ fun PracticeScreen(
     val state by remember(flashcards, day, languageId, selection) {
         day.dates().flatMapLatest { today ->
             if (selection == null) {
-                flashcards.workload(languageId, today).map { it?.let(::Practising) }
+                flashcards.workloads.of(languageId, today).map { it?.let(::Practising) }
             } else {
                 flashcards.practice(selection, today).map { it?.let(::PractisingSelection) }
             }
@@ -136,8 +136,6 @@ fun PracticeScreen(
     var round by rememberSaveable { mutableStateOf(Round()) }
     // The last answer and the round before it, to take back while the practice is open, also turned or locked (#145).
     var last by rememberSaveable { mutableStateOf<LastAnswer?>(null) }
-    // Whether an answer of this practice did the day's workload: given again after it was taken back, it tells no more.
-    var workloadTold by rememberSaveable { mutableStateOf(false) }
     // Each answer and each taken back a step, the card covered anew at each: also one shown again at once.
     var step by rememberSaveable { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -245,7 +243,7 @@ fun PracticeScreen(
                 }
                 // Only after the day's workload: a topic or exam practised is done when it is.
                 val next by remember(flashcards, day, languageId, selection) {
-                    if (selection != null) flowOf(null) else day.dates().flatMapLatest { flashcards.nextLanguage(languageId, it) }
+                    if (selection != null) flowOf(null) else day.dates().flatMapLatest { flashcards.workloads.next(languageId, it) }
                 }.collectAsState(initial = null)
                 val other = next
                 if (other != null) {
@@ -291,12 +289,10 @@ fun PracticeScreen(
                                 rating,
                                 countsAsNew = selection == null,
                                 reverse = card.reverse,
-                                tellsWorkloadDone = !workloadTold,
                             )
                             round = round.answered(card, rating)
                             step++
                             last = answered?.let { LastAnswer(it, before) }
-                            if (answered?.didWorkload == true) workloadTold = true
                             answering = null
                         }
                     },
