@@ -95,4 +95,15 @@ shown); the UI test of the routine done as the app opens stays, as it is what ru
 
 ## 4 · The Runde as a module
 
-**Status:** open.
+**Status:** done. `PracticeRound` (languages/PracticeRound.kt) is the Runde: a plain value the practice keeps through a
+turn and the lock, with its selection (none: the Tagespensum), the `Round`, the last answer with the round before it
+(`LastAnswer`, moved out of the screen) and its step; a card on its way, being answered or taken back, is part of it
+but not kept. It says what the round asks (`cards`: the Tagespensum, or a topic's or exam's cards each once), the card
+shown and where it stands, whether it is idle and can take back, and settles a card taken back once the cards have it
+again (`settledBy`). Its two steps go through `Flashcards`: `answered` (a selection's new cards not counted as the
+day's) and `takingBack`/`takenBack`. The practice screen keeps one `PracticeRound` instead of `round`, `last`, `step`,
+`answering` and `takenBack`, and no more chooses `countsAsNew`. A card edited mid-round needs nothing of its own: the
+cards as they come back move the round on. "Weiter mit Italienisch" stays with the screen. Tests:
+`languages/PracticeRoundTest` (card by card with "Nochmal", one step taken back, a card on its way, a topic, kept
+through a turn); the UI tests of `VocabularyScreenTest` all stay, as each checks what the screen shows or where a tap
+leads, the take-back's covered card and its "x von y" among them.
