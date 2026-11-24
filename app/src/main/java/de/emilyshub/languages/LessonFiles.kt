@@ -60,6 +60,9 @@ sealed interface AttachmentImport {
  * lesson is saved. Until then it is staged: [Languages.save] takes it in, [discard] lets it go, and clearing up spares
  * it. Shown and exported decrypted, never as a file in plain text. [documents] is only called on [io].
  *
+ * The photos of Mein Warum's reasons (SPEC.md §18) lie in the same [store], imported and staged the same way
+ * ([de.emilyshub.warum.Reasons]).
+ *
  * The backups reach the attachments through it, as an [AttachmentVault]: those of a backup being opened lie [aside],
  * encrypted the same way, until it is restored.
  */
@@ -113,9 +116,9 @@ class LessonFiles(
         if (InputText.lengthOf(joined) > LessonDraft.NOTE_MAX) TextImport.TooLong else TextImport.Appended(joined)
     }
 
-    /** The photo at [address] for a lesson that has [count] attachments now. */
-    suspend fun importPhoto(address: String, count: Int): AttachmentImport = withContext(io + NonCancellable) {
-        if (count >= MAX_ATTACHMENTS) return@withContext AttachmentImport.TooMany
+    /** The photo at [address] for a lesson that has [count] attachments now, of at most [max]. */
+    suspend fun importPhoto(address: String, count: Int, max: Int = MAX_ATTACHMENTS): AttachmentImport = withContext(io + NonCancellable) {
+        if (count >= max) return@withContext AttachmentImport.TooMany
         val picked = documents.read(address, PHOTO_MAX_BYTES + 1) ?: return@withContext AttachmentImport.Unreadable
         if (picked.bytes.size > PHOTO_MAX_BYTES) return@withContext AttachmentImport.TooLarge
         val jpeg = Photos.shrink(picked.bytes) ?: return@withContext AttachmentImport.Unreadable
@@ -159,11 +162,14 @@ class LessonFiles(
     internal val attachments: AttachmentStore get() = store
 
     /** Lets go of [attachment] if it was imported and is not saved yet: taken off again in the editor. */
-    suspend fun drop(attachment: AttachmentRef) = withContext(io + NonCancellable) {
+    suspend fun drop(attachment: AttachmentRef) = drop(attachment.file)
+
+    /** Lets go of what is kept under [file] if it was imported and is not saved yet. */
+    suspend fun drop(file: String) = withContext(io + NonCancellable) {
         synchronized(staged) {
-            if (attachment.file in staged) {
-                store.delete(attachment.file)
-                staged -= attachment.file
+            if (file in staged) {
+                store.delete(file)
+                staged -= file
             }
         }
     }

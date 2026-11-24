@@ -2,6 +2,7 @@ package de.emilyshub.ui.warum
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -22,9 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -34,8 +37,9 @@ import de.emilyshub.warum.Reason
 import de.emilyshub.warum.Reasons
 
 /**
- * The Gründe of Mein Warum opened large (SPEC.md §18), from the one tapped ([reasonId]): its text in large letters, in
- * the middle; swiping leads to the next in the board's order, and back to the one before. No buttons but the way back.
+ * The Gründe of Mein Warum opened large (SPEC.md §18), from the one tapped ([reasonId]): a text in large letters, in the
+ * middle; a photo filling the screen, to zoom into, its text below; swiping leads to the next in the board's order, and
+ * back to the one before. No buttons but the way back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +70,8 @@ fun ReasonViewerScreen(reasons: Reasons, reasonId: Long, onBack: () -> Unit) {
                 .padding(contentPadding),
         ) { page ->
             val reason = shown.getOrNull(page) ?: return@HorizontalPager
-            Large(reason, stringResource(R.string.warum_reason_of, page + 1, shown.size))
+            val place = stringResource(R.string.warum_reason_of, page + 1, shown.size)
+            if (reason.photo == null) Large(reason, place) else LargePhoto(reasons, reason, reason.photo, place)
         }
     }
 }
@@ -88,3 +93,31 @@ private fun Large(reason: Reason, place: String) {
         }
     }
 }
+
+/**
+ * A reason's [photo] filling what the screen has, to zoom into with two fingers, its text below it if it has one, and its
+ * place among all ([place]) told to TalkBack.
+ */
+@Composable
+private fun LargePhoto(reasons: Reasons, reason: Reason, photo: String, place: String) {
+    val bytes by produceState<ByteArray?>(null, reasons, photo) { value = reasons.photo(photo) }
+    Column(Modifier.fillMaxSize().semantics { stateDescription = place }) {
+        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
+            bytes?.let { ZoomablePhoto(it) }
+        }
+        if (reason.text.isNotEmpty()) {
+            ReasonText(
+                reason.text,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = MAX_TEXT_HEIGHT.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+        }
+    }
+}
+
+/** The most of the screen a text below a photo takes, so that the photo keeps the most of it. */
+private const val MAX_TEXT_HEIGHT = 200

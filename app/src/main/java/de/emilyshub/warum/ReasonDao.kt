@@ -18,6 +18,10 @@ interface ReasonDao {
     @Query("SELECT * FROM reasons WHERE id = :id")
     suspend fun find(id: Long): Reason?
 
+    /** How many reasons have a photo, but the reason [except]. */
+    @Query("SELECT COUNT(*) FROM reasons WHERE photo IS NOT NULL AND id IS NOT :except")
+    suspend fun photoCount(except: Long?): Int
+
     @Query("SELECT MIN(position) FROM reasons")
     suspend fun firstPosition(): Int?
 

@@ -270,6 +270,18 @@ class BackupsTest {
     }
 
     @Test
+    fun `a backup from before the photos of the reasons loads with the reasons without any`() {
+        someOfEverything()
+        val now = exported()
+        val older = sealed(asOf(62, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(older)
+
+        assertEquals(listOf(ReasonDraft("Lina und ihr Lachen")), runBlocking { app.reasons.board().first() }.map { ReasonDraft(it.text, it.photo) })
+    }
+
+    @Test
     fun `a backup keeps the cards and their answers, and one from before them loads without any, ten new a day`() {
         val made = someOfEverything()
         val now = exported()

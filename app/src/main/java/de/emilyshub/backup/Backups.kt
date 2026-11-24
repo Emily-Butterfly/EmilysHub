@@ -9,6 +9,7 @@ import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
+import de.emilyshub.warum.Reasons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -64,7 +65,7 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  * else, or from a backup without one, stays as it is. [tracking] likewise, with the Tracking password (SPEC.md §17).
  *
  * The islands' databases follow the content in the file in records of their own ([BackupContent.records]), then the
- * lessons' [attachments], each in a record of its own, so that a backup is written and read as a stream (format 3 of
+ * lessons' [attachments] and the photos of Mein Warum's reasons, which lie with them, each in a record of its own, so that a backup is written and read as a stream (format 3 of
  * [BackupFile]). Opening a backup checks the attachments and lays them aside, encrypted; restoring puts them in place
  * of the app's own.
  */
@@ -342,28 +343,35 @@ class Backups(
     }
 
     /**
-     * That the lessons' attachments in the tables are those the backup carries, each as large as it says, and no lesson
-     * has more than a lesson can.
+     * That the lessons' attachments and the reasons' photos in the tables are those the backup carries, each attachment
+     * as large as it says; that no lesson has more than a lesson can, nor more reasons a photo than may have one.
      */
     private fun HubDatabase.checkAttachments(carried: List<BackupAttachment>) {
         val rows = backup().lessonAttachments()
+        val photos = backup().reasons().mapNotNull { it.photo }
         val sizes = carried.associate { it.file to it.bytes }
-        if (rows.size != carried.size || rows.any { sizes[it.file] != it.bytes }) damaged()
+        if ((rows.map { it.file } + photos).toSet().size != carried.size) damaged()
+        if (rows.any { sizes[it.file] != it.bytes } || photos.any { it !in sizes }) damaged()
         if (rows.groupBy { it.lessonId }.values.any { it.size > LessonFiles.MAX_ATTACHMENTS }) damaged()
+        if (photos.size > Reasons.MAX_PHOTOS) damaged()
     }
 
-    /** [tables] with only the rows of the lessons' attachments whose files are [kept]. */
-    private fun withAttachmentsOnly(tables: Map<String, TableRows>, kept: Set<String>): Map<String, TableRows> {
-        val table = tables[ATTACHMENTS_TABLE] ?: return tables
-        val column = table.columns.indexOf("file")
-        return tables + (ATTACHMENTS_TABLE to TableRows(table.columns, table.rows.filter { it[column] in kept }))
-    }
+    /** [tables] with only the lessons' attachments, and the reasons with photos, whose files are [kept]. */
+    private fun withAttachmentsOnly(tables: Map<String, TableRows>, kept: Set<String>): Map<String, TableRows> =
+        FILES.entries.fold(tables) { all, (name, column) ->
+            val table = all[name] ?: return@fold all
+            val index = table.columns.indexOf(column)
+            all + (name to TableRows(table.columns, table.rows.filter { it[index] == null || it[index] in kept }))
+        }
 
-    /** The files of the lessons' attachments in [tables], in the order of their rows. */
-    private fun attachmentFilesOf(tables: Map<String, TableRows>): List<String> {
-        val table = tables[ATTACHMENTS_TABLE] ?: return emptyList()
-        val column = table.columns.indexOf("file")
-        return table.rows.map { it[column] as String }
+    /**
+     * The files of the lessons' attachments in [tables], in the order of their rows, then the photos of the reasons
+     * (SPEC.md §18), which lie in the same store.
+     */
+    private fun attachmentFilesOf(tables: Map<String, TableRows>): List<String> = FILES.flatMap { (name, column) ->
+        val table = tables[name] ?: return@flatMap emptyList()
+        val index = table.columns.indexOf(column)
+        table.rows.mapNotNull { it[index] as String? }
     }
 
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->
@@ -391,7 +399,9 @@ class Backups(
         private const val LAST_MADE = "backup-last-made"
         private const val FIRST_MADE = "backup-first-made"
         private const val SEPARATOR = ":"
-        private const val ATTACHMENTS_TABLE = "lesson_attachments"
+
+        /** The tables that name files of the attachment store, by the column that does. */
+        private val FILES = mapOf("lesson_attachments" to "file", "reasons" to "photo")
 
         fun passwordProblem(password: String, repeated: String): PasswordProblem? = when {
             password.length < MIN_PASSWORD_LENGTH -> PasswordProblem.TooShort

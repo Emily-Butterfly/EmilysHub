@@ -2297,5 +2297,14 @@
     <string name="reason_new">Neuer Grund</string>
     <string name="reason_edit">Grund ändern</string>
     <string name="reason_text">Text</string>
-    <string name="reason_empty">Ein Grund braucht einen Text.</string>
+    <string name="reason_empty">Ein Grund braucht einen Text oder ein Foto.</string>
+    <string name="reason_photo">Foto</string>
+    <string name="reason_photo_choose">Foto wählen</string>
+    <string name="reason_photo_take">Foto aufnehmen</string>
+    <string name="reason_photo_remove">Foto entfernen</string>
+    <string name="reason_photo_busy">Das Foto wird eingelesen …</string>
+    <string name="reason_photo_unreadable">Dieses Foto lässt sich nicht lesen.</string>
+    <string name="reason_photo_too_large">Das Foto ist größer als 40 MB.</string>
+    <string name="reason_photo_limit">Schon 100 Gründe haben ein Foto; mehr geht nicht.</string>
+    <string name="reason_photo_gone">Das Foto ist nicht mehr da. Wähle es noch einmal.</string>
 </resources>

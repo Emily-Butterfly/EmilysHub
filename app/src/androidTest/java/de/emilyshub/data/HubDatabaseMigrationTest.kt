@@ -1317,6 +1317,21 @@ class HubDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `version 62 moves to version 63 with the reasons without photos and then one is kept with one`() {
+        createAtVersion(62) {
+            it.execSQL("INSERT INTO reasons (id, text, position) VALUES (1, 'Lina', 0)")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.reasons()
+            val lina = checkNotNull(dao.find(1))
+            assertEquals(null, lina.photo)
+            dao.update(lina.copy(photo = "0b8c3f3e-1d2a-4c5b-9e6f-7a8b9c0d1e2f.att"))
+            assertEquals("0b8c3f3e-1d2a-4c5b-9e6f-7a8b9c0d1e2f.att", dao.find(1)?.photo)
+        }
+    }
+
     /** Every to-do, open or ticked off, with its checklist, tags and places. */
     private suspend fun HubDatabase.allTodos(): List<TodoWithDetails> = todos().observeOpenOrDoneSince(Instant.EPOCH).first()
 

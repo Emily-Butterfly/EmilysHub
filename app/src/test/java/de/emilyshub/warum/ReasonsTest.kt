@@ -1,23 +1,51 @@
 package de.emilyshub.warum
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.TestClock
 import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.languages.AttachmentImport
+import de.emilyshub.languages.FakeLessonDocuments
+import de.emilyshub.languages.Languages
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.testAttachmentStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.GraphicsMode
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.util.UUID
 
-/** The Gründe of Mein Warum (SPEC.md §18): checked, laid out in the order the user gives them, and deleted. */
+/**
+ * The Gründe of Mein Warum (SPEC.md §18): checked, laid out in the order the user gives them, and deleted; their photos
+ * shrunk, kept encrypted, at most 100, and gone with their reason.
+ */
 @RunWith(AndroidJUnit4::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ReasonsTest {
 
     private val database = inMemoryDatabase()
-    private val reasons = Reasons({ database }, Dispatchers.Unconfined)
+    private val folder = "reasons-${System.nanoTime()}"
+    private val store = testAttachmentStore(folder)
+    private val documents = FakeLessonDocuments()
+    private val files = LessonFiles(store, documents, Dispatchers.Unconfined)
+    private val reasons = Reasons({ database }, files, Dispatchers.Unconfined)
 
     @After
     fun closeDatabase() {
@@ -34,7 +62,7 @@ class ReasonsTest {
     }
 
     @Test
-    fun `an empty reason is refused, and one over 500 characters`() = runBlocking {
+    fun `an empty reason without a photo is refused, and one over 500 characters`() = runBlocking {
         assertEquals(Saving.Refused(setOf(ReasonProblem.Empty)), reasons.save(null, ReasonDraft(" \n​ ")))
         assertEquals(Saving.Refused(setOf(ReasonProblem.TextTooLong)), reasons.save(null, ReasonDraft("a".repeat(501))))
         assertEquals(Saving.Saved::class, reasons.save(null, ReasonDraft("🌱".repeat(500)))::class)
@@ -108,6 +136,106 @@ class ReasonsTest {
         assertEquals(Saving.Refused(setOf(ReasonProblem.Gone)), reasons.save(sea, ReasonDraft("Das Meer")))
         assertEquals(2, texts().size)
     }
+
+    @Test
+    fun `a photo is shrunk to 2000 px at the long edge and kept encrypted, with a text or without`() = runBlocking {
+        val photo = import(png(3000, 1500))
+
+        val withText = (reasons.save(null, ReasonDraft("Das Meer", photo)) as Saving.Saved).id
+        val alone = (reasons.save(null, ReasonDraft(" ", import(png(100, 100)))) as Saving.Saved).id
+
+        assertEquals(ReasonDraft("Das Meer", photo), reasons.editing(withText))
+        assertEquals("", reasons.editing(alone)?.text)
+        val kept = checkNotNull(reasons.photo(photo))
+        val bitmap = BitmapFactory.decodeByteArray(kept, 0, kept.size)
+        assertEquals(2000, bitmap.width)
+        assertEquals(1000, bitmap.height)
+        assertFalse("not as it is shown", File(File(ApplicationProvider.getApplicationContext<Context>().filesDir, folder), photo).readBytes().contentEquals(kept))
+    }
+
+    @Test
+    fun `no picture is no photo`() = runBlocking {
+        assertEquals(AttachmentImport.Unreadable, reasons.importPhoto(documents.put("kein.jpg", "kein Bild".toByteArray()), null))
+    }
+
+    @Test
+    fun `a reason deleted takes its photo with it, and a photo replaced or taken off goes once saved`() = runBlocking {
+        val first = import(png(50, 50))
+        val id = (reasons.save(null, ReasonDraft("Lina", first)) as Saving.Saved).id
+
+        val second = import(png(60, 60))
+        reasons.save(id, ReasonDraft("Lina", second))
+        assertFalse("replaced", store.has(first))
+        assertTrue(store.has(second))
+
+        reasons.save(id, ReasonDraft("Lina"))
+        assertFalse("taken off", store.has(second))
+
+        val third = import(png(70, 70))
+        reasons.save(id, ReasonDraft("Lina", third))
+        reasons.delete(id)
+        assertFalse("gone with its reason", store.has(third))
+        assertEquals(emptySet<String>(), store.names())
+    }
+
+    @Test
+    fun `a photo imported but left unsaved is let go of, and one saved stays`() = runBlocking {
+        val saved = import(png(50, 50))
+        val id = (reasons.save(null, ReasonDraft("Lina", saved)) as Saving.Saved).id
+
+        val left = import(png(60, 60))
+        reasons.discard(ReasonDraft("Lina", left), reasons.editing(id))
+
+        assertFalse(store.has(left))
+        assertTrue(store.has(saved))
+    }
+
+    @Test
+    fun `a photo of another reason or of a lesson is no photo to save`() = runBlocking {
+        val lina = import(png(50, 50))
+        reasons.save(null, ReasonDraft("Lina", lina))
+
+        assertEquals(Saving.Refused(setOf(ReasonProblem.PhotoGone)), reasons.save(null, ReasonDraft("Auch Lina", lina)))
+        assertEquals(Saving.Refused(setOf(ReasonProblem.PhotoGone)), reasons.save(null, ReasonDraft("", "${UUID.randomUUID()}.att")))
+    }
+
+    @Test
+    fun `at most 100 reasons have a photo, and one that has one may change it`() = runBlocking {
+        repeat(99) { database.reasons().insert(Reason(text = "", position = it, photo = store.write(byteArrayOf(1)))) }
+        assertTrue(reasons.photoAllowed(null))
+        val last = (reasons.save(null, ReasonDraft("Lina", import(png(50, 50)))) as Saving.Saved).id
+
+        assertFalse(reasons.photoAllowed(null))
+        assertEquals(AttachmentImport.TooMany, reasons.importPhoto(documents.put("mehr.png", png(50, 50)), null))
+        val staged = import(png(50, 50), reasonId = last)
+        assertEquals(Saving.Refused(setOf(ReasonProblem.TooManyPhotos)), reasons.save(null, ReasonDraft("Ben", staged)))
+        assertTrue(reasons.photoAllowed(last))
+        assertEquals(Saving.Saved(last), reasons.save(last, ReasonDraft("Lina", staged)))
+        assertEquals(Saving.Saved::class, reasons.save(null, ReasonDraft("Ohne Foto"))::class)
+    }
+
+    @Test
+    fun `clearing up the attachments spares the photos of the reasons, and lets go of one left behind`() = runBlocking {
+        val saved = import(png(50, 50))
+        reasons.save(null, ReasonDraft("Lina", saved))
+        val left = import(png(60, 60))
+        // As on a later start, with nothing staged in memory.
+        val again = LessonFiles(store, documents, Dispatchers.Unconfined)
+        val languages = Languages({ database }, TestClock(Instant.parse("2026-11-24T09:00:00Z"), ZoneId.of("Europe/Berlin")), again, Dispatchers.Unconfined)
+
+        languages.clearUpAttachments(olderThan = Duration.ZERO)
+
+        assertTrue(store.has(saved))
+        assertFalse(store.has(left))
+    }
+
+    private suspend fun import(bytes: ByteArray, reasonId: Long? = null): String =
+        (reasons.importPhoto(documents.put("foto.png", bytes), reasonId) as AttachmentImport.Added).attachment.file
+
+    private fun png(width: Int, height: Int): ByteArray = ByteArrayOutputStream().also {
+        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+            .compress(Bitmap.CompressFormat.PNG, 100, it)
+    }.toByteArray()
 
     private suspend fun save(text: String): Long = (reasons.save(null, ReasonDraft(text)) as Saving.Saved).id
 

@@ -911,3 +911,11 @@ val MIGRATION_61_62 = object : Migration(61, 62) {
         )
     }
 }
+
+/** 62 → 63: a Grund of Mein Warum may have a photo (SPEC.md §18); those there have none. */
+val MIGRATION_62_63 = object : Migration(62, 63) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `reasons` ADD COLUMN `photo` TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reasons_photo` ON `reasons` (`photo`)")
+    }
+}

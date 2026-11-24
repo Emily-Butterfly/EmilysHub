@@ -1,7 +1,12 @@
 package de.emilyshub
 
 import android.Manifest
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -11,6 +16,7 @@ import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -23,21 +29,26 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
+import de.emilyshub.warum.Reason
 import de.emilyshub.warum.ReasonDraft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowAlarmManager
+import java.io.ByteArrayOutputStream
+import java.util.UUID
 
 /**
- * Mein Warum (SPEC.md §18, #161): the fifth entry of Sonstiges, a board of Gründe looked at without buttons but the pen,
- * opened large and swiped through, and edited: added, changed, moved and deleted.
+ * Mein Warum (SPEC.md §18, #161, #162): the fifth entry of Sonstiges, a board of Gründe looked at without buttons but the
+ * pen, opened large and swiped through, and edited: added, changed, moved and deleted; with a photo, at most 100.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w411dp-h915dp") // the Galaxy A52
@@ -79,7 +90,7 @@ class MeinWarumScreenTest {
             compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
             compose.onNode(isHeading() and hasText("Neuer Grund")).assertIsDisplayed()
             compose.onNodeWithText("Speichern").performClick()
-            compose.onNodeWithText("Ein Grund braucht einen Text.").assertIsDisplayed()
+            compose.onNodeWithText("Ein Grund braucht einen Text oder ein Foto.").assertIsDisplayed()
 
             compose.onNode(hasSetTextAction()).performTextInput("Lina und ihr Lachen")
             compose.onNodeWithText("Speichern").performClick()
@@ -199,6 +210,57 @@ class MeinWarumScreenTest {
             compose.onNodeWithText("Lina und ihr Lachen").assertDoesNotExist()
         }
     }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `a reason has a photo from the gallery with a text as a strip below it, or alone, and opens large`() {
+        val sea = app.lessonDocuments.put("Meer.png", png())
+        val alone = app.lessonDocuments.put("Lina.png", png())
+
+        launchApp().use { scenario ->
+            openWarum()
+            compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasText("Foto wählen") and hasClickAction()).performClick()
+            assertEquals(listOf("image/*"), scenario.pickFile(Uri.parse(sea)).getStringArrayExtra(Intent.EXTRA_MIME_TYPES)?.toList())
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(hasText("Foto entfernen") and hasClickAction()).assertIsDisplayed()
+            compose.onNode(hasSetTextAction()).performTextInput("Das Meer")
+            compose.onNodeWithText("Speichern").performClick()
+
+            compose.onNodeWithContentDescription("Bearbeiten").performClick()
+            compose.onNodeWithContentDescription("Grund hinzufügen").performClick()
+            compose.onNode(hasText("Foto wählen") and hasClickAction()).performClick()
+            scenario.pickFile(Uri.parse(alone))
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithContentDescription("Fertig").performClick()
+
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().size == 2 }
+            compose.onNodeWithText("Das Meer").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Das Meer").assertIsDisplayed()
+        }
+        val board = runBlocking { app.reasons.board().first() }
+        assertEquals(listOf("", "Das Meer"), board.map { it.text })
+        assertTrue(board.all { it.photo != null })
+    }
+
+    @Test
+    fun `once 100 reasons have a photo, the editor says so`() {
+        runBlocking { repeat(100) { app.testDatabase.reasons().insert(Reason(text = "Grund $it", position = it, photo = "${UUID.randomUUID()}.att")) } }
+
+        launchApp().use {
+            openWarum()
+            compose.onNodeWithContentDescription("Bearbeiten").performClick()
+            compose.onNodeWithContentDescription("Grund hinzufügen").performClick()
+            compose.onNodeWithText("Schon 100 Gründe haben ein Foto; mehr geht nicht.").assertIsDisplayed()
+            compose.onNode(hasText("Foto wählen") and hasClickAction()).assertIsNotEnabled()
+        }
+    }
+
+    private fun png(): ByteArray = ByteArrayOutputStream().also {
+        Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }.compress(Bitmap.CompressFormat.PNG, 100, it)
+    }.toByteArray()
 
     private fun openWarum() {
         compose.onNode(isSelectable() and hasText("Sonstiges")).performClick()

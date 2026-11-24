@@ -1,9 +1,14 @@
 package de.emilyshub.ui.warum
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +19,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,10 +29,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -35,10 +46,15 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
 import de.emilyshub.data.InputText
+import de.emilyshub.data.Saving
+import de.emilyshub.languages.AttachmentImport
+import de.emilyshub.languages.CameraShot
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
+import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.rememberFirstField
+import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.warum.ReasonDraft
@@ -55,8 +71,10 @@ sealed interface ReasonEditorTarget : Serializable {
 }
 
 /**
- * Adds or changes a Grund of Mein Warum (SPEC.md §18): its text, plain, up to 500 characters, in the middle as on the
- * board. An empty one is not saved. Leaving with changes asks whether to save them; one deleted meanwhile closes.
+ * Adds or changes a Grund of Mein Warum (SPEC.md §18): its photo, chosen or taken with the phone's camera app, replaced or
+ * taken off, and its text, plain, up to 500 characters, in the middle as on the board. One with neither is not saved,
+ * and once 100 others have a photo, it says so. Leaving with changes asks whether to save them, and a photo imported
+ * but not saved is let go of; one deleted meanwhile closes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +85,9 @@ fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: ()
     var draft by rememberSaveable { mutableStateOf(ReasonDraft()) }
     // Only after a first try to save, so that a fresh form does not start out in red.
     var tried by rememberSaveable { mutableStateOf(false) }
+    // What saving found that the draft does not tell: a photo gone, or too many with one.
+    var refused by rememberSaveable { mutableStateOf(emptySet<ReasonProblem>()) }
+    val scope = rememberCoroutineScope()
 
     val saved = original
     if (saved == null) {
@@ -91,14 +112,30 @@ fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: ()
             firstField.saveFailed(atField = true)
         } else {
             val typed = draft
-            closeWith { reasons.save(reasonId, typed) }
+            closeWith.leaveThrough {
+                when (val saving = reasons.save(reasonId, typed)) {
+                    is Saving.Saved -> onClose()
+                    is Saving.Refused -> if (ReasonProblem.Gone in saving.problems) {
+                        onClose()
+                    } else {
+                        refused = saving.problems
+                        closeWith.reopen()
+                    }
+                }
+            }
         }
+    }
+    // Left without saving: a photo imported for it is let go of.
+    val discard = {
+        val left = draft
+        scope.launchNow { reasons.discard(left, saved) }
+        onClose()
     }
     val leave = rememberLeaving(
         closing = closeWith,
         changed = { differsAsSaved(draft, saved, ReasonDraft::cleaned) },
         onSave = save,
-        onDiscard = onClose,
+        onDiscard = discard,
     )
 
     Scaffold(
@@ -127,6 +164,18 @@ fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: ()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            ReasonPhotoField(
+                reasons = reasons,
+                reasonId = reasonId,
+                photo = draft.photo,
+                saved = saved.photo,
+                onChange = { photo ->
+                    draft = draft.copy(photo = photo)
+                    refused = emptySet()
+                },
+            )
+            if (ReasonProblem.PhotoGone in refused) Problem(stringResource(R.string.reason_photo_gone))
+            if (ReasonProblem.TooManyPhotos in refused) Problem(stringResource(R.string.reason_photo_limit))
             val empty = tried && ReasonProblem.Empty in problems
             val direction = if (InputText.startsRightToLeft(draft.text)) TextDirection.Rtl else TextDirection.Ltr
             OutlinedTextField(
@@ -154,3 +203,102 @@ fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: ()
         }
     }
 }
+
+/** What importing a photo came to, to be told under its buttons. */
+private enum class PhotoNote(val text: Int, val problem: Boolean) {
+    Busy(R.string.reason_photo_busy, false),
+    Unreadable(R.string.reason_photo_unreadable, true),
+    TooLarge(R.string.reason_photo_too_large, true),
+    TooMany(R.string.reason_photo_limit, true),
+}
+
+/**
+ * The photo of the reason [reasonId], or a new one, as [photo]: chosen from the gallery or taken with the phone's camera
+ * app, without the app's own camera permission (SPEC.md §15); shown, replaced by choosing anew, or taken off. One
+ * imported and replaced or taken off again goes at once; the one [saved] goes only once the reason is saved without it.
+ * Once 100 others have a photo, it says so, with nothing to choose.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, saved: String?, onChange: (String?) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var note by rememberSaveable { mutableStateOf<PhotoNote?>(null) }
+    val current by rememberUpdatedState(photo)
+    val change by rememberUpdatedState(onChange)
+    val allowed by produceState<Boolean?>(null, reasons, reasonId) { value = reasons.photoAllowed(reasonId) }
+
+    /** [file] in place of the photo it had, which goes if it was imported and not saved. */
+    fun replaceWith(file: String?) {
+        val before = current
+        change(file)
+        if (before != null && before != saved && before != file) scope.launchNow { reasons.drop(before) }
+    }
+
+    suspend fun imported(address: String) {
+        note = when (val result = reasons.importPhoto(address, reasonId)) {
+            is AttachmentImport.Added -> {
+                replaceWith(result.attachment.file)
+                null
+            }
+            AttachmentImport.TooMany -> PhotoNote.TooMany
+            AttachmentImport.TooLarge -> PhotoNote.TooLarge
+            AttachmentImport.Unreadable -> PhotoNote.Unreadable
+        }
+    }
+
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        note = PhotoNote.Busy
+        scope.launchNow { imported(uri.toString()) }
+    }
+    var shot by rememberSaveable { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        val address = shot ?: return@rememberLauncherForActivityResult
+        shot = null
+        if (!taken) {
+            CameraShot.clear(context)
+            return@rememberLauncherForActivityResult
+        }
+        note = PhotoNote.Busy
+        scope.launchNow {
+            try {
+                imported(address)
+            } finally {
+                // The photo lay there in plain text only until read.
+                CameraShot.clear(context)
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        photo?.let { ReasonPhotoImage(reasons, it, Modifier.heightIn(max = PHOTO_MAX_HEIGHT.dp)) }
+        val limited = allowed == false && photo == null
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { gallery.launch(arrayOf("image/*")) }, enabled = allowed != null && !limited) {
+                Text(stringResource(R.string.reason_photo_choose))
+            }
+            OutlinedButton(
+                onClick = {
+                    val uri = CameraShot.prepare(context)
+                    shot = uri.toString()
+                    camera.launch(uri)
+                },
+                enabled = allowed != null && !limited,
+            ) { Text(stringResource(R.string.reason_photo_take)) }
+            if (photo != null) {
+                OutlinedButton(onClick = { replaceWith(null) }) { Text(stringResource(R.string.reason_photo_remove)) }
+            }
+        }
+        val shown = note
+        when {
+            limited -> Text(stringResource(R.string.reason_photo_limit), style = MaterialTheme.typography.bodySmall)
+            shown == null -> Unit
+            shown.problem -> Problem(stringResource(shown.text))
+            else -> Text(stringResource(shown.text), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/** How high the photo stands in the editor at most, so that the text below stays in sight. */
+private const val PHOTO_MAX_HEIGHT = 240

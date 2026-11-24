@@ -6,7 +6,8 @@ import androidx.core.content.FileProvider
 import java.io.File
 
 /**
- * The one file the camera app writes a photo for a lesson (SPEC.md §15) or an event in Tracking (§17) to, lent to it
+ * The one file the camera app writes a photo for a lesson (SPEC.md §15), an event in Tracking (§17) or a Grund of Mein
+ * Warum (§18) to, lent to it
  * through the app's FileProvider,
  * so that the app needs no camera permission. The photo lies in it in plain text only until the app has read it: it is
  * deleted at once after; and anything left of it on a later start, once it is older than any photo still on its way

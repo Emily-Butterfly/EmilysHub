@@ -1,5 +1,6 @@
 package de.emilyshub.ui.warum
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -123,6 +125,7 @@ fun ReasonsBoard(
                     Modifier
                 }
                 ReasonTile(
+                    reasons = reasons,
                     reason = reason,
                     editing = editing,
                     onClick = { if (editing) onEdit(reason.id) else onOpen(reason.id) },
@@ -192,9 +195,13 @@ private fun Empty(contentPadding: PaddingValues, onAdd: () -> Unit) {
     }
 }
 
-/** A reason on the board, as high as its text; edited, with its menu in the corner. */
+/**
+ * A reason on the board, as high as what it holds: its photo, its text below as a strip, or either alone; edited, with its
+ * menu in the corner.
+ */
 @Composable
 private fun ReasonTile(
+    reasons: Reasons,
     reason: Reason,
     editing: Boolean,
     onClick: () -> Unit,
@@ -210,16 +217,29 @@ private fun ReasonTile(
             .clickable(onClick = onClick),
     ) {
         Box(Modifier.fillMaxWidth()) {
-            ReasonText(
-                reason.text,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (editing) 40.dp else 16.dp, vertical = 20.dp),
-            )
+            Column {
+                reason.photo?.let { ReasonPhotoImage(reasons, it) }
+                if (reason.text.isNotEmpty()) {
+                    // Beside a photo, a strip below it, clear of the menu above.
+                    val beside = if (editing && reason.photo == null) 40.dp else 16.dp
+                    ReasonText(
+                        reason.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = beside, vertical = if (reason.photo == null) 20.dp else 12.dp),
+                    )
+                }
+            }
             if (editing) {
                 var open by remember { mutableStateOf(false) }
-                Box(Modifier.align(Alignment.TopEnd)) {
+                // Over a photo, on a ground of its own to be seen.
+                val ground = if (reason.photo != null) {
+                    Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
+                } else {
+                    Modifier
+                }
+                Box(Modifier.align(Alignment.TopEnd).padding(4.dp).then(ground)) {
                     MoreMenu(nameOf(reason), expanded = open, onExpandedChange = { open = it }) { close ->
                         MoreMenuItem(stringResource(R.string.warum_change), close, onClick)
                         MoreMenuItem(stringResource(R.string.warum_forward), close, onForward)
@@ -239,8 +259,9 @@ internal fun ReasonText(text: String, style: TextStyle, modifier: Modifier = Mod
     Text(text, style = style.copy(textAlign = TextAlign.Center, textDirection = direction), modifier = modifier)
 }
 
-/** What a reason's menu is named by: its first line. */
-private fun nameOf(reason: Reason) = reason.text.lineSequence().first()
+/** What a reason's menu is named by: the first line of its text, or "Foto". */
+@Composable
+private fun nameOf(reason: Reason) = reason.text.lineSequence().first().ifEmpty { stringResource(R.string.reason_photo) }
 
 /**
  * A reason dragged across the board by a long press: [id] while it is, [offset] from where the grid lays it out. Over

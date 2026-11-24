@@ -284,7 +284,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val tags: Tags by lazy { Tags({ database }, io) }
 
     final override val inbox: Inbox by lazy { Inbox({ database }, clock, io) }
-    final override val reasons: Reasons by lazy { Reasons({ database }, io) }
+    final override val reasons: Reasons by lazy { Reasons({ database }, lessonFiles, io) }
 
     final override val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
 
