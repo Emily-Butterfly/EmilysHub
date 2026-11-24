@@ -1337,7 +1337,7 @@ class HubDatabaseMigrationTest {
     }
 
     @Test
-    fun `version 63 moves to version 64 with the reasons looking as Standard and then a look of one's own is kept`() {
+    fun `version 63 moves to version 64 with the reasons looking as Standard and then a look of their own is kept`() {
         createAtVersion(63) {
             it.execSQL("INSERT INTO reasons (id, text, position, photo) VALUES (1, 'Lina', 0, NULL)")
         }
