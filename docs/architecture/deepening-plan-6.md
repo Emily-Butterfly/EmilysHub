@@ -48,7 +48,18 @@ save, the shape plan 5 removed elsewhere.
 
 ## 1 · The trip to the camera app, once
 
-**Status:** open.
+**Status:** done. `rememberCameraTrip` (ui/CameraTrip.kt) is the way to the camera app for the Sessions, Tracking and
+Mein Warum: `take()` lends the camera app the one file (`CameraShot`, moved to `ui`), false with nothing left behind if
+the phone has no camera app; taken, the caller's block reads the photo, then the trip ends and the file is deleted,
+whatever came of it. Tracking's `IslandTrip` is the second adapter of the `TripOut` hook, `NoTrip` the first. All three
+say "Keine Kamera-App gefunden." where the Sessions and Mein Warum crashed.
+
+Changed from the plan: the block reads the photo's **bytes** from the file, as Tracking did, rather than taking its
+address: Sessions and Gründe read it through Android's document reader before, which the tests replace with a fake that
+cannot know the camera's file. `LessonFiles.importPhoto` and `Reasons.importPhoto` take a photo read already, beside
+the one at an address (the gallery). The tests clear `FileProvider`'s static cache of folders as each test's app starts
+(`TestApplication`), as several tests now lend the camera a file. Tests: `MeinWarumScreenTest`, `LanguagesScreenTest`,
+`TrackingPhotoScreenTest` (no camera app, each; a photo taken for a Grund).
 
 ## 2 · The Ablage knows its owners
 

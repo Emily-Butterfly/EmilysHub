@@ -120,6 +120,12 @@ class LessonFiles(
     suspend fun importPhoto(address: String, count: Int, max: Int = MAX_ATTACHMENTS): AttachmentImport = withContext(io + NonCancellable) {
         if (count >= max) return@withContext AttachmentImport.TooMany
         val picked = documents.read(address, PHOTO_MAX_BYTES + 1) ?: return@withContext AttachmentImport.Unreadable
+        importPhoto(picked, count, max)
+    }
+
+    /** The photo [picked], read already, as the camera app took it, for a lesson that has [count] attachments now, of at most [max]. */
+    suspend fun importPhoto(picked: PickedDocument, count: Int, max: Int = MAX_ATTACHMENTS): AttachmentImport = withContext(io + NonCancellable) {
+        if (count >= max) return@withContext AttachmentImport.TooMany
         if (picked.bytes.size > PHOTO_MAX_BYTES) return@withContext AttachmentImport.TooLarge
         val jpeg = Photos.shrink(picked.bytes) ?: return@withContext AttachmentImport.Unreadable
         keep(AttachmentKind.Photo, jpeg, picked.name.substringBeforeLast('.').ifBlank { picked.name } + ".jpg")
@@ -198,6 +204,9 @@ class LessonFiles(
 
         /** The largest PDF taken (SPEC.md §15): 10 MB. */
         const val PDF_MAX_BYTES = 10 * 1024 * 1024
+
+        /** The name a photo taken with the camera app goes by. */
+        const val TAKEN_NAME = "photo.jpg"
 
         /** The largest photo read before it is shrunk: 40 MB, more than any phone's camera makes. */
         const val PHOTO_MAX_BYTES = 40 * 1024 * 1024

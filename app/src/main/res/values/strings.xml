@@ -2353,4 +2353,5 @@
     <string name="warum_export_busy">Das Bild wird gemacht …</string>
     <string name="warum_export_done">Gespeichert</string>
     <string name="warum_export_failed">Nicht gespeichert</string>
+    <string name="camera_missing">Keine Kamera-App gefunden.</string>
 </resources>

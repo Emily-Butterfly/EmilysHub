@@ -36,7 +36,7 @@ import de.emilyshub.island.IslandWrites
 import de.emilyshub.island.RawKey
 import de.emilyshub.island.SystemFingerprint
 import de.emilyshub.languages.AttachmentStore
-import de.emilyshub.languages.CameraShot
+import de.emilyshub.ui.CameraShot
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonDocuments

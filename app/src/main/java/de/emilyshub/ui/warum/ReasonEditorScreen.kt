@@ -3,6 +3,7 @@ package de.emilyshub.ui.warum
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -24,6 +25,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,9 +36,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -45,24 +48,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
-import de.emilyshub.warum.ReasonLook
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.Alignment
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.Box
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentImport
-import de.emilyshub.languages.CameraShot
+import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.PickedDocument
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.fields.SaveBar
 import de.emilyshub.ui.fields.rememberFirstField
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.rememberCameraTrip
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
 import de.emilyshub.warum.ReasonDraft
+import de.emilyshub.warum.ReasonLook
 import de.emilyshub.warum.ReasonProblem
 import de.emilyshub.warum.Reasons
 import java.io.Serializable
@@ -252,6 +253,7 @@ private enum class PhotoNote(val text: Int, val problem: Boolean) {
     Unreadable(R.string.reason_photo_unreadable, true),
     TooLarge(R.string.reason_photo_too_large, true),
     TooMany(R.string.reason_photo_limit, true),
+    NoCamera(R.string.camera_missing, true),
 }
 
 /**
@@ -263,7 +265,6 @@ private enum class PhotoNote(val text: Int, val problem: Boolean) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, saved: String?, onChange: (String?) -> Unit) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var note by rememberSaveable { mutableStateOf<PhotoNote?>(null) }
     val current by rememberUpdatedState(photo)
@@ -277,8 +278,9 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
         if (before != null && before != saved && before != file) scope.launchNow { reasons.drop(before) }
     }
 
-    suspend fun imported(address: String) {
-        note = when (val result = reasons.importPhoto(address, reasonId)) {
+    /** Shows what importing a photo came to, and takes it if it was added. */
+    fun shown(result: AttachmentImport) {
+        note = when (result) {
             is AttachmentImport.Added -> {
                 replaceWith(result.attachment.file)
                 null
@@ -292,25 +294,12 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         note = PhotoNote.Busy
-        scope.launchNow { imported(uri.toString()) }
+        scope.launchNow { shown(reasons.importPhoto(uri.toString(), reasonId)) }
     }
-    var shot by rememberSaveable { mutableStateOf<String?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-        val address = shot ?: return@rememberLauncherForActivityResult
-        shot = null
-        if (!taken) {
-            CameraShot.clear(context)
-            return@rememberLauncherForActivityResult
-        }
+    val camera = rememberCameraTrip { taken ->
         note = PhotoNote.Busy
-        scope.launchNow {
-            try {
-                imported(address)
-            } finally {
-                // The photo lay there in plain text only until read.
-                CameraShot.clear(context)
-            }
-        }
+        val bytes = taken.read(LessonFiles.PHOTO_MAX_BYTES)
+        shown(bytes?.let { reasons.importPhoto(PickedDocument(LessonFiles.TAKEN_NAME, it), reasonId) } ?: AttachmentImport.Unreadable)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -320,14 +309,9 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
             OutlinedButton(onClick = { gallery.launch(arrayOf("image/*")) }, enabled = allowed != null && !limited) {
                 Text(stringResource(R.string.reason_photo_choose))
             }
-            OutlinedButton(
-                onClick = {
-                    val uri = CameraShot.prepare(context)
-                    shot = uri.toString()
-                    camera.launch(uri)
-                },
-                enabled = allowed != null && !limited,
-            ) { Text(stringResource(R.string.reason_photo_take)) }
+            OutlinedButton(onClick = { if (!camera.take()) note = PhotoNote.NoCamera }, enabled = allowed != null && !limited) {
+                Text(stringResource(R.string.reason_photo_take))
+            }
             if (photo != null) {
                 OutlinedButton(onClick = { replaceWith(null) }) { Text(stringResource(R.string.reason_photo_remove)) }
             }

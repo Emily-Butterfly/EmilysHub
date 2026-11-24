@@ -13,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import de.emilyshub.island.Island
+import de.emilyshub.ui.TripOut
 
 /**
  * The trips out of an island to the camera app or the folder picker ([Island.goingOut]), for the screen that sends the
@@ -20,7 +21,7 @@ import de.emilyshub.island.Island
  * Back in front without it, the island locks, as the user came back some other way; and the trip ends as the screen goes
  * away. While it is under way, the screen going off locks the island, as it would were the island shown.
  */
-class IslandTrip internal constructor(private val island: Island<*>, private val context: Context) {
+class IslandTrip internal constructor(private val island: Island<*>, private val context: Context) : TripOut {
     private var trip: AutoCloseable? = null
     private var paused = false
     private var back = false
@@ -33,7 +34,7 @@ class IslandTrip internal constructor(private val island: Island<*>, private val
     }
 
     /** A trip begins: just before the other app is launched. */
-    fun start() {
+    override fun start() {
         end()
         trip = island.goingOut()
         paused = false
@@ -42,12 +43,12 @@ class IslandTrip internal constructor(private val island: Island<*>, private val
     }
 
     /** The result is here, the user back by the way they were sent: the trip [end]s once what came back is kept. */
-    fun returned() {
+    override fun returned() {
         back = true
     }
 
     /** The trip is over, if one was under way: with the result, or the user back otherwise. */
-    fun end() {
+    override fun end() {
         val ending = trip ?: return
         trip = null
         runCatching { context.unregisterReceiver(screenOff) }

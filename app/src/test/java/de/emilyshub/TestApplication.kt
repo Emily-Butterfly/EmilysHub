@@ -1,5 +1,6 @@
 package de.emilyshub
 
+import androidx.core.content.FileProvider
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import de.emilyshub.backup.BackupFolder
 import de.emilyshub.backup.BackupMigration
@@ -38,6 +39,12 @@ import javax.crypto.KeyGenerator
  * folder for the nightly ones in memory.
  */
 class TestApplication : EmilysHubApplication() {
+    init {
+        // FileProvider keeps the folders it lends files from in a static map, by the first test's own cache folder;
+        // each test has a cache folder of its own, so that the camera's file (CameraShot) is found in it.
+        FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }.let { (it.get(null) as MutableMap<*, *>).clear() }
+    }
+
     val settingsDao = InMemorySettingsDao()
     override val settingsStore = { settingsDao }
 

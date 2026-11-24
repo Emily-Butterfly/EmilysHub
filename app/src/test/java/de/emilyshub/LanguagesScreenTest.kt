@@ -33,12 +33,15 @@ import de.emilyshub.speech.OfflineVoice
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.time.LocalDate
 import java.util.Locale
 
@@ -312,6 +315,20 @@ class LanguagesScreenTest {
         val lesson = runBlocking { checkNotNull(app.languages.page(arabicId()).first()).lessons.single() }
         val attachments = runBlocking { app.languages.editing(lesson.lesson.id)?.original?.attachments.orEmpty() }
         assertEquals(listOf("Tafel.jpg"), attachments.map { it.name })
+    }
+
+    @Test
+    fun `without a camera app a lesson's editor says so, and nothing is left`() {
+        runBlocking { teacher("Amal", (app.languages.createLanguage("Arabisch") as Saving.Saved).id) }
+        shadowOf(app).checkActivities(true)
+        launchApp().use {
+            openLanguages()
+            compose.onNode(hasText("Arabisch") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Session eintragen").performClick()
+            compose.onNode(hasText("Foto aufnehmen") and hasClickAction()).performScrollTo().performClick()
+            compose.onNodeWithText("Keine Kamera-App gefunden.").performScrollTo().assertIsDisplayed()
+            assertFalse(File(File(app.cacheDir, "camera"), "photo.jpg").exists())
+        }
     }
 
     @Test

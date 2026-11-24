@@ -1,11 +1,13 @@
 package de.emilyshub
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -46,6 +48,7 @@ import de.emilyshub.warum.ReasonSize
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -56,6 +59,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowAlarmManager
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.UUID
 
 /**
@@ -378,6 +382,38 @@ class MeinWarumScreenTest {
         var request: Intent? = null
         onActivity { request = shadowOf(it).peekNextStartedActivityForResult()?.intent }
         return request
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `a photo taken with the camera app is the reason's, and the file the camera wrote is gone`() {
+        val shot = File(File(app.cacheDir, "camera"), "photo.jpg")
+        launchApp().use { scenario ->
+            openWarum()
+            compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasText("Foto aufnehmen") and hasClickAction()).performClick()
+            var request: Intent? = null
+            scenario.onActivity { request = shadowOf(it).nextStartedActivityForResult.intent }
+            assertEquals(MediaStore.ACTION_IMAGE_CAPTURE, checkNotNull(request).action)
+            shot.writeBytes(png())
+            scenario.onActivity { shadowOf(it).receiveResult(checkNotNull(request), Activity.RESULT_OK, null) }
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().isNotEmpty() }
+            assertFalse("no file in plain text is left", shot.exists())
+            compose.onNodeWithText("Speichern").performClick()
+        }
+        assertTrue(runBlocking { app.reasons.board().first() }.single().photo != null)
+    }
+
+    @Test
+    fun `without a camera app the editor says so, and nothing is left`() {
+        shadowOf(app).checkActivities(true)
+        launchApp().use {
+            openWarum()
+            compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasText("Foto aufnehmen") and hasClickAction()).performClick()
+            compose.onNodeWithText("Keine Kamera-App gefunden.").assertIsDisplayed()
+            assertFalse(File(File(app.cacheDir, "camera"), "photo.jpg").exists())
+        }
     }
 
     private fun png(): ByteArray = ByteArrayOutputStream().also {

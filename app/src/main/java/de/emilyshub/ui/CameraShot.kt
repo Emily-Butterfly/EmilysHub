@@ -1,4 +1,4 @@
-package de.emilyshub.languages
+package de.emilyshub.ui
 
 import android.content.Context
 import android.net.Uri

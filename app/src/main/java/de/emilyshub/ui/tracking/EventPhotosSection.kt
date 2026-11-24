@@ -1,8 +1,6 @@
 package de.emilyshub.ui.tracking
 
 import android.graphics.Bitmap
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -44,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.emilyshub.R
-import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.Photos
 import de.emilyshub.tracking.EventPhotos
 import de.emilyshub.tracking.PhotoAdd
@@ -55,12 +51,13 @@ import de.emilyshub.ui.dateAndTime
 import de.emilyshub.ui.island.rememberIslandLoad
 import de.emilyshub.ui.island.rememberIslandTrip
 import de.emilyshub.ui.island.touchesIsland
+import de.emilyshub.ui.rememberCameraTrip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What adding a photo came to, shown under the button. */
-private enum class PhotoNote { Busy, TooMany, Unreadable, NotWritten }
+private enum class PhotoNote { Busy, TooMany, Unreadable, NotWritten, NoCamera }
 
 /**
  * The photos of event [eventId] (SPEC.md §17, "Ereignisse"): "+ Foto" lends the camera app the one file it writes the
@@ -70,36 +67,19 @@ private enum class PhotoNote { Busy, TooMany, Unreadable, NotWritten }
  */
 @Composable
 internal fun EventPhotosSection(tracking: Tracking, events: TrackingEvents, eventId: Long) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val photos = rememberIslandLoad(tracking, eventId) { events.photos(eventId) }.orEmpty()
     var note by remember { mutableStateOf<PhotoNote?>(null) }
     var shown by remember { mutableStateOf<PhotoInfo?>(null) }
     val trip = rememberIslandTrip(tracking)
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-        trip.returned()
-        if (!taken) {
-            trip.end()
-            note = null
-            CameraShot.clear(context)
-            return@rememberLauncherForActivityResult
-        }
-        scope.launch {
-            val added = try {
-                val bytes = withContext(Dispatchers.IO) { CameraShot.read(context, EventPhotos.MAX_TAKEN_BYTES) }
-                if (bytes == null) PhotoAdd.Unreadable else events.addPhoto(eventId, bytes)
-            } finally {
-                // Kept first, then the trip ends, which locks Tracking if it took too long.
-                trip.end()
-                // It lay there in plain text only until read.
-                withContext(Dispatchers.IO) { CameraShot.clear(context) }
-            }
-            note = when (added) {
-                is PhotoAdd.Added, PhotoAdd.Locked, PhotoAdd.NoEvent -> null
-                PhotoAdd.TooMany -> PhotoNote.TooMany
-                PhotoAdd.Unreadable -> PhotoNote.Unreadable
-                PhotoAdd.NotWritten -> PhotoNote.NotWritten
-            }
+    val camera = rememberCameraTrip(trip, onCancelled = { note = null }) { taken ->
+        val bytes = taken.read(EventPhotos.MAX_TAKEN_BYTES)
+        val added = if (bytes == null) PhotoAdd.Unreadable else events.addPhoto(eventId, bytes)
+        note = when (added) {
+            is PhotoAdd.Added, PhotoAdd.Locked, PhotoAdd.NoEvent -> null
+            PhotoAdd.TooMany -> PhotoNote.TooMany
+            PhotoAdd.Unreadable -> PhotoNote.Unreadable
+            PhotoAdd.NotWritten -> PhotoNote.NotWritten
         }
     }
 
@@ -108,15 +88,7 @@ internal fun EventPhotosSection(tracking: Tracking, events: TrackingEvents, even
     OutlinedButton(
         onClick = {
             note = PhotoNote.Busy
-            val uri = CameraShot.prepare(context)
-            trip.start()
-            try {
-                camera.launch(uri)
-            } catch (e: android.content.ActivityNotFoundException) {
-                trip.end()
-                CameraShot.clear(context)
-                note = PhotoNote.Unreadable
-            }
+            if (!camera.take()) note = PhotoNote.NoCamera
         },
         enabled = !full && note != PhotoNote.Busy,
     ) { Text(stringResource(R.string.tracking_photo_add)) }
@@ -126,6 +98,7 @@ internal fun EventPhotosSection(tracking: Tracking, events: TrackingEvents, even
         note == PhotoNote.TooMany -> stringResource(R.string.tracking_photo_too_many, EventPhotos.MAX_PER_EVENT)
         note == PhotoNote.Unreadable -> stringResource(R.string.tracking_photo_unreadable)
         note == PhotoNote.NotWritten -> stringResource(R.string.tracking_photo_not_written)
+        note == PhotoNote.NoCamera -> stringResource(R.string.camera_missing)
         else -> stringResource(R.string.tracking_photo_hint)
     }
     Text(noteText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

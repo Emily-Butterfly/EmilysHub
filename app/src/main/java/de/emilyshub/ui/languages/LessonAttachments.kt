@@ -38,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -49,14 +48,15 @@ import de.emilyshub.R
 import de.emilyshub.languages.AttachmentImport
 import de.emilyshub.languages.AttachmentKind
 import de.emilyshub.languages.AttachmentRef
-import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.LessonDraft
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.PdfInMemory
 import de.emilyshub.languages.Photos
+import de.emilyshub.languages.PickedDocument
 import de.emilyshub.languages.TextImport
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.launchNow
+import de.emilyshub.ui.rememberCameraTrip
 
 /** What importing came to, to be told under the buttons; kept past a turn. */
 private enum class ImportNote(val text: Int, val problem: Boolean) {
@@ -69,11 +69,12 @@ private enum class ImportNote(val text: Int, val problem: Boolean) {
     PhotoTooLarge(R.string.lesson_import_photo_too_large, true),
     NotPhoto(R.string.lesson_import_not_photo, true),
     NotPdf(R.string.lesson_import_not_pdf, true),
+    NoCamera(R.string.camera_missing, true),
 }
 
 /**
  * The lesson's imports and attachments (SPEC.md §15): a text file added to its note; a photo chosen or taken with the
- * phone's camera app, and a PDF, attached; each attachment shown small, opened in full by tapping ([onOpen]) and
+ * phone's camera app ([rememberCameraTrip]), and a PDF, attached; each attachment shown small, opened in full by tapping ([onOpen]) and
  * taken off with a question, which deletes it only once the lesson is saved. [draft] is the lesson as typed;
  * [onChange] what imports make of it, read when they are done, so that typing meanwhile is kept.
  */
@@ -86,7 +87,6 @@ internal fun LessonAttachments(
     onChange: ((LessonDraft) -> LessonDraft) -> Unit,
     onOpen: (AttachmentRef) -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var note by rememberSaveable { mutableStateOf<ImportNote?>(null) }
     var removing by rememberSaveable { mutableStateOf<AttachmentRef?>(null) }
@@ -125,23 +125,11 @@ internal fun LessonAttachments(
             attached(files.importPhoto(uri.toString(), current.attachments.size), ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
         }
     }
-    var shot by rememberSaveable { mutableStateOf<String?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-        val address = shot ?: return@rememberLauncherForActivityResult
-        shot = null
-        if (!taken) {
-            CameraShot.clear(context)
-            return@rememberLauncherForActivityResult
-        }
+    val camera = rememberCameraTrip { taken ->
         note = ImportNote.Busy
-        scope.launchNow {
-            try {
-                attached(files.importPhoto(address, current.attachments.size), ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
-            } finally {
-                // The photo lay there in plain text only until read.
-                CameraShot.clear(context)
-            }
-        }
+        val bytes = taken.read(LessonFiles.PHOTO_MAX_BYTES)
+        val result = bytes?.let { files.importPhoto(PickedDocument(LessonFiles.TAKEN_NAME, it), current.attachments.size) }
+        attached(result ?: AttachmentImport.Unreadable, ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
     }
     val pdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -154,13 +142,9 @@ internal fun LessonAttachments(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { text.launch(arrayOf("text/*")) }) { Text(stringResource(R.string.lesson_import_text)) }
             OutlinedButton(onClick = { photo.launch(arrayOf("image/*")) }) { Text(stringResource(R.string.lesson_import_photo)) }
-            OutlinedButton(
-                onClick = {
-                    val uri = CameraShot.prepare(context)
-                    shot = uri.toString()
-                    camera.launch(uri)
-                },
-            ) { Text(stringResource(R.string.lesson_take_photo)) }
+            OutlinedButton(onClick = { if (!camera.take()) note = ImportNote.NoCamera }) {
+                Text(stringResource(R.string.lesson_take_photo))
+            }
             OutlinedButton(onClick = { pdf.launch(arrayOf("application/pdf")) }) { Text(stringResource(R.string.lesson_import_pdf)) }
         }
         val shown = note

@@ -117,4 +117,23 @@ class TrackingPhotoScreenTest {
             assertEquals(emptyList<PhotoInfo>(), photos())
         }
     }
+
+    @Test
+    fun `without a camera app it says so, Tracking stays open, and no file is left`() {
+        shadowOf(app).checkActivities(true)
+        launchApp().use {
+            compose.openTracking()
+            compose.setUpTracking()
+            compose.onNodeWithText("+ Ereignis").tap()
+            compose.onNodeWithText("Duschen").performClick()
+            compose.waitForIdle()
+
+            compose.onNodeWithText("+ Foto").tap()
+
+            compose.onNodeWithText("Keine Kamera-App gefunden.").performScrollTo().assertIsDisplayed()
+            assertTrue(app.tracking.state is IslandState.Open)
+            assertFalse(shot.exists())
+            assertEquals(emptyList<PhotoInfo>(), photos())
+        }
+    }
 }

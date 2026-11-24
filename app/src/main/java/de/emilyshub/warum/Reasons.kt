@@ -5,6 +5,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentImport
 import de.emilyshub.languages.LessonFiles
+import de.emilyshub.languages.PickedDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +48,12 @@ class Reasons(
     suspend fun importPhoto(address: String, id: Long?): AttachmentImport {
         val count = withContext(io) { dao.photoCount(except = id) }
         return files.importPhoto(address, count, max = MAX_PHOTOS)
+    }
+
+    /** The photo [taken] with the camera app, read already, for the reason [id], or a new one with none; as [importPhoto]. */
+    suspend fun importPhoto(taken: PickedDocument, id: Long?): AttachmentImport {
+        val count = withContext(io) { dao.photoCount(except = id) }
+        return files.importPhoto(taken, count, max = MAX_PHOTOS)
     }
 
     /** The photo kept under [file], decrypted, to be shown; none if it is gone or damaged. */
