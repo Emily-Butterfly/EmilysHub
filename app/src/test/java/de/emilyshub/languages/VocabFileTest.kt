@@ -73,7 +73,7 @@ class VocabFileTest {
         assertEquals(VocabFile.NotVocabFile, read("""{"vokabeln": [ """))
         assertEquals(VocabFile.NotVocabFile, VocabFiles.read(byteArrayOf(0xC3.toByte(), 0x28)))
         // A byte order mark ahead of it is no reason.
-        assertEquals(1, (read("﻿{\"vokabeln\": [{\"ar_unvokalisiert\": \"كتب\", \"bedeutung\": \"schreiben\"}]}") as VocabFile.Read).vocabs.size)
+        assertEquals(1, (read("\uFEFF{\"vokabeln\": [{\"ar_unvokalisiert\": \"كتب\", \"bedeutung\": \"schreiben\"}]}") as VocabFile.Read).vocabs.size)
     }
 
     private fun read(json: String): VocabFile = VocabFiles.read(json.trimIndent().toByteArray())

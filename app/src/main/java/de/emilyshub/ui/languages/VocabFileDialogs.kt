@@ -1,5 +1,6 @@
 package de.emilyshub.ui.languages
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Reconciliation
 import de.emilyshub.languages.VocabField
 import de.emilyshub.languages.VocabFile
+import de.emilyshub.languages.VocabsTaken
 import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.launchNow
 
@@ -120,8 +122,7 @@ fun VocabFilePreviewDialog(flashcards: Flashcards, languageId: Long, read: Vocab
                         taking = true
                         scope.launchNow {
                             val taken = flashcards.takeOver(languageId, read.vocabs, leftOut, bothWays)
-                            val text = context.getString(R.string.vocab_file_taken, taken.created, taken.changed)
-                            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+                            tellTaken(context, taken)
                             onDismiss()
                         }
                     },
@@ -134,6 +135,11 @@ fun VocabFilePreviewDialog(flashcards: Flashcards, languageId: Long, read: Vocab
             if (shown != null && !shown.upToDate) TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+/** Says how many cards were made and how many changed. */
+private fun tellTaken(context: Context, taken: VocabsTaken) {
+    Toast.makeText(context, context.getString(R.string.vocab_file_taken, taken.created, taken.changed), Toast.LENGTH_LONG).show()
 }
 
 /** Why a Vokabeldatei picked, [file], is not taken over: it was refused, or none of its entries reads as a vocable. */

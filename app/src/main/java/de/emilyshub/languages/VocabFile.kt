@@ -59,7 +59,7 @@ object VocabFiles {
     /** The vocables of a file of [bytes], or why it is refused. */
     fun read(bytes: ByteArray): VocabFile {
         if (bytes.size > MAX_BYTES) return VocabFile.TooLarge
-        val text = utf8Text(bytes)?.takeUnless { '\u0000' in it }?.removePrefix("﻿") ?: return VocabFile.NotVocabFile
+        val text = utf8Text(bytes)?.takeUnless { '\u0000' in it } ?: return VocabFile.NotVocabFile
         val entries = try {
             (JSONTokener(text).nextValue() as? JSONObject)?.optJSONArray("vokabeln")
         } catch (_: JSONException) {
