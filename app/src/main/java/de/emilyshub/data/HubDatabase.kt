@@ -67,6 +67,8 @@ import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoDao
 import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
+import de.emilyshub.warum.Reason
+import de.emilyshub.warum.ReasonDao
 import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishDao
 import de.emilyshub.wishes.WishTag
@@ -95,6 +97,7 @@ import java.io.File
         InboxEntry::class,
         RunRow::class,
         Card::class, CardReview::class, CardGoal::class, CardSettings::class,
+        Reason::class,
     ],
     version = HubDatabase.VERSION,
 )
@@ -130,8 +133,10 @@ abstract class HubDatabase : RoomDatabase() {
 
     abstract fun backup(): BackupDao
 
+    abstract fun reasons(): ReasonDao
+
     companion object {
-        const val VERSION = 61
+        const val VERSION = 62
         internal const val NAME = "emilyshub.db"
         private const val KEY_BYTES = 32
 
@@ -166,7 +171,7 @@ abstract class HubDatabase : RoomDatabase() {
             MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
             MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44,
             MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49,
-            MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54, MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57, MIGRATION_57_58, MIGRATION_58_59, MIGRATION_59_60, MIGRATION_60_61,
+            MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54, MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57, MIGRATION_57_58, MIGRATION_58_59, MIGRATION_59_60, MIGRATION_60_61, MIGRATION_61_62,
         )
 
         /** SQLCipher's raw-key form, x'<64 hex digits>': the key is used as is, without slow passphrase derivation. */

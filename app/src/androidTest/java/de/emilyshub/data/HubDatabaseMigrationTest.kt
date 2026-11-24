@@ -66,6 +66,7 @@ import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
 import de.emilyshub.todos.WakeTime
+import de.emilyshub.warum.Reason
 import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
 import kotlinx.coroutines.flow.first
@@ -1301,6 +1302,18 @@ class HubDatabaseMigrationTest {
             assertEquals(null, window.dueUntil)
             todos.update(window.copy(dueUntil = LocalDate.parse("2026-10-25")))
             assertEquals(LocalDate.parse("2026-10-25"), todos.get(1)?.dueUntil)
+        }
+    }
+
+    @Test
+    fun `version 61 moves to version 62 without reasons and then one is kept in its place`() {
+        createAtVersion(61) {}
+
+        withMigratedDatabase { database ->
+            val dao = database.reasons()
+            assertEquals(emptyList<Reason>(), dao.all())
+            val id = dao.insert(Reason(text = "Lina", position = -1))
+            assertEquals(Reason(id, "Lina", -1), dao.find(id))
         }
     }
 

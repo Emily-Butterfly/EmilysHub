@@ -98,6 +98,7 @@ import de.emilyshub.tracking.TrackingModules
 import de.emilyshub.tracking.TrackingQuestionnaire
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingSymptoms
+import de.emilyshub.warum.Reasons
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -283,6 +284,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val tags: Tags by lazy { Tags({ database }, io) }
 
     final override val inbox: Inbox by lazy { Inbox({ database }, clock, io) }
+    final override val reasons: Reasons by lazy { Reasons({ database }, io) }
 
     final override val wishes: Wishes by lazy { Wishes({ database }, clock, io) }
 

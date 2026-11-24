@@ -901,3 +901,13 @@ val MIGRATION_60_61 = object : Migration(60, 61) {
         db.execSQL("ALTER TABLE `todos` ADD COLUMN `due_until` TEXT")
     }
 }
+
+/** 61 → 62: Mein Warum (SPEC.md §18), its Gründe; none yet. */
+val MIGRATION_61_62 = object : Migration(61, 62) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `reasons` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `text` TEXT NOT NULL, " +
+                "`position` INTEGER NOT NULL)",
+        )
+    }
+}

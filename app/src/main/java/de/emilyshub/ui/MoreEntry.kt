@@ -19,4 +19,7 @@ enum class MoreEntry(val emoji: String, @param:StringRes val label: Int, val loc
 
     /** Locked, with a password of its own apart from the Doku's (SPEC.md §17), and the name tells nothing. */
     Tracking("📈", R.string.destination_tracking, locks = true),
+
+    /** Mein Warum (SPEC.md §18): behind the app lock only, so that nothing stands in the way in a crisis. */
+    Warum("🌱", R.string.destination_warum),
 }

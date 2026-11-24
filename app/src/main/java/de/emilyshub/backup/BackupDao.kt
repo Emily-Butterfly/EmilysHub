@@ -48,6 +48,7 @@ import de.emilyshub.todos.Todo
 import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
+import de.emilyshub.warum.Reason
 import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishTag
 
@@ -186,6 +187,9 @@ interface BackupDao {
 
     @Query("SELECT * FROM inbox")
     fun inbox(): List<InboxEntry>
+
+    @Query("SELECT * FROM reasons")
+    fun reasons(): List<Reason>
 
     @Query("SELECT * FROM runs")
     fun runs(): List<RunRow>

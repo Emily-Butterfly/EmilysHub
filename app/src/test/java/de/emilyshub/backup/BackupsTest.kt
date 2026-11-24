@@ -48,6 +48,7 @@ import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.WakeTime
+import de.emilyshub.warum.ReasonDraft
 import de.emilyshub.wish
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
@@ -249,6 +250,23 @@ class BackupsTest {
 
         restore(older)
         assertEquals(emptyList<Any>(), everything().getValue("inbox"))
+    }
+
+    @Test
+    fun `a backup keeps the reasons of Mein Warum in their order, and one from before them loads without any`() {
+        val made = someOfEverything()
+        runBlocking { app.reasons.save(null, ReasonDraft("Das Meer")) }
+        val now = exported()
+        val older = sealed(asOf(61, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+        runBlocking { app.reasons.board().first().forEach { app.reasons.delete(it.id) } }
+
+        restore(now)
+        assertEquals(listOf("Das Meer", "Lina und ihr Lachen"), runBlocking { app.reasons.board().first() }.map { it.text })
+        assertTrue(made.getValue("reasons").single() in everything().getValue("reasons"))
+
+        restore(older)
+        assertEquals(emptyList<Any>(), everything().getValue("reasons"))
     }
 
     @Test
@@ -726,6 +744,7 @@ class BackupsTest {
                 checkNotNull(app.wishes.editing(northernLights)?.original).copy(cardLanguageId = arabicLessons, cardCount = "500"),
             )
             app.inbox.capture("Zahnarzt anrufen\nwegen Kontrolle")
+            app.reasons.save(null, ReasonDraft("Lina und ihr Lachen"))
             app.flashcards.setOverallLimit(200)
             app.ledger.setOpening(YearMonth.of(2026, 11), -8_520)
             app.ledger.setBudgetIn(YearMonth.of(2026, 12), food.id, 45_000)

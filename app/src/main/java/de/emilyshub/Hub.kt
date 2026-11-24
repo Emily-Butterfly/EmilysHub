@@ -35,6 +35,7 @@ import de.emilyshub.today.Heute
 import de.emilyshub.todos.Todos
 import de.emilyshub.tracking.Tracking
 import de.emilyshub.tracking.TrackingModules
+import de.emilyshub.warum.Reasons
 import de.emilyshub.wishes.Wishes
 
 /**
@@ -59,6 +60,9 @@ interface Hub {
 
     /** The Eingang, thoughts captured to be sorted in later (SPEC.md §16). */
     val inbox: Inbox
+
+    /** Mein Warum: the Gründe, to look at in hard moments (SPEC.md §18). */
+    val reasons: Reasons
     val places: Places
     val wifi: CurrentWifi
     val location: CurrentLocation

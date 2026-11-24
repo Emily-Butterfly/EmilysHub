@@ -20,6 +20,7 @@ import de.emilyshub.ui.notes.NoteEditorTarget
 import de.emilyshub.ui.places.PlaceEditorTarget
 import de.emilyshub.ui.routines.RoutineEditorTarget
 import de.emilyshub.ui.todos.TodoEditorTarget
+import de.emilyshub.ui.warum.ReasonEditorTarget
 import de.emilyshub.ui.wishes.WishEditorTarget
 import java.io.Serializable
 import java.time.Year
@@ -173,6 +174,12 @@ sealed interface Destination : Serializable {
 
     /** The line for a new thought, from the shortcut on the app's icon, over what was open (SPEC.md §16). */
     data object Capture : Destination
+
+    /** A Grund's editor in Mein Warum (SPEC.md §18). */
+    data class ReasonEditor(override val target: ReasonEditorTarget) : Editor
+
+    /** The Gründe of Mein Warum opened large, from the one tapped (SPEC.md §18). */
+    data class ReasonViewer(val reasonId: Long) : Destination
 
     /** Why Tracking reads Health Connect, as Health Connect asks the app to show (SPEC.md §17). */
     data object HealthRationale : Destination

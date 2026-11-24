@@ -11,6 +11,7 @@
     <string name="destination_doku">Dokumentation</string>
     <string name="destination_languages">Sprachen</string>
     <string name="destination_tracking">Tracking</string>
+    <string name="destination_warum">Mein Warum</string>
 
     <string name="settings">Einstellungen</string>
     <string name="navigate_back">Zurück</string>
@@ -2282,4 +2283,19 @@
     <string name="tracking_summary_funcap_domain">Bereich</string>
     <string name="tracking_summary_funcap_scale">Werte 0–6, höher ist besser; Bezug: ein durchschnittlicher Tag im letzten Monat. FUNCAP setzt keine Grenzwerte.</string>
     <string name="tracking_summary_funcap_month">Abendeinträge im Monat davor (%1$s–%2$s)</string>
+    <!-- Mein Warum (SPEC.md §18) -->
+    <string name="warum_empty">Hier sammelst du, was dich hält: Menschen, Momente, Pläne, Sätze.</string>
+    <string name="warum_add_first">Ersten Grund hinzufügen</string>
+    <string name="warum_edit">Bearbeiten</string>
+    <string name="warum_edit_done">Fertig</string>
+    <string name="warum_add">Grund hinzufügen</string>
+    <string name="warum_change">Ändern</string>
+    <string name="warum_forward">Nach vorn</string>
+    <string name="warum_back">Nach hinten</string>
+    <string name="warum_delete_title">Diesen Grund löschen?</string>
+    <string name="warum_reason_of">Grund %1$d von %2$d</string>
+    <string name="reason_new">Neuer Grund</string>
+    <string name="reason_edit">Grund ändern</string>
+    <string name="reason_text">Text</string>
+    <string name="reason_empty">Ein Grund braucht einen Text.</string>
 </resources>

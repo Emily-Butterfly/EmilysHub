@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -150,6 +152,10 @@ import de.emilyshub.ui.todos.TodosScreen
 import de.emilyshub.ui.tracking.HealthRationaleScreen
 import de.emilyshub.ui.tracking.TrackingArea
 import de.emilyshub.ui.tracking.TrackingMenu
+import de.emilyshub.ui.warum.ReasonEditorScreen
+import de.emilyshub.ui.warum.ReasonEditorTarget
+import de.emilyshub.ui.warum.ReasonViewerScreen
+import de.emilyshub.ui.warum.ReasonsBoard
 import de.emilyshub.ui.wishes.WishEditorScreen
 import de.emilyshub.ui.wishes.WishEditorTarget
 import de.emilyshub.ui.wishes.WishReviewScreen
@@ -382,6 +388,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
                 )
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
+                is Destination.ReasonEditor -> ReasonEditorScreen(hub.reasons, top.target, onClose = back)
+                is Destination.ReasonViewer -> ReasonViewerScreen(hub.reasons, top.reasonId, onBack = back)
                 Destination.LanguageList ->
                     LanguageListScreen(hub.languages, hub.speech, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)
                 Destination.TeacherList ->
@@ -565,6 +573,16 @@ private fun TopLevelScaffold(
                                 onManageTeachers = { open(Destination.TeacherList) },
                             )
                         }
+                        // Mein Warum is looked at without buttons but the pen, which edits it (SPEC.md §18).
+                        if (moreOpen == MoreEntry.Warum) {
+                            val editing = tabs.warumEditing
+                            IconButton(onClick = { onTabsChange(tabs.copy(warumEditing = !editing)) }) {
+                                Icon(
+                                    if (editing) Icons.Filled.Check else Icons.Filled.Edit,
+                                    contentDescription = stringResource(if (editing) R.string.warum_edit_done else R.string.warum_edit),
+                                )
+                            }
+                        }
                         // On Heute, not yesterday, practising the cards while some are open today, left of the "€" (SPEC.md §1; #158).
                         if (current == TopLevelDestination.Today && !yesterday) {
                             PractiseCardsButton(hub.flashcards, hub.day, onPractise = { open(Destination.Practice(it)) })
@@ -669,7 +687,7 @@ private fun TopLevelScaffold(
                 onOpenArchive = { open(Destination.TodoArchive) },
             )
             TopLevelDestination.More -> when (tabs.more) {
-                null -> MoreScreen(contentPadding, onOpen = { onTabsChange(tabs.copy(more = it)) })
+                null -> MoreScreen(contentPadding, onOpen = { onTabsChange(tabs.copy(more = it, warumEditing = false)) })
                 MoreEntry.Goals -> WishlistScreen(
                     wishes = hub.wishes,
                     todos = hub.todos,
@@ -705,6 +723,14 @@ private fun TopLevelScaffold(
                     pages = tabs.tracking,
                     onPagesChange = { onTabsChange(tabs.copy(tracking = it)) },
                     contentPadding = contentPadding,
+                )
+                MoreEntry.Warum -> ReasonsBoard(
+                    reasons = hub.reasons,
+                    editing = tabs.warumEditing,
+                    contentPadding = contentPadding,
+                    onOpen = { open(Destination.ReasonViewer(it)) },
+                    onEdit = { open(Destination.ReasonEditor(ReasonEditorTarget.Edit(it))) },
+                    onAdd = { open(Destination.ReasonEditor(ReasonEditorTarget.New)) },
                 )
             }
             TopLevelDestination.Notes -> NotesScreen(
