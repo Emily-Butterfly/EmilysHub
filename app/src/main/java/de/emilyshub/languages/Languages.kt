@@ -5,6 +5,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.data.InputText
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
+import de.emilyshub.vault.VaultChange
 import de.emilyshub.wishes.GoalWatch
 import de.emilyshub.wishes.watchingGoals
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Duration
@@ -310,11 +310,10 @@ class Languages(
      * taken in, if they are still there, and those it had and has no more are deleted, files and all.
      */
     suspend fun save(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> = write {
-        files.lock.withLock { saveLocked(editing, draft) }
+        files.vault.changing(database()) { saveChanging(editing, draft) }
     }
 
-    private suspend fun saveLocked(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> {
-        val gone = mutableListOf<String>()
+    private suspend fun VaultChange.saveChanging(editing: LessonEditing, draft: LessonDraft): Saving<LessonProblem> {
         val saving = database().withTransaction {
             val id = editing.id
             val before = id?.let { dao.lesson(it) }
@@ -344,21 +343,18 @@ class Languages(
             val (chosen, typed) = checkNotNull(topics)
             val made = typed.map { dao.insertTopic(Topic(languageId = checkNotNull(languageId), name = it)) }
             dao.insertLessonTopics((chosen + made).map { LessonTopic(saved, it) })
-            gone += saveAttachments(saved, draft.attachments)
+            saveAttachments(saved, draft.attachments)
             Saving.Saved(saved)
         }
-        if (saving is Saving.Saved) {
-            files.taken(draft.attachments.map { it.file })
-            gone.forEach(files.attachments::delete)
-        }
+        if (saving is Saving.Saved) draft.attachments.forEach { take(it.file) }
         return saving
     }
 
     /**
-     * Makes the attachments of the lesson [lessonId] those [wanted], in order; the files of those it no longer has, to be
-     * deleted once this is done.
+     * Makes the attachments of the lesson [lessonId] those [wanted], in order; the files of those it no longer has are
+     * let go of, deleted once this is done.
      */
-    private suspend fun saveAttachments(lessonId: Long, wanted: List<AttachmentRef>): List<String> {
+    private suspend fun VaultChange.saveAttachments(lessonId: Long, wanted: List<AttachmentRef>) {
         val had = dao.attachmentsOf(lessonId)
         val byFile = had.associateBy { it.file }
         val kept = mutableListOf<LessonAttachment>()
@@ -368,7 +364,7 @@ class Languages(
             when {
                 old != null -> kept += old.copy(position = kept.size + added.size)
                 // Imported for it, though perhaps before Android ended the app and brought the editor back.
-                ref.file !in dao.attachmentFiles() && files.attachments.has(ref.file) -> added += LessonAttachment(
+                isFree(ref.file) -> added += LessonAttachment(
                     lessonId = lessonId, kind = ref.kind, file = ref.file, bytes = ref.bytes, name = ref.name,
                     position = kept.size + added.size,
                 )
@@ -378,7 +374,7 @@ class Languages(
         dao.deleteAttachments(dropped.map { it.id })
         dao.updateAttachments(kept)
         dao.insertAttachments(added)
-        return dropped.map { it.file }
+        dropped.forEach { release(it.file) }
     }
 
     /**
@@ -551,20 +547,9 @@ class Languages(
 
     /** Deletes the lesson [id], with its attachments. The screen asks first. */
     suspend fun delete(id: Long) = write {
-        files.lock.withLock {
-            val gone = database().withTransaction {
-                dao.attachmentsOf(id).map { it.file }.also { dao.deleteLesson(id) }
-            }
-            gone.forEach(files.attachments::delete)
+        files.vault.changing(database()) {
+            database().withTransaction { dao.attachmentsOf(id).map { it.file }.also { dao.deleteLesson(id) } }.forEach(::release)
         }
-    }
-
-    /**
-     * Deletes the files of attachments that no lesson has, none is importing, and that are older than [olderThan]: what a
-     * crash or an editor lost left. Puts back those a restore that broke off left aside.
-     */
-    suspend fun clearUpAttachments(olderThan: Duration = Duration.ofDays(1)) = write {
-        files.lock.withLock { files.clearUp(dao.attachmentFiles().toSet(), olderThan.toMillis()) }
     }
 
     /** The languages some teacher teaches alone, as their only one. */

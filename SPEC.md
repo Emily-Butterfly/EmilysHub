@@ -278,7 +278,7 @@ Release-Builds mit R8 (Minify + Shrink), keine Debug-Features.
 - Hinweis an den Nutzer: Backups regelmäßig vom Handy wegkopieren (PC, USB-Stick).
 - **Auslagern**: In den Backups bestätigt „Heute weggekopiert“, dass die Backups auch auf einem anderen Gerät liegen; der Bildschirm zeigt „Zuletzt ausgelagert am …“. Ist das über 30 Tage her, oder wurde es 30 Tage nach dem ersten Backup noch nie bestätigt, warnt Heute („Deine Backups liegen nur auf dem Handy“). Die Bestätigung bleibt auf dem Gerät und steht nicht im Backup.
 - Gewählte Töne stehen im Backup nur als Wahl, die Tondateien selbst nicht.
-- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein. Ebenso die Gründe von Mein Warum (§18) mit ihren Fotos.
+- Die **Anhänge** der Sessions im Bereich Sprachen (§15) stehen im Backup, auch im nächtlichen; die Größengrenzen beim Import halten es klein. Ebenso die Gründe von Mein Warum (§18) mit ihren Fotos. Lässt sich eine Datei beim Sichern nicht lesen, fehlt im Backup ein Anhang samt seinem Eintrag; ein Grund behält seinen Text ohne das Foto, ein Grund nur aus Foto fehlt.
 - Die **Dokumentation** (§14) liegt im Backup in ihrer eigenen Verschlüsselung, auch im nächtlichen, das sie dafür nicht entsperrt. Mit dem Backup-Passwort allein ist sie nicht lesbar; einspielen braucht zusätzlich das Doku-Passwort, das beim Backup galt.
 - **Tracking** (§17) ebenso, mit dem Tracking-Passwort.
 

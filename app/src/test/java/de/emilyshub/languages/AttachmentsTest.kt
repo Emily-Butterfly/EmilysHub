@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -39,7 +40,7 @@ class AttachmentsTest {
     private val clock = TestClock(Instant.parse("2026-11-12T09:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val store = testAttachmentStore()
     private val documents = FakeLessonDocuments()
-    private val files = LessonFiles(store, documents, Dispatchers.Unconfined)
+    private val files = LessonFiles(Vault(store, documents, Dispatchers.Unconfined), Dispatchers.Unconfined)
     private val languages = Languages({ database }, clock, files, Dispatchers.Unconfined)
 
     @After
@@ -116,7 +117,7 @@ class AttachmentsTest {
         val (language, teacher) = languageAndTeacher()
         val imported = import(files.importPdf(documents.put("vorher.pdf", pdf(50)), 0))
         // The app comes back with the editor as it was, but nothing staged in memory.
-        val again = LessonFiles(store, documents, Dispatchers.Unconfined)
+        val again = LessonFiles(Vault(store, documents, Dispatchers.Unconfined), Dispatchers.Unconfined)
         val languagesAgain = Languages({ database }, clock, again, Dispatchers.Unconfined)
 
         val id = (languagesAgain.save(LessonEditing.New, draft(language, teacher).copy(attachments = listOf(imported))) as Saving.Saved).id
@@ -193,9 +194,9 @@ class AttachmentsTest {
         val importing = import(files.importPdf(documents.put("gerade.pdf", pdf(50)), 0))
         val stray = store.write("übrig".toByteArray())
 
-        languages.clearUpAttachments()
+        files.vault.clearUp(database)
         assertTrue("young, it may be an editor's Android brings back", store.has(stray))
-        languages.clearUpAttachments(olderThan = Duration.ZERO)
+        files.vault.clearUp(database, olderThan = Duration.ZERO)
 
         assertTrue(store.has(saved.file))
         assertTrue(store.has(importing.file))

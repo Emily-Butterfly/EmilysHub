@@ -1,4 +1,4 @@
-package de.emilyshub.languages
+package de.emilyshub.vault
 
 import java.io.File
 import java.io.FileOutputStream
@@ -13,7 +13,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Where the attachments of the lessons lie (SPEC.md §9, §15): each in a file of its own in [folder], only ever encrypted
+ * Where the files of the Ablage lie (SPEC.md §9, §15, §18; [Vault]): each in a file of its own in [folder], only ever encrypted
  * with AES-GCM under [key], bound to its name so that one cannot stand in for another. Layout: 12-byte IV, ciphertext,
  * tag. Nothing is written in plain text, not even for a moment. Blocking: call it off the main thread.
  */

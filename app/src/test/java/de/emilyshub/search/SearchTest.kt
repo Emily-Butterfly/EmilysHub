@@ -30,6 +30,7 @@ import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.todos.TodoEditing
 import de.emilyshub.todos.Todos
+import de.emilyshub.vault.Vault
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.Wishes
 import kotlinx.coroutines.Dispatchers
@@ -165,7 +166,7 @@ class SearchTest {
     @Test
     fun `lessons are found by their note, their topics and their teacher, newest first, by language and teacher`() = runBlocking {
         val languages = Languages(
-            { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+            { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
         )
         val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id
         val amal = (languages.saveTeacher(TeacherEditing.New, TeacherDraft("Amal Straße", languageIds = setOf(arabic))) as Saving.Saved).id
@@ -188,7 +189,7 @@ class SearchTest {
     fun `cards are found by front, back, transcription, note and example, with their language, Arabic with or without its vowel marks`() =
         runBlocking {
             val languages = Languages(
-                { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+                { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
             )
             val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined)
             val arabic = (languages.createLanguage("Arabisch") as Saving.Saved).id

@@ -275,7 +275,7 @@ class TrackingBackupTest {
             migration = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() },
             doku = app.doku,
             tracking = full,
-            attachments = app.lessonFiles,
+            attachments = app.lessonFiles.vault,
             io = Dispatchers.Unconfined,
             iterations = FEW_ITERATIONS,
         )

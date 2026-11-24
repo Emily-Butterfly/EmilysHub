@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.time.LocalDate
 import java.util.UUID
 
@@ -141,6 +142,21 @@ class ReasonPhotoBackupsTest {
         } catch (e: BackupException) {
             assertEquals(BackupProblem.Damaged, e.problem)
         }
+    }
+
+    @Test
+    fun `a Grund whose photo cannot be read keeps its text in the backup, and one with a photo alone is left out`() {
+        val sea = checkNotNull(reason("Das Meer", withPhoto = true))
+        val alone = checkNotNull(reason("", withPhoto = true))
+        reason("Lina", withPhoto = false)
+        listOf(sea, alone).forEach { File(File(app.filesDir, "attachments"), it).delete() }
+
+        val file = exported()
+        restore(file)
+
+        val board = runBlocking { app.reasons.board().first() }
+        assertEquals(listOf("Lina", "Das Meer"), board.map { it.text })
+        assertEquals(listOf(null, null), board.map { it.photo })
     }
 
     /** A reason saying [text], with a photo of its own if [withPhoto]: the name the photo is kept under. */

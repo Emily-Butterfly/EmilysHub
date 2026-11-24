@@ -15,6 +15,7 @@ import de.emilyshub.languages.AttachmentImport
 import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.testAttachmentStore
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -41,8 +42,8 @@ class BoardExportTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val database = inMemoryDatabase()
     private val documents = FakeLessonDocuments()
-    private val files = LessonFiles(testAttachmentStore(), documents, Dispatchers.Unconfined)
-    private val reasons = Reasons({ database }, files, Dispatchers.Unconfined)
+    private val files = LessonFiles(Vault(testAttachmentStore(), documents, Dispatchers.Unconfined), Dispatchers.Unconfined)
+    private val reasons = Reasons({ database }, files.vault, Dispatchers.Unconfined)
     private val folder = FakeBackupFolder("Bilder")
     private val clock = TestClock(Instant.parse("2026-11-24T09:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val theme = BoardTheme(StandardColors(text = Color.BLACK, background = Color.LTGRAY), page = 0xFFFFF7FE.toInt())

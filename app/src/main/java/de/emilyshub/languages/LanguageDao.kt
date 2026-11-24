@@ -168,13 +168,6 @@ interface LanguageDao {
     @Query("SELECT * FROM lesson_attachments WHERE lesson_id = :lessonId ORDER BY position")
     suspend fun attachmentsOf(lessonId: Long): List<LessonAttachment>
 
-    /**
-     * The names of all kept in the attachment store: the lessons' attachments and the photos of Mein Warum's reasons
-     * (SPEC.md §18), which lie there too.
-     */
-    @Query("SELECT file FROM lesson_attachments UNION ALL SELECT photo FROM reasons WHERE photo IS NOT NULL")
-    suspend fun attachmentFiles(): List<String>
-
     @Query("SELECT * FROM lesson_attachments")
     fun observeAttachments(): Flow<List<LessonAttachment>>
 

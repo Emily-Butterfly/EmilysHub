@@ -165,7 +165,7 @@ class AttachmentBackupsTest {
         open(file)
         File(File(app.filesDir, "attachments"), first.file).delete()
 
-        runBlocking { app.languages.clearUpAttachments() }
+        runBlocking { app.lessonFiles.vault.clearUp(app.testDatabase) }
 
         assertArrayEquals(pdfBytes("Blatt", 40), content(first))
         assertEquals(2, runBlocking { app.languages.editing(lesson)?.original?.attachments?.size })

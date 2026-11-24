@@ -9,8 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.R
 import de.emilyshub.island.IslandClipboard
 import de.emilyshub.island.SystemFingerprint
-import de.emilyshub.languages.CameraShot
 import de.emilyshub.languages.PdfInMemory
+import de.emilyshub.ui.CameraShot
 import de.emilyshub.ui.tracking.SummaryPdf
 import de.emilyshub.ui.tracking.summaryBlocks
 import kotlinx.coroutines.CoroutineScope

@@ -35,7 +35,6 @@ import de.emilyshub.island.IslandClipboard
 import de.emilyshub.island.IslandWrites
 import de.emilyshub.island.RawKey
 import de.emilyshub.island.SystemFingerprint
-import de.emilyshub.languages.AttachmentStore
 import de.emilyshub.ui.CameraShot
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Languages
@@ -101,6 +100,8 @@ import de.emilyshub.tracking.TrackingQuestionnaire
 import de.emilyshub.tracking.TrackingStandTests
 import de.emilyshub.tracking.TrackingSymptoms
 import de.emilyshub.ui.warum.fontResourceOf
+import de.emilyshub.vault.AttachmentStore
+import de.emilyshub.vault.Vault
 import de.emilyshub.warum.BoardExport
 import de.emilyshub.warum.BoardPicture
 import de.emilyshub.warum.ReasonFont
@@ -293,7 +294,7 @@ open class EmilysHubApplication : Application(), Hub {
     final override val tags: Tags by lazy { Tags({ database }, io) }
 
     final override val inbox: Inbox by lazy { Inbox({ database }, clock, io) }
-    final override val reasons: Reasons by lazy { Reasons({ database }, lessonFiles, io) }
+    final override val reasons: Reasons by lazy { Reasons({ database }, lessonFiles.vault, io) }
     final override val boardExport: BoardExport by lazy {
         val typefaces = ReasonFont.entries.associateWith { font ->
             fontResourceOf(font)?.let { runCatching { ResourcesCompat.getFont(this, it) }.getOrNull() } ?: Typeface.DEFAULT
@@ -314,7 +315,7 @@ open class EmilysHubApplication : Application(), Hub {
     /** Sprachen (SPEC.md §15). */
     final override val lessonFiles: LessonFiles by lazy {
         val key = { synchronized(attachmentKeyLock) { attachmentKeyRead ?: attachmentKey().also { attachmentKeyRead = it } } }
-        LessonFiles(AttachmentStore({ attachmentsFolder }, key), lessonDocuments, io)
+        LessonFiles(Vault(AttachmentStore({ attachmentsFolder }, key), lessonDocuments, io), io)
     }
 
     final override val languages: Languages by lazy { Languages({ database }, clock, lessonFiles, io) }
@@ -334,7 +335,7 @@ open class EmilysHubApplication : Application(), Hub {
             migration = backupMigration,
             doku = doku,
             tracking = tracking,
-            attachments = lessonFiles,
+            attachments = lessonFiles.vault,
             io = io,
             iterations = backupIterations,
             onRestore = ::updateReminders,
@@ -433,9 +434,9 @@ open class EmilysHubApplication : Application(), Hub {
         background.launch { nightlyBackups.schedule() }
         // The fixed bookings of the days the app did not run on (SPEC.md §13).
         background.launch { ledger.enterDue() }
-        // What a crash or an editor left without saving left behind of the lessons' attachments (SPEC.md §15).
+        // What a crash or an editor left without saving left behind in the Ablage (SPEC.md §15, §18).
         background.launch {
-            languages.clearUpAttachments()
+            lessonFiles.vault.clearUp(database)
             CameraShot.clearStale(this@EmilysHubApplication)
         }
     }

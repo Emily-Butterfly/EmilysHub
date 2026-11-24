@@ -1,11 +1,9 @@
 package de.emilyshub.languages
 
-import de.emilyshub.backup.AttachmentVault
 import de.emilyshub.data.InputText
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
@@ -56,48 +54,15 @@ sealed interface AttachmentImport {
 
 /**
  * Importing into a lesson (SPEC.md §15): a text file is added to its note as if typed; a photo, shrunk and encoded anew
- * ([Photos]), or a PDF becomes an attachment, kept encrypted in [store] at once but belonging to no lesson until the
- * lesson is saved. Until then it is staged: [Languages.save] takes it in, [discard] lets it go, and clearing up spares
- * it. Shown and exported decrypted, never as a file in plain text. [documents] is only called on [io].
- *
- * The photos of Mein Warum's reasons (SPEC.md §18) lie in the same [store], imported and staged the same way
- * ([de.emilyshub.warum.Reasons]).
- *
- * The backups reach the attachments through it, as an [AttachmentVault]: those of a backup being opened lie [aside],
- * encrypted the same way, until it is restored.
+ * ([Photos]), or a PDF becomes an Anhang, kept encrypted in the Ablage ([vault]) at once but belonging to no lesson
+ * until the lesson is saved. Until then it is staged: [Languages.save] takes it in, [discard] lets it go, and clearing
+ * up spares it. Shown and exported decrypted, never as a file in plain text. The phone's files are only read on [io].
  */
 class LessonFiles(
-    private val store: AttachmentStore,
-    private val documents: LessonDocuments,
+    val vault: Vault,
     private val io: CoroutineContext = Dispatchers.IO,
-    private val aside: AttachmentStore = store.besideIt(),
-) : AttachmentVault {
-    private val staged = mutableSetOf<String>()
-
-    /** Held while attachments are taken in, deleted or cleared up, and while a backup reads or replaces them. */
-    internal val lock = Mutex()
-
-    override suspend fun <T> steady(block: suspend () -> T): T = lock.withLock { block() }
-
-    override fun read(file: String): ByteArray? = store.read(file)
-
-    override fun isName(file: String): Boolean = AttachmentStore.isName(file)
-
-    override fun clearAside() = aside.keepOnly(emptySet())
-
-    override fun putAside(file: String, bytes: ByteArray) = aside.write(file, bytes)
-
-    override fun hasAside(files: Set<String>): Boolean = files.all(aside::has)
-
-    override fun takeAside(files: Set<String>) {
-        check(lock.isLocked) { "Only while steady" }
-        synchronized(staged) {
-            // Those of the backup in first, then the app's own out: so that the tables never lack a file for long.
-            files.forEach { store.moveFrom(aside, it) }
-            (store.names() - files - staged).forEach(store::delete)
-        }
-        clearAside()
-    }
+) {
+    private val documents get() = vault.documents
 
     /** [note] with the text of the file at [address] added, on a line of its own after a blank one. */
     suspend fun importText(address: String, note: String): TextImport = withContext(io) {
@@ -116,20 +81,11 @@ class LessonFiles(
         if (InputText.lengthOf(joined) > LessonDraft.NOTE_MAX) TextImport.TooLong else TextImport.Appended(joined)
     }
 
-    /** The photo at [address] for a lesson that has [count] attachments now, of at most [max]. */
-    suspend fun importPhoto(address: String, count: Int, max: Int = MAX_ATTACHMENTS): AttachmentImport = withContext(io + NonCancellable) {
-        if (count >= max) return@withContext AttachmentImport.TooMany
-        val picked = documents.read(address, PHOTO_MAX_BYTES + 1) ?: return@withContext AttachmentImport.Unreadable
-        importPhoto(picked, count, max)
-    }
+    /** The photo at [address] for a lesson that has [count] attachments now. */
+    suspend fun importPhoto(address: String, count: Int): AttachmentImport = vault.importPhoto(address, count, MAX_ATTACHMENTS)
 
-    /** The photo [picked], read already, as the camera app took it, for a lesson that has [count] attachments now, of at most [max]. */
-    suspend fun importPhoto(picked: PickedDocument, count: Int, max: Int = MAX_ATTACHMENTS): AttachmentImport = withContext(io + NonCancellable) {
-        if (count >= max) return@withContext AttachmentImport.TooMany
-        if (picked.bytes.size > PHOTO_MAX_BYTES) return@withContext AttachmentImport.TooLarge
-        val jpeg = Photos.shrink(picked.bytes) ?: return@withContext AttachmentImport.Unreadable
-        keep(AttachmentKind.Photo, jpeg, picked.name.substringBeforeLast('.').ifBlank { picked.name } + ".jpg")
-    }
+    /** The photo [picked], read already, as the camera app took it, for a lesson that has [count] attachments now. */
+    suspend fun importPhoto(picked: PickedDocument, count: Int): AttachmentImport = vault.importPhoto(picked, count, MAX_ATTACHMENTS)
 
     /** The PDF at [address] for a lesson that has [count] attachments now. */
     suspend fun importPdf(address: String, count: Int): AttachmentImport = withContext(io + NonCancellable) {
@@ -137,85 +93,40 @@ class LessonFiles(
         val picked = documents.read(address, PDF_MAX_BYTES + 1) ?: return@withContext AttachmentImport.Unreadable
         if (picked.bytes.size > PDF_MAX_BYTES) return@withContext AttachmentImport.TooLarge
         if (!looksLikePdf(picked.bytes) || (documents.pdfPages(picked.bytes) ?: 0) < 1) return@withContext AttachmentImport.Unreadable
-        keep(AttachmentKind.Pdf, picked.bytes, picked.name)
+        vault.keep(AttachmentKind.Pdf, picked.bytes, picked.name)
     }
 
     /** What [attachment] holds, decrypted, to be shown; none if it is gone or damaged. */
-    suspend fun content(attachment: AttachmentRef): ByteArray? = withContext(io) { store.read(attachment.file) }
+    suspend fun content(attachment: AttachmentRef): ByteArray? = withContext(io) { vault.read(attachment.file) }
 
     /** Writes [attachment] decrypted to the file at [address], chosen in Android's file dialog; whether it worked. */
     suspend fun export(attachment: AttachmentRef, address: String): Boolean = withContext(io + NonCancellable) {
-        val content = store.read(attachment.file) ?: return@withContext false
+        val content = vault.read(attachment.file) ?: return@withContext false
         documents.write(address, content)
     }
 
     /** Lets go of what [draft] imported but its lesson as saved ([saved]) does not have: the editor left unsaved. */
-    suspend fun discard(draft: LessonDraft, saved: LessonDraft?) = withContext(io + NonCancellable) {
+    suspend fun discard(draft: LessonDraft, saved: LessonDraft?) {
         val kept = saved?.attachments.orEmpty().map { it.file }.toSet()
-        draft.attachments.map { it.file }.filter { it !in kept && isStaged(it) }.forEach { file ->
-            store.delete(file)
-            synchronized(staged) { staged -= file }
-        }
+        draft.attachments.map { it.file }.filter { it !in kept }.forEach { vault.drop(it) }
     }
 
     /** Whether [file] was imported and is not saved with a lesson yet. */
-    fun isStaged(file: String): Boolean = synchronized(staged) { file in staged }
-
-    /** [files] are a saved lesson's now. */
-    internal fun taken(files: Collection<String>) = synchronized(staged) { staged -= files.toSet() }
-
-    /** The store the attachments lie in. */
-    internal val attachments: AttachmentStore get() = store
+    fun isStaged(file: String): Boolean = vault.isStaged(file)
 
     /** Lets go of [attachment] if it was imported and is not saved yet: taken off again in the editor. */
-    suspend fun drop(attachment: AttachmentRef) = drop(attachment.file)
-
-    /** Lets go of what is kept under [file] if it was imported and is not saved yet. */
-    suspend fun drop(file: String) = withContext(io + NonCancellable) {
-        synchronized(staged) {
-            if (file in staged) {
-                store.delete(file)
-                staged -= file
-            }
-        }
-    }
-
-    /**
-     * Clears up what a crash or a lost editor left: the files of [saved] attachments still laid aside by a restore that
-     * broke off are put in place; every other file but those staged, and older than [olderThanMillis], is deleted. Those
-     * younger may belong to an editor the app is bringing back after Android ended it.
-     */
-    internal fun clearUp(saved: Set<String>, olderThanMillis: Long) = synchronized(staged) {
-        saved.filter { !store.has(it) && aside.has(it) }.forEach { store.moveFrom(aside, it) }
-        val now = System.currentTimeMillis()
-        (store.names() - saved - staged).filter { now - store.modified(it) >= olderThanMillis }.forEach(store::delete)
-    }
-
-    private fun keep(kind: AttachmentKind, bytes: ByteArray, name: String): AttachmentImport {
-        // Staged as it is written, so that clearing up meanwhile spares it.
-        val file = synchronized(staged) { store.write(bytes).also { staged += it } }
-        val cleaned = InputText.singleLine(name).take(NAME_MAX).ifBlank { kind.stored }
-        return AttachmentImport.Added(AttachmentRef(kind, file, bytes.size.toLong(), cleaned))
-    }
+    suspend fun drop(attachment: AttachmentRef) = vault.drop(attachment.file)
 
     companion object {
-        /** How many attachments a lesson may have (SPEC.md §15). */
-        const val MAX_ATTACHMENTS = 10
+        /** How many attachments a lesson may have (SPEC.md §15), as the Ablage keeps them. */
+        const val MAX_ATTACHMENTS = Vault.MAX_PER_SESSION
 
         /** The largest PDF taken (SPEC.md §15): 10 MB. */
         const val PDF_MAX_BYTES = 10 * 1024 * 1024
 
-        /** The name a photo taken with the camera app goes by. */
-        const val TAKEN_NAME = "photo.jpg"
-
-        /** The largest photo read before it is shrunk: 40 MB, more than any phone's camera makes. */
-        const val PHOTO_MAX_BYTES = 40 * 1024 * 1024
-
         /** The most a text file may have to fit a note: four bytes for each of its characters at most. */
         const val TEXT_MAX_BYTES = LessonDraft.NOTE_MAX * 4
 
-        /** The longest name an attachment keeps, in characters. */
-        private const val NAME_MAX = 120
 
         /** Whether [bytes] start as a PDF does, "%PDF-" within the first kilobyte. */
         private fun looksLikePdf(bytes: ByteArray): Boolean {

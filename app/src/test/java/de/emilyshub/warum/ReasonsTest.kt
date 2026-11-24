@@ -14,6 +14,7 @@ import de.emilyshub.languages.FakeLessonDocuments
 import de.emilyshub.languages.Languages
 import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.testAttachmentStore
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -44,8 +45,8 @@ class ReasonsTest {
     private val folder = "reasons-${System.nanoTime()}"
     private val store = testAttachmentStore(folder)
     private val documents = FakeLessonDocuments()
-    private val files = LessonFiles(store, documents, Dispatchers.Unconfined)
-    private val reasons = Reasons({ database }, files, Dispatchers.Unconfined)
+    private val files = LessonFiles(Vault(store, documents, Dispatchers.Unconfined), Dispatchers.Unconfined)
+    private val reasons = Reasons({ database }, files.vault, Dispatchers.Unconfined)
 
     @After
     fun closeDatabase() {
@@ -224,21 +225,6 @@ class ReasonsTest {
         assertTrue(reasons.photoAllowed(last))
         assertEquals(Saving.Saved(last), reasons.save(last, ReasonDraft("Lina", staged)))
         assertEquals(Saving.Saved::class, reasons.save(null, ReasonDraft("Ohne Foto"))::class)
-    }
-
-    @Test
-    fun `clearing up the attachments spares the photos of the reasons, and lets go of one left behind`() = runBlocking {
-        val saved = import(png(50, 50))
-        reasons.save(null, ReasonDraft("Lina", saved))
-        val left = import(png(60, 60))
-        // As on a later start, with nothing staged in memory.
-        val again = LessonFiles(store, documents, Dispatchers.Unconfined)
-        val languages = Languages({ database }, TestClock(Instant.parse("2026-11-24T09:00:00Z"), ZoneId.of("Europe/Berlin")), again, Dispatchers.Unconfined)
-
-        languages.clearUpAttachments(olderThan = Duration.ZERO)
-
-        assertTrue(store.has(saved))
-        assertFalse(store.has(left))
     }
 
     private suspend fun import(bytes: ByteArray, reasonId: Long? = null): String =

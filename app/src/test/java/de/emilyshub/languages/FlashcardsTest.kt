@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.TestClock
 import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -33,7 +34,7 @@ class FlashcardsTest {
     private val clock = TestClock(Instant.parse("2026-11-12T09:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val today = LocalDate.parse("2026-11-12")
     private val languages = Languages(
-        { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+        { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
     private val documents = FakeLessonDocuments()
     private val cards = Flashcards({ database }, clock, documents, Dispatchers.Unconfined)

@@ -11,6 +11,7 @@ import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.testAttachmentStore
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.todos.Todos
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -39,7 +40,7 @@ class ExamGoalsTest {
     private val wishes = Wishes({ database }, clock, Dispatchers.Unconfined)
     private val todos = Todos({ database }, clock, Dispatchers.Unconfined)
     private val languages = Languages(
-        { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+        { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
 
     @After

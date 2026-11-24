@@ -2,6 +2,7 @@ package de.emilyshub.languages
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import de.emilyshub.vault.AttachmentStore
 import java.io.File
 import javax.crypto.KeyGenerator
 

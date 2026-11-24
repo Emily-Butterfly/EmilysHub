@@ -67,6 +67,7 @@ import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoDao
 import de.emilyshub.todos.TodoPlace
 import de.emilyshub.todos.TodoTag
+import de.emilyshub.vault.VaultDao
 import de.emilyshub.warum.Reason
 import de.emilyshub.warum.ReasonDao
 import de.emilyshub.wishes.Wish
@@ -134,6 +135,8 @@ abstract class HubDatabase : RoomDatabase() {
     abstract fun backup(): BackupDao
 
     abstract fun reasons(): ReasonDao
+
+    abstract fun vault(): VaultDao
 
     companion object {
         const val VERSION = 64

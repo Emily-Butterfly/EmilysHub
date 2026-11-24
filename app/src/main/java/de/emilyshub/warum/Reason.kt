@@ -10,7 +10,7 @@ import java.io.Serializable
 /**
  * A Grund in Mein Warum (SPEC.md §18): its [text], plain, perhaps empty beside a [photo], and its [position] on the
  * board, the lowest first; how it looks, as [look] reads it from its [font], [size], [background] and [textColor] kept
- * as they were chosen, so that one the app does not know counts as Standard. The photo is kept encrypted in the [de.emilyshub.languages.AttachmentStore] under that name,
+ * as they were chosen, so that one the app does not know counts as Standard. The photo is kept encrypted in the Ablage ([de.emilyshub.vault.Vault]) under that name,
  * as the lessons' attachments are. Nothing of when it was made or looked at is kept.
  */
 @Entity(tableName = "reasons", indices = [Index(value = ["photo"], unique = true)])

@@ -51,7 +51,6 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentImport
-import de.emilyshub.languages.LessonFiles
 import de.emilyshub.languages.PickedDocument
 import de.emilyshub.ui.differsAsSaved
 import de.emilyshub.ui.fields.LengthHint
@@ -62,6 +61,7 @@ import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.rememberCameraTrip
 import de.emilyshub.ui.rememberClosing
 import de.emilyshub.ui.rememberLeaving
+import de.emilyshub.vault.Vault
 import de.emilyshub.warum.ReasonDraft
 import de.emilyshub.warum.ReasonLook
 import de.emilyshub.warum.ReasonProblem
@@ -298,8 +298,8 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
     }
     val camera = rememberCameraTrip { taken ->
         note = PhotoNote.Busy
-        val bytes = taken.read(LessonFiles.PHOTO_MAX_BYTES)
-        shown(bytes?.let { reasons.importPhoto(PickedDocument(LessonFiles.TAKEN_NAME, it), reasonId) } ?: AttachmentImport.Unreadable)
+        val bytes = taken.read(Vault.PHOTO_MAX_BYTES)
+        shown(bytes?.let { reasons.importPhoto(PickedDocument(Vault.TAKEN_NAME, it), reasonId) } ?: AttachmentImport.Unreadable)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

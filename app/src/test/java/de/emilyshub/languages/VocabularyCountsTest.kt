@@ -9,6 +9,7 @@ import de.emilyshub.routines.OccurrenceStatus
 import de.emilyshub.routines.Repetition
 import de.emilyshub.routines.RoutineDraft
 import de.emilyshub.routines.Routines
+import de.emilyshub.vault.Vault
 import de.emilyshub.wishes.WishDraft
 import de.emilyshub.wishes.WishProblem
 import de.emilyshub.wishes.WishStatus
@@ -39,7 +40,7 @@ class VocabularyCountsTest {
     /** Thursday, 12 November 2026, 10:00 in Berlin. */
     private val clock = TestClock(Instant.parse("2026-11-12T09:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val languages = Languages(
-        { database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined,
+        { database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined,
     )
     private val routines = Routines({ database }, clock, Dispatchers.Unconfined)
     private val cards = Flashcards({ database }, clock, FakeLessonDocuments(), Dispatchers.Unconfined, onWorkloadDone = routines::doneByVocabulary)

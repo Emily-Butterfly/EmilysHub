@@ -7,6 +7,9 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import de.emilyshub.ui.CameraShot
+import de.emilyshub.vault.AttachmentStore
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,7 +33,7 @@ class AttachmentsOnDeviceTest {
     private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     private val store = AttachmentStore({ File(context.cacheDir, "attachments-test") }, { key })
     private val documents = PhoneLessonDocuments(context)
-    private val files = LessonFiles(store, documents)
+    private val files = LessonFiles(Vault(store, documents))
 
     @Test
     fun aPdfOpensFromMemoryAndItsPagesAreDrawn() {

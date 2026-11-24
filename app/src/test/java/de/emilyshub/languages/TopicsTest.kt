@@ -5,6 +5,7 @@ import de.emilyshub.TestClock
 import de.emilyshub.data.NameProblem
 import de.emilyshub.data.Saving
 import de.emilyshub.data.inMemoryDatabase
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -31,7 +32,7 @@ class TopicsTest {
 
     /** Thursday, 12 November 2026, 10:00 in Berlin. */
     private val clock = TestClock(Instant.parse("2026-11-12T09:00:00Z"), ZoneId.of("Europe/Berlin"))
-    private val languages = Languages({ database }, clock, LessonFiles(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined)
+    private val languages = Languages({ database }, clock, LessonFiles(Vault(testAttachmentStore(), FakeLessonDocuments(), Dispatchers.Unconfined), Dispatchers.Unconfined), Dispatchers.Unconfined)
 
     @After
     fun closeDatabase() {

@@ -5,11 +5,10 @@ import de.emilyshub.data.Setting
 import de.emilyshub.data.SettingsDao
 import de.emilyshub.island.IslandSnapshot
 import de.emilyshub.island.IslandVault
-import de.emilyshub.languages.LessonFiles
 import de.emilyshub.notes.notesHoldTogether
 import de.emilyshub.notes.notesKeepTheRules
 import de.emilyshub.security.KeyWrap
-import de.emilyshub.warum.Reasons
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -65,7 +64,7 @@ class Backup internal constructor(internal val content: BackupContent, internal 
  * else, or from a backup without one, stays as it is. [tracking] likewise, with the Tracking password (SPEC.md §17).
  *
  * The islands' databases follow the content in the file in records of their own ([BackupContent.records]), then the
- * lessons' [attachments] and the photos of Mein Warum's reasons, which lie with them, each in a record of its own, so that a backup is written and read as a stream (format 3 of
+ * files of the Ablage ([attachments]: the Sessions' Anhänge and the Gründe's photos), each in a record of its own, so that a backup is written and read as a stream (format 3 of
  * [BackupFile]). Opening a backup checks the attachments and lays them aside, encrypted; restoring puts them in place
  * of the app's own.
  */
@@ -77,7 +76,7 @@ class Backups(
     private val migration: BackupMigration,
     private val doku: IslandVault,
     private val tracking: IslandVault,
-    private val attachments: AttachmentVault,
+    private val attachments: Vault,
     private val io: CoroutineContext = Dispatchers.IO,
     private val iterations: Int = BackupKey.ITERATIONS,
     private val onRestore: suspend () -> Unit = {},
@@ -144,11 +143,11 @@ class Backups(
     ) {
         val read = database.runInTransaction(Callable { DataTables(database.openHelper.writableDatabase).read() })
         // Each read once here for its size, and once more as it is written, so that they need not all fit in memory.
-        val carried = attachmentFilesOf(read).mapNotNull { file ->
+        val carried = attachments.filesIn(read).mapNotNull { file ->
             attachments.read(file)?.let { BackupAttachment(file, it.size.toLong()) }
         }
         // One that cannot be read is left out with its row, rather than keeping every backup from being made.
-        val tables = withAttachmentsOnly(read, carried.map { it.file }.toSet())
+        val tables = attachments.readableOnly(read, carried.map { it.file }.toSet())
         val content = BackupContent(HubDatabase.VERSION, now, tables, snapshot, trackingSnapshot, carried)
         val json = content.toJson()
         output().use { out ->
@@ -282,7 +281,7 @@ class Backups(
         val replace = {
             DataTables(database.openHelper.writableDatabase).replaceWith(content.tables)
             database.readBack(content.tables.keys)
-            database.checkAttachments(content.attachments)
+            if (!attachments.restoredFits(database, content.attachments)) damaged()
         }
         if (keep) {
             database.runInTransaction(replace)
@@ -342,40 +341,6 @@ class Backups(
         }
     }
 
-    /**
-     * That the lessons' attachments and the reasons' photos in the tables are those the backup carries, each attachment
-     * as large as it says; that no lesson has more than a lesson can, nor more reasons a photo than may have one.
-     */
-    private fun HubDatabase.checkAttachments(carried: List<BackupAttachment>) {
-        val rows = backup().lessonAttachments()
-        val photos = backup().reasons().mapNotNull { it.photo }
-        val sizes = carried.associate { it.file to it.bytes }
-        // Each file once, not a lesson's and a reason's both.
-        val files = rows.map { it.file } + photos
-        if (files.size != carried.size || files.toSet().size != files.size) damaged()
-        if (rows.any { sizes[it.file] != it.bytes } || photos.any { it !in sizes }) damaged()
-        if (rows.groupBy { it.lessonId }.values.any { it.size > LessonFiles.MAX_ATTACHMENTS }) damaged()
-        if (photos.size > Reasons.MAX_PHOTOS) damaged()
-    }
-
-    /** [tables] with only the lessons' attachments, and the reasons with photos, whose files are [kept]. */
-    private fun withAttachmentsOnly(tables: Map<String, TableRows>, kept: Set<String>): Map<String, TableRows> =
-        FILES.entries.fold(tables) { all, (name, column) ->
-            val table = all[name] ?: return@fold all
-            val index = table.columns.indexOf(column)
-            all + (name to TableRows(table.columns, table.rows.filter { it[index] == null || it[index] in kept }))
-        }
-
-    /**
-     * The files of the lessons' attachments in [tables], in the order of their rows, then the photos of the reasons
-     * (SPEC.md §18), which lie in the same store.
-     */
-    private fun attachmentFilesOf(tables: Map<String, TableRows>): List<String> = FILES.flatMap { (name, column) ->
-        val table = tables[name] ?: return@flatMap emptyList()
-        val index = table.columns.indexOf(column)
-        table.rows.mapNotNull { it[index] as String? }
-    }
-
     private suspend fun storedKey(): BackupKey? = settings().get(KEY)?.let { stored ->
         val parts = stored.split(SEPARATOR)
         check(parts.size == 3) { "The stored backup key is damaged" }
@@ -402,8 +367,6 @@ class Backups(
         private const val FIRST_MADE = "backup-first-made"
         private const val SEPARATOR = ":"
 
-        /** The tables that name files of the attachment store, by the column that does. */
-        private val FILES = mapOf("lesson_attachments" to "file", "reasons" to "photo")
 
         fun passwordProblem(password: String, repeated: String): PasswordProblem? = when {
             password.length < MIN_PASSWORD_LENGTH -> PasswordProblem.TooShort

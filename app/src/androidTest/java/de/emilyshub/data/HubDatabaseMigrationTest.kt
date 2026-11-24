@@ -1037,10 +1037,10 @@ class HubDatabaseMigrationTest {
             val lesson = dao.insertLesson(Lesson(date = LocalDate.parse("2026-11-12"), minutes = 45, languageId = arabic, teacherId = amal))
             val file = "0f8fad5b-d9cb-469f-a165-70867728950e.att"
             dao.insertAttachments(listOf(LessonAttachment(lessonId = lesson, kind = AttachmentKind.Pdf, file = file, bytes = 10, name = "a.pdf", position = 0)))
-            assertEquals(listOf(file), dao.attachmentFiles())
+            assertEquals(listOf(file), database.vault().owned())
 
             dao.deleteLesson(lesson)
-            assertEquals(emptyList<String>(), dao.attachmentFiles())
+            assertEquals(emptyList<String>(), database.vault().owned())
         }
     }
 

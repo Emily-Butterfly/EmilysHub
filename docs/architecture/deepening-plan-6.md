@@ -63,7 +63,21 @@ the one at an address (the gallery). The tests clear `FileProvider`'s static cac
 
 ## 2 · The Ablage knows its owners
 
-**Status:** open.
+**Status:** done. `Vault` (vault/Vault.kt), with `AttachmentStore` moved beside it, is the Ablage. It stages what is
+imported (`keep`, `importPhoto`, the shrinking with it, which Mein Warum no longer reaches through Sprachen for), knows
+its two owners in one list (`Owner`: the table and column naming their files, and a text that may stand without its
+photo) and their maximums (`MAX_PER_SESSION`, `MAX_REASON_PHOTOS`), and lists their files through `VaultDao` instead of
+`LanguageDao`'s UNION. An owner claims and lets go of files in `changing { isFree / take / release }`, which takes effect
+once the change has gone through and not at all if it fails: `Languages.save` and `delete`, `Reasons.save` and
+`delete` no longer hold the lock and delete by hand. The backups use it directly (`filesIn`, `readableOnly`,
+`restoredFits`, and what they lay aside); `AttachmentVault` and `Backups`' own `FILES`, `checkAttachments` and
+`withAttachmentsOnly` are gone. `LessonFiles` keeps what is a Session's own: text into its note, PDFs. Clearing up at
+start is `Vault.clearUp`. **Behaviour:** a Grund whose photo cannot be read as a backup is made keeps its text (SPEC.md
+§10). Also mended: the instrumented tests still named `CameraShot` in its old package after step 1. Tests:
+`vault/VaultTest`, `backup/ReasonPhotoBackupsTest`; the attachments' and backups' tests as they were.
+
+Left as it is: `LessonDocuments`, `PickedDocument` and `AttachmentImport` stay in `languages` though the Ablage and
+the image of Mein Warum use them too; a name for the phone's files apart from the lessons is for a later review.
 
 ## 3 · The Tagespensum, told once
 

@@ -9,6 +9,7 @@ import de.emilyshub.data.HubDatabase
 import de.emilyshub.island.IslandFile
 import de.emilyshub.island.IslandSnapshot
 import de.emilyshub.island.IslandVault
+import de.emilyshub.languages.PhoneLessonDocuments
 import de.emilyshub.places.Coordinates
 import de.emilyshub.places.PlaceDraft
 import de.emilyshub.places.Places
@@ -18,6 +19,8 @@ import de.emilyshub.routines.Routines
 import de.emilyshub.tags.Tags
 import de.emilyshub.todos.TodoDraft
 import de.emilyshub.todos.Todos
+import de.emilyshub.vault.AttachmentStore
+import de.emilyshub.vault.Vault
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
@@ -28,6 +31,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.LocalTime
@@ -147,7 +151,7 @@ class BackupsOnDeviceTest {
         migration = BackupMigration(context) { HubDatabase.openHelpers(ByteArray(32).also(SecureRandom()::nextBytes)) },
         doku = NoIsland,
         tracking = NoIsland,
-        attachments = NoAttachments,
+        attachments = emptyVault,
         iterations = iterations,
     )
 
@@ -162,22 +166,11 @@ class BackupsOnDeviceTest {
         override fun putAside(name: String, bytes: ByteArray): IslandFile? = null
     }
 
-    /** No lesson has attachments here. */
-    private object NoAttachments : AttachmentVault {
-        override suspend fun <T> steady(block: suspend () -> T): T = block()
-
-        override fun read(file: String): ByteArray? = null
-
-        override fun isName(file: String) = false
-
-        override fun clearAside() = Unit
-
-        override fun putAside(file: String, bytes: ByteArray) = Unit
-
-        override fun hasAside(files: Set<String>) = files.isEmpty()
-
-        override fun takeAside(files: Set<String>) = Unit
-    }
+    /** The Ablage, empty here: no lesson has attachments, no Grund a photo. */
+    private val emptyVault = Vault(
+        AttachmentStore({ File(context.cacheDir, "vault-${System.nanoTime()}") }, { KeyGenerator.getInstance("AES").apply { init(256) }.generateKey() }),
+        PhoneLessonDocuments(context),
+    )
 
     /** Every row of every table but the settings, read here on its own, without the backups. */
     private fun everything(database: HubDatabase): Map<String, List<List<Any?>>> {

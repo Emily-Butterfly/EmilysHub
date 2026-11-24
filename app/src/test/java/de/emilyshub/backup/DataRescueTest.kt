@@ -61,7 +61,7 @@ class DataRescueTest {
             migration = BackupMigration(app) { FrameworkSQLiteOpenHelperFactory() },
             doku = app.doku,
             tracking = app.tracking,
-            attachments = app.lessonFiles,
+            attachments = app.lessonFiles.vault,
             io = Dispatchers.Unconfined,
             iterations = 1_000,
             onRestore = { check(!restoreFails) { "The reminders could not follow" } },

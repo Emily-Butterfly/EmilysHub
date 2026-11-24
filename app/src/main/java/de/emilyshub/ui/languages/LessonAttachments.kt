@@ -57,6 +57,7 @@ import de.emilyshub.languages.TextImport
 import de.emilyshub.ui.fields.Problem
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.rememberCameraTrip
+import de.emilyshub.vault.Vault
 
 /** What importing came to, to be told under the buttons; kept past a turn. */
 private enum class ImportNote(val text: Int, val problem: Boolean) {
@@ -127,8 +128,8 @@ internal fun LessonAttachments(
     }
     val camera = rememberCameraTrip { taken ->
         note = ImportNote.Busy
-        val bytes = taken.read(LessonFiles.PHOTO_MAX_BYTES)
-        val result = bytes?.let { files.importPhoto(PickedDocument(LessonFiles.TAKEN_NAME, it), current.attachments.size) }
+        val bytes = taken.read(Vault.PHOTO_MAX_BYTES)
+        val result = bytes?.let { files.importPhoto(PickedDocument(Vault.TAKEN_NAME, it), current.attachments.size) }
         attached(result ?: AttachmentImport.Unreadable, ImportNote.NotPhoto, ImportNote.PhotoTooLarge)
     }
     val pdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->

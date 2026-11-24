@@ -15,7 +15,7 @@ enum class AttachmentKind(val stored: String) {
 
 /**
  * A photo or PDF attached to the lesson [lessonId] (SPEC.md §15), at [position] among its own: kept encrypted in the
- * [AttachmentStore] under [file], [bytes] large as it is shown, under the [name] it came by. Gone with its lesson.
+ * Ablage ([de.emilyshub.vault.Vault]) under [file], [bytes] large as it is shown, under the [name] it came by. Gone with its lesson.
  */
 @Entity(
     tableName = "lesson_attachments",
