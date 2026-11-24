@@ -1,5 +1,6 @@
 package de.emilyshub.ui.warum
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,7 @@ import de.emilyshub.warum.Reasons
 
 /**
  * The Gründe of Mein Warum opened large (SPEC.md §18), from the one tapped ([reasonId]): a text in large letters, in the
- * middle; a photo filling the screen, to zoom into, its text below; swiping leads to the next in the board's order, and
+ * middle, in its font and colours; a photo filling the screen, to zoom into, its text below; swiping leads to the next in the board's order, and
  * back to the one before. No buttons but the way back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,7 +80,7 @@ fun ReasonViewerScreen(reasons: Reasons, reasonId: Long, onBack: () -> Unit) {
 /** A reason as large as the screen lets it be, in its middle, its place among all ([place]) told to TalkBack. */
 @Composable
 private fun Large(reason: Reason, place: String) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(backgroundOf(reason.look))) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -89,7 +90,7 @@ private fun Large(reason: Reason, place: String) {
                 .padding(24.dp)
                 .semantics { stateDescription = place },
         ) {
-            ReasonText(reason.text, style = MaterialTheme.typography.headlineMedium)
+            ReasonText(reason.text, style = styleOf(reason.look, ReasonPlace.Large))
         }
     }
 }
@@ -108,9 +109,10 @@ private fun LargePhoto(reasons: Reasons, reason: Reason, photo: String, place: S
         if (reason.text.isNotEmpty()) {
             ReasonText(
                 reason.text,
-                style = MaterialTheme.typography.titleLarge,
+                style = styleOf(reason.look, ReasonPlace.Strip),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(backgroundOf(reason.look))
                     .heightIn(max = MAX_TEXT_HEIGHT.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 16.dp),

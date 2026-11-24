@@ -178,6 +178,9 @@ sealed interface Destination : Serializable {
     /** A Grund's editor in Mein Warum (SPEC.md §18). */
     data class ReasonEditor(override val target: ReasonEditorTarget) : Editor
 
+    /** The licences of the fonts Mein Warum brings along (SPEC.md §18). */
+    data object FontLicenses : Destination
+
     /** The Gründe of Mein Warum opened large, from the one tapped (SPEC.md §18). */
     data class ReasonViewer(val reasonId: Long) : Destination
 

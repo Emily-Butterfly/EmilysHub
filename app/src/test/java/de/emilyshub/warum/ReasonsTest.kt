@@ -62,6 +62,18 @@ class ReasonsTest {
     }
 
     @Test
+    fun `a reason keeps its font, size and colours, and one the app does not know counts as Standard`() = runBlocking {
+        val look = ReasonLook(ReasonFont.Script, ReasonSize.Large, ReasonColor.Blue4, ReasonColor.White)
+        val id = save("Lina")
+        reasons.save(id, ReasonDraft("Lina", look = look))
+        assertEquals(look, reasons.editing(id)?.look)
+        assertEquals(look, reasons.board().first().single().look)
+
+        database.reasons().update(checkNotNull(database.reasons().find(id)).copy(font = "comic", textColor = "pink"))
+        assertEquals(look.copy(font = ReasonFont.Standard, text = ReasonColor.Standard), reasons.editing(id)?.look)
+    }
+
+    @Test
     fun `an empty reason without a photo is refused, and one over 500 characters`() = runBlocking {
         assertEquals(Saving.Refused(setOf(ReasonProblem.Empty)), reasons.save(null, ReasonDraft(" \n​ ")))
         assertEquals(Saving.Refused(setOf(ReasonProblem.TextTooLong)), reasons.save(null, ReasonDraft("a".repeat(501))))

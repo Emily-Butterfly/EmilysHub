@@ -67,6 +67,10 @@ import de.emilyshub.todos.TodoChecklistItem
 import de.emilyshub.todos.TodoWithDetails
 import de.emilyshub.todos.WakeTime
 import de.emilyshub.warum.Reason
+import de.emilyshub.warum.ReasonColor
+import de.emilyshub.warum.ReasonFont
+import de.emilyshub.warum.ReasonLook
+import de.emilyshub.warum.ReasonSize
 import de.emilyshub.wishes.Wish
 import de.emilyshub.wishes.WishWithTags
 import kotlinx.coroutines.flow.first
@@ -1329,6 +1333,22 @@ class HubDatabaseMigrationTest {
             assertEquals(null, lina.photo)
             dao.update(lina.copy(photo = "0b8c3f3e-1d2a-4c5b-9e6f-7a8b9c0d1e2f.att"))
             assertEquals("0b8c3f3e-1d2a-4c5b-9e6f-7a8b9c0d1e2f.att", dao.find(1)?.photo)
+        }
+    }
+
+    @Test
+    fun `version 63 moves to version 64 with the reasons looking as Standard and then a look of one's own is kept`() {
+        createAtVersion(63) {
+            it.execSQL("INSERT INTO reasons (id, text, position, photo) VALUES (1, 'Lina', 0, NULL)")
+        }
+
+        withMigratedDatabase { database ->
+            val dao = database.reasons()
+            val lina = checkNotNull(dao.find(1))
+            assertEquals(ReasonLook(), lina.look)
+            val look = ReasonLook(ReasonFont.Hand, ReasonSize.Small, ReasonColor.Yellow1, ReasonColor.Purple4)
+            dao.update(lina.lookingAs(look))
+            assertEquals(look, dao.find(1)?.look)
         }
     }
 

@@ -1,5 +1,6 @@
 package de.emilyshub.warum
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -8,7 +9,8 @@ import java.io.Serializable
 
 /**
  * A Grund in Mein Warum (SPEC.md §18): its [text], plain, perhaps empty beside a [photo], and its [position] on the
- * board, the lowest first. The photo is kept encrypted in the [de.emilyshub.languages.AttachmentStore] under that name,
+ * board, the lowest first; how it looks, as [look] reads it from its [font], [size], [background] and [textColor] kept
+ * as they were chosen, so that one the app does not know counts as Standard. The photo is kept encrypted in the [de.emilyshub.languages.AttachmentStore] under that name,
  * as the lessons' attachments are. Nothing of when it was made or looked at is kept.
  */
 @Entity(tableName = "reasons", indices = [Index(value = ["photo"], unique = true)])
@@ -17,7 +19,18 @@ data class Reason(
     val text: String,
     val position: Int,
     val photo: String? = null,
-)
+    @ColumnInfo(defaultValue = "'standard'") val font: String = ReasonFont.Standard.stored,
+    @ColumnInfo(defaultValue = "'medium'") val size: String = ReasonSize.Medium.stored,
+    @ColumnInfo(defaultValue = "'standard'") val background: String = ReasonColor.Standard.stored,
+    @ColumnInfo(name = "text_color", defaultValue = "'standard'") val textColor: String = ReasonColor.Standard.stored,
+) {
+    /** How it looks. */
+    val look: ReasonLook get() = ReasonLook.of(font, size, background, textColor)
+
+    /** With [look] as it looks. */
+    fun lookingAs(look: ReasonLook) =
+        copy(font = look.font.stored, size = look.size.stored, background = look.background.stored, textColor = look.text.stored)
+}
 
 /** What keeps a [ReasonDraft] from being saved. */
 enum class ReasonProblem {
@@ -45,6 +58,7 @@ data class ReasonDraft(
     val text: String = "",
     /** The name its photo is kept under, saved already or imported for it; none: it has none. */
     val photo: String? = null,
+    val look: ReasonLook = ReasonLook(),
 ) : Serializable {
 
     val problems: Set<ReasonProblem>

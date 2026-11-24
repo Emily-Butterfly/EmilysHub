@@ -919,3 +919,13 @@ val MIGRATION_62_63 = object : Migration(62, 63) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reasons_photo` ON `reasons` (`photo`)")
     }
 }
+
+/** 63 → 64: a Grund of Mein Warum has a font, a size and colours of its own (SPEC.md §18); those there are Standard. */
+val MIGRATION_63_64 = object : Migration(63, 64) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `reasons` ADD COLUMN `font` TEXT NOT NULL DEFAULT 'standard'")
+        db.execSQL("ALTER TABLE `reasons` ADD COLUMN `size` TEXT NOT NULL DEFAULT 'medium'")
+        db.execSQL("ALTER TABLE `reasons` ADD COLUMN `background` TEXT NOT NULL DEFAULT 'standard'")
+        db.execSQL("ALTER TABLE `reasons` ADD COLUMN `text_color` TEXT NOT NULL DEFAULT 'standard'")
+    }
+}

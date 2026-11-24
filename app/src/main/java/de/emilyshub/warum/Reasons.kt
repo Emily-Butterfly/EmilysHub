@@ -35,7 +35,7 @@ class Reasons(
     fun board(): Flow<List<Reason>> = flow { emitAll(dao.observeAll()) }.flowOn(io)
 
     /** The reason [id] as its editor starts with it; none once it is gone. */
-    suspend fun editing(id: Long): ReasonDraft? = withContext(io) { dao.find(id)?.let { ReasonDraft(it.text, it.photo) } }
+    suspend fun editing(id: Long): ReasonDraft? = withContext(io) { dao.find(id)?.let { ReasonDraft(it.text, it.photo, it.look) } }
 
     /** Whether the reason [id], or a new one with none, may have a photo: fewer than [MAX_PHOTOS] others have one. */
     suspend fun photoAllowed(id: Long?): Boolean = withContext(io) { dao.photoCount(except = id) < MAX_PHOTOS }
@@ -85,9 +85,9 @@ class Reasons(
                 if (dao.photoCount(except = id) >= MAX_PHOTOS) return@withTransaction Saving.Refused(setOf(ReasonProblem.TooManyPhotos))
             }
             if (before == null) {
-                Saving.Saved(dao.insert(Reason(text = draft.text, position = (dao.firstPosition() ?: 1) - 1, photo = photo)))
+                Saving.Saved(dao.insert(Reason(text = draft.text, position = (dao.firstPosition() ?: 1) - 1, photo = photo).lookingAs(draft.look)))
             } else {
-                dao.update(before.copy(text = draft.text, photo = photo))
+                dao.update(before.copy(text = draft.text, photo = photo).lookingAs(draft.look))
                 gone = before.photo?.takeIf { it != photo }
                 Saving.Saved(before.id)
             }

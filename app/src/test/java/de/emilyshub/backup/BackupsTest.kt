@@ -48,7 +48,11 @@ import de.emilyshub.todos.Due
 import de.emilyshub.todos.Recurrence
 import de.emilyshub.todos.RecurrenceEnd
 import de.emilyshub.todos.WakeTime
+import de.emilyshub.warum.ReasonColor
 import de.emilyshub.warum.ReasonDraft
+import de.emilyshub.warum.ReasonFont
+import de.emilyshub.warum.ReasonLook
+import de.emilyshub.warum.ReasonSize
 import de.emilyshub.wish
 import de.emilyshub.wishes.WishStatus
 import kotlinx.coroutines.CoroutineScope
@@ -279,6 +283,23 @@ class BackupsTest {
         restore(older)
 
         assertEquals(listOf(ReasonDraft("Lina und ihr Lachen")), runBlocking { app.reasons.board().first() }.map { ReasonDraft(it.text, it.photo) })
+    }
+
+    @Test
+    fun `a backup keeps how the reasons look, and one from before that loads with them as Standard`() {
+        someOfEverything()
+        val id = runBlocking { app.reasons.board().first().single().id }
+        val look = ReasonLook(ReasonFont.Typewriter, ReasonSize.Small, ReasonColor.Cream, ReasonColor.Red4)
+        runBlocking { app.reasons.save(id, ReasonDraft("Lina und ihr Lachen", look = look)) }
+        val now = exported()
+        val older = sealed(asOf(63, contentOf(now)), attachmentsOf(now))
+        changeEverything()
+
+        restore(now)
+        assertEquals(look, runBlocking { app.reasons.board().first().single().look })
+
+        restore(older)
+        assertEquals(ReasonLook(), runBlocking { app.reasons.board().first().single().look })
     }
 
     @Test

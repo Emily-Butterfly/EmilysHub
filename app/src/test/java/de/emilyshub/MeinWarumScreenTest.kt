@@ -5,10 +5,13 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -18,10 +21,13 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -30,7 +36,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import de.emilyshub.data.Saving
 import de.emilyshub.warum.Reason
+import de.emilyshub.warum.ReasonColor
 import de.emilyshub.warum.ReasonDraft
+import de.emilyshub.warum.ReasonFont
+import de.emilyshub.warum.ReasonLook
+import de.emilyshub.warum.ReasonSize
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -258,6 +268,48 @@ class MeinWarumScreenTest {
             compose.onNodeWithContentDescription("Grund hinzufügen").performClick()
             compose.onNodeWithText("Schon 100 Gründe haben ein Foto; mehr geht nicht.").assertIsDisplayed()
             compose.onNode(hasText("Foto wählen") and hasClickAction()).assertIsNotEnabled()
+        }
+    }
+
+    @Test
+    fun `a reason gets a font, a size and both colours, shown as on the board, and the editor says when it is hard to read`() {
+        launchApp().use {
+            openWarum()
+            compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasSetTextAction()).performTextInput("Tee am Morgen")
+            compose.onNodeWithText("Schwer zu lesen").assertDoesNotExist()
+
+            compose.onNode(hasText("Schönschrift") and isSelectable()).performScrollTo().performClick()
+            compose.onNode(hasText("Groß") and isSelectable()).performScrollTo().performClick()
+            compose.onNode(hasContentDescription("Hintergrund: Weiß")).performScrollTo().performClick()
+            compose.onNode(hasContentDescription("Schriftfarbe: Gelb, mittel")).performScrollTo().performClick()
+            compose.onNodeWithText("Schwer zu lesen").performScrollTo().assertIsDisplayed()
+            compose.onNode(hasContentDescription("Schriftfarbe: Blau, kräftig")).performScrollTo().performClick()
+            compose.onNodeWithText("Schwer zu lesen").assertDoesNotExist()
+            // The reason as it will stand on the board, above the choices.
+            compose.onAllNodesWithText("Tee am Morgen").assertCountEquals(2)
+
+            compose.onNodeWithText("Speichern").performClick()
+            compose.onNodeWithText("Tee am Morgen").assertIsDisplayed()
+        }
+        assertEquals(
+            ReasonLook(ReasonFont.Script, ReasonSize.Large, ReasonColor.White, ReasonColor.Blue4),
+            runBlocking { app.reasons.board().first().single().look },
+        )
+    }
+
+    @Test
+    fun `the licences of the fonts can be read from the editor`() {
+        launchApp().use {
+            openWarum()
+            compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
+            compose.onNode(hasText("Lizenzen der Schriften") and hasClickAction()).performScrollTo().performClick()
+            compose.onNode(isHeading() and hasText("Lizenzen der Schriften")).assertIsDisplayed()
+            // Each under its name, written in itself, once read from the app's files.
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Libre Baskerville (Serifen)").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("Great Vibes (Schönschrift)"))
+            compose.onNodeWithText("Great Vibes (Schönschrift)").assertExists()
+            compose.onAllNodesWithText("SIL Open Font License", substring = true).onFirst().assertExists()
         }
     }
 

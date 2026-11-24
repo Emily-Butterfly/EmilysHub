@@ -45,6 +45,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import de.emilyshub.R
+import de.emilyshub.warum.ReasonLook
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Box
 import de.emilyshub.data.InputText
 import de.emilyshub.data.Saving
 import de.emilyshub.languages.AttachmentImport
@@ -78,7 +83,7 @@ sealed interface ReasonEditorTarget : Serializable {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: () -> Unit) {
+fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: () -> Unit, onOpenLicenses: () -> Unit) {
     val reasonId = (target as? ReasonEditorTarget.Edit)?.reasonId
     // As saved: known at once for a new one, read first for one saved.
     var original by rememberSaveable { mutableStateOf(if (reasonId == null) ReasonDraft() else null) }
@@ -200,7 +205,44 @@ fun ReasonEditorScreen(reasons: Reasons, target: ReasonEditorTarget, onClose: ()
                     .fillMaxWidth()
                     .focusRequester(firstField.requester),
             )
+            LookFields(reasons, draft, onChange = { draft = draft.copy(look = it) }, onOpenLicenses = onOpenLicenses)
         }
+    }
+}
+
+/**
+ * How the reason looks (SPEC.md §18): shown first as it will stand on the board, then its font, size and both colours
+ * to choose; "Schwer zu lesen" while its text has too little contrast on its background, which it may keep all the same.
+ * The fonts' licences open from here ([onOpenLicenses]).
+ */
+@Composable
+private fun LookFields(reasons: Reasons, draft: ReasonDraft, onChange: (ReasonLook) -> Unit, onOpenLicenses: () -> Unit) {
+    val look = draft.look
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.reason_look), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.reason_preview), style = MaterialTheme.typography.bodySmall)
+        val cleaned = draft.cleaned()
+        // Half the width, as on the board.
+        Box(Modifier.fillMaxWidth(0.5f).align(Alignment.CenterHorizontally)) {
+            ReasonCard(reasons, cleaned.text, cleaned.photo, look, roomForMenu = false)
+        }
+        // A warning only: it may be saved all the same.
+        if (look.hardToReadIn(standardColors())) {
+            Text(stringResource(R.string.reason_hard_to_read), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        }
+        Text(stringResource(R.string.reason_font), style = MaterialTheme.typography.titleSmall)
+        FontChoice(look.font, onChange = { onChange(look.copy(font = it)) })
+        Text(stringResource(R.string.reason_size), style = MaterialTheme.typography.titleSmall)
+        SizeChoice(look.size, onChange = { onChange(look.copy(size = it)) })
+        val standard = Color(standardColors().background)
+        ColorChoice(stringResource(R.string.reason_background), look.background, standard, onChange = { onChange(look.copy(background = it)) })
+        ColorChoice(
+            stringResource(R.string.reason_text_color),
+            look.text,
+            Color(standardColors().text),
+            onChange = { onChange(look.copy(text = it)) },
+        )
+        TextButton(onClick = onOpenLicenses) { Text(stringResource(R.string.font_licenses)) }
     }
 }
 

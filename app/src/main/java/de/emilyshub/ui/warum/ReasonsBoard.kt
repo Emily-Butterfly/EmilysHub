@@ -58,6 +58,7 @@ import de.emilyshub.ui.MoreMenuItem
 import de.emilyshub.ui.launchNow
 import de.emilyshub.ui.plusFabSpace
 import de.emilyshub.warum.Reason
+import de.emilyshub.warum.ReasonLook
 import de.emilyshub.warum.Reasons
 
 /**
@@ -210,43 +211,63 @@ private fun BoardReason(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
-        Box(Modifier.fillMaxWidth()) {
-            Column {
-                reason.photo?.let { ReasonPhotoImage(reasons, it) }
-                if (reason.text.isNotEmpty()) {
-                    // Beside a photo, a strip below it, clear of the menu above.
-                    val beside = if (editing && reason.photo == null) 40.dp else 16.dp
-                    ReasonText(
-                        reason.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = beside, vertical = if (reason.photo == null) 20.dp else 12.dp),
-                    )
+    Box(modifier.fillMaxWidth()) {
+        ReasonCard(
+            reasons = reasons,
+            text = reason.text,
+            photo = reason.photo,
+            look = reason.look,
+            // Without a photo, the text keeps clear of the menu above.
+            roomForMenu = editing && reason.photo == null,
+            modifier = Modifier.clickable(onClick = onClick),
+        )
+        if (editing) {
+            var open by remember { mutableStateOf(false) }
+            // Over a photo, on a ground of its own to be seen.
+            val ground = if (reason.photo != null) {
+                Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
+            } else {
+                Modifier
+            }
+            Box(Modifier.align(Alignment.TopEnd).padding(4.dp).then(ground)) {
+                MoreMenu(nameOf(reason), expanded = open, onExpandedChange = { open = it }) { close ->
+                    MoreMenuItem(stringResource(R.string.warum_change), close, onClick)
+                    MoreMenuItem(stringResource(R.string.warum_forward), close, onForward)
+                    MoreMenuItem(stringResource(R.string.warum_back), close, onBack)
+                    MoreMenuItem(stringResource(R.string.delete), close, onDelete)
                 }
             }
-            if (editing) {
-                var open by remember { mutableStateOf(false) }
-                // Over a photo, on a ground of its own to be seen.
-                val ground = if (reason.photo != null) {
-                    Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
-                } else {
-                    Modifier
-                }
-                Box(Modifier.align(Alignment.TopEnd).padding(4.dp).then(ground)) {
-                    MoreMenu(nameOf(reason), expanded = open, onExpandedChange = { open = it }) { close ->
-                        MoreMenuItem(stringResource(R.string.warum_change), close, onClick)
-                        MoreMenuItem(stringResource(R.string.warum_forward), close, onForward)
-                        MoreMenuItem(stringResource(R.string.warum_back), close, onBack)
-                        MoreMenuItem(stringResource(R.string.delete), close, onDelete)
-                    }
-                }
+        }
+    }
+}
+
+/**
+ * A Grund as it stands on the board, and in the editor's preview: its photo, its text below as a strip, or either alone,
+ * in its font, size and colours (SPEC.md §18). [roomForMenu] keeps the text clear of a menu in the corner.
+ */
+@Composable
+internal fun ReasonCard(
+    reasons: Reasons,
+    text: String,
+    photo: String?,
+    look: ReasonLook,
+    roomForMenu: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = backgroundOf(look)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column {
+            photo?.let { ReasonPhotoImage(reasons, it) }
+            if (text.isNotEmpty()) {
+                ReasonText(
+                    text,
+                    style = styleOf(look, ReasonPlace.Board),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (roomForMenu) 40.dp else 16.dp, vertical = if (photo == null) 20.dp else 12.dp),
+                )
             }
         }
     }

@@ -152,6 +152,7 @@ import de.emilyshub.ui.todos.TodosScreen
 import de.emilyshub.ui.tracking.HealthRationaleScreen
 import de.emilyshub.ui.tracking.TrackingArea
 import de.emilyshub.ui.tracking.TrackingMenu
+import de.emilyshub.ui.warum.FontLicensesScreen
 import de.emilyshub.ui.warum.ReasonEditorScreen
 import de.emilyshub.ui.warum.ReasonEditorTarget
 import de.emilyshub.ui.warum.ReasonViewerScreen
@@ -390,7 +391,8 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
                 )
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
-                is Destination.ReasonEditor -> ReasonEditorScreen(hub.reasons, top.target, onClose = back)
+                is Destination.ReasonEditor -> ReasonEditorScreen(hub.reasons, top.target, onClose = back, onOpenLicenses = { open(Destination.FontLicenses) })
+                Destination.FontLicenses -> FontLicensesScreen(onBack = back)
                 is Destination.ReasonViewer -> ReasonViewerScreen(hub.reasons, top.reasonId, onBack = back)
                 Destination.LanguageList ->
                     LanguageListScreen(hub.languages, hub.speech, onOpen = { open(Destination.LanguagePage(it)) }, onBack = back)

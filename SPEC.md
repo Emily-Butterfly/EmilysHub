@@ -773,11 +773,11 @@ Ein **Grund** ist ein Eintrag auf dem Board:
 |---|---|
 | Foto | Optional: aus der Galerie oder mit „Foto aufnehmen“ über die Kamera-App des Handys, ohne Kamera-Berechtigung wie bei den Sessions (§15); auf höchstens 2000 px an der langen Kante verkleinert, verschlüsselt gespeichert. Höchstens 100 Gründe mit Foto |
 | Text | Optional, schlicht, bis 500 Zeichen; bei einem Foto als Streifen darunter |
-| Schrift | Eine von acht in der App mitgebrachten Schriften (frei lizenziert, SIL Open Font License): Standard, eine Serifenschrift, eine runde, zwei Handschriften (locker und schönschriftlich), eine kräftige Plakatschrift, eine schmale elegante, eine Schreibmaschinenschrift; in klein, mittel oder groß. Zeichen, die sie nicht hat (etwa arabische), zeigt eine passende Schrift des Handys |
+| Schrift | Eine von acht Schriften: Standard, die des Designs der App, und sieben in der App mitgebrachte (frei lizenziert, SIL Open Font License; ihre Lizenzen im Editor unter „Lizenzen der Schriften“): Libre Baskerville als Serifenschrift, Varela Round als runde, Patrick Hand und Great Vibes als Handschriften (locker und schönschriftlich), Anton als kräftige Plakatschrift, Cormorant Garamond als schmale elegante, Courier Prime als Schreibmaschinenschrift; in klein, mittel oder groß. Zeichen, die sie nicht hat (etwa arabische), zeigt eine passende Schrift des Handys |
 | Farben | Hintergrund und Schrift aus derselben Palette von 35 Farben: sieben Farbtöne (Rot, Orange, Gelb, Grün, Türkis, Blau, Lila) in je vier Stufen von zart bis kräftig und sieben Neutrale (Weiß, Creme, Sand, drei Grautöne, Schwarz); dazu „Standard“, das dem Design der App folgt. Gewählte Farben bleiben in hellem und dunklem Design gleich |
 
 - Ein Grund braucht einen Text oder ein Foto; ganz leer wird er nicht gespeichert.
-- Der Text steht immer mittig, von rechts nach links, wenn er so beginnt. Haben Schrift und Hintergrund zu wenig Kontrast, sagt der Editor „Schwer zu lesen“, erlaubt es aber.
+- Der Text steht immer mittig, von rechts nach links, wenn er so beginnt. Haben Schrift und Hintergrund zu wenig Kontrast (weniger als 3:1, wie WCAG es für großen Text verlangt, in dem Design, das die App gerade zeigt), sagt der Editor „Schwer zu lesen“, erlaubt es aber. Der Editor zeigt den Grund beim Wählen so, wie er auf dem Board steht.
 
 ### Board
 
