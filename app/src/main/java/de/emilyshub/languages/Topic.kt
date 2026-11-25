@@ -206,4 +206,7 @@ sealed interface CardSelection : Serializable {
     data class OfTopic(val topicId: Long) : CardSelection
 
     data class OfExam(val examId: Long) : CardSelection
+
+    /** The ways of the language's cards not known today: their last answer today was "Nochmal" (#166; [Missed]). */
+    data object Missed : CardSelection
 }

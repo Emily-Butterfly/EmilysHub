@@ -267,6 +267,7 @@ Ein Board mit den Gründen, weiterzuleben (SPEC.md §18), am 24.11.2026 mit der 
 | 141 | [Vokabeltrainer: Karten in beide Richtungen abfragen](141-vokabeln-beide-richtungen.md) | 🤖 | – |
 | 159 | [To-dos: „Am Wochenende“ gilt Samstag und Sonntag](159-todos-wochenende.md) | 🤖 | – |
 | 165 | [Vokabeltrainer: Vokabeldatei abgleichen](165-vokabeln-vokabeldatei-abgleichen.md) | 🤖 | – |
+| 166 | [Vokabeltrainer: nicht gewusste Karten nach Verlassen weiter üben](166-vokabeln-nicht-gewusste-ueben.md) | 🤖 | – |
 
 ## Ohne Ticket
 

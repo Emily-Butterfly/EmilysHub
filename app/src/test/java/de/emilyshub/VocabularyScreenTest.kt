@@ -200,6 +200,44 @@ class VocabularyScreenTest {
     }
 
     @Test
+    fun `a card not known when the practice was left is practised again from the tab Karten and the start page until known`() {
+        val arabic = language("Arabisch")
+        card(arabic, "كتاب", "Buch")
+        card(arabic, "قلم", "Stift")
+
+        launchApp().use {
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNode(hasText("Üben") and hasClickAction()).performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Nochmal").performClick()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+            // The one not known comes again; left before it is known.
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Zurück").performClick()
+
+            compose.onNodeWithText("Für heute geschafft").assertIsDisplayed()
+            compose.onNodeWithText("Nicht gewusste üben (1)").performClick()
+            compose.onNodeWithText("1 von 1").assertIsDisplayed()
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Nochmal").performClick()
+            // Not known again, it comes again in the round.
+            compose.onNodeWithText("كتاب").assertIsDisplayed()
+            compose.onNodeWithText("Aufdecken").performClick()
+            compose.onNodeWithText("Gut").performClick()
+
+            compose.onNodeWithText("Nicht gewusste geübt: 1 Karte").assertIsDisplayed()
+            compose.onNodeWithText("gewusst ·", substring = true).assertDoesNotExist()
+            compose.onNode(hasText("Zurück") and hasClickAction()).performClick()
+            compose.onNodeWithText("Für heute geschafft").assertIsDisplayed()
+            compose.onNodeWithText("Nicht gewusste üben", substring = true).assertDoesNotExist()
+        }
+        assertEquals("the day's workload stays done", true, runBlocking { app.flashcards.workloads.of(arabic, LocalDate.now(app.clock)).first() }?.done)
+    }
+
+    @Test
     fun `the day's workload done, the other language with the most open is practised next in its place`() {
         val arabic = language("Arabisch")
         val italian = language("Italienisch")

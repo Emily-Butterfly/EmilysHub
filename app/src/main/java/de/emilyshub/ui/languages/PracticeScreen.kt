@@ -74,6 +74,7 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardSelection
+import de.emilyshub.languages.Missed
 import de.emilyshub.languages.ExampleSentence
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.PracticeRound
@@ -108,6 +109,9 @@ import kotlin.math.roundToInt
  * Italienisch (12)", which [onPractiseNext] practises in its place (#147).
  * With a voice of the phone chosen for the language, a loudspeaker reads its side aloud when pressed (#157).
  * Chosen for the language, the answer is typed rather than uncovered (#153), the same in a topic or exam practised.
+ * With [CardSelection.Missed], it asks the ways not known today, those whose last answer today was "Nochmal", until each
+ * is known, and ends with "Nicht gewusste geübt" (#166); after the day's workload, with any of them still not known,
+ * "Nicht gewusste üben (4)" practises them in its place ([onPractiseMissed]).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
@@ -120,11 +124,15 @@ fun PracticeScreen(
     onEditCard: (cardId: Long) -> Unit,
     onPractiseNext: (languageId: Long) -> Unit,
     selection: CardSelection? = null,
+    onPractiseMissed: () -> Unit = {},
 ) {
     val state by remember(flashcards, day, languageId, selection) {
         day.dates().flatMapLatest { today ->
             if (selection == null) {
                 flashcards.workloads.of(languageId, today).map { it?.let(::Practising) }
+            } else if (selection == CardSelection.Missed) {
+                // None not known any more is a round done, not a language gone.
+                flashcards.missed(today).map { PractisingMissed(it[languageId] ?: Missed(emptyList(), emptySet())) }
             } else {
                 flashcards.practice(selection, today).map { it?.let(::PractisingSelection) }
             }
@@ -148,6 +156,7 @@ fun PracticeScreen(
         workload = (shown as? Practising)?.workload,
         selected = (shown as? PractisingSelection)?.cards,
         today = day.today(),
+        missed = (shown as? PractisingMissed)?.missed,
     )
     // A card taken back is the round's again once the cards have it again, or no more once it is gone.
     val settled = workload?.let(practice::settledBy)
@@ -198,6 +207,7 @@ fun PracticeScreen(
                     null -> R.plurals.practice_done
                     is CardSelection.OfTopic -> R.plurals.practice_topic_done
                     is CardSelection.OfExam -> R.plurals.practice_exam_done
+                    CardSelection.Missed -> R.plurals.practice_missed_done
                 }
                 Text(
                     pluralStringResource(done, workload.doneToday.size, workload.doneToday.size),
@@ -207,7 +217,8 @@ fun PracticeScreen(
                 val asked = workload.doneToday.map { it.key }
                 val today = day.today()
                 val balance by produceState<RoundBalance?>(null, flashcards, asked, today) { value = flashcards.balance(asked, today) }
-                balance?.takeIf { it.known + it.again > 0 }?.let {
+                // Of the ways not known today, each first answer today was "Nochmal": no balance to tell.
+                balance?.takeIf { it.known + it.again > 0 && selection != CardSelection.Missed }?.let {
                     Text(
                         stringResource(R.string.practice_balance, it.known, it.again),
                         style = MaterialTheme.typography.titleMedium,
@@ -220,12 +231,21 @@ fun PracticeScreen(
                     if (selection != null) flowOf(null) else day.dates().flatMapLatest { flashcards.workloads.next(languageId, it) }
                 }.collectAsState(initial = null)
                 val other = next
+                // After the day's workload, those left not known today, to practise before the next language.
+                val missed by remember(flashcards, day, languageId, selection) {
+                    if (selection != null) flowOf(0) else day.dates().flatMapLatest { flashcards.missed(it) }.map { it[languageId]?.open?.size ?: 0 }
+                }.collectAsState(initial = 0)
+                if (missed > 0) {
+                    Button(onClick = onPractiseMissed) { Text(stringResource(R.string.practice_missed, missed)) }
+                }
                 if (other != null) {
-                    Button(onClick = { onPractiseNext(other.id) }) { Text(stringResource(R.string.practice_next, other.name, other.open)) }
+                    val label: @Composable () -> Unit = { Text(stringResource(R.string.practice_next, other.name, other.open)) }
+                    // Below those not known, the next language is the lesser way.
+                    if (missed > 0) OutlinedButton(onClick = { onPractiseNext(other.id) }, content = { label() }) else Button(onClick = { onPractiseNext(other.id) }, content = { label() })
                 }
                 // Below the next language, back is the lesser way.
                 val back: @Composable () -> Unit = { Text(stringResource(R.string.practice_back)) }
-                if (other != null) OutlinedButton(onClick = onBack, content = { back() }) else Button(onClick = onBack, content = { back() })
+                if (other != null || missed > 0) OutlinedButton(onClick = onBack, content = { back() }) else Button(onClick = onBack, content = { back() })
             }
             return@Scaffold
         }
@@ -586,3 +606,6 @@ private data class Practising(val workload: Workload) : PracticeState
 
 /** A topic or exam practised (#107, #148): all its [cards], the ways they are asked, in their order. */
 private data class PractisingSelection(val cards: List<Prompt>) : PracticeState
+
+/** The ways not known today practised (#166): [missed], those answered "Nochmal" today and which of them are so still. */
+private data class PractisingMissed(val missed: Missed) : PracticeState

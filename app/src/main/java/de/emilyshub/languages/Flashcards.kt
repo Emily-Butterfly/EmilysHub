@@ -124,10 +124,40 @@ data class Workload(val remaining: List<Prompt>, val doneToday: List<Prompt>, va
          * once, again only after "Nochmal", and a round taken up again goes on where it was; of a card asked both ways,
          * one way a day (#141).
          */
+        /**
+         * The ways not known today practised (#166): those of [missed] still open, each once, again only after "Nochmal";
+         * the others, known since, or in the [round] already, done.
+         */
+        fun ofMissed(missed: Missed, round: Round): Workload {
+            val asked = round.asked.toSet() + missed.cards.map { it.key }.filter { it !in missed.open }
+            return Workload(missed.cards.filter { it.key !in asked }, missed.cards.filter { it.key in asked })
+        }
+
         fun ofSelection(cards: List<Prompt>, round: Round, today: LocalDate): Workload {
             val asked = round.asked.toSet() + cards.filter { it.lastReview == today }.map { it.key }
             val busy = cards.filter { it.key in asked }.map { it.id }.toMutableSet()
             return Workload(cards.filter { it.key !in asked && busy.add(it.id) }, cards.filter { it.key in asked })
+        }
+    }
+}
+
+/**
+ * The ways of a language's cards not known today (SPEC.md §15; #166): [cards], all answered "Nochmal" at some time
+ * today, in the order first answered so; of them those whose last answer today is "Nochmal" still, [open]. To practise
+ * after the day's workload, once it was left with some of them not known yet.
+ */
+data class Missed(val cards: List<Prompt>, val open: Set<PromptKey>) {
+    companion object {
+        /** Of [cards] and the [reviews] given on [today] in [zone], the ways not known today, by language. */
+        fun of(cards: List<Card>, reviews: List<CardReview>, today: LocalDate, zone: ZoneId): Map<Long, Missed> {
+            val todays = reviews.filter { it.at.atZone(zone).toLocalDate() == today }.sortedWith(compareBy({ it.at }, { it.id }))
+            val again = todays.filter { it.grade == Rating.Again.grade }.map { PromptKey(it.cardId, it.reverse) }.distinct()
+            val last = todays.associateBy { PromptKey(it.cardId, it.reverse) }
+            val open = again.filter { last[it]?.grade == Rating.Again.grade }.toSet()
+            val prompts = cards.flatMap { it.prompts }.associateBy { it.key }
+            return again.mapNotNull { prompts[it] }
+                .groupBy { it.card.languageId }
+                .mapValues { (_, ways) -> Missed(ways, open.filterTo(mutableSetOf()) { key -> ways.any { it.key == key } }) }
         }
     }
 }
@@ -310,6 +340,8 @@ class Flashcards(
                 is CardSelection.OfTopic -> topics.find { it.id == selection.topicId }?.let { it.languageId to setOf(it.id) }
                 is CardSelection.OfExam -> exams.find { it.id == selection.examId }
                     ?.let { exam -> exam.languageId to topics.filter { it.examId == exam.id }.map { it.id }.toSet() }
+                // Practised from [missed], which knows the answers of the day.
+                CardSelection.Missed -> null
             } ?: return@combine null
             all.find { it.id == languageId }?.takeIf { !it.archived } ?: return@combine null
             val own = cards.filter { it.topicId in topicIds }.flatMap { it.prompts }
@@ -318,6 +350,19 @@ class Flashcards(
             due.sortedWith(Prompt.BY_DUE) + new.sortedWith(Prompt.BY_MADE) + later.sortedWith(Prompt.BY_DUE)
         }
         emitAll(practice)
+    }.flowOn(io)
+
+    /**
+     * The ways not known on [today] (SPEC.md §15; #166) of each language not archived that has any, as they change:
+     * answered "Nochmal" today, and of them those not known since.
+     */
+    fun missed(today: LocalDate): Flow<Map<Long, Missed>> = flow {
+        val since = today.atStartOfDay(clock.zone).toInstant()
+        val missed = combine(languages.observeLanguages(), dao.observeAll(), dao.observeReviewsSince(since)) { all, cards, reviews ->
+            val open = all.filterNot { it.archived }.map { it.id }.toSet()
+            Missed.of(cards.filter { it.languageId in open }, reviews, today, clock.zone)
+        }
+        emitAll(missed.distinctUntilChanged())
     }.flowOn(io)
 
     /**

@@ -162,7 +162,10 @@ fun LanguagePageScreen(
                     focusExam = examId,
                     archived = loaded.language.archived,
                 )
-                CARDS_TAB -> CardsTabContent(flashcards, day, languageId, cardsTopic, onTopicFilterChange = { cardsTopic = it }, onOpenCard, onPractice)
+                CARDS_TAB -> CardsTabContent(
+                    flashcards, day, languageId, cardsTopic, onTopicFilterChange = { cardsTopic = it }, onOpenCard, onPractice,
+                    onPractiseMissed = { onPractiseSelection(CardSelection.Missed) },
+                )
                 else -> EvaluationTab(loaded, summary)
             }
         }

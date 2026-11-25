@@ -27,10 +27,13 @@ data class PracticeRound(
 
     /**
      * What the round asks as it stands on [today]: the language's Tagespensum ([workload]) as it is; or, of a selection,
-     * its [selected] cards, each once, again only after "Nochmal" (#107).
+     * its [selected] cards, each once, again only after "Nochmal" (#107); or the ways not known today ([missed]; #166).
      */
-    fun cards(workload: Workload?, selected: List<Prompt>?, today: LocalDate): Workload? =
-        if (selection == null) workload else selected?.let { Workload.ofSelection(it, round, today) }
+    fun cards(workload: Workload?, selected: List<Prompt>?, today: LocalDate, missed: Missed? = null): Workload? = when (selection) {
+        null -> workload
+        CardSelection.Missed -> missed?.let { Workload.ofMissed(it, round) }
+        else -> selected?.let { Workload.ofSelection(it, round, today) }
+    }
 
     /** The card shown of [cards], the way it is asked: one on its way, else the round's next; none once all are done. */
     fun shown(cards: Workload): Prompt? = onItsWay?.prompt ?: round.current(cards)

@@ -1589,6 +1589,11 @@
     <string name="practice_take_back">Letzte Antwort zurücknehmen</string>
     <string name="practice_balance">%1$d gewusst · %2$d Nochmal</string>
     <string name="practice_next">Weiter mit %1$s (%2$d)</string>
+    <string name="practice_missed">Nicht gewusste üben (%d)</string>
+    <plurals name="practice_missed_done">
+        <item quantity="one">Nicht gewusste geübt: %d Karte</item>
+        <item quantity="other">Nicht gewusste geübt: %d Karten</item>
+    </plurals>
 
     <!-- Karten anlegen aus Notiz und Datei (SPEC.md §15, #105) -->
     <string name="cards_from_note">Karten aus der Notiz</string>

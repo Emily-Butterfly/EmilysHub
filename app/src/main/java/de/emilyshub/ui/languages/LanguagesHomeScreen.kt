@@ -69,9 +69,11 @@ fun LanguagesHomeScreen(
     onOpenLanguage: (Long) -> Unit,
     onPractice: (Long) -> Unit,
     onCreateLesson: () -> Unit,
+    onPractiseMissed: (Long) -> Unit = {},
 ) {
     val overview by remember(languages) { languages.overview() }.collectAsState(initial = null)
     val workloads by remember(flashcards, day) { day.dates().flatMapLatest(flashcards.workloads::all) }.collectAsState(initial = emptyMap())
+    val missed by remember(flashcards, day) { day.dates().flatMapLatest(flashcards::missed) }.collectAsState(initial = emptyMap())
     Box(
         Modifier
             .fillMaxSize()
@@ -91,6 +93,7 @@ fun LanguagesHomeScreen(
                     PeriodsCard(
                         card.language.name, card.periods, card.nextExam, onClick = { onOpenLanguage(card.language.id) },
                         workload = workloads[card.language.id], onPractice = { onPractice(card.language.id) },
+                        missed = missed[card.language.id]?.open?.size ?: 0, onPractiseMissed = { onPractiseMissed(card.language.id) },
                     )
                 }
             }
@@ -118,6 +121,8 @@ private fun PeriodsCard(
     onClick: (() -> Unit)?,
     workload: Workload? = null,
     onPractice: () -> Unit = {},
+    missed: Int = 0,
+    onPractiseMissed: () -> Unit = {},
 ) {
     val content: @Composable () -> Unit = {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -130,7 +135,7 @@ private fun PeriodsCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            workload?.let { WorkloadLine(it, onPractice) }
+            workload?.let { WorkloadLine(it, onPractice, missed = missed, onPractiseMissed = onPractiseMissed) }
         }
     }
     if (onClick == null) {
@@ -146,14 +151,24 @@ private fun PeriodsCard(
 
 /**
  * How many cards are due today and how many new ones, apart, as new ones take longer (#143), with "Üben", or that
- * today's are done: on the start page and atop the tab Karten. Under a limit, what waits beyond it (#156), when there
+ * today's are done, then with "Nicht gewusste üben (4)" for the ways [missed] today, if any (#166): on the start page and atop the tab Karten. Under a limit, what waits beyond it (#156), when there
  * are no new ones.
  */
 @Composable
-internal fun WorkloadLine(workload: Workload, onPractice: () -> Unit, modifier: Modifier = Modifier) {
+internal fun WorkloadLine(
+    workload: Workload,
+    onPractice: () -> Unit,
+    modifier: Modifier = Modifier,
+    missed: Int = 0,
+    onPractiseMissed: () -> Unit = {},
+) {
     if (workload.done) {
         val done = if (workload.waiting > 0) stringResource(R.string.cards_done_today_waiting, workload.waiting) else stringResource(R.string.cards_done_today)
-        Text(done, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
+        Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(done, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            // Those not known today, once the day's are done, to practise until known (#166).
+            if (missed > 0) FilledTonalButton(onClick = onPractiseMissed) { Text(stringResource(R.string.practice_missed, missed)) }
+        }
         return
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -62,6 +62,7 @@ import de.emilyshub.backup.Backups
 import de.emilyshub.data.Design
 import de.emilyshub.data.Settings
 import de.emilyshub.data.Unopenable
+import de.emilyshub.languages.CardSelection
 import de.emilyshub.ledger.Ledger
 import de.emilyshub.ledger.Subscriptions
 import de.emilyshub.notes.Notes
@@ -390,6 +391,7 @@ private fun AppShell(hub: Hub, settings: Settings, opening: Opening?, onOpened: 
                     hub.flashcards, hub.speech, hub.day, top.languageId, onBack = back, selection = top.selection,
                     onEditCard = { open(Destination.CardEditor(CardEditorTarget.Edit(it))) },
                     onPractiseNext = { stack = stack.replaceTop(Destination.Practice(it)) },
+                    onPractiseMissed = { stack = stack.replaceTop(Destination.Practice(top.languageId, CardSelection.Missed)) },
                 )
                 is Destination.AttachmentViewer -> AttachmentViewerScreen(hub.lessonFiles, top.attachment, onBack = back)
                 is Destination.ReasonEditor -> ReasonEditorScreen(hub.reasons, top.target, onClose = back, onOpenLicenses = { open(Destination.FontLicenses) })
@@ -718,6 +720,7 @@ private fun TopLevelScaffold(
                     onOpenLanguage = { open(Destination.LanguagePage(it)) },
                     onPractice = { open(Destination.Practice(it)) },
                     onCreateLesson = { open(Destination.LessonEditor(LessonEditorTarget.New())) },
+                    onPractiseMissed = { open(Destination.Practice(it, CardSelection.Missed)) },
                 )
                 MoreEntry.Doku -> DokuArea(
                     hub = hub,

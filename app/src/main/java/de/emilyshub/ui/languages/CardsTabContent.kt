@@ -59,12 +59,12 @@ import de.emilyshub.R
 import de.emilyshub.data.InputText
 import de.emilyshub.languages.Answering
 import de.emilyshub.languages.CardFile
-import de.emilyshub.languages.VocabFile
 import de.emilyshub.languages.CardRow
 import de.emilyshub.languages.CardsTab
 import de.emilyshub.languages.DailyLimits
 import de.emilyshub.languages.Flashcards
 import de.emilyshub.languages.Language
+import de.emilyshub.languages.VocabFile
 import de.emilyshub.ui.ChoiceChip
 import de.emilyshub.ui.DirectedBy
 import de.emilyshub.ui.PlaceholderScreen
@@ -73,6 +73,7 @@ import de.emilyshub.ui.numericDate
 import de.emilyshub.ui.plusFabSpace
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -97,11 +98,15 @@ internal fun CardsTabContent(
     onTopicFilterChange: (Long?) -> Unit,
     onOpenCard: (Long) -> Unit,
     onPractice: () -> Unit,
+    onPractiseMissed: () -> Unit = {},
 ) {
     val tab by remember(flashcards, languageId) { flashcards.tab(languageId) }.collectAsState(initial = null)
     val today by remember(day) { day.dates() }.collectAsState(initial = day.today())
     val workload by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.workloads.of(languageId, it) } }
         .collectAsState(initial = null)
+    // The ways not known today, to practise once the day's are done (#166).
+    val missed by remember(flashcards, day, languageId) { day.dates().flatMapLatest { flashcards.missed(it) }.map { it[languageId]?.open?.size ?: 0 } }
+        .collectAsState(initial = 0)
     var query by rememberSaveable { mutableStateOf("") }
     // Only the cards that hakt (#149), in the place of a topic.
     var stuckOnly by rememberSaveable { mutableStateOf(false) }
@@ -192,6 +197,8 @@ internal fun CardsTabContent(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
+                    missed = missed,
+                    onPractiseMissed = onPractiseMissed,
                 )
             }
         }
