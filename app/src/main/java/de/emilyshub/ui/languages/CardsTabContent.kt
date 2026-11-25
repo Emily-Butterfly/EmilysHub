@@ -112,11 +112,19 @@ internal fun CardsTabContent(
     // A file picked and read, to look at before its cards are made; not kept past the screen.
     var picked by remember { mutableStateOf<CardFile?>(null) }
     val scope = rememberCoroutineScope()
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launchNow { picked = flashcards.readFile(uri.toString()) }
-    }
     // A Vokabeldatei picked and read, to look at before it is taken over (#165); not kept past the screen.
     var pickedVocabs by remember { mutableStateOf<VocabFile?>(null) }
+    // A file of cards; one that holds a Vokabeldatei is taken for one, so that either way to pick it leads there.
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launchNow {
+                when (val vocabs = flashcards.readVocabFile(uri.toString())) {
+                    VocabFile.NotVocabFile -> picked = flashcards.readFile(uri.toString())
+                    else -> pickedVocabs = vocabs
+                }
+            }
+        }
+    }
     val pickVocabs = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launchNow { pickedVocabs = flashcards.readVocabFile(uri.toString()) }
     }
@@ -169,9 +177,9 @@ internal fun CardsTabContent(
                     onSetNew = { settingNew = true },
                     onSetLimit = { settingLimit = true },
                     onSetAnswering = { settingAnswering = true },
-                    onImport = { pick.launch(arrayOf("text/*")) },
+                    onImport = { pick.launch(CARD_FILE_TYPES) },
                     // Known by what it holds, not its name: "vokabeln.json.txt" reads as one too.
-                    onSyncVocabs = { pickVocabs.launch(arrayOf("*/*")) },
+                    onSyncVocabs = { pickVocabs.launch(VOCAB_FILE_TYPES) },
                 )
             }
         }
@@ -492,3 +500,12 @@ private fun NewPerDayDialog(current: Int, onConfirm: (Int) -> Unit, onDismiss: (
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+/** What the file dialog offers for a file of cards: text, and JSON as a Vokabeldatei is one (#165). */
+private val CARD_FILE_TYPES = arrayOf("text/*", "application/json", "application/octet-stream")
+
+/**
+ * What the file dialog offers for a Vokabeldatei (#165): JSON, text ("vokabeln.json.txt") and files of a type unknown,
+ * and all else besides; what it holds tells whether it is one.
+ */
+private val VOCAB_FILE_TYPES = arrayOf("application/json", "text/*", "application/octet-stream", "*/*")

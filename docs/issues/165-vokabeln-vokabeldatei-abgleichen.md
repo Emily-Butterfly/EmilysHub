@@ -56,3 +56,4 @@ Beim Bauen festgelegt (24.11.2026), nicht einzeln bestätigt:
 - Bekommt eine Vokabel nur eine `id` (sonst unverändert), zählt sie als geändert („nur neu verknüpft“), damit die `id` gespeichert wird.
 - Der Dateiwähler zeigt alle Dateien (`*/*`); ob es eine Vokabeldatei ist, entscheidet ihr Inhalt.
 - Eine Vorderseite gilt als vergeben, solange irgendeine Karte sie vor dem Abgleich hatte, auch wenn deren Vokabel sie im selben Abgleich ändert.
+- Nachgebessert am 25.11.2026: Der Dateiwähler bietet JSON ausdrücklich an (`application/json`, Text, unbekannte Typen und alle anderen). Auch „Karten importieren“ bietet JSON an; ist die gewählte Datei eine Vokabeldatei, öffnet sich der Abgleich statt des Imports.

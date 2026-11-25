@@ -296,6 +296,35 @@ class VocabularyScreenTest {
     }
 
     @Test
+    fun `a Vokabeldatei, JSON, is offered and taken over from either menu item, after a preview`() {
+        val arabic = language("Arabisch")
+        val json = """{"vokabeln": [{"ar_unvokalisiert": "قهوة", "ar_vokalisiert": "قَهْوَةٌ", "bedeutung": "der Kaffee", "kategorie": "Essen"}]}"""
+        val file = app.lessonDocuments.put("vokabeln.json", json.toByteArray())
+
+        launchApp().use { scenario ->
+            openLanguage("Arabisch")
+            tab("Karten").performClick()
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Karten importieren").performClick()
+            val request = scenario.pickFile(Uri.parse(file))
+            assertTrue("JSON is offered", "application/json" in request.getStringArrayExtra(Intent.EXTRA_MIME_TYPES).orEmpty())
+            compose.onNodeWithText("1 neu · 0 geändert · 0 unverändert").assertIsDisplayed()
+            compose.onNodeWithText("Abbrechen").performClick()
+
+            compose.onNodeWithContentDescription("Mehr zu den Karten").performClick()
+            compose.onNodeWithText("Vokabeldatei abgleichen").performClick()
+            val again = scenario.pickFile(Uri.parse(file))
+            assertTrue("JSON is offered", "application/json" in again.getStringArrayExtra(Intent.EXTRA_MIME_TYPES).orEmpty())
+            compose.onNodeWithText("Übernehmen").performClick()
+            compose.waitForIdle()
+            assertEquals("Angelegt: 1 · geändert: 0", ShadowToast.getTextOfLatestToast())
+            compose.onNodeWithText("قَهْوَةٌ").assertIsDisplayed()
+        }
+        val card = runBlocking { app.testDatabase.cards().of(arabic) }.single()
+        assertEquals("قهوة" to true, card.vocabKey to card.bothWays)
+    }
+
+    @Test
     fun `a routine is done by the cards of a language chosen in its editor, under Mehr Optionen`() {
         val arabic = language("Arabisch")
 
