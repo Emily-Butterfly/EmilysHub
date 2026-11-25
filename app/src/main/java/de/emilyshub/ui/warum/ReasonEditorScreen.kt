@@ -1,6 +1,7 @@
 package de.emilyshub.ui.warum
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -291,7 +292,8 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
         }
     }
 
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    // Android's photo picker, which shows the phone's photos and albums, not the file dialog, whose side bar has no gallery.
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         note = PhotoNote.Busy
         scope.launchNow { shown(reasons.importPhoto(uri.toString(), reasonId)) }
@@ -306,7 +308,7 @@ private fun ReasonPhotoField(reasons: Reasons, reasonId: Long?, photo: String?, 
         photo?.let { ReasonPhotoImage(reasons, it, Modifier.heightIn(max = PHOTO_MAX_HEIGHT.dp)) }
         val limited = allowed == false && photo == null
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { gallery.launch(arrayOf("image/*")) }, enabled = allowed != null && !limited) {
+            OutlinedButton(onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = allowed != null && !limited) {
                 Text(stringResource(R.string.reason_photo_choose))
             }
             OutlinedButton(onClick = { if (!camera.take()) note = PhotoNote.NoCamera }, enabled = allowed != null && !limited) {

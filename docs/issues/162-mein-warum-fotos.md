@@ -30,3 +30,5 @@ Gründe mit Foto: ein Foto allein oder mit Text als Streifen darunter.
 ## Entscheidungen
 
 Am 24.11.2026 mit der Nutzerin abgestimmt (SPEC.md §18, Entscheidungen).
+
+Nachgebessert am 25.11.2026: „Foto wählen“ öffnet Androids Foto-Auswahl (`PickVisualMedia`) statt des Datei-Dialogs, dessen Leiste links keine Galerie anbietet. Die Foto-Auswahl zeigt die Fotos und Alben des Handys und braucht keine Berechtigung.

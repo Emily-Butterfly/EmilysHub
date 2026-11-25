@@ -240,7 +240,9 @@ class MeinWarumScreenTest {
             openWarum()
             compose.onNode(hasText("Ersten Grund hinzufügen") and hasClickAction()).performClick()
             compose.onNode(hasText("Foto wählen") and hasClickAction()).performClick()
-            assertEquals(listOf("image/*"), scenario.pickFile(Uri.parse(sea)).getStringArrayExtra(Intent.EXTRA_MIME_TYPES)?.toList())
+            // Android's photo picker, with the phone's photos and albums, not the file dialog.
+            val request = scenario.pickFile(Uri.parse(sea))
+            assertEquals(MediaStore.ACTION_PICK_IMAGES to "image/*", request.action to request.type)
             compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Foto").fetchSemanticsNodes().isNotEmpty() }
             compose.onNode(hasText("Foto entfernen") and hasClickAction()).assertIsDisplayed()
             compose.onNode(hasSetTextAction()).performTextInput("Das Meer")
